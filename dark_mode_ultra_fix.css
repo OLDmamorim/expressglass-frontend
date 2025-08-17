@@ -1,5 +1,5 @@
-/* ===== MODO ESCURO ULTRA-ESPECÍFICO - EXPRESSGLASS ===== */
-/* CSS com máxima especificidade para sobrepor todos os estilos existentes */
+/* ===== MODO ESCURO COMPLETO - EXPRESSGLASS ===== */
+/* Versão definitiva com todas as correções */
 
 /* FORÇAR MODO ESCURO NO CALENDÁRIO - MÁXIMA ESPECIFICIDADE */
 html[data-theme="dark"] body .main-content .calendar-container {
@@ -67,49 +67,105 @@ html[data-theme="dark"] body .main-content .services-container .services-table t
   background-color: #374151 !important;
 }
 
-/* FORÇAR TODOS OS ELEMENTOS BRANCOS PARA ESCURO */
-html[data-theme="dark"] *[style*="background-color: white"],
-html[data-theme="dark"] *[style*="background: white"],
-html[data-theme="dark"] *[style*="background-color:#ffffff"],
-html[data-theme="dark"] *[style*="background:#ffffff"],
-html[data-theme="dark"] *[style*="background-color: #ffffff"],
-html[data-theme="dark"] *[style*="background: #ffffff"] {
-  background-color: #1f2937 !important;
+/* TÍTULO "SERVIÇOS A REALIZAR" E CABEÇALHOS */
+html[data-theme="dark"] .services-container h1,
+html[data-theme="dark"] .services-container h2,
+html[data-theme="dark"] .services-container h3,
+html[data-theme="dark"] .services-container h4,
+html[data-theme="dark"] .services-container .section-title,
+html[data-theme="dark"] .services-container .services-title {
+  color: #f9fafb !important;
+  background-color: transparent !important;
+}
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6 {
   color: #f9fafb !important;
 }
 
-html[data-theme="dark"] *[style*="color: black"],
-html[data-theme="dark"] *[style*="color:#000000"],
-html[data-theme="dark"] *[style*="color: #000000"],
-html[data-theme="dark"] *[style*="color:#000"] {
-  color: #f9fafb !important;
-}
-
-/* FORÇAR ELEMENTOS COM CLASSES ESPECÍFICAS */
-html[data-theme="dark"] .calendar,
-html[data-theme="dark"] .calendar *:not(.appointment):not(.appointment *),
-html[data-theme="dark"] .services-table,
-html[data-theme="dark"] .services-table *:not(.appointment):not(.appointment *) {
-  background-color: #1f2937 !important;
-  color: #f9fafb !important;
-  border-color: #4b5563 !important;
-}
-
-/* EXCEÇÕES PARA AGENDAMENTOS (manter cores originais) */
+/* PRESERVAR CORES DOS AGENDAMENTOS - EXCEÇÕES IMPORTANTES */
 html[data-theme="dark"] .appointment {
-  background-color: #374151 !important;
-  border-color: #4b5563 !important;
+  /* NÃO forçar background - manter cores das localidades */
+  background-color: inherit !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .appointment * {
+  /* Manter cores originais dos elementos internos */
+  background-color: inherit !important;
+  color: inherit !important;
 }
 
 html[data-theme="dark"] .appointment .appt-header {
-  color: #f9fafb !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
 }
 
 html[data-theme="dark"] .appointment .appt-sub {
-  color: #d1d5db !important;
+  color: rgba(255, 255, 255, 0.9) !important;
 }
 
-/* BOTÕES E INPUTS */
+html[data-theme="dark"] .appointment .appt-details {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* PRESERVAR CORES DOS BADGES DE STATUS */
+html[data-theme="dark"] .appointment input[type="checkbox"] + label,
+html[data-theme="dark"] .appointment label {
+  color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+/* CHECKBOXES DOS STATUS - Cores específicas */
+html[data-theme="dark"] .appointment input[type="checkbox"] {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+html[data-theme="dark"] .appointment input[type="checkbox"]:checked {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+/* BADGES NA TABELA SERVIÇOS - Cores específicas */
+html[data-theme="dark"] .services-table .badge,
+html[data-theme="dark"] .badge {
+  color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+html[data-theme="dark"] .badge.status-ne,
+html[data-theme="dark"] .services-table .badge.status-ne {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .badge.status-ve,
+html[data-theme="dark"] .services-table .badge.status-ve {
+  background-color: #d97706 !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .badge.status-st,
+html[data-theme="dark"] .services-table .badge.status-st {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+}
+
+/* CHIPS DE LOCALIDADES - Preservar cores originais */
+html[data-theme="dark"] .locality-chip,
+html[data-theme="dark"] .appointment .locality {
+  background-color: inherit !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* BOTÕES E INPUTS GERAIS */
 html[data-theme="dark"] input[type="text"],
 html[data-theme="dark"] input[type="date"],
 html[data-theme="dark"] select,
@@ -136,21 +192,34 @@ html[data-theme="dark"] .btn-secondary:hover {
   background-color: #4b5563 !important;
 }
 
-/* CHECKBOXES */
-html[data-theme="dark"] input[type="checkbox"],
+/* BOTÕES DE AÇÃO NOS AGENDAMENTOS */
+html[data-theme="dark"] .appointment button,
+html[data-theme="dark"] .appointment .btn {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+html[data-theme="dark"] .appointment button:hover,
+html[data-theme="dark"] .appointment .btn:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* CHECKBOXES GERAIS */
+html[data-theme="dark"] input[type="checkbox"]:not(.appointment input[type="checkbox"]),
 html[data-theme="dark"] input[type="radio"] {
   background-color: #374151 !important;
   border-color: #4b5563 !important;
 }
 
-html[data-theme="dark"] input[type="checkbox"]:checked,
+html[data-theme="dark"] input[type="checkbox"]:not(.appointment input[type="checkbox"]):checked,
 html[data-theme="dark"] input[type="radio"]:checked {
   background-color: #3b82f6 !important;
   border-color: #3b82f6 !important;
 }
 
-/* LABELS */
-html[data-theme="dark"] label {
+/* LABELS GERAIS */
+html[data-theme="dark"] label:not(.appointment label) {
   color: #f9fafb !important;
 }
 
@@ -177,24 +246,6 @@ html[data-theme="dark"] .modal-footer {
   border-top-color: #4b5563 !important;
 }
 
-/* BADGES DE STATUS */
-html[data-theme="dark"] .badge {
-  color: white !important;
-  font-weight: bold !important;
-}
-
-html[data-theme="dark"] .badge.status-ne {
-  background-color: #dc2626 !important;
-}
-
-html[data-theme="dark"] .badge.status-ve {
-  background-color: #d97706 !important;
-}
-
-html[data-theme="dark"] .badge.status-st {
-  background-color: #16a34a !important;
-}
-
 /* CONTAINERS PRINCIPAIS */
 html[data-theme="dark"] .main-content {
   background-color: #111827 !important;
@@ -210,6 +261,25 @@ html[data-theme="dark"] .toast {
   background-color: #374151 !important;
   color: #f9fafb !important;
   border-color: #4b5563 !important;
+}
+
+/* BOTÃO EXPORTAR */
+html[data-theme="dark"] .export-btn,
+html[data-theme="dark"] .services-container .btn-success {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+  border-color: #16a34a !important;
+}
+
+html[data-theme="dark"] .export-btn:hover {
+  background-color: #15803d !important;
+}
+
+/* LABELS DOS PERÍODOS (Manhã, Tarde) */
+html[data-theme="dark"] .period-label,
+html[data-theme="dark"] .day-header {
+  color: #f9fafb !important;
+  background-color: #374151 !important;
 }
 
 /* SCROLLBARS */
@@ -233,30 +303,59 @@ html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
 }
 
-/* FORÇA BRUTA - ÚLTIMO RECURSO PARA CALENDÁRIO */
-html[data-theme="dark"] table,
-html[data-theme="dark"] table *,
-html[data-theme="dark"] th,
-html[data-theme="dark"] td {
+/* FORÇA BRUTA PARA TABELAS - MAS COM EXCEÇÕES */
+html[data-theme="dark"] table:not(.appointment table),
+html[data-theme="dark"] table:not(.appointment table) *,
+html[data-theme="dark"] th:not(.appointment th),
+html[data-theme="dark"] td:not(.appointment td) {
   background-color: #1f2937 !important;
   color: #f9fafb !important;
   border-color: #4b5563 !important;
 }
 
-html[data-theme="dark"] thead th {
+html[data-theme="dark"] thead th:not(.appointment thead th) {
   background-color: #374151 !important;
 }
 
-/* SOBREPOR QUALQUER ESTILO INLINE BRANCO - FORÇA MÁXIMA */
-html[data-theme="dark"] *[style] {
+/* FORÇAR ELEMENTOS BRANCOS PARA ESCURO - COM EXCEÇÕES */
+html[data-theme="dark"] *[style*="background-color: white"]:not(.appointment):not(.appointment *),
+html[data-theme="dark"] *[style*="background: white"]:not(.appointment):not(.appointment *),
+html[data-theme="dark"] *[style*="background-color:#ffffff"]:not(.appointment):not(.appointment *),
+html[data-theme="dark"] *[style*="background:#ffffff"]:not(.appointment):not(.appointment *),
+html[data-theme="dark"] *[style*="background-color: #ffffff"]:not(.appointment):not(.appointment *),
+html[data-theme="dark"] *[style*="background: #ffffff"]:not(.appointment):not(.appointment *) {
   background-color: #1f2937 !important;
   color: #f9fafb !important;
 }
 
-/* EXCEÇÕES PARA ELEMENTOS QUE DEVEM MANTER COR */
-html[data-theme="dark"] .appointment[style],
-html[data-theme="dark"] .appointment *[style] {
-  background-color: inherit !important;
-  color: inherit !important;
+html[data-theme="dark"] *[style*="color: black"]:not(.appointment):not(.appointment *),
+html[data-theme="dark"] *[style*="color:#000000"]:not(.appointment):not(.appointment *),
+html[data-theme="dark"] *[style*="color: #000000"]:not(.appointment):not(.appointment *),
+html[data-theme="dark"] *[style*="color:#000"]:not(.appointment):not(.appointment *) {
+  color: #f9fafb !important;
 }
 
+/* FORÇAR ELEMENTOS COM CLASSES ESPECÍFICAS - COM EXCEÇÕES */
+html[data-theme="dark"] .calendar:not(.appointment .calendar),
+html[data-theme="dark"] .calendar *:not(.appointment):not(.appointment *),
+html[data-theme="dark"] .services-table:not(.appointment .services-table),
+html[data-theme="dark"] .services-table *:not(.appointment):not(.appointment *) {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+/* MELHORAR CONTRASTE EM AGENDAMENTOS COM FUNDOS CLAROS */
+html[data-theme="dark"] .appointment[style*="background-color: #f"] .appt-header,
+html[data-theme="dark"] .appointment[style*="background-color: #e"] .appt-header,
+html[data-theme="dark"] .appointment[style*="background-color: #d"] .appt-header,
+html[data-theme="dark"] .appointment[style*="background-color: #c"] .appt-header {
+  color: #1f2937 !important;
+}
+
+html[data-theme="dark"] .appointment[style*="background-color: #f"] .appt-sub,
+html[data-theme="dark"] .appointment[style*="background-color: #e"] .appt-sub,
+html[data-theme="dark"] .appointment[style*="background-color: #d"] .appt-sub,
+html[data-theme="dark"] .appointment[style*="background-color: #c"] .appt-sub {
+  color: rgba(31, 41, 55, 0.8) !important;
+}
