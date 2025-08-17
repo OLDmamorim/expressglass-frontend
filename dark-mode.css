@@ -1,0 +1,211 @@
+/* ===== MODO ESCURO - EXPRESSGLASS PORTAL ===== */
+
+/* Variáveis CSS para temas */
+:root {
+  /* Tema Claro (padrão) */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --text-primary: #1f2937;
+  --text-secondary: #6b7280;
+  --border-color: #e5e7eb;
+  --shadow: rgba(0, 0, 0, 0.1);
+  --header-bg: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  --card-bg: #ffffff;
+  --input-bg: #ffffff;
+  --modal-bg: #ffffff;
+}
+
+/* Tema Escuro */
+[data-theme="dark"] {
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --border-color: #4b5563;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --header-bg: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+  --card-bg: #1f2937;
+  --input-bg: #374151;
+  --modal-bg: #1f2937;
+}
+
+/* Aplicar variáveis aos elementos */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.page-header {
+  background: var(--header-bg);
+}
+
+.main-content {
+  background-color: var(--bg-secondary);
+}
+
+.calendar-container, 
+.unscheduled-container, 
+.services-container {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+  box-shadow: 0 4px 6px var(--shadow);
+}
+
+.calendar table {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+.calendar th, 
+.calendar td {
+  border-color: var(--border-color);
+  background-color: var(--card-bg);
+}
+
+.calendar th {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Agendamentos no modo escuro */
+[data-theme="dark"] .appointment {
+  border-color: var(--border-color);
+  box-shadow: 0 2px 4px var(--shadow);
+}
+
+[data-theme="dark"] .appointment .appt-header {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .appointment .appt-sub {
+  color: var(--text-secondary);
+}
+
+/* Inputs e formulários */
+input, select, textarea {
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Modal */
+.modal-content {
+  background-color: var(--modal-bg);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+/* Botões */
+.btn-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+}
+
+[data-theme="dark"] .btn-primary {
+  background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+}
+
+/* Tabela de serviços */
+.services-table {
+  background-color: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.services-table th {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+.services-table td {
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.services-table tbody tr:hover {
+  background-color: var(--bg-tertiary);
+}
+
+/* Toast notifications */
+[data-theme="dark"] .toast {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+/* Badges e chips */
+[data-theme="dark"] .badge,
+[data-theme="dark"] .chip {
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+/* Botão Dark Mode Toggle */
+.theme-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.theme-toggle:active {
+  transform: translateY(0);
+}
+
+/* Ícones do toggle */
+.theme-icon {
+  font-size: 16px;
+}
+
+/* Animações suaves */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Scrollbar no modo escuro */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* Print styles - manter claro para impressão */
+@media print {
+  * {
+    background-color: white !important;
+    color: black !important;
+    border-color: #ccc !important;
+  }
+}
