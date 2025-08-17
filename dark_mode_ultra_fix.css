@@ -1,0 +1,262 @@
+/* ===== MODO ESCURO ULTRA-ESPECÍFICO - EXPRESSGLASS ===== */
+/* CSS com máxima especificidade para sobrepor todos os estilos existentes */
+
+/* FORÇAR MODO ESCURO NO CALENDÁRIO - MÁXIMA ESPECIFICIDADE */
+html[data-theme="dark"] body .main-content .calendar-container {
+  background-color: #1f2937 !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] body .main-content .calendar-container .calendar {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+html[data-theme="dark"] body .main-content .calendar-container .calendar table {
+  background-color: #1f2937 !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] body .main-content .calendar-container .calendar table thead th {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] body .main-content .calendar-container .calendar table tbody td {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] body .main-content .calendar-container .calendar table tbody td.day-header {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  font-weight: bold !important;
+}
+
+/* FORÇAR MODO ESCURO NA TABELA SERVIÇOS - MÁXIMA ESPECIFICIDADE */
+html[data-theme="dark"] body .main-content .services-container {
+  background-color: #1f2937 !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] body .main-content .services-container .services-table {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+html[data-theme="dark"] body .main-content .services-container .services-table table {
+  background-color: #1f2937 !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] body .main-content .services-container .services-table table thead th {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] body .main-content .services-container .services-table table tbody td {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] body .main-content .services-container .services-table table tbody tr:hover td {
+  background-color: #374151 !important;
+}
+
+/* FORÇAR TODOS OS ELEMENTOS BRANCOS PARA ESCURO */
+html[data-theme="dark"] *[style*="background-color: white"],
+html[data-theme="dark"] *[style*="background: white"],
+html[data-theme="dark"] *[style*="background-color:#ffffff"],
+html[data-theme="dark"] *[style*="background:#ffffff"],
+html[data-theme="dark"] *[style*="background-color: #ffffff"],
+html[data-theme="dark"] *[style*="background: #ffffff"] {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+html[data-theme="dark"] *[style*="color: black"],
+html[data-theme="dark"] *[style*="color:#000000"],
+html[data-theme="dark"] *[style*="color: #000000"],
+html[data-theme="dark"] *[style*="color:#000"] {
+  color: #f9fafb !important;
+}
+
+/* FORÇAR ELEMENTOS COM CLASSES ESPECÍFICAS */
+html[data-theme="dark"] .calendar,
+html[data-theme="dark"] .calendar *:not(.appointment):not(.appointment *),
+html[data-theme="dark"] .services-table,
+html[data-theme="dark"] .services-table *:not(.appointment):not(.appointment *) {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+/* EXCEÇÕES PARA AGENDAMENTOS (manter cores originais) */
+html[data-theme="dark"] .appointment {
+  background-color: #374151 !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] .appointment .appt-header {
+  color: #f9fafb !important;
+}
+
+html[data-theme="dark"] .appointment .appt-sub {
+  color: #d1d5db !important;
+}
+
+/* BOTÕES E INPUTS */
+html[data-theme="dark"] input[type="text"],
+html[data-theme="dark"] input[type="date"],
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] select option {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+}
+
+html[data-theme="dark"] .nav-button,
+html[data-theme="dark"] .btn-secondary {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] .nav-button:hover,
+html[data-theme="dark"] .btn-secondary:hover {
+  background-color: #4b5563 !important;
+}
+
+/* CHECKBOXES */
+html[data-theme="dark"] input[type="checkbox"],
+html[data-theme="dark"] input[type="radio"] {
+  background-color: #374151 !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] input[type="checkbox"]:checked,
+html[data-theme="dark"] input[type="radio"]:checked {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+/* LABELS */
+html[data-theme="dark"] label {
+  color: #f9fafb !important;
+}
+
+/* MODAL */
+html[data-theme="dark"] .modal-content {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] .modal-header {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-bottom-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] .modal-body {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+html[data-theme="dark"] .modal-footer {
+  background-color: #374151 !important;
+  border-top-color: #4b5563 !important;
+}
+
+/* BADGES DE STATUS */
+html[data-theme="dark"] .badge {
+  color: white !important;
+  font-weight: bold !important;
+}
+
+html[data-theme="dark"] .badge.status-ne {
+  background-color: #dc2626 !important;
+}
+
+html[data-theme="dark"] .badge.status-ve {
+  background-color: #d97706 !important;
+}
+
+html[data-theme="dark"] .badge.status-st {
+  background-color: #16a34a !important;
+}
+
+/* CONTAINERS PRINCIPAIS */
+html[data-theme="dark"] .main-content {
+  background-color: #111827 !important;
+}
+
+html[data-theme="dark"] .container {
+  background-color: #111827 !important;
+  color: #f9fafb !important;
+}
+
+/* TOAST NOTIFICATIONS */
+html[data-theme="dark"] .toast {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+/* SCROLLBARS */
+html[data-theme="dark"] ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: #1f2937;
+  border-radius: 6px;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 6px;
+  border: 2px solid #1f2937;
+}
+
+html[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* FORÇA BRUTA - ÚLTIMO RECURSO PARA CALENDÁRIO */
+html[data-theme="dark"] table,
+html[data-theme="dark"] table *,
+html[data-theme="dark"] th,
+html[data-theme="dark"] td {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
+}
+
+html[data-theme="dark"] thead th {
+  background-color: #374151 !important;
+}
+
+/* SOBREPOR QUALQUER ESTILO INLINE BRANCO - FORÇA MÁXIMA */
+html[data-theme="dark"] *[style] {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+}
+
+/* EXCEÇÕES PARA ELEMENTOS QUE DEVEM MANTER COR */
+html[data-theme="dark"] .appointment[style],
+html[data-theme="dark"] .appointment *[style] {
+  background-color: inherit !important;
+  color: inherit !important;
+}
+
