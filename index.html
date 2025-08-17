@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1"/>
+  <title>Portal de Agendamento - Expressglass</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <h1>PORTAL DE AGENDAMENTO</h1>
+      <p class="subtitle">Agendamento serviços Expressglass</p>
+      <div class="header-actions">
+        <div id="connectionStatus" class="connection-status" title="Status da conexão">
+          <span id="statusIcon">🌐</span>
+          <span id="statusText">Online</span>
+        </div>
+        <button id="backupBtn" class="header-btn" title="Backup de dados">💾</button>
+        <button id="statsBtn" class="header-btn" title="Estatísticas">📊</button>
+        <button id="searchBtn" class="header-btn" title="Pesquisar">🔍</button>
+      </div>
+    </header>
+
+    <!-- Barra de pesquisa (oculta por defeito) -->
+    <div id="searchBar" class="search-bar hidden">
+      <input type="text" id="searchInput" placeholder="Pesquisar por matrícula, carro ou localidade..." />
+      <button id="clearSearch" class="search-clear">✕</button>
+    </div>
+
+    <div class="nav-bar">
+      <div class="nav-left">
+        <button id="prevWeek" class="nav-button">&lt; Anterior</button>
+        <button id="nextWeek" class="nav-button">Próxima &gt;</button>
+        <button id="todayWeek" class="nav-button">📅 Hoje</button>
+      </div>
+      <div class="week-range" id="weekRange">—</div>
+      <div class="nav-right">
+        <button id="printPage" class="nav-button">🖨 Imprimir</button>
+      </div>
+    </div>
+
+    <!-- Calendário (desktop) -->
+    <div class="schedule-container print-page-1">
+      <table id="schedule" class="schedule"></table>
+    </div>
+
+    <!-- Serviços por agendar (desktop) -->
+    <section class="unscheduled-container">
+      <h3>SERVIÇOS POR AGENDAR</h3>
+      <div class="unscheduled-actions">
+        <button id="addServiceBtn" class="action-btn primary">+ Novo Serviço</button>
+        <select id="filterStatus" class="filter-select">
+          <option value="">Todos os estados</option>
+          <option value="NE">N/E - Não Executado</option>
+          <option value="VE">V/E - Vidro Encomendado</option>
+          <option value="ST">ST - Serviço Terminado</option>
+        </select>
+      </div>
+      <div id="unscheduledList" class="unscheduled-list" data-drop-bucket="unscheduled"></div>
+    </section>
+
+    <!-- Vista diária (mobile) -->
+    <section id="mobileDayView" class="mobile-day-container">
+      <div class="mobile-day-header">
+        <div id="mobileDayLabel" class="mobile-day-label">—</div>
+        <div class="mobile-day-buttons">
+          <button id="prevDay" class="nav-button small full">◀ Anterior</button>
+          <button id="todayDay" class="nav-button small full">Hoje</button>
+          <button id="nextDay" class="nav-button small full">Seguinte ▶</button>
+        </div>
+      </div>
+      <div id="mobileDayList" class="mobile-day-list"></div>
+      <button id="addServiceMobile" class="mobile-add-btn">+ Novo Serviço</button>
+    </section>
+
+    <!-- Tabela de serviços a realizar -->
+    <section class="services-table-container print-page-2">
+      <h3 id="servicesTableTitle">SERVIÇOS A REALIZAR</h3>
+      <div class="services-summary">
+        <span id="servicesSummary">Todos os serviços desde hoje em diante</span>
+        <button id="exportServices" class="export-btn">📄 Exportar</button>
+      </div>
+      <div class="table-wrapper">
+        <table id="servicesTable" class="services-table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Período</th>
+              <th>Matrícula</th>
+              <th>Carro</th>
+              <th>Serviço</th>
+              <th>Localidade</th>
+              <th>Observações</th>
+              <th>Estado</th>
+              <th>Dias</th>
+              <th class="no-print">Ações</th>
+            </tr>
+          </thead>
+          <tbody id="servicesTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Formulário de agendamento -->
+    <div id="appointmentModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modalTitle">Novo Agendamento</h3>
+          <button id="closeModal" class="close-btn">✕</button>
+        </div>
+        
+        <form id="appointmentForm" class="appointment-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentDate">Data</label>
+              <input type="date" id="appointmentDate" />
+            </div>
+            <div class="form-group">
+              <label for="appointmentPeriod">Período</label>
+              <select id="appointmentPeriod">
+                <option value="">—</option>
+                <option value="Manhã">Manhã</option>
+                <option value="Tarde">Tarde</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentPlate">Matrícula *</label>
+              <input type="text" id="appointmentPlate" placeholder="XX-XX-XX" maxlength="8" required />
+              <small class="form-hint">Formato: XX-XX-XX</small>
+            </div>
+            <div class="form-group">
+              <label for="appointmentCar">Modelo do Carro *</label>
+              <input type="text" id="appointmentCar" placeholder="Ex: BMW X3" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentService">Tipo de Serviço *</label>
+              <select id="appointmentService" required>
+                <option value="">Selecione o tipo de serviço</option>
+                <option value="PB">PB - Para-brisas</option>
+                <option value="LT">LT - Lateral</option>
+                <option value="OC">OC - Óculo</option>
+                <option value="REP">REP - Reparação</option>
+                <option value="POL">POL - Polimento</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="appointmentLocality">Localidade *</label>
+              <div class="locality-dropdown">
+                <div class="locality-selected" id="localitySelected" onclick="toggleLocalityDropdown()">
+                  <span class="locality-dot" id="selectedLocalityDot"></span>
+                  <span id="selectedLocalityText">Selecione a localidade</span>
+                  <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="locality-options" id="localityOptions">
+                  <!-- Opções serão preenchidas via JavaScript -->
+                </div>
+                <input type="hidden" id="appointmentLocality" required />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentStatus">Status do Vidro *</label>
+              <select id="appointmentStatus" required>
+                <option value="NE">N/E - Não Executado</option>
+                <option value="VE">V/E - Vidro Encomendado</option>
+                <option value="ST">ST - Serviço Terminado</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="appointmentNotes">Observações</label>
+            <textarea id="appointmentNotes" placeholder="Informações adicionais (não aparece no calendário)" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="appointmentExtra">Outros dados (opcional)</label>
+            <textarea id="appointmentExtra" placeholder="Informações adicionais (não aparece no calendário)" rows="2"></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="cancelForm" class="btn secondary">Cancelar</button>
+            <button type="button" id="deleteAppointment" class="btn danger hidden">Eliminar</button>
+            <button type="submit" class="btn primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal de backup -->
+    <div id="backupModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Backup de Dados</h3>
+          <button class="close-btn" onclick="closeBackupModal()">✕</button>
+        </div>
+        <div class="backup-content">
+          <div class="backup-section">
+            <h4>📤 Exportar Dados</h4>
+            <p>Faça backup dos seus agendamentos</p>
+            <div class="backup-actions">
+              <button id="exportJson" class="btn primary">💾 Exportar JSON</button>
+              <button id="exportCsv" class="btn secondary">📊 Exportar CSV</button>
+            </div>
+          </div>
+          <div class="backup-section">
+            <h4>📥 Importar Dados</h4>
+            <p>Restaurar dados de um backup anterior</p>
+            <input type="file" id="importFile" accept=".json" style="display: none;" />
+            <button id="importBtn" class="btn secondary">📁 Selecionar Ficheiro</button>
+            <div id="importStatus" class="import-status"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de estatísticas -->
+    <div id="statsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📊 Estatísticas</h3>
+          <button class="close-btn" onclick="closeStatsModal()">✕</button>
+        </div>
+        <div id="statsContent" class="stats-content">
+          <!-- Conteúdo gerado dinamicamente -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+    
+    <!-- Seção de impressão para serviços por agendar (oculta, só visível na impressão) -->
+    <div class="print-unscheduled-section">
+      <h2>SERVIÇOS POR AGENDAR</h2>
+      <table class="print-unscheduled-table">
+        <thead>
+          <tr>
+            <th>Matrícula</th>
+            <th>Modelo do Carro</th>
+            <th>Serviço</th>
+            <th>Localidade</th>
+            <th>Estado</th>
+            <th>Observações</th>
+            <th>Outros Dados</th>
+          </tr>
+        </thead>
+        <tbody id="printUnscheduledTableBody">
+          <!-- Conteúdo gerado dinamicamente -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="api.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+
