@@ -209,3 +209,160 @@ input:focus, select:focus, textarea:focus {
     border-color: #ccc !important;
   }
 }
+/* ===== CORREÇÕES ESPECÍFICAS PARA MODO ESCURO ===== */
+
+/* Calendário - Correções específicas */
+[data-theme="dark"] .calendar {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .calendar table {
+  background-color: var(--card-bg) !important;
+}
+
+[data-theme="dark"] .calendar th {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .calendar td {
+  background-color: var(--card-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Botões de navegação do calendário */
+[data-theme="dark"] .nav-button,
+[data-theme="dark"] .btn-secondary {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .nav-button:hover,
+[data-theme="dark"] .btn-secondary:hover {
+  background-color: var(--border-color) !important;
+}
+
+/* Dropdowns e selects */
+[data-theme="dark"] select,
+[data-theme="dark"] .dropdown {
+  background-color: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] select option {
+  background-color: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Inputs e textareas */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] textarea {
+  background-color: var(--input-bg) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Checkboxes e radio buttons */
+[data-theme="dark"] input[type="checkbox"],
+[data-theme="dark"] input[type="radio"] {
+  background-color: var(--input-bg) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Labels */
+[data-theme="dark"] label {
+  color: var(--text-primary) !important;
+}
+
+/* Botões de ação */
+[data-theme="dark"] .btn-danger {
+  background-color: #dc2626 !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-success {
+  background-color: #16a34a !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .btn-warning {
+  background-color: #d97706 !important;
+  color: white !important;
+}
+
+/* Containers principais */
+[data-theme="dark"] .container,
+[data-theme="dark"] .main-container {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Headers de secções */
+[data-theme="dark"] h1, 
+[data-theme="dark"] h2, 
+[data-theme="dark"] h3, 
+[data-theme="dark"] h4 {
+  color: var(--text-primary) !important;
+}
+
+/* Texto geral */
+[data-theme="dark"] p,
+[data-theme="dark"] span,
+[data-theme="dark"] div {
+  color: var(--text-primary) !important;
+}
+
+/* Badges específicos por status */
+[data-theme="dark"] .badge.status-ne {
+  background-color: #dc2626 !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .badge.status-ve {
+  background-color: #d97706 !important;
+  color: white !important;
+}
+
+[data-theme="dark"] .badge.status-st {
+  background-color: #16a34a !important;
+  color: white !important;
+}
+
+/* Melhorar contraste dos agendamentos */
+[data-theme="dark"] .appointment {
+  background-color: var(--card-bg) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .appointment * {
+  color: inherit !important;
+}
+
+/* Scrollbars melhoradas */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 6px;
+  border: 2px solid var(--bg-secondary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
