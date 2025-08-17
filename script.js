@@ -399,8 +399,8 @@ function renderMobileDay() {
 function renderServicesTable() {
   const today = new Date();
   const futureServices = filterAppointments(
-    appointments.filter(a => a.status !== 'ST' && a.date)
-               .sort((a, b) => new Date(a.date) - new Date(b.date))
+  appointments.filter(a => a.date && new Date(a.date) >= new Date().setHours(0,0,0,0))
+             .sort((a, b) => new Date(a.date) - new Date(b.date))
   );
   
   const tbody = document.getElementById('servicesTableBody');
