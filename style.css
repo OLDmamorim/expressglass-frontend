@@ -946,4 +946,92 @@ select {
 .print-unscheduled-section {
   display: none;
 }
+/* ===== LAYOUT HORIZONTAL PARA SERVIÇOS PENDENTES ===== */
+
+/* Container principal dos serviços pendentes */
+.unscheduled-container {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0,0,0,.04);
+  padding: 16px;
+  margin: 16px 0 20px;
+}
+
+.unscheduled-container h3 {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* Grid horizontal para os serviços */
+.unscheduled-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+  gap: 16px !important;
+  align-items: start !important;
+}
+
+/* Cards dos serviços */
+.appointment.unscheduled {
+  display: flex;
+  flex-direction: column;
+  width: 100% !important;
+  min-height: auto;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: all 0.2s ease;
+}
+
+.appointment.unscheduled:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: translateY(-2px);
+}
+
+/* Ações dos serviços */
+.unscheduled-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-start;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+
+/* Tablets e telas médias */
+@media (max-width: 1200px) {
+  .unscheduled-list {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)) !important;
+    gap: 14px !important;
+  }
+}
+
+/* Tablets pequenos */
+@media (max-width: 900px) {
+  .unscheduled-list {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
+    gap: 12px !important;
+  }
+  
+  .appointment.unscheduled {
+    padding: 10px;
+  }
+}
+
+/* Mobile - manter layout vertical para melhor usabilidade */
+@media (max-width: 600px) {
+  .unscheduled-list {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  
+  .appointment.unscheduled {
+    width: 100%;
+    padding: 12px;
+  }
+}
+
 
