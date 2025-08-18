@@ -1033,5 +1033,66 @@ select {
     padding: 12px;
   }
 }
+/* ===== LAYOUT HORIZONTAL PARA QUADRADOS DOS SERVIÇOS ===== */
+
+/* Grid horizontal mantendo os quadrados iguais */
+.unscheduled-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+  gap: 12px !important;
+  align-items: start !important;
+}
+
+/* Manter os quadrados exatamente como estão */
+.appointment.unscheduled {
+  display: flex !important;
+  flex-direction: column !important;
+  width: 100% !important;
+  min-height: 120px !important;
+  padding: 12px !important;
+  border-radius: 8px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Garantir que as ações ficam na parte inferior */
+.unscheduled-actions {
+  display: flex !important;
+  gap: 8px !important;
+  margin-top: auto !important;
+  justify-content: flex-start !important;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+
+/* Desktop grande - 4 quadrados por linha */
+@media (min-width: 1400px) {
+  .unscheduled-list {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+/* Desktop médio - 3 quadrados por linha */
+@media (min-width: 1000px) and (max-width: 1399px) {
+  .unscheduled-list {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+/* Tablet - 2 quadrados por linha */
+@media (min-width: 700px) and (max-width: 999px) {
+  .unscheduled-list {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+}
+
+/* Mobile - 1 quadrado por linha */
+@media (max-width: 699px) {
+  .unscheduled-list {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+}
 
 
