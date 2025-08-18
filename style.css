@@ -1094,5 +1094,144 @@ select {
     gap: 8px !important;
   }
 }
+/* ===== SOLUÇÃO CSS DEFINITIVA - LAYOUT HORIZONTAL SERVIÇOS PENDENTES ===== */
+/* Esta solução usa CSS puro e funciona em todos os dispositivos */
+
+/* IMPORTANTE: Usar !important para sobrepor qualquer CSS existente */
+
+/* Container principal dos serviços pendentes */
+.unscheduled-container {
+  background: #fff !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 10px !important;
+  box-shadow: 0 2px 4px rgba(0,0,0,.04) !important;
+  padding: 16px !important;
+  margin: 16px 0 20px !important;
+}
+
+/* Lista de serviços - LAYOUT HORIZONTAL FORÇADO */
+.unscheduled-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+}
+
+/* Cards dos serviços - TAMANHO FIXO */
+.appointment.unscheduled {
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: 260px !important;
+  flex: none !important;
+  flex-shrink: 0 !important;
+  flex-grow: 0 !important;
+  margin: 0 !important;
+  padding: 12px !important;
+  border-radius: 8px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 120px !important;
+}
+
+/* Conteúdo interno dos cards */
+.appointment.unscheduled > * {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+/* Ações dos serviços */
+.unscheduled-actions {
+  display: flex !important;
+  gap: 8px !important;
+  margin-top: auto !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
+}
+
+/* Checkboxes e labels */
+.appointment.unscheduled label {
+  font-size: 12px !important;
+  margin-right: 8px !important;
+}
+
+.appointment.unscheduled input[type="checkbox"] {
+  margin-right: 4px !important;
+}
+
+/* ===== RESPONSIVIDADE ESPECÍFICA ===== */
+
+/* Desktop grande - 4 cards por linha */
+@media (min-width: 1200px) {
+  .unscheduled-list {
+    justify-content: flex-start !important;
+  }
+  
+  .appointment.unscheduled {
+    width: calc(25% - 9px) !important;
+    min-width: 260px !important;
+    max-width: 300px !important;
+  }
+}
+
+/* Desktop médio - 3 cards por linha */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .appointment.unscheduled {
+    width: calc(33.333% - 8px) !important;
+    min-width: 250px !important;
+    max-width: 280px !important;
+  }
+}
+
+/* Tablet - 2 cards por linha */
+@media (min-width: 600px) and (max-width: 899px) {
+  .unscheduled-list {
+    gap: 10px !important;
+  }
+  
+  .appointment.unscheduled {
+    width: calc(50% - 5px) !important;
+    min-width: 240px !important;
+    max-width: 260px !important;
+  }
+}
+
+/* Mobile - 1 card por linha (manter funcionalidade) */
+@media (max-width: 599px) {
+  .unscheduled-list {
+    gap: 8px !important;
+  }
+  
+  .appointment.unscheduled {
+    width: 100% !important;
+    min-width: auto !important;
+    max-width: none !important;
+  }
+}
+
+/* ===== CORREÇÕES ESPECÍFICAS PARA ELEMENTOS TEIMOSOS ===== */
+
+/* Forçar reset de qualquer estilo inline que possa interferir */
+.appointment.unscheduled[style] {
+  width: 260px !important;
+  flex: none !important;
+  margin: 0 !important;
+}
+
+/* Garantir que elementos filhos não quebram o layout */
+.appointment.unscheduled * {
+  max-width: 100% !important;
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+}
+
+/* Melhorar aparência visual */
+.appointment.unscheduled:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+  transform: translateY(-1px) !important;
+  transition: all 0.2s ease !important;
+}
+
 
 
