@@ -834,6 +834,59 @@ function updatePrintUnscheduledTable() {
     </tr>`;
   }).join('');
 }
+function updatePrintTomorrowTable() {
+  // Calcular data de amanhã
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowStr = localISO(tomorrow);
+  
+  // Filtrar serviços de amanhã
+  const tomorrowServices = appointments.filter(a => {
+    return a.date === tomorrowStr;
+  }).sort((a, b) => {
+    // Ordenar por período: Manhã primeiro, depois Tarde
+    const periodOrder = { 'Manhã': 1, 'Tarde': 2 };
+    return (periodOrder[a.period] || 3) - (periodOrder[b.period] || 3);
+  });
+  
+  // Atualizar título e data
+  const dateFormatted = tomorrow.toLocaleDateString('pt-PT', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  document.getElementById('printTomorrowTitle').textContent = 'SERVIÇOS DE AMANHÃ';
+  document.getElementById('printTomorrowDate').textContent = cap(dateFormatted);
+  
+  const tbody = document.getElementById('printTomorrowTableBody');
+  const emptyDiv = document.getElementById('printTomorrowEmpty');
+  const table = document.querySelector('.print-tomorrow-table');
+  
+  if (tomorrowServices.length === 0) {
+    // Não há serviços para amanhã
+    table.style.display = 'none';
+    emptyDiv.style.display = 'block';
+  } else {
+    // Há serviços para amanhã
+    table.style.display = 'table';
+    emptyDiv.style.display = 'none';
+    
+    tbody.innerHTML = tomorrowServices.map(a => {
+      return `<tr>
+        <td>${a.period || ''}</td>
+        <td>${a.plate}</td>
+        <td>${a.car}</td>
+        <td><span class="service-badge badge-${a.service}">${a.service}</span></td>
+        <td>${a.locality}</td>
+        <td><span class="status-chip chip-${a.status}">${a.status}</span></td>
+        <td>${a.notes || ''}</td>
+        <td>${a.extra || ''}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
 
 // ===== INICIALIZAÇÃO =====
 document.addEventListener('DOMContentLoaded', async function() {
