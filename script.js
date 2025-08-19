@@ -799,6 +799,8 @@ function printPage() {
   // Atualizar tabela de impressão de serviços por agendar
   updatePrintUnscheduledTable();
   
+  // Atualizar tabela de impressão de serviços do dia seguinte
+  updatePrintTomorrowTable();
   // Imprimir
   window.print();
 }
