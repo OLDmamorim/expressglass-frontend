@@ -261,6 +261,32 @@
         </tbody>
       </table>
     </div>
+        <!-- Seção de impressão para serviços do dia seguinte (oculta, só visível na impressão) -->
+    <div class="print-tomorrow-section">
+      <h2 id="printTomorrowTitle">SERVIÇOS DE AMANHÃ</h2>
+      <div class="print-tomorrow-date" id="printTomorrowDate"></div>
+      <table class="print-tomorrow-table">
+        <thead>
+          <tr>
+            <th>Período</th>
+            <th>Matrícula</th>
+            <th>Modelo do Carro</th>
+            <th>Serviço</th>
+            <th>Localidade</th>
+            <th>Estado</th>
+            <th>Observações</th>
+            <th>Outros Dados</th>
+          </tr>
+        </thead>
+        <tbody id="printTomorrowTableBody">
+          <!-- Conteúdo gerado dinamicamente -->
+        </tbody>
+      </table>
+      <div class="print-tomorrow-empty" id="printTomorrowEmpty" style="display: none;">
+        <p>Não há serviços agendados para amanhã.</p>
+      </div>
+    </div>
+
   </div>
 
   <script src="api.js"></script>
