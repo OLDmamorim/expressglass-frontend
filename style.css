@@ -1232,6 +1232,95 @@ select {
   transform: translateY(-1px) !important;
   transition: all 0.2s ease !important;
 }
+/* ADICIONAR ESTE CÓDIGO NO style.css */
+/* Localizar: Final do ficheiro */
+/* Inserir no final */
+
+/* Seção de serviços do dia seguinte para impressão */
+.print-tomorrow-section {
+  display: none;
+}
+
+@media print {
+  /* Seção de serviços do dia seguinte para impressão */
+  .print-tomorrow-section {
+    display: block !important;
+    page-break-before: always;
+    margin: 0;
+    padding: 20px;
+  }
+  
+  .print-tomorrow-section h2 {
+    font-size: 24px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 10px;
+    color: #000;
+  }
+  
+  .print-tomorrow-date {
+    font-size: 16px;
+    text-align: center;
+    margin-bottom: 30px;
+    color: #666;
+    font-weight: bold;
+  }
+  
+  .print-tomorrow-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin: 0;
+  }
+  
+  .print-tomorrow-table th,
+  .print-tomorrow-table td {
+    border: 1px solid #000;
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+  
+  .print-tomorrow-table th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+    text-align: center;
+  }
+  
+  .print-tomorrow-table .service-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 10px;
+  }
+  
+  .print-tomorrow-table .service-badge.badge-PB { background-color: #dbeafe; color: #1e40af; }
+  .print-tomorrow-table .service-badge.badge-LT { background-color: #dcfce7; color: #166534; }
+  .print-tomorrow-table .service-badge.badge-OC { background-color: #fef3c7; color: #92400e; }
+  .print-tomorrow-table .service-badge.badge-REP { background-color: #fce7f3; color: #be185d; }
+  .print-tomorrow-table .service-badge.badge-POL { background-color: #e0e7ff; color: #3730a3; }
+  
+  .print-tomorrow-table .status-chip {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 10px;
+  }
+  
+  .print-tomorrow-table .status-chip.chip-NE { background-color: #fee2e2; color: #dc2626; }
+  .print-tomorrow-table .status-chip.chip-VE { background-color: #fef3c7; color: #d97706; }
+  .print-tomorrow-table .status-chip.chip-ST { background-color: #dcfce7; color: #16a34a; }
+  
+  .print-tomorrow-empty {
+    text-align: center;
+    font-size: 16px;
+    color: #666;
+    margin-top: 50px;
+  }
+}
+
 
 
 
