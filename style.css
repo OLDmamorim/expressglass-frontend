@@ -441,3 +441,71 @@ select {
     display: none !important;
   }
 }
+/* ===== DESKTOP CARD SKIN (gradiente por LOCALIDADE + barra de STATUS) ===== */
+@media (min-width: 821px){
+  /* cartão dentro das células do calendário e por-agendar */
+  .appt-card-desktop{
+    position: relative;
+    border-radius: 18px;
+    padding: 10px 12px;
+    margin: 6px 0;
+    background: linear-gradient(180deg, var(--c1,#1e88e5) 0%, var(--c2,#1565c0) 100%);
+    color:#fff;
+    text-shadow: 0 1px 1.5px rgba(0,0,0,.25);
+    box-shadow: 0 6px 18px rgba(0,0,0,.14);
+    border-left:6px solid var(--status,#999);
+  }
+  .appt-card-desktop *{ color:#fff !important; } /* força letras a branco no cartão */
+
+  .appt-card-desktop .appt-title{
+    font-weight:800;
+    font-size:13px;
+    line-height:1.25;
+    letter-spacing:.2px;
+    margin-bottom:6px;
+  }
+  .appt-card-desktop .appt-sub{
+    font-size:12px;
+    opacity:.95;
+    margin-bottom:8px;
+  }
+
+  /* chips (ex: Localidade, Serviço) */
+  .appt-card-desktop .appt-chips{
+    display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 8px;
+  }
+  .appt-card-desktop .chip{
+    background: rgba(255,255,255,.18);
+    padding:4px 8px;
+    border-radius:999px;
+    font-weight:700;
+    font-size:11px;
+    line-height:1;
+    backdrop-filter: blur(2px);
+  }
+
+  /* área dos 3 estados — fica visível no desktop */
+  .appt-card-desktop .appt-status{
+    display:flex; gap:10px; align-items:center; font-size:11px; font-weight:700;
+  }
+  .appt-card-desktop .appt-status label{
+    display:flex; gap:6px; align-items:center;
+    background: rgba(255,255,255,.18);
+    padding:4px 8px;
+    border-radius:999px;
+  }
+  .appt-card-desktop .appt-status input[type="checkbox"]{
+    width:14px; height:14px;
+    accent-color: var(--status,#ffffff); /* pinta o checkbox com a cor do status */
+    filter: drop-shadow(0 0 2px rgba(0,0,0,.25));
+  }
+
+  /* hover/drag */
+  .appt-card-desktop:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(0,0,0,.18);
+  }
+}
+
+/* as células mantêm o espaçamento normal */
+table.schedule td{ padding:8px; }
