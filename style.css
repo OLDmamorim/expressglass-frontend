@@ -415,3 +415,29 @@ select {
   #mobileDayList .appointment .appt-header{ font-size:16px; font-weight:700; margin-bottom:6px; }
   #mobileDayList .appointment{ margin-bottom:12px; }
 }
+/* === MOBILE HOTFIX: texto branco e esconder qualquer status no cartão === */
+@media (max-width: 820px){
+  /* tudo o que está dentro dos cartões do dia em mobile fica branco */
+  #mobileDayList .appointment,
+  #mobileDayList .appointment * {
+    color: #fff !important;
+  }
+
+  /* esconde linhas/insígnias/status vindos do desktop ou pseudo-elementos */
+  #mobileDayList .appointment .appt-status,
+  #mobileDayList .appointment .chip,
+  #mobileDayList .appointment .badge,
+  #mobileDayList .appointment .status,
+  #mobileDayList .appointment .status-line,
+  #mobileDayList .appointment .status-text,
+  #mobileDayList .appointment [data-status] {
+    display: none !important;
+  }
+
+  /* mata qualquer “Concluído/Encomendado” inserido via CSS */
+  #mobileDayList .appointment::before,
+  #mobileDayList .appointment::after {
+    content: none !important;
+    display: none !important;
+  }
+}
