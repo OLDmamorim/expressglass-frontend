@@ -52,7 +52,8 @@
         table-layout:fixed !important;
       }
 
-      /* LARGURAS IGUAIS (1..8) para HOJE e AMANHÃ */
+      /* LARGURAS IGUAIS (1..8) para HOJE e AMANHÃ
+         — Serviço e Estado mais estreitos, Observações mais largo */
       .print-today-table th:nth-child(1),    .print-today-table td:nth-child(1),
       .print-tomorrow-table th:nth-child(1), .print-tomorrow-table td:nth-child(1){ width: 8%; }  /* Período */
 
@@ -63,19 +64,19 @@
       .print-tomorrow-table th:nth-child(3), .print-tomorrow-table td:nth-child(3){ width:16%; }  /* Modelo do Carro */
 
       .print-today-table th:nth-child(4),    .print-today-table td:nth-child(4),
-      .print-tomorrow-table th:nth-child(4), .print-tomorrow-table td:nth-child(4){ width:10%; }  /* Serviço */
+      .print-tomorrow-table th:nth-child(4), .print-tomorrow-table td:nth-child(4){ width:10%; }  /* Serviço (estreito) */
 
       .print-today-table th:nth-child(5),    .print-today-table td:nth-child(5),
       .print-tomorrow-table th:nth-child(5), .print-tomorrow-table td:nth-child(5){ width:14%; }  /* Localidade */
 
       .print-today-table th:nth-child(6),    .print-today-table td:nth-child(6),
-      .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; }  /* Estado */
+      .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; }  /* Estado (estreito) */
 
       .print-today-table th:nth-child(7),    .print-today-table td:nth-child(7),
-      .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:22%; }  /* Observações */
+      .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:24%; }  /* Observações (mais largo) */
 
       .print-today-table th:nth-child(8),    .print-today-table td:nth-child(8),
-      .print-tomorrow-table th:nth-child(8), .print-tomorrow-table td:nth-child(8){ width:10%; }  /* Outros Dados */
+      .print-tomorrow-table th:nth-child(8), .print-tomorrow-table td:nth-child(8){ width:8%; }   /* Outros Dados */
 
       /* Blindagem igual em ambas */
       .print-today-table th, .print-today-table td,
@@ -90,6 +91,33 @@
       /* Cabeçalhos visíveis no topo de cada página */
       .print-today-table thead,
       .print-tomorrow-table thead{ display: table-header-group !important; }
+    }
+
+    /* ===== ECRÃ (NÃO PRINT): Ajustes de colunas na tabela principal ===== */
+    .services-table {
+      table-layout: fixed;       /* distribui conforme larguras abaixo */
+      width: 100%;
+    }
+    .services-table th, .services-table td{
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    /* Data */        .services-table th:nth-child(1), .services-table td:nth-child(1){ width: 8%; }
+    /* Período */     .services-table th:nth-child(2), .services-table td:nth-child(2){ width: 9%; }
+    /* Matrícula */   .services-table th:nth-child(3), .services-table td:nth-child(3){ width: 10%; }
+    /* Carro */       .services-table th:nth-child(4), .services-table td:nth-child(4){ width: 16%; }
+    /* Serviço */     .services-table th:nth-child(5), .services-table td:nth-child(5){ width: 10%; } /* mais estreito */
+    /* Localidade */  .services-table th:nth-child(6), .services-table td:nth-child(6){ width: 13%; }
+    /* Observações */ .services-table th:nth-child(7), .services-table td:nth-child(7){ width: 24%; } /* mais largo */
+    /* Estado */      .services-table th:nth-child(8), .services-table td:nth-child(8){ width: 8%; }  /* mais estreito */
+    /* Dias */        .services-table th:nth-child(9), .services-table td:nth-child(9){ width: 6%; }
+    /* Ações (no-print) – deixa auto para não partir botões */
+
+    /* Em ecrãs mais pequenos, permitir scroll horizontal sem rebentar layout */
+    .table-wrapper{ overflow-x:auto; }
+    @media (max-width:1100px){
+      .services-table{ min-width:1100px; }
     }
   </style>
   <!-- /PRINT -->
