@@ -119,6 +119,48 @@
     @media (max-width:1100px){
       .services-table{ min-width:1100px; }
     }
+
+    /* ===== MOBILE CARDS — estilo tipo app (só mobile) ===== */
+    @media (max-width: 768px){
+      #mobileDayList{
+        display: grid;
+        gap: 16px;
+        padding: 8px 16px;
+      }
+      .m-card{
+        position: relative;
+        border-radius: 22px;
+        padding: 16px;
+        color: #fff;
+        box-shadow: 0 8px 24px rgba(0,0,0,.18);
+      }
+      .m-title{
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 800;
+        font-size: 20px;
+        letter-spacing: .2px;
+      }
+      .m-chips{ display:flex; gap:10px; margin:12px 0 8px; flex-wrap:wrap; }
+      .m-chip{
+        background: rgba(255,255,255,.22);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-weight: 700;
+        font-size: 14px;
+        line-height: 1;
+        backdrop-filter: blur(2px);
+      }
+      .m-row{ display:flex; justify-content:space-between; gap:12px; font-size:16px; font-weight:600; }
+      .m-divider{ height:1px; background: rgba(255,255,255,.35); margin:12px 0; }
+      .m-status{ display:flex; align-items:center; gap:8px; font-weight:800; }
+
+      /* Gradientes por estado */
+      .m-card.status-NE{ background: linear-gradient(180deg,#1e88e5 0%,#1565c0 100%); } /* N/E */
+      .m-card.status-VE{ background: linear-gradient(180deg,#fb8c00 0%,#ef6c00 100%); } /* V/E */
+      .m-card.status-ST{ background: linear-gradient(180deg,#43a047 0%,#2e7d32 100%); } /* ST  */
+    }
   </style>
   <!-- /PRINT -->
 </head>
@@ -532,6 +574,93 @@
       refreshPrintSections();
       window.print();
     });
+  })();
+  </script>
+
+  <!-- ===== MOBILE CARD SKIN (apenas estilização; não mexe na tua lógica) ===== -->
+  <script>
+  (function(){
+    const LIST = document.getElementById('mobileDayList');
+    if(!LIST) return;
+
+    const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])
+    );
+
+    function statusClass(s){
+      s = (s||'').toUpperCase();
+      if(s.includes('ST')) return 'status-ST';
+      if(s.includes('VE')) return 'status-VE';
+      return 'status-NE';
+    }
+    function statusIcon(s){
+      s = (s||'').toUpperCase();
+      if(s.includes('ST')) return '✅';
+      if(s.includes('VE')) return '⏳';
+      return '🗓️';
+    }
+    function statusLabel(s){
+      s = (s||'').toUpperCase();
+      if(s.includes('ST')) return 'Concluído';
+      if(s.includes('VE')) return 'Encomendado';
+      return 'Agendado';
+    }
+
+    function buildCard(data){
+      const el = document.createElement('article');
+      el.className = 'm-card ' + statusClass(data.status);
+      el.innerHTML = `
+        <div class="m-title">🚗 ${escapeHtml(data.plate||'')}
+          ${data.type ? ' | '+escapeHtml(data.type) : ''} 
+          ${data.car ? ' | '+escapeHtml(data.car) : ''}</div>
+
+        <div class="m-chips">
+          ${data.period ? `<span class="m-chip">⚙️ ${escapeHtml(data.period)}</span>` : ''}
+          ${data.serviceName ? `<span class="m-chip">${escapeHtml(data.serviceName)}</span>` : ''}
+        </div>
+
+        <div class="m-row">
+          <div>${escapeHtml(data.car||'')}</div>
+          <div>${escapeHtml(data.color||'')}</div>
+        </div>
+
+        <div class="m-divider"></div>
+        <div class="m-status">${statusIcon(data.status)} ${statusLabel(data.status)}</div>
+      `;
+      return el;
+    }
+
+    function skinItem(node){
+      if(!(node instanceof HTMLElement)) return;
+      if(node.classList.contains('m-card')) return; // já está
+
+      // Tenta obter dados de data-* ou elementos filhos conhecidos
+      const d = node.dataset || {};
+      const data = {
+        plate:  d.plate   || node.querySelector('.plate')?.textContent?.trim(),
+        type:   d.svc     || node.querySelector('.service-code')?.textContent?.trim(),
+        car:    d.car     || node.querySelector('.car')?.textContent?.trim(),
+        period: d.period  || node.querySelector('.period')?.textContent?.trim(),
+        serviceName: d.svcnm || node.querySelector('.service-name')?.textContent?.trim(),
+        color:  d.color   || node.querySelector('.color')?.textContent?.trim(),
+        status: (d.status || node.querySelector('.status')?.textContent || 'NE').toUpperCase()
+      };
+
+      // Se não houver dados mínimos, não destrói o conteúdo original:
+      const hasCore = data.plate || data.car || data.type || data.serviceName || data.period;
+      if(!hasCore){
+        node.classList.add('m-card', statusClass(data.status));
+        return;
+      }
+
+      const card = buildCard(data);
+      Object.assign(card.dataset, d); // mantém data-* úteis
+      node.replaceWith(card);
+    }
+
+    const apply = () => Array.from(LIST.children).forEach(skinItem);
+    apply();
+    new MutationObserver(apply).observe(LIST, {childList:true});
   })();
   </script>
 </body>
