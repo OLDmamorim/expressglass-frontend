@@ -44,23 +44,15 @@
       tfoot { display: table-footer-group; }
       tr, th, td { break-inside: avoid; page-break-inside: avoid; }
 
-      /* Blindar tabelas HOJE/AMANHÃ contra CSS externos */
+      /* Blindar tabelas HOJE e AMANHÃ e igualar grelha */
       .print-today-table,
-      .print-tomorrow-table {
+      .print-tomorrow-table{
         width:100% !important;
         border-collapse:collapse !important;
         table-layout:fixed !important;
       }
-      .print-today-table th, .print-today-table td,
-      .print-tomorrow-table th, .print-tomorrow-table td {
-        border:1px solid #000 !important;
-        padding:4px 6px !important;
-        font-size:12px !important;
-        vertical-align:top !important;
-        white-space:normal !important;
-      }
 
-      /* Ajuste das larguras das colunas */
+      /* LARGURAS IGUAIS (1..8) para HOJE e AMANHÃ */
       .print-today-table th:nth-child(1),    .print-today-table td:nth-child(1),
       .print-tomorrow-table th:nth-child(1), .print-tomorrow-table td:nth-child(1){ width: 8%; }  /* Período */
 
@@ -71,22 +63,33 @@
       .print-tomorrow-table th:nth-child(3), .print-tomorrow-table td:nth-child(3){ width:16%; }  /* Modelo do Carro */
 
       .print-today-table th:nth-child(4),    .print-today-table td:nth-child(4),
-      .print-tomorrow-table th:nth-child(4), .print-tomorrow-table td:nth-child(4){ width:7%; }   /* Serviço */
+      .print-tomorrow-table th:nth-child(4), .print-tomorrow-table td:nth-child(4){ width:10%; }  /* Serviço */
 
       .print-today-table th:nth-child(5),    .print-today-table td:nth-child(5),
       .print-tomorrow-table th:nth-child(5), .print-tomorrow-table td:nth-child(5){ width:14%; }  /* Localidade */
 
       .print-today-table th:nth-child(6),    .print-today-table td:nth-child(6),
-      .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width:6%; }   /* Estado */
+      .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; }  /* Estado */
 
       .print-today-table th:nth-child(7),    .print-today-table td:nth-child(7),
-      .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:27%; }  /* Observações */
+      .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:22%; }  /* Observações */
 
       .print-today-table th:nth-child(8),    .print-today-table td:nth-child(8),
       .print-tomorrow-table th:nth-child(8), .print-tomorrow-table td:nth-child(8){ width:10%; }  /* Outros Dados */
 
+      /* Blindagem igual em ambas */
+      .print-today-table th, .print-today-table td,
+      .print-tomorrow-table th, .print-tomorrow-table td{
+        border:1px solid #000 !important;
+        padding:4px 6px !important;
+        font-size:12px !important;
+        vertical-align:top !important;
+        white-space:normal !important;
+      }
+
+      /* Cabeçalhos visíveis no topo de cada página */
       .print-today-table thead,
-      .print-tomorrow-table thead { display:table-header-group !important; }
+      .print-tomorrow-table thead{ display: table-header-group !important; }
     }
   </style>
   <!-- /PRINT -->
@@ -187,6 +190,139 @@
       </div>
     </section>
 
+    <!-- Formulário de agendamento -->
+    <div id="appointmentModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="modalTitle">Novo Agendamento</h3>
+          <button id="closeModal" class="close-btn">✕</button>
+        </div>
+        
+        <form id="appointmentForm" class="appointment-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentDate">Data</label>
+              <input type="date" id="appointmentDate" />
+            </div>
+            <div class="form-group">
+              <label for="appointmentPeriod">Período</label>
+              <select id="appointmentPeriod">
+                <option value="">—</option>
+                <option value="Manhã">Manhã</option>
+                <option value="Tarde">Tarde</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentPlate">Matrícula *</label>
+              <input type="text" id="appointmentPlate" placeholder="XX-XX-XX" maxlength="8" required />
+              <small class="form-hint">Formato: XX-XX-XX</small>
+            </div>
+            <div class="form-group">
+              <label for="appointmentCar">Modelo do Carro *</label>
+              <input type="text" id="appointmentCar" placeholder="Ex: BMW X3" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentService">Tipo de Serviço *</label>
+              <select id="appointmentService" required>
+                <option value="">Selecione o tipo de serviço</option>
+                <option value="PB">PB - Para-brisas</option>
+                <option value="LT">LT - Lateral</option>
+                <option value="OC">OC - Óculo</option>
+                <option value="REP">REP - Reparação</option>
+                <option value="POL">POL - Polimento</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="appointmentLocality">Localidade *</label>
+              <div class="locality-dropdown">
+                <div class="locality-selected" id="localitySelected" onclick="toggleLocalityDropdown()">
+                  <span class="locality-dot" id="selectedLocalityDot"></span>
+                  <span id="selectedLocalityText">Selecione a localidade</span>
+                  <span class="dropdown-arrow">▼</span>
+                </div>
+                <div class="locality-options" id="localityOptions"></div>
+                <input type="hidden" id="appointmentLocality" required />
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentStatus">Status do Vidro *</label>
+              <select id="appointmentStatus" required>
+                <option value="NE">N/E - Não Executado</option>
+                <option value="VE">V/E - Vidro Encomendado</option>
+                <option value="ST">ST - Serviço Terminado</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="appointmentNotes">Observações</label>
+            <textarea id="appointmentNotes" placeholder="Informações adicionais (não aparece no calendário)" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="appointmentExtra">Outros dados (opcional)</label>
+            <textarea id="appointmentExtra" placeholder="Informações adicionais (não aparece no calendário)" rows="2"></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="cancelForm" class="btn secondary">Cancelar</button>
+            <button type="button" id="deleteAppointment" class="btn danger hidden">Eliminar</button>
+            <button type="submit" class="btn primary">Guardar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal de backup -->
+    <div id="backupModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Backup de Dados</h3>
+          <button class="close-btn" onclick="closeBackupModal()">✕</button>
+        </div>
+        <div class="backup-content">
+          <div class="backup-section">
+            <h4>📤 Exportar Dados</h4>
+            <p>Faça backup dos seus agendamentos</p>
+            <div class="backup-actions">
+              <button id="exportJson" class="btn primary">💾 Exportar JSON</button>
+              <button id="exportCsv" class="btn secondary">📊 Exportar CSV</button>
+            </div>
+          </div>
+          <div class="backup-section">
+            <h4>📥 Importar Dados</h4>
+            <p>Restaurar dados de um backup anterior</p>
+            <input type="file" id="importFile" accept=".json" style="display: none;" />
+            <button id="importBtn" class="btn secondary">📁 Selecionar Ficheiro</button>
+            <div id="importStatus" class="import-status"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de estatísticas -->
+    <div id="statsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>📊 Estatísticas</h3>
+          <button class="close-btn" onclick="closeStatsModal()">✕</button>
+        </div>
+        <div id="statsContent" class="stats-content"></div>
+      </div>
+    </div>
+
+    <!-- Toast notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+    
     <!-- PRINT: Por agendar -->
     <div class="print-unscheduled-section">
       <h2>SERVIÇOS POR AGENDAR</h2>
@@ -267,14 +403,15 @@
   <!-- >>>>>> SCRIPT DE IMPRESSÃO (lê da tabela e preenche HOJE/AMANHÃ) <<<<<< -->
   <script>
   (function(){
+    // Datas locais (sem UTC)
     function parsePtOrIso(str) {
       if (!str) return null;
       str = String(str).trim();
-      const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-      if (m) return new Date(+m[3], +m[2]-1, +m[1]);
-      const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-      if (iso) return new Date(+iso[1], +iso[2]-1, +iso[3]);
-      const d = new Date(str);
+      const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);  // dd/mm/yyyy
+      if (m) return new Date(+m[3], +m[2]-1, +m[1], 0,0,0,0);
+      const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);  // yyyy-mm-dd
+      if (iso) return new Date(+iso[1], +iso[2]-1, +iso[3], 0,0,0,0);
+      const d = new Date(str);                             // fallback
       return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
     }
     function sameDay(a,b){ return a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
@@ -282,12 +419,14 @@
     const TODAY = startOfToday();
     const TOMORROW = new Date(TODAY); TOMORROW.setDate(TOMORROW.getDate()+1);
 
+    // Lê a tabela principal
     function readServicesFromMainTable(){
       const tbody = document.querySelector('#servicesTableBody');
       if (!tbody) return [];
       const rows = [];
       tbody.querySelectorAll('tr').forEach(tr => {
         const tds = tr.querySelectorAll('td');
+        // Data, Período, Matrícula, Carro, Serviço, Localidade, Observações, Estado, Dias, Ações
         if (tds.length < 9) return;
         rows.push({
           date:    parsePtOrIso(tds[0].textContent),
@@ -347,13 +486,20 @@
       fillPrintTable('printTomorrow', TOMORROW, all);
     }
 
+    // 1) quando a página termina de carregar
     window.addEventListener('load', refreshPrintSections);
+
+    // 2) quando a tabela principal muda (linhas inseridas/alteradas)
     const tblBody = document.querySelector('#servicesTableBody');
     if (tblBody) {
       const obs = new MutationObserver(() => refreshPrintSections());
-      obs.observe(tblBody, { childList: true });
+      obs.observe(tblBody, { childList: true, subtree: false });
     }
+
+    // 3) imediatamente antes de imprimir
     window.addEventListener('beforeprint', refreshPrintSections);
+
+    // 4) também ao clicar no botão de imprimir da UI
     document.getElementById('printPage')?.addEventListener('click', () => {
       refreshPrintSections();
       window.print();
