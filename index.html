@@ -44,21 +44,52 @@
       tfoot { display: table-footer-group; }
       tr, th, td { break-inside: avoid; page-break-inside: avoid; }
 
-      /* Blindar a tabela de HOJE contra CSS externos */
-      .print-today-table{
+      /* Blindar tabelas HOJE e AMANHÃ e igualar grelha */
+      .print-today-table,
+      .print-tomorrow-table{
         width:100% !important;
         border-collapse:collapse !important;
         table-layout:fixed !important;
       }
-      .print-today-table th,
-      .print-today-table td{
+
+      /* LARGURAS IGUAIS (1..8) para HOJE e AMANHÃ */
+      .print-today-table th:nth-child(1),    .print-today-table td:nth-child(1),
+      .print-tomorrow-table th:nth-child(1), .print-tomorrow-table td:nth-child(1){ width: 8%; }  /* Período */
+
+      .print-today-table th:nth-child(2),    .print-today-table td:nth-child(2),
+      .print-tomorrow-table th:nth-child(2), .print-tomorrow-table td:nth-child(2){ width:12%; }  /* Matrícula */
+
+      .print-today-table th:nth-child(3),    .print-today-table td:nth-child(3),
+      .print-tomorrow-table th:nth-child(3), .print-tomorrow-table td:nth-child(3){ width:16%; }  /* Modelo do Carro */
+
+      .print-today-table th:nth-child(4),    .print-today-table td:nth-child(4),
+      .print-tomorrow-table th:nth-child(4), .print-tomorrow-table td:nth-child(4){ width:10%; }  /* Serviço */
+
+      .print-today-table th:nth-child(5),    .print-today-table td:nth-child(5),
+      .print-tomorrow-table th:nth-child(5), .print-tomorrow-table td:nth-child(5){ width:14%; }  /* Localidade */
+
+      .print-today-table th:nth-child(6),    .print-today-table td:nth-child(6),
+      .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; }  /* Estado */
+
+      .print-today-table th:nth-child(7),    .print-today-table td:nth-child(7),
+      .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:22%; }  /* Observações */
+
+      .print-today-table th:nth-child(8),    .print-today-table td:nth-child(8),
+      .print-tomorrow-table th:nth-child(8), .print-tomorrow-table td:nth-child(8){ width:10%; }  /* Outros Dados */
+
+      /* Blindagem igual em ambas */
+      .print-today-table th, .print-today-table td,
+      .print-tomorrow-table th, .print-tomorrow-table td{
         border:1px solid #000 !important;
         padding:4px 6px !important;
         font-size:12px !important;
         vertical-align:top !important;
         white-space:normal !important;
       }
-      .print-today-table thead{ display:table-header-group !important; }
+
+      /* Cabeçalhos visíveis no topo de cada página */
+      .print-today-table thead,
+      .print-tomorrow-table thead{ display: table-header-group !important; }
     }
   </style>
   <!-- /PRINT -->
@@ -311,7 +342,7 @@
       </table>
     </div>
 
-    <!-- >>> NOVO: PRINT HOJE (igual ao outro portal) <<< -->
+    <!-- PRINT HOJE -->
     <div class="print-today-section print-break-before">
       <h2 id="printTodayTitle">SERVIÇOS DE HOJE</h2>
       <div class="print-today-date" id="printTodayDate"></div>
