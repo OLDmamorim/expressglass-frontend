@@ -4,8 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1"/>
   <title>Portal de Agendamento - Expressglass</title>
-  <!-- BYPASS DE CACHE DO CSS -->
-  <link rel="stylesheet" href="style.css?v=mobilefix3"/>
+  <link rel="stylesheet" href="style.css"/>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
 
@@ -33,16 +32,19 @@
     }
 
     @media print {
+      /* Mostrar apenas as secções de impressão */
       .no-print { display: none !important; }
       .print-unscheduled-section,
       .print-today-section,
       .print-tomorrow-section { display: block; }
 
+      /* Quebras de página limpas para cada bloco */
       .print-break-before { break-before: page; page-break-before: always; }
       thead { display: table-header-group; }
       tfoot { display: table-footer-group; }
       tr, th, td { break-inside: avoid; page-break-inside: avoid; }
 
+      /* Blindar tabelas HOJE e AMANHÃ e igualar grelha */
       .print-today-table,
       .print-tomorrow-table{
         width:100% !important;
@@ -81,43 +83,77 @@
       .print-tomorrow-table thead{ display: table-header-group !important; }
     }
 
-    /* ===== ECRÃ: ajustes tabela ===== */
+    /* ===== ECRÃ (NÃO PRINT): Ajustes de colunas na tabela principal ===== */
     .services-table { table-layout: fixed; width: 100%; }
     .services-table th, .services-table td{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .services-table th:nth-child(1), .services-table td:nth-child(1){ width: 8%; }
-    .services-table th:nth-child(2), .services-table td:nth-child(2){ width: 9%; }
-    .services-table th:nth-child(3), .services-table td:nth-child(3){ width: 10%; }
-    .services-table th:nth-child(4), .services-table td:nth-child(4){ width: 16%; }
-    .services-table th:nth-child(5), .services-table td:nth-child(5){ width: 10%; }
-    .services-table th:nth-child(6), .services-table td:nth-child(6){ width: 13%; }
-    .services-table th:nth-child(7), .services-table td:nth-child(7){ width: 24%; }
-    .services-table th:nth-child(8), .services-table td:nth-child(8){ width: 8%; }
-    .services-table th:nth-child(9), .services-table td:nth-child(9){ width: 6%; }
+    /* Data */        .services-table th:nth-child(1), .services-table td:nth-child(1){ width: 8%; }
+    /* Período */     .services-table th:nth-child(2), .services-table td:nth-child(2){ width: 9%; }
+    /* Matrícula */   .services-table th:nth-child(3), .services-table td:nth-child(3){ width: 10%; }
+    /* Carro */       .services-table th:nth-child(4), .services-table td:nth-child(4){ width: 16%; }
+    /* Serviço */     .services-table th:nth-child(5), .services-table td:nth-child(5){ width: 10%; }
+    /* Localidade */  .services-table th:nth-child(6), .services-table td:nth-child(6){ width: 13%; }
+    /* Observações */ .services-table th:nth-child(7), .services-table td:nth-child(7){ width: 24%; }
+    /* Estado */      .services-table th:nth-child(8), .services-table td:nth-child(8){ width: 8%; }
+    /* Dias */        .services-table th:nth-child(9), .services-table td:nth-child(9){ width: 6%; }
     .table-wrapper{ overflow-x:auto; }
     @media (max-width:1100px){ .services-table{ min-width:1100px; } }
 
-    /* ===== MOBILE POLISH (usar a cor da localidade, texto branco) ===== */
-    @media (max-width: 820px){
-      #mobileDayList{ display:grid; gap:16px; padding:8px 16px; }
-      #mobileDayList .appointment{
-        position:relative;
-        border-radius:22px !important;
-        padding:16px !important;
-        /* Mantém a cor inline calculada pelo script.js (já é a da localidade) */
-        /* Só melhoramos aspecto e tipografia */
-        color:#fff !important;
-        box-shadow:0 10px 22px rgba(0,0,0,.15);
-        border-left-width:6px !important; /* mantém a barra do status como no desktop */
-        margin-bottom:10px;
+    /* ===== MOBILE CARDS — cor pela LOCALIDADE; texto branco ===== */
+    @media (max-width: 768px){
+      #mobileDayList{ display: grid; gap: 16px; padding: 8px 16px; }
+
+      .m-card{
+        position: relative;
+        border-radius: 22px;
+        padding: 16px;
+        /* gradiente vindo de variáveis calculadas no JS */
+        background: linear-gradient(180deg, var(--c1, #1e88e5) 0%, var(--c2, #1565c0) 100%);
+        box-shadow: 0 8px 24px rgba(0,0,0,.18);
+        color: #fff;
       }
+      /* força texto a branco em todo o cartão */
+      .m-card, .m-card *{ color:#fff !important; }
+
+      .m-title{
+        display: flex; align-items: center; gap: 10px;
+        font-weight: 800; font-size: 20px; letter-spacing: .2px;
+      }
+      .m-chips{ display:flex; gap:10px; margin:12px 0 8px; flex-wrap:wrap; }
+      .m-chip{
+        background: rgba(255,255,255,.22);
+        border-radius: 999px; padding: 8px 12px;
+        font-weight: 700; font-size: 14px; line-height: 1;
+        backdrop-filter: blur(2px);
+      }
+      .m-row{ display:flex; justify-content:space-between; gap:12px; font-size:16px; font-weight:600; }
+      .m-divider{ height:1px; background: rgba(255,255,255,.35); margin:12px 0; }
+      .m-status{ display:flex; align-items:center; gap:8px; font-weight:800; }
+
+      /* ===== Legibilidade extra: contorno + sombra em todo o texto principal ===== */
+      .m-card .m-title,
+      .m-card .m-row > * ,
+      .m-card .m-status,
+      /* fallback para cartões antigos gerados por script.js */
       #mobileDayList .appointment .appt-header,
       #mobileDayList .appointment .appt-sub{
-        color:#fff !important;
+        -webkit-text-stroke: 0.35px rgba(0,0,0,.55);
+        paint-order: stroke fill;
+        text-shadow:
+          0  1px 2px rgba(0,0,0,.45),
+          0 -1px 2px rgba(0,0,0,.45),
+          1px  0 2px rgba(0,0,0,.45),
+         -1px  0 2px rgba(0,0,0,.45),
+          1px  1px 2px rgba(0,0,0,.45),
+         -1px  1px 2px rgba(0,0,0,.45),
+          1px -1px 2px rgba(0,0,0,.45),
+         -1px -1px 2px rgba(0,0,0,.45);
       }
-      /* Se existir algum bloco de status dentro do cartão no mobile, ocultar */
-      #mobileDayList .appointment .appt-status{ display:none !important; }
-      /* um ligeiro brilho para leitura em fundos claros (ex: amarelo) */
-      #mobileDayList .appointment .appt-header{ text-shadow:0 1px 1px rgba(0,0,0,.18); }
+
+      /* Chips com mais contraste */
+      .m-card .m-chip{
+        background: rgba(0,0,0,.18) !important;
+        border: 1px solid rgba(255,255,255,.25);
+      }
     }
   </style>
   <!-- /PRINT -->
@@ -342,7 +378,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>📊 Estatísticas</h3>
-          <button class="close-btn" onclick="closeStatsModal()">✕</button>
+        <button class="close-btn" onclick="closeStatsModal()">✕</button>
         </div>
         <div id="statsContent" class="stats-content"></div>
       </div>
@@ -431,14 +467,15 @@
   <!-- >>>>>> SCRIPT DE IMPRESSÃO (lê da tabela e preenche HOJE/AMANHÃ) <<<<<< -->
   <script>
   (function(){
+    // Datas locais (sem UTC)
     function parsePtOrIso(str) {
       if (!str) return null;
       str = String(str).trim();
-      const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);  // dd/mm/yyyy
       if (m) return new Date(+m[3], +m[2]-1, +m[1], 0,0,0,0);
-      const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);  // yyyy-mm-dd
       if (iso) return new Date(+iso[1], +iso[2]-1, +iso[3], 0,0,0,0);
-      const d = new Date(str);
+      const d = new Date(str);                             // fallback
       return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
     }
     function sameDay(a,b){ return a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
@@ -446,12 +483,14 @@
     const TODAY = startOfToday();
     const TOMORROW = new Date(TODAY); TOMORROW.setDate(TOMORROW.getDate()+1);
 
+    // Lê a tabela principal
     function readServicesFromMainTable(){
       const tbody = document.querySelector('#servicesTableBody');
       if (!tbody) return [];
       const rows = [];
       tbody.querySelectorAll('tr').forEach(tr => {
         const tds = tr.querySelectorAll('td');
+        // Data, Período, Matrícula, Carro, Serviço, Localidade, Observações, Estado, Dias, Ações
         if (tds.length < 9) return;
         rows.push({
           date:    parsePtOrIso(tds[0].textContent),
@@ -525,6 +564,150 @@
   })();
   </script>
 
-  <!-- IMPORTANTE: removido o script de “skin” dos cartões mobile -->
+  <!-- ===== MOBILE CARD SKIN — cor pela LOCALIDADE ===== -->
+  <script>
+  (function(){
+    const LIST = document.getElementById('mobileDayList');
+    if(!LIST) return;
+
+    const clamp = n => Math.max(0, Math.min(255, Math.round(n)));
+    const toHex = n => n.toString(16).padStart(2,'0');
+    const rgbToHex = ({r,g,b}) => '#' + toHex(clamp(r)) + toHex(clamp(g)) + toHex(clamp(b));
+
+    function parseColor(str){
+      if(!str) return null;
+      str = String(str).trim();
+      if(str[0] === '#'){
+        if(str.length === 4){
+          const r = parseInt(str[1]+str[1],16),
+                g = parseInt(str[2]+str[2],16),
+                b = parseInt(str[3]+str[3],16);
+          return {r,g,b};
+        }
+        if(str.length >= 7){
+          return {
+            r: parseInt(str.slice(1,3),16),
+            g: parseInt(str.slice(3,5),16),
+            b: parseInt(str.slice(5,7),16)
+          };
+        }
+      }
+      const m = str.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+      if(m) return { r:+m[1], g:+m[2], b:+m[3] };
+      return null;
+    }
+    function lighten(rgb, a){ // a ∈ [0..1]
+      return { r: rgb.r + (255 - rgb.r) * a,
+               g: rgb.g + (255 - rgb.g) * a,
+               b: rgb.b + (255 - rgb.b) * a };
+    }
+    function darken(rgb, a){
+      return { r: rgb.r * (1 - a),
+               g: rgb.g * (1 - a),
+               b: rgb.b * (1 - a) };
+    }
+
+    const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, m =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])
+    );
+
+    function statusIcon(s){
+      s = (s||'').toUpperCase();
+      if(s.includes('ST')) return '✅';
+      if(s.includes('VE')) return '⏳';
+      return '🗓️';
+    }
+    function statusLabel(s){
+      s = (s||'').toUpperCase();
+      if(s.includes('ST')) return 'Concluído';
+      if(s.includes('VE')) return 'Encomendado';
+      return 'Agendado';
+    }
+
+    function getLocColor(node, d){
+      let c = d.loccolor || d.localityColor || d.locColor || d.localitycolor;
+      // mapping global opcional
+      if(!c && d.locality && window.LOCALITY_COLORS && window.LOCALITY_COLORS[d.locality]){
+        c = window.LOCALITY_COLORS[d.locality];
+      }
+      // dot dentro do item (caso exista)
+      if(!c){
+        const dot = node.querySelector?.('.locality-dot');
+        if(dot){
+          c = getComputedStyle(dot).backgroundColor;
+        }
+      }
+      return c || '#1e88e5'; // fallback
+    }
+
+    function buildCard(data, baseColor){
+      const el = document.createElement('article');
+      el.className = 'm-card';
+
+      // calcula gradiente (ligeiro)
+      const rgb = parseColor(baseColor) || parseColor('#1e88e5');
+      const c1 = rgbToHex(lighten(rgb, 0.06)); // topo
+      const c2 = rgbToHex(darken(rgb, 0.18));  // fundo
+      el.style.setProperty('--c1', c1);
+      el.style.setProperty('--c2', c2);
+
+      el.innerHTML = `
+        <div class="m-title">🚗 ${escapeHtml(data.plate||'')}
+          ${data.type ? ' | '+escapeHtml(data.type) : ''} 
+          ${data.car ? ' | '+escapeHtml(data.car) : ''}</div>
+
+        <div class="m-chips">
+          ${data.period ? `<span class="m-chip">⚙️ ${escapeHtml(data.period)}</span>` : ''}
+          ${data.serviceName ? `<span class="m-chip">${escapeHtml(data.serviceName)}</span>` : ''}
+        </div>
+
+        <div class="m-row">
+          <div>${escapeHtml(data.locality || '')}</div>
+          <div>${escapeHtml(data.notes || '')}</div>
+        </div>
+
+        <div class="m-divider"></div>
+        <div class="m-status">${statusIcon(data.status)} ${statusLabel(data.status)}</div>
+      `;
+      return el;
+    }
+
+    function skinItem(node){
+      if(!(node instanceof HTMLElement)) return;
+      if(node.classList.contains('m-card')) return;
+
+      const d = node.dataset || {};
+      const data = {
+        plate:  d.plate   || node.querySelector('.plate')?.textContent?.trim(),
+        type:   d.svc     || node.querySelector('.service-code')?.textContent?.trim(),
+        car:    d.car     || node.querySelector('.car')?.textContent?.trim(),
+        period: d.period  || node.querySelector('.period')?.textContent?.trim(),
+        serviceName: d.svcnm || node.querySelector('.service-name')?.textContent?.trim(),
+        notes:  d.notes   || node.querySelector('.notes')?.textContent?.trim(),
+        status: (d.status || node.querySelector('.status')?.textContent || 'NE').toUpperCase(),
+        locality: d.locality || node.querySelector('.locality')?.textContent?.trim()
+      };
+
+      const locColor = getLocColor(node, d) || '#1e88e5';
+
+      // Se não houver dados mínimos evita destruir conteúdo
+      const hasCore = data.plate || data.car || data.type || data.serviceName || data.period;
+      if(!hasCore){
+        node.classList.add('m-card');
+        node.style.setProperty('--c1', locColor);
+        node.style.setProperty('--c2', locColor);
+        return;
+      }
+
+      const card = buildCard(data, locColor);
+      Object.assign(card.dataset, d);
+      node.replaceWith(card);
+    }
+
+    const apply = () => Array.from(LIST.children).forEach(skinItem);
+    apply();
+    new MutationObserver(apply).observe(LIST, {childList:true});
+  })();
+  </script>
 </body>
 </html>
