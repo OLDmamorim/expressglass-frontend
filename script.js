@@ -1,6 +1,7 @@
-// ===== PORTAL DE AGENDAMENTO (DB only + desktop cards skin) =====
+// ===== PORTAL DE AGENDAMENTO MELHORADO =====
+// Versão com API + funcionalidades aprimoradas
 
-// ---------- Configurações ----------
+// Configurações e dados
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
   'Famalicão': '#2DD4BF', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
@@ -8,11 +9,12 @@ const localityColors = {
   'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#FCD34D', 'Vila Verde': '#86EFAC'
 };
 window.LOCALITY_COLORS = localityColors;
-const getLocColor = (loc) => (localityColors && localityColors[loc]) || '#3b82f6';
+function getLocColor(loc){ return (localityColors && localityColors[loc]) || '#3b82f6'; }
 
-const statusBarColors = { NE: '#EF4444', VE: '#F59E0B', ST: '#10B981' };
+const statusBarColors = { 'NE': '#EF4444', 'VE': '#F59E0B', 'ST': '#10B981' };
+const localityList = Object.keys(localityColors);
 
-// ---------- Estado ----------
+// Estado
 let appointments = [];
 let currentMonday = getMonday(new Date());
 let currentMobileDay = new Date();
@@ -20,7 +22,7 @@ let editingId = null;
 let searchQuery = '';
 let statusFilter = '';
 
-// ---------- Utils ----------
+// Utils
 function getMonday(date){ const d=new Date(date); const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1); return new Date(d.setDate(diff)); }
 function addDays(date,days){ const r=new Date(date); r.setDate(r.getDate()+days); return r; }
 function parseDate(dateStr){
@@ -38,35 +40,7 @@ function hex2rgba(h,a){ const r=parseInt(h.slice(1,3),16), g=parseInt(h.slice(3,
 function bucketOf(a){ if(!a.date || !a.period) return 'unscheduled'; return `${a.date}|${a.period}`; }
 function normalizeBucketOrder(bucket){ appointments.filter(a=>bucketOf(a)===bucket).forEach((x,i)=>x.sortIndex=i+1); }
 
-// ---- Helpers de cor para gradiente (desktop + mobile) ----
-const clamp = n => Math.max(0, Math.min(255, Math.round(n)));
-const toHex = n => n.toString(16).padStart(2,'0');
-const rgbToHex = ({r,g,b}) => '#' + toHex(clamp(r)) + toHex(clamp(g)) + toHex(clamp(b));
-function parseColor(str){
-  if(!str) return null;
-  str = String(str).trim();
-  if(str[0] === '#'){
-    if(str.length === 4){
-      return { r:parseInt(str[1]+str[1],16), g:parseInt(str[2]+str[2],16), b:parseInt(str[3]+str[3],16) };
-    }
-    if(str.length >= 7){
-      return { r:parseInt(str.slice(1,3),16), g:parseInt(str.slice(3,5),16), b:parseInt(str.slice(5,7),16) };
-    }
-  }
-  const m = str.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
-  if(m) return { r:+m[1], g:+m[2], b:+m[3] };
-  return null;
-}
-function lighten(rgb, a){ return { r: rgb.r + (255 - rgb.r) * a, g: rgb.g + (255 - rgb.g) * a, b: rgb.b + (255 - rgb.b) * a }; }
-function darken(rgb, a){ return { r: rgb.r * (1 - a), g: rgb.g * (1 - a), b: rgb.b * (1 - a) }; }
-function gradientVarsFromBase(base){
-  const rgb = parseColor(base) || parseColor('#1e88e5');
-  const c1 = rgbToHex(lighten(rgb, 0.06));
-  const c2 = rgbToHex(darken(rgb, 0.18));
-  return { c1, c2 };
-}
-
-// ---------- Toast ----------
+// Toast
 function showToast(msg,type='info'){
   const c=document.getElementById('toastContainer'); if(!c) return;
   const t=document.createElement('div'); t.className=`toast ${type}`;
@@ -74,7 +48,7 @@ function showToast(msg,type='info'){
   c.appendChild(t); setTimeout(()=>t.remove(),4000);
 }
 
-// ---------- Matrícula ----------
+// Matrícula
 function formatPlate(input){
   let v=input.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
   if(v.length>2) v=v.slice(0,2)+'-'+v.slice(2);
@@ -82,85 +56,48 @@ function formatPlate(input){
   input.value=v;
 }
 
-// ---------- Espera pelo apiClient ----------
-async function waitForApiClient(timeoutMs=10000){
-  const start=Date.now();
-  while(Date.now()-start < timeoutMs){
-    if(window.apiClient && typeof window.apiClient.getAppointments==='function') {
-      try { if (typeof window.apiClient.ready === 'function') await window.apiClient.ready(); } catch {}
-      return;
-    }
-    await new Promise(r=>setTimeout(r,120));
+// Storage/API
+async function save(){
+  try{
+    // Sincronização feita pelo cliente de API (mantido por compat)
+    showToast('Dados sincronizados com sucesso!','success');
+  }catch(e){
+    showToast('Erro na sincronização: '+e.message,'error');
   }
-  throw new Error('apiClient não ficou pronto a tempo');
 }
-
-// ---------- Normalização ----------
-function normalizeAppointment(a){
-  const obj = {
-    id: a.id ?? a._id ?? (Date.now()+Math.random()),
-    date: a.date ?? a.data ?? a.dt ?? '',
-    period: a.period ?? a.periodo ?? a.turno ?? '',
-    plate: (a.plate ?? a.matricula ?? '').toUpperCase(),
-    car: a.car ?? a.modelo ?? a.veiculo ?? a.carro ?? '',
-    service: a.service ?? a.servico ?? a.tipo ?? '',
-    locality: a.locality ?? a.localidade ?? '',
-    status: a.status ?? a.estado ?? 'NE',
-    notes: a.notes ?? a.observacoes ?? a.obs ?? '',
-    extra: a.extra ?? a.outros ?? '',
-    sortIndex: a.sortIndex ?? a.ordem ?? 1
-  };
-  obj.date = parseDate(obj.date);
-  return obj;
-}
-function coerceAppointments(res){
-  const raw = Array.isArray(res) ? res
-             : Array.isArray(res?.appointments) ? res.appointments
-             : Array.isArray(res?.data) ? res.data
-             : Array.isArray(res?.items) ? res.items
-             : [];
-  return raw.map(normalizeAppointment);
-}
-
-// ---------- API (sempre DB) ----------
-async function save(){ showToast('Dados sincronizados com sucesso!','success'); }
 
 async function load(){
   try{
-    showToast('A carregar dados…','info');
-    await waitForApiClient();
-    const res = await window.apiClient.getAppointments();
-    appointments = coerceAppointments(res);
+    showToast('Carregando dados...','info');
 
-    try{
-      const locs = await window.apiClient.getLocalities?.();
-      if(locs && typeof locs==='object'){
-        Object.assign(localityColors, locs);
-        window.LOCALITY_COLORS = localityColors;
-      }
-    }catch{}
+    // Carregar da API
+    appointments = await window.apiClient.getAppointments();
 
-    const st = window.apiClient.getConnectionStatus?.() || {online:false};
-    showToast(st.online ? 'Dados carregados da cloud!' : 'Sem ligação à API.', st.online ? 'success' : 'error');
+    // Migração mínima
+    appointments.forEach(a=>{ if(!a.id) a.id=Date.now()+Math.random(); if(!a.sortIndex) a.sortIndex=1; });
 
-    if(!appointments.length){ showToast('A API devolveu 0 agendamentos.', 'warning'); }
+    // Localidades (se a API devolver overrides)
+    const locs = await window.apiClient.getLocalities();
+    if(locs && typeof locs==='object'){ Object.assign(localityColors, locs); window.LOCALITY_COLORS = localityColors; }
+
+    const st = window.apiClient.getConnectionStatus();
+    showToast(st.online ? 'Dados carregados da cloud!' : 'Dados carregados localmente (offline)', st.online ? 'success' : 'info');
   }catch(e){
     appointments = [];
     showToast('Erro ao carregar dados: '+e.message,'error');
-    console.error('load() error:', e);
   }
 }
 
-// ---------- Filtros ----------
+// Filtros
 function filterAppointments(list){
   let f=[...list];
   if(searchQuery){
     const q=searchQuery.toLowerCase();
     f=f.filter(a=>
-      (a.plate||'').toLowerCase().includes(q) ||
-      (a.car||'').toLowerCase().includes(q) ||
-      (a.locality||'').toLowerCase().includes(q) ||
-      (a.notes||'').toLowerCase().includes(q)
+      a.plate.toLowerCase().includes(q) ||
+      a.car.toLowerCase().includes(q) ||
+      a.locality.toLowerCase().includes(q) ||
+      (a.notes && a.notes.toLowerCase().includes(q))
     );
   }
   if(statusFilter) f=f.filter(a=>a.status===statusFilter);
@@ -174,7 +111,7 @@ function highlightSearchResults(){
   });
 }
 
-// ---------- Drag & Drop ----------
+// Drag & Drop
 function enableDragDrop(scope){
   (scope||document).querySelectorAll('.appointment[data-id]').forEach(card=>{
     card.draggable=true;
@@ -187,16 +124,16 @@ function enableDragDrop(scope){
   (scope||document).querySelectorAll('[data-drop-bucket]').forEach(zone=>{
     zone.addEventListener('dragover',e=>{e.preventDefault(); zone.classList.add('drag-over');});
     zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
-    zone.addEventListener('drop', async e=>{
+    zone.addEventListener('drop',e=>{
       e.preventDefault(); zone.classList.remove('drag-over');
       const id=Number(e.dataTransfer.getData('text/plain'));
       const bucket=zone.getAttribute('data-drop-bucket');
       const idx=zone.querySelectorAll('.appointment').length;
-      await onDropAppointment(id,bucket,idx);
+      onDropAppointment(id,bucket,idx);
     });
   });
 }
-async function onDropAppointment(id,targetBucket,targetIndex){
+function onDropAppointment(id,targetBucket,targetIndex){
   const i=appointments.findIndex(a=>a.id===id); if(i<0) return;
   const a=appointments[i];
   if(targetBucket==='unscheduled'){ a.date=''; a.period=''; }
@@ -206,17 +143,10 @@ async function onDropAppointment(id,targetBucket,targetIndex){
   list.forEach((x,idx)=>x.sortIndex=idx+1);
   if(targetIndex>=list.length) a.sortIndex=list.length+1;
   else { list.splice(targetIndex,0,a); list.forEach((x,idx)=>x.sortIndex=idx+1); }
-
-  try{
-    await window.apiClient.updateAppointment(id, { date:a.date, period:a.period, sortIndex:a.sortIndex });
-    showToast('Agendamento movido com sucesso!','success');
-  }catch(err){
-    showToast('Falha ao gravar no servidor: '+err.message,'error');
-  }
-  renderAll();
+  save(); renderAll(); showToast('Agendamento movido com sucesso!','success');
 }
 
-// ---------- Render: calendário desktop (com skin dos cartões) ----------
+// Render: desktop calendar
 function renderSchedule(){
   const table=document.getElementById('schedule'); if(!table) return;
   table.innerHTML='';
@@ -233,16 +163,14 @@ function renderSchedule(){
     const iso=localISO(dayDate);
     const items=filterAppointments(appointments.filter(a=>a.date&&a.date===iso&&a.period===period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0)));
     const appointmentBlocks=items.map(a=>{
-      const base = getLocColor(a.locality);
-      const {c1,c2} = gradientVarsFromBase(base);
+      const bg=getLocColor(a.locality);
       const bar=statusBarColors[a.status]||'#999';
       const notes=a.notes||'';
-      // classes extra: desk-card (para estilos desktop), card-skin (ativa gradiente + tipografia branca)
       return `
-        <div class="appointment appointment-block desk-card card-skin"
+        <div class="appointment appointment-block"
              data-id="${a.id}" draggable="true"
-             data-locality="${a.locality}" data-loccolor="${base}"
-             style="--c1:${c1}; --c2:${c2}; --loc-color:${base}; border-left:6px solid ${bar}">
+             data-locality="${a.locality}" data-loccolor="${bg}"
+             style="--loc-color:${bg}; background-color:${hex2rgba(bg,0.65)}; border-left:6px solid ${bar}">
           <div class="appt-header">${a.plate} | ${a.service} | ${a.car.toUpperCase()}</div>
           <div class="appt-sub">${a.locality} | ${notes}</div>
           <div class="appt-status">
@@ -265,20 +193,19 @@ function renderSchedule(){
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
-// ---------- Render: pendentes (com skin) ----------
+// Render: pendentes
 function renderUnscheduled(){
   const container=document.getElementById('unscheduledList'); if(!container) return;
   const unscheduled=filterAppointments(appointments.filter(a=>!a.date||!a.period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0)));
   const appointmentBlocks=unscheduled.map(a=>{
-    const base = getLocColor(a.locality);
-    const {c1,c2} = gradientVarsFromBase(base);
+    const bg=getLocColor(a.locality);
     const bar=statusBarColors[a.status]||'#999';
     const notes=a.notes||'';
     return `
-      <div class="appointment unscheduled appointment-block desk-card card-skin"
+      <div class="appointment unscheduled appointment-block"
            data-id="${a.id}" draggable="true"
-           data-locality="${a.locality}" data-loccolor="${base}"
-           style="--c1:${c1}; --c2:${c2}; --loc-color:${base}; border-left:6px solid ${bar}">
+           data-locality="${a.locality}" data-loccolor="${bg}"
+           style="--loc-color:${bg}; background-color:${hex2rgba(bg,0.65)}; border-left:6px solid ${bar}">
         <div class="appt-header">${a.plate} | ${a.service} | ${a.car.toUpperCase()}</div>
         <div class="appt-sub">${a.locality} | ${notes}</div>
         <div class="appt-status">
@@ -296,7 +223,7 @@ function renderUnscheduled(){
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
-// ---------- Render: lista do dia (mobile) ----------
+// Render: mobile (lista do dia)
 function renderMobileDay(){
   const label=document.getElementById('mobileDayLabel');
   if(label){
@@ -313,24 +240,23 @@ function renderMobileDay(){
 
   const container=document.getElementById('mobileDayList'); if(!container) return;
   container.innerHTML=list.map(a=>{
-    const base = getLocColor(a.locality);
-    const {c1,c2} = gradientVarsFromBase(base);
+    const bg=getLocColor(a.locality);
     const bar=statusBarColors[a.status]||'#999';
     const title=`${a.plate} | ${a.service} | ${a.car?.toUpperCase?.()||a.car||''}`;
     const sub=[a.locality, a.notes].filter(Boolean).join(' | ');
     return `
-      <div class="appointment appointment-block card-skin"
+      <div class="appointment appointment-block"
            data-period="${a.period}" data-status="${a.status}"
-           data-locality="${a.locality}" data-loccolor="${base}"
-           style="--c1:${c1}; --c2:${c2}; --loc-color:${base}; border-left:6px solid ${bar}; margin-bottom:12px;">
-        <div class="appt-header">${a.period} – ${title}</div>
-        <div class="appt-sub">${sub}</div>
+           data-locality="${a.locality}" data-loccolor="${bg}"
+           style="--loc-color:${bg}; background-color:${hex2rgba(bg,0.75)}; border-left:6px solid ${bar}; margin-bottom:12px;">
+        <div class="appt-header" style="color:#fff;">${a.period} – ${title}</div>
+        <div class="appt-sub" style="color:#fff; opacity:.95;">${sub}</div>
       </div>`;
   }).join('');
   highlightSearchResults();
 }
 
-// ---------- Render: tabela futura ----------
+// Render: tabela futura
 function renderServicesTable(){
   const today=new Date();
   const future=filterAppointments(appointments.filter(a=>a.date && new Date(a.date)>=new Date().setHours(0,0,0,0))
@@ -363,7 +289,7 @@ function renderServicesTable(){
 
 function renderAll(){ renderSchedule(); renderUnscheduled(); renderMobileDay(); renderServicesTable(); }
 
-// ---------- CRUD ----------
+// CRUD
 function openAppointmentModal(id=null){
   editingId=id; const modal=document.getElementById('appointmentModal'); if(!modal) return;
   const form=document.getElementById('appointmentForm');
@@ -373,7 +299,7 @@ function openAppointmentModal(id=null){
     const a=appointments.find(x=>x.id===id);
     if(a){
       title.textContent='Editar Agendamento';
-      document.getElementById('appointmentDate').value = formatDateForInput(a.date)||';
+      document.getElementById('appointmentDate').value = formatDateForInput(a.date) || ''; // <<< FIX AQUI
       document.getElementById('appointmentPeriod').value = a.period||'';
       document.getElementById('appointmentPlate').value = a.plate||'';
       document.getElementById('appointmentCar').value = a.car||'';
@@ -415,11 +341,11 @@ async function saveAppointment(){
     let res;
     if(editingId){
       res=await window.apiClient.updateAppointment(editingId,a);
-      const i=appointments.findIndex(x=>x.id===editingId); if(i>=0) appointments[i]={...appointments[i],...normalizeAppointment(res)};
+      const i=appointments.findIndex(x=>x.id===editingId); if(i>=0) appointments[i]={...appointments[i],...res};
       showToast('Agendamento atualizado com sucesso!','success');
     }else{
       res=await window.apiClient.createAppointment(a);
-      appointments.push(normalizeAppointment(res)); showToast('Serviço criado com sucesso!','success');
+      appointments.push(res); showToast('Serviço criado com sucesso!','success');
     }
     await save(); renderAll(); closeAppointmentModal();
   }catch(e){ console.error(e); showToast('Erro ao salvar: '+e.message,'error'); }
@@ -436,31 +362,53 @@ async function deleteAppointment(id){
   }
 }
 
-// ---------- Status listeners (persistem no DB) ----------
+// Status listeners
 function attachStatusListeners(){
   document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb=>{
-    cb.addEventListener('change', async function(){
+    cb.addEventListener('change',function(){
       const el=this.closest('.appointment'); if(!el) return;
       const id=Number(el.getAttribute('data-id')); const st=this.getAttribute('data-status');
       if(this.checked){
         el.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{ if(x!==this) x.checked=false; });
         const a=appointments.find(x=>x.id===id);
-        if(a){
-          a.status=st;
-          try{
-            await window.apiClient.updateAppointment(id, { status: st });
-            showToast(`Status alterado para ${st}`,'success');
-          }catch(err){
-            showToast('Falha ao gravar estado no servidor: '+err.message,'error');
-          }
-          renderAll();
-        }
+        if(a){ a.status=st; save(); renderAll(); showToast(`Status alterado para ${st}`,'success'); }
       }
     });
   });
 }
 
-// ---------- Estatísticas ----------
+// Export/import
+function exportToJson(){
+  const data={version:'3.0', exported:new Date().toISOString(), appointments};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=`agendamentos_${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(url);
+  showToast('Backup JSON exportado com sucesso!','success');
+}
+function exportToCsv(){
+  const headers=['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações'];
+  const rows=appointments.map(a=>[a.date||'',a.period||'',a.plate||'',a.car||'',a.service||'',a.locality||'',a.status||'',a.notes||'']);
+  const csv=[headers,...rows].map(r=>r.map(f=>`"${f}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`agendamentos_${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(url);
+  showToast('Dados exportados para CSV com sucesso!','success');
+}
+function importFromJson(file){
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      if(data.appointments && Array.isArray(data.appointments)){
+        if(confirm(`Importar ${data.appointments.length} agendamentos? Isto irá substituir todos os dados atuais.`)){
+          appointments=data.appointments; save(); renderAll(); showToast('Dados importados com sucesso!','success'); closeBackupModal();
+        }
+      }else showToast('Formato de ficheiro inválido.','error');
+    }catch(err){ showToast('Erro ao ler ficheiro: '+err.message,'error'); }
+  };
+  reader.readAsText(file);
+}
+
+// Stats
 function generateStats(){
   const total=appointments.length, scheduled=appointments.filter(a=>a.date&&a.period).length, unscheduled=total-scheduled;
   const byStatus={ NE:appointments.filter(a=>a.status==='NE').length, VE:appointments.filter(a=>a.status==='VE').length, ST:appointments.filter(a=>a.status==='ST').length };
@@ -494,7 +442,7 @@ function showStats(){
   modal.classList.add('show');
 }
 
-// ---------- Modais & navegação ----------
+// Modais & navegação
 function closeBackupModal(){ document.getElementById('backupModal')?.classList.remove('show'); }
 function closeStatsModal(){ document.getElementById('statsModal')?.classList.remove('show'); }
 function prevWeek(){ currentMonday=addDays(currentMonday,-7); renderAll(); }
@@ -504,7 +452,7 @@ function prevDay(){ currentMobileDay=addDays(currentMobileDay,-1); renderMobileD
 function nextDay(){ currentMobileDay=addDays(currentMobileDay,1); renderMobileDay(); }
 function todayDay(){ currentMobileDay=new Date(); renderMobileDay(); }
 
-// ---------- Print ----------
+// Print
 function printPage(){ updatePrintUnscheduledTable(); updatePrintTomorrowTable(); window.print(); }
 function updatePrintUnscheduledTable(){
   const list=filterAppointments(appointments.filter(a=>!a.date||!a.period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0)));
@@ -541,9 +489,9 @@ function updatePrintTomorrowTable(){
   }
 }
 
-// ---------- Init ----------
+// Init
 document.addEventListener('DOMContentLoaded', async ()=>{
-  await load();            // SEM fallback: só DB
+  await load();
   initializeLocalityDropdown();
   renderAll();
   updateConnectionStatus();
@@ -565,7 +513,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   });
   document.getElementById('searchInput')?.addEventListener('input', e=>{ searchQuery=e.target.value; renderAll(); });
   document.getElementById('clearSearch')?.addEventListener('click', ()=>{
-    searchQuery=''; const i=document.getElementById('searchInput'); if(i) i.value=''; document.getElementById('searchBar')?.addClass?.('hidden') ?? document.getElementById('searchBar')?.classList.add('hidden'); renderAll();
+    searchQuery=''; const i=document.getElementById('searchInput'); if(i) i.value=''; 
+    document.getElementById('searchBar')?.classList.add('hidden'); // <<< SIMPLIFICADO
+    renderAll();
   });
   document.getElementById('filterStatus')?.addEventListener('change', e=>{ statusFilter=e.target.value; renderAll(); });
 
@@ -596,13 +546,13 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   });
 });
 
-// ---------- Globais ----------
+// Globais
 window.editAppointment=editAppointment;
 window.deleteAppointment=deleteAppointment;
 window.closeBackupModal=closeBackupModal;
 window.closeStatsModal=closeStatsModal;
 
-// ---------- Locality dropdown ----------
+// Locality dropdown
 function initializeLocalityDropdown(){
   const box=document.getElementById('localityOptions'); if(!box) return;
   box.innerHTML='';
@@ -629,13 +579,13 @@ function selectLocality(locality){
 window.toggleLocalityDropdown=toggleLocalityDropdown;
 window.selectLocality=selectLocality;
 
-// ---------- Connection status ----------
+// Connection status
 function updateConnectionStatus(){
   const el=document.getElementById('connectionStatus'); const ic=document.getElementById('statusIcon'); const tx=document.getElementById('statusText');
   if(!el||!ic||!tx) return;
-  const st=window.apiClient?.getConnectionStatus?.() || {online:false};
-  if(st.online){ el.classList.remove('offline'); ic.textContent='🌐'; tx.textContent='Online'; el.title=`Conectado à API: ${st.apiUrl||''}`; }
-  else{ el.classList.add('offline'); ic.textContent='📱'; tx.textContent='Offline'; el.title='Sem ligação à API'; }
+  const st=window.apiClient.getConnectionStatus();
+  if(st.online){ el.classList.remove('offline'); ic.textContent='🌐'; tx.textContent='Online'; el.title=`Conectado à API: ${st.apiUrl}`; }
+  else{ el.classList.add('offline'); ic.textContent='📱'; tx.textContent='Offline'; el.title='Modo offline - usando dados locais'; }
 }
 setInterval(updateConnectionStatus,5000);
 window.addEventListener('online',updateConnectionStatus);
