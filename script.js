@@ -1,4 +1,4 @@
-// ===== PORTAL DE AGENDAMENTO (DB only) =====
+// ===== PORTAL DE AGENDAMENTO (DB only + desktop cards skin) =====
 
 // ---------- Configurações ----------
 const localityColors = {
@@ -38,6 +38,34 @@ function hex2rgba(h,a){ const r=parseInt(h.slice(1,3),16), g=parseInt(h.slice(3,
 function bucketOf(a){ if(!a.date || !a.period) return 'unscheduled'; return `${a.date}|${a.period}`; }
 function normalizeBucketOrder(bucket){ appointments.filter(a=>bucketOf(a)===bucket).forEach((x,i)=>x.sortIndex=i+1); }
 
+// ---- Helpers de cor para gradiente (desktop + mobile) ----
+const clamp = n => Math.max(0, Math.min(255, Math.round(n)));
+const toHex = n => n.toString(16).padStart(2,'0');
+const rgbToHex = ({r,g,b}) => '#' + toHex(clamp(r)) + toHex(clamp(g)) + toHex(clamp(b));
+function parseColor(str){
+  if(!str) return null;
+  str = String(str).trim();
+  if(str[0] === '#'){
+    if(str.length === 4){
+      return { r:parseInt(str[1]+str[1],16), g:parseInt(str[2]+str[2],16), b:parseInt(str[3]+str[3],16) };
+    }
+    if(str.length >= 7){
+      return { r:parseInt(str.slice(1,3),16), g:parseInt(str.slice(3,5),16), b:parseInt(str.slice(5,7),16) };
+    }
+  }
+  const m = str.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+  if(m) return { r:+m[1], g:+m[2], b:+m[3] };
+  return null;
+}
+function lighten(rgb, a){ return { r: rgb.r + (255 - rgb.r) * a, g: rgb.g + (255 - rgb.g) * a, b: rgb.b + (255 - rgb.b) * a }; }
+function darken(rgb, a){ return { r: rgb.r * (1 - a), g: rgb.g * (1 - a), b: rgb.b * (1 - a) }; }
+function gradientVarsFromBase(base){
+  const rgb = parseColor(base) || parseColor('#1e88e5');
+  const c1 = rgbToHex(lighten(rgb, 0.06));
+  const c2 = rgbToHex(darken(rgb, 0.18));
+  return { c1, c2 };
+}
+
 // ---------- Toast ----------
 function showToast(msg,type='info'){
   const c=document.getElementById('toastContainer'); if(!c) return;
@@ -59,7 +87,6 @@ async function waitForApiClient(timeoutMs=10000){
   const start=Date.now();
   while(Date.now()-start < timeoutMs){
     if(window.apiClient && typeof window.apiClient.getAppointments==='function') {
-      // algumas libs expõem apiClient.ready() como Promise
       try { if (typeof window.apiClient.ready === 'function') await window.apiClient.ready(); } catch {}
       return;
     }
@@ -70,7 +97,6 @@ async function waitForApiClient(timeoutMs=10000){
 
 // ---------- Normalização ----------
 function normalizeAppointment(a){
-  // aceita chaves alternativas (caso API esteja em PT)
   const obj = {
     id: a.id ?? a._id ?? (Date.now()+Math.random()),
     date: a.date ?? a.data ?? a.dt ?? '',
@@ -84,11 +110,9 @@ function normalizeAppointment(a){
     extra: a.extra ?? a.outros ?? '',
     sortIndex: a.sortIndex ?? a.ordem ?? 1
   };
-  // datas em dd/mm/yyyy -> yyyy-mm-dd
   obj.date = parseDate(obj.date);
   return obj;
 }
-
 function coerceAppointments(res){
   const raw = Array.isArray(res) ? res
              : Array.isArray(res?.appointments) ? res.appointments
@@ -99,38 +123,29 @@ function coerceAppointments(res){
 }
 
 // ---------- API (sempre DB) ----------
-async function save(){
-  // aqui não há fallback; apenas feedback visual
-  showToast('Dados sincronizados com sucesso!','success');
-}
+async function save(){ showToast('Dados sincronizados com sucesso!','success'); }
 
 async function load(){
   try{
     showToast('A carregar dados…','info');
-
-    await waitForApiClient(); // garante apiClient pronto
+    await waitForApiClient();
     const res = await window.apiClient.getAppointments();
     appointments = coerceAppointments(res);
 
-    console.debug('[load] appointments recebidos:', appointments.length, appointments);
-
-    // Localidades dinâmicas (se houver)
     try{
       const locs = await window.apiClient.getLocalities?.();
       if(locs && typeof locs==='object'){
         Object.assign(localityColors, locs);
         window.LOCALITY_COLORS = localityColors;
       }
-    }catch(err){ console.debug('getLocalities falhou/ausente:', err?.message); }
+    }catch{}
 
     const st = window.apiClient.getConnectionStatus?.() || {online:false};
     showToast(st.online ? 'Dados carregados da cloud!' : 'Sem ligação à API.', st.online ? 'success' : 'error');
 
-    if(!appointments.length){
-      showToast('A API devolveu 0 agendamentos.', 'warning');
-    }
+    if(!appointments.length){ showToast('A API devolveu 0 agendamentos.', 'warning'); }
   }catch(e){
-    appointments = []; // Sem fallback local por opção
+    appointments = [];
     showToast('Erro ao carregar dados: '+e.message,'error');
     console.error('load() error:', e);
   }
@@ -198,11 +213,10 @@ async function onDropAppointment(id,targetBucket,targetIndex){
   }catch(err){
     showToast('Falha ao gravar no servidor: '+err.message,'error');
   }
-
   renderAll();
 }
 
-// ---------- Render: calendário desktop ----------
+// ---------- Render: calendário desktop (com skin dos cartões) ----------
 function renderSchedule(){
   const table=document.getElementById('schedule'); if(!table) return;
   table.innerHTML='';
@@ -219,14 +233,16 @@ function renderSchedule(){
     const iso=localISO(dayDate);
     const items=filterAppointments(appointments.filter(a=>a.date&&a.date===iso&&a.period===period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0)));
     const appointmentBlocks=items.map(a=>{
-      const bg=getLocColor(a.locality);
+      const base = getLocColor(a.locality);
+      const {c1,c2} = gradientVarsFromBase(base);
       const bar=statusBarColors[a.status]||'#999';
       const notes=a.notes||'';
+      // classes extra: desk-card (para estilos desktop), card-skin (ativa gradiente + tipografia branca)
       return `
-        <div class="appointment appointment-block"
+        <div class="appointment appointment-block desk-card card-skin"
              data-id="${a.id}" draggable="true"
-             data-locality="${a.locality}" data-loccolor="${bg}"
-             style="--loc-color:${bg}; background-color:${hex2rgba(bg,0.65)}; border-left:6px solid ${bar}">
+             data-locality="${a.locality}" data-loccolor="${base}"
+             style="--c1:${c1}; --c2:${c2}; --loc-color:${base}; border-left:6px solid ${bar}">
           <div class="appt-header">${a.plate} | ${a.service} | ${a.car.toUpperCase()}</div>
           <div class="appt-sub">${a.locality} | ${notes}</div>
           <div class="appt-status">
@@ -249,19 +265,20 @@ function renderSchedule(){
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
-// ---------- Render: pendentes ----------
+// ---------- Render: pendentes (com skin) ----------
 function renderUnscheduled(){
   const container=document.getElementById('unscheduledList'); if(!container) return;
   const unscheduled=filterAppointments(appointments.filter(a=>!a.date||!a.period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0)));
   const appointmentBlocks=unscheduled.map(a=>{
-    const bg=getLocColor(a.locality);
+    const base = getLocColor(a.locality);
+    const {c1,c2} = gradientVarsFromBase(base);
     const bar=statusBarColors[a.status]||'#999';
     const notes=a.notes||'';
     return `
-      <div class="appointment unscheduled appointment-block"
+      <div class="appointment unscheduled appointment-block desk-card card-skin"
            data-id="${a.id}" draggable="true"
-           data-locality="${a.locality}" data-loccolor="${bg}"
-           style="--loc-color:${bg}; background-color:${hex2rgba(bg,0.65)}; border-left:6px solid ${bar}">
+           data-locality="${a.locality}" data-loccolor="${base}"
+           style="--c1:${c1}; --c2:${c2}; --loc-color:${base}; border-left:6px solid ${bar}">
         <div class="appt-header">${a.plate} | ${a.service} | ${a.car.toUpperCase()}</div>
         <div class="appt-sub">${a.locality} | ${notes}</div>
         <div class="appt-status">
@@ -296,17 +313,18 @@ function renderMobileDay(){
 
   const container=document.getElementById('mobileDayList'); if(!container) return;
   container.innerHTML=list.map(a=>{
-    const bg=getLocColor(a.locality);
+    const base = getLocColor(a.locality);
+    const {c1,c2} = gradientVarsFromBase(base);
     const bar=statusBarColors[a.status]||'#999';
     const title=`${a.plate} | ${a.service} | ${a.car?.toUpperCase?.()||a.car||''}`;
     const sub=[a.locality, a.notes].filter(Boolean).join(' | ');
     return `
-      <div class="appointment appointment-block"
+      <div class="appointment appointment-block card-skin"
            data-period="${a.period}" data-status="${a.status}"
-           data-locality="${a.locality}" data-loccolor="${bg}"
-           style="--loc-color:${bg}; background-color:${hex2rgba(bg,0.75)}; border-left:6px solid ${bar}; margin-bottom:12px;">
-        <div class="appt-header" style="color:#fff;">${a.period} – ${title}</div>
-        <div class="appt-sub" style="color:#fff; opacity:.95;">${sub}</div>
+           data-locality="${a.locality}" data-loccolor="${base}"
+           style="--c1:${c1}; --c2:${c2}; --loc-color:${base}; border-left:6px solid ${bar}; margin-bottom:12px;">
+        <div class="appt-header">${a.period} – ${title}</div>
+        <div class="appt-sub">${sub}</div>
       </div>`;
   }).join('');
   highlightSearchResults();
@@ -355,7 +373,7 @@ function openAppointmentModal(id=null){
     const a=appointments.find(x=>x.id===id);
     if(a){
       title.textContent='Editar Agendamento';
-      document.getElementById('appointmentDate').value = formatDateForInput(a.date)||'';
+      document.getElementById('appointmentDate').value = formatDateForInput(a.date)||';
       document.getElementById('appointmentPeriod').value = a.period||'';
       document.getElementById('appointmentPlate').value = a.plate||'';
       document.getElementById('appointmentCar').value = a.car||'';
@@ -547,7 +565,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   });
   document.getElementById('searchInput')?.addEventListener('input', e=>{ searchQuery=e.target.value; renderAll(); });
   document.getElementById('clearSearch')?.addEventListener('click', ()=>{
-    searchQuery=''; const i=document.getElementById('searchInput'); if(i) i.value=''; document.getElementById('searchBar')?.classList.add('hidden'); renderAll();
+    searchQuery=''; const i=document.getElementById('searchInput'); if(i) i.value=''; document.getElementById('searchBar')?.addClass?.('hidden') ?? document.getElementById('searchBar')?.classList.add('hidden'); renderAll();
   });
   document.getElementById('filterStatus')?.addEventListener('change', e=>{ statusFilter=e.target.value; renderAll(); });
 
