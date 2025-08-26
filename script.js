@@ -147,12 +147,8 @@ async function persistBuckets(buckets){
   for (const bucket of buckets){
     const list = getBucketList(bucket);
     for (const item of list){
-      try{
-        await window.apiClient.updateAppointment(item.id, { ...item });
-      }catch(e){
-        console.warn('Falha a gravar', item.id, e);
-        showToast('Falha a gravar alguns itens.', 'error');
-      }
+      try{ await window.apiClient.updateAppointment(item.id, { ...item }); }
+      catch(e){ console.warn('Falha a gravar', item.id, e); showToast('Falha a gravar alguns itens.', 'error'); }
     }
   }
   showToast('Alterações gravadas.', 'success');
@@ -309,8 +305,7 @@ function renderUnscheduled(){
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
-// ---------- Render TABELA FUTURA ----------
-// (agora garantimos que existe cabeçalho com "Ações")
+// ---------- Header da tabela (garante coluna Ações) ----------
 function ensureServicesHeader(){
   const table = document.querySelector('.services-table');
   if(!table) return;
@@ -328,18 +323,26 @@ function ensureServicesHeader(){
   }</tr>`;
 }
 
+// ---------- Render TABELA FUTURA ----------
 function renderServicesTable(){
-  const today=new Date();
-  const future=filterAppointments(appointments.filter(a=>a.date && new Date(a.date)>=new Date().setHours(0,0,0,0))
-    .sort((a,b)=>new Date(a.date)-new Date(b.date)));
   const tbody=document.getElementById('servicesTableBody'); if(!tbody) return;
 
-  // garante colunas certas no thead
   ensureServicesHeader();
+
+  // início de hoje
+  const startToday = new Date(); startToday.setHours(0,0,0,0);
+
+  const future = filterAppointments(
+    appointments
+      .filter(a => a.date && new Date(a.date) >= startToday)
+      .sort((a,b) => new Date(a.date) - new Date(b.date))
+  );
+
+  const today = new Date();
 
   tbody.innerHTML=future.map(a=>{
     const d=new Date(a.date);
-    const diff=Math.ceil((d-today)/(1000*60*60*24));
+    const diff=Math.ceil((d - today)/(1000*60*60*24));
     const when = diff<0? `${Math.abs(diff)} dias atrás` : diff===0? 'Hoje' : diff===1? 'Amanhã' : `${diff} dias`;
     return `<tr>
       <td>${d.toLocaleDateString('pt-PT')}</td>
@@ -359,6 +362,7 @@ function renderServicesTable(){
       </td>
     </tr>`;
   }).join('');
+
   const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviços pendentes`;
 }
 
@@ -488,12 +492,40 @@ function updatePrintTomorrowTable(){
   }
 }
 
+// ---------- Colocar “+ Novo Serviço” no topo (barra azul) ----------
+function placeAddNewButtonInHeader(){
+  const btn = document.getElementById('addServiceBtn');
+  if(!btn) return;
+  const header = document.querySelector('.header-actions') || (()=> {
+    const ph = document.querySelector('.page-header');
+    if(!ph) return null;
+    const c = document.createElement('div'); c.className='header-actions'; ph.appendChild(c); return c;
+  })();
+  if(!header) return;
+  btn.classList.add('header-btn','primary');
+  btn.textContent = '+ Novo Serviço';
+  header.prepend(btn); // fica à esquerda dos restantes (perto do imprimir)
+}
+
+// ---------- Modais & navegação ----------
+function closeBackupModal(){ document.getElementById('backupModal')?.classList.remove('show'); }
+function closeStatsModal(){ document.getElementById('statsModal')?.classList.remove('show'); }
+function prevWeek(){ currentMonday=addDays(currentMonday,-7); renderAll(); }
+function nextWeek(){ currentMonday=addDays(currentMonday,7); renderAll(); }
+function todayWeek(){ currentMonday=getMonday(new Date()); renderAll(); }
+function prevDay(){ currentMobileDay=addDays(currentMobileDay,-1); renderMobileDay(); }
+function nextDay(){ currentMobileDay=addDays(currentMobileDay,1); renderMobileDay(); }
+function todayDay(){ currentMobileDay=new Date(); renderMobileDay(); }
+
 // ---------- Init ----------
 document.addEventListener('DOMContentLoaded', async ()=>{
   await load();
   initializeLocalityDropdown();
 
-  // garante header com "Ações" antes do primeiro render
+  // botão “+ Novo Serviço” volta para a barra azul
+  placeAddNewButtonInHeader();
+
+  // cabeçalho da tabela com “Ações”
   ensureServicesHeader();
 
   renderAll();
