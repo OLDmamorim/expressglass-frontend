@@ -641,3 +641,35 @@ function updateConnectionStatus(){
 setInterval(updateConnectionStatus,5000);
 window.addEventListener('online',updateConnectionStatus);
 window.addEventListener('offline',updateConnectionStatus);
+
+// --- Garantir que o "+ Novo Serviço" existe SEMPRE no header e está funcional
+function ensureAddNewButton(){
+  const header = document.querySelector('.header-actions');
+  if (!header) return;
+
+  let btn = document.getElementById('addServiceBtn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'addServiceBtn';
+    btn.className = 'header-btn primary';
+    btn.textContent = '+ Novo Serviço';
+    header.insertBefore(btn, header.firstChild);
+  }
+  if (!btn._wired) {
+    btn.addEventListener('click', () => openAppointmentModal());
+    btn._wired = true;
+  }
+}
+
+// corre no load…
+document.addEventListener('DOMContentLoaded', ensureAddNewButton);
+
+// …e observa o DOM para repor o botão se algo o remover/mover
+const headerObserver = new MutationObserver(() => ensureAddNewButton());
+headerObserver.observe(document.body, { childList: true, subtree: true });
+
+// segurança extra: delegação global caso o botão reapareça “novo”
+document.addEventListener('click', (e) => {
+  const t = e.target.closest && e.target.closest('#addServiceBtn');
+  if (t) openAppointmentModal();
+});
