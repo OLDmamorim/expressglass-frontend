@@ -290,3 +290,16 @@ table.schedule td:first-child{border-left:none}
    ========================= */
 textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: none; }
 .highlight{ background:#fef3c7 !important; border:2px solid #f59e0b !important; }
+
+/* Força o botão do header visível no desktop */
+@media (min-width: 821px){
+  #addServiceBtn { display: inline-flex !important; }
+  .mobile-add-btn { display: none !important; } /* só mostra o flutuante no mobile */
+}
+
+/* No mobile, esconde o do header e mostra o flutuante */
+@media (max-width: 820px){
+  #addServiceBtn { display: none !important; }
+  .mobile-add-btn { display: inline-flex !important; }
+}
+
