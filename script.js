@@ -1,6 +1,5 @@
 // ===== PORTAL DE AGENDAMENTO MELHORADO =====
 // Versão com API + cartões estilo mobile também no DESKTOP
-// Drag & drop com persistência de data/período/ordem na BD + rollback
 
 // ---------- Configurações e dados ----------
 const localityColors = {
@@ -40,7 +39,6 @@ const cap = s => s ? s.charAt(0).toUpperCase()+s.slice(1) : s;
 function hex2rgba(h,a){ const r=parseInt(h.slice(1,3),16), g=parseInt(h.slice(3,5),16), b=parseInt(h.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
 function bucketOf(a){ if(!a.date || !a.period) return 'unscheduled'; return `${a.date}|${a.period}`; }
 function normalizeBucketOrder(bucket){ appointments.filter(a=>bucketOf(a)===bucket).forEach((x,i)=>x.sortIndex=i+1); }
-const cloneState = () => appointments.map(a => ({ id:a.id, date:a.date, period:a.period, sortIndex:a.sortIndex }));
 
 // ------ Helpers de cor p/ gradiente (desktop + mobile) ------
 const clamp = n => Math.max(0, Math.min(255, Math.round(n)));
@@ -124,97 +122,135 @@ function highlightSearchResults(){
 }
 
 // ---------- Drag & Drop ----------
+function getDropIndex(zone, mouseY){
+  const cards = Array.from(zone.querySelectorAll('.appointment'));
+  for(let i=0;i<cards.length;i++){
+    const r = cards[i].getBoundingClientRect();
+    const mid = r.top + r.height/2;
+    if(mouseY < mid) return i;
+  }
+  return cards.length;
+}
+
 function enableDragDrop(scope){
   (scope||document).querySelectorAll('.appointment[data-id]').forEach(card=>{
-    card.draggable=true;
-    card.addEventListener('dragstart',e=>{
-      e.dataTransfer.setData('text/plain',card.getAttribute('data-id'));
-      e.dataTransfer.effectAllowed='move'; card.classList.add('dragging');
+    card.draggable = true;
+    card.addEventListener('dragstart', e=>{
+      e.dataTransfer.setData('text/plain', card.getAttribute('data-id'));
+      e.dataTransfer.effectAllowed='move';
+      card.classList.add('dragging');
     });
-    card.addEventListener('dragend',()=>card.classList.remove('dragging'));
+    card.addEventListener('dragend', ()=> card.classList.remove('dragging'));
   });
+
   (scope||document).querySelectorAll('[data-drop-bucket]').forEach(zone=>{
-    zone.addEventListener('dragover',e=>{e.preventDefault(); zone.classList.add('drag-over');});
-    zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
-    zone.addEventListener('drop',e=>{
-      e.preventDefault(); zone.classList.remove('drag-over');
-      const id=Number(e.dataTransfer.getData('text/plain'));
-      const bucket=zone.getAttribute('data-drop-bucket');
-      const idx=zone.querySelectorAll('.appointment').length;
-      onDropAppointment(id,bucket,idx);
+    zone.addEventListener('dragover', e=>{
+      e.preventDefault();
+      zone.classList.add('drag-over');
+    });
+    zone.addEventListener('dragleave', ()=> zone.classList.remove('drag-over'));
+    zone.addEventListener('drop', e=>{
+      e.preventDefault();
+      zone.classList.remove('drag-over');
+      const id = Number(e.dataTransfer.getData('text/plain'));
+      const bucket = zone.getAttribute('data-drop-bucket');
+      const idx = getDropIndex(zone, e.clientY);
+      onDropAppointment(id, bucket, idx);
     });
   });
 }
 
-// ---- persistência do DROP (data/period/sortIndex) ----
-async function persistDropChanges(prevSnapshot, changedIds){
-  try{
-    const changed = appointments.filter(a => changedIds.includes(a.id));
-    await Promise.all(changed.map(a =>
-      window.apiClient.updateAppointment(a.id, { date:a.date||'', period:a.period||'', sortIndex:a.sortIndex||1 })
-    ));
-    showToast('Ordem/agenda guardada.', 'success');
-  }catch(err){
-    // rollback total
-    prevSnapshot.forEach(snap=>{
-      const i = appointments.findIndex(a=>a.id===snap.id);
-      if(i>=0){ appointments[i].date=snap.date; appointments[i].period=snap.period; appointments[i].sortIndex=snap.sortIndex; }
+// --- persistência de movimentos (BD) ---
+async function persistBatchUpdates(changes){
+  if(!changes || !changes.length) return;
+  const results = await Promise.allSettled(
+    changes.map(ch => window.apiClient.updateAppointment(ch.id, ch))
+  );
+  const fails = results.filter(r => r.status==='rejected');
+  if(fails.length){
+    showToast('Algumas posições não foram gravadas.', 'error');
+  }else{
+    showToast('Ordem gravada com sucesso!', 'success');
+  }
+}
+
+function onDropAppointment(id, targetBucket, targetIndex){
+  const i = appointments.findIndex(a=>a.id===id);
+  if(i<0) return;
+  const moved = appointments[i];
+
+  const sourceBucket = bucketOf(moved);
+
+  // capturar sortIndex anteriores (source e target) ANTES de mexer
+  const prevIndexMap = new Map();
+  const capture = (bucket)=>{
+    appointments.filter(a=>bucketOf(a)===bucket).forEach(a=>{
+      prevIndexMap.set(a.id, a.sortIndex || 0);
     });
-    showToast('Falha ao gravar alterações do arrastar: '+err.message, 'error');
-  }finally{
+  };
+  capture(sourceBucket);
+  if(targetBucket !== 'unscheduled') capture(targetBucket);
+
+  // aplicar mudança local
+  if(targetBucket === 'unscheduled'){ moved.date=''; moved.period=''; }
+  else {
+    const [d,p] = targetBucket.split('|');
+    moved.date = d;
+    moved.period = p || moved.period || 'Manhã';
+  }
+
+  // recalcular order dos dois buckets
+  const rebucket = (bucket)=>{
+    const list = appointments
+      .filter(a=>bucketOf(a)===bucket)
+      .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0));
+
+    // remover o movido se estiver na lista (para re-inserir no índice certo)
+    const k = list.findIndex(x=>x.id===moved.id);
+    if(k>=0) list.splice(k,1);
+
+    // inserir no índice desejado
+    const idx = Math.max(0, Math.min(targetIndex, list.length));
+    if(bucket === bucketOf(moved)) list.splice(idx, 0, moved);
+
+    // reatribuir sortIndex sequencial
+    list.forEach((x,idx2)=> x.sortIndex = idx2+1);
+  };
+
+  // Normaliza source e target
+  rebucket(sourceBucket);
+  const newTargetBucket = bucketOf(moved);
+  rebucket(newTargetBucket);
+
+  // construir lista de mudanças (sortIndex e também date/period do movido)
+  const collect = (bucket)=>{
+    return appointments
+      .filter(a=>bucketOf(a)===bucket)
+      .map(a=>{
+        const prev = prevIndexMap.get(a.id);
+        const changedSort = prev !== (a.sortIndex||0);
+        const changedBucket = (a.id===moved.id) && (sourceBucket!==newTargetBucket);
+        if(changedSort || changedBucket){
+          return { id:a.id, date:a.date||'', period:a.period||'', sortIndex:a.sortIndex||0 };
+        }
+        return null;
+      })
+      .filter(Boolean);
+  };
+
+  let changes = collect(sourceBucket);
+  if(newTargetBucket !== sourceBucket){
+    changes = changes.concat(collect(newTargetBucket));
+  }
+  // garantir que o movido vai sempre (inclui statusBar/other props se quiseres)
+  if(!changes.find(c=>c.id===moved.id)){
+    changes.push({ id:moved.id, date:moved.date||'', period:moved.period||'', sortIndex:moved.sortIndex||0 });
+  }
+
+  // Persistir
+  persistBatchUpdates(changes).finally(()=>{
     renderAll();
-  }
-}
-
-async function onDropAppointment(id,targetBucket,targetIndex){
-  const i=appointments.findIndex(a=>a.id===id); if(i<0) return;
-
-  // snapshot para rollback/para saber o que mudou
-  const prev = cloneState();
-
-  const a=appointments[i];
-  const prevBucket = bucketOf(a);
-
-  // aplicar alterações locais
-  if(targetBucket==='unscheduled'){ a.date=''; a.period=''; }
-  else { const [d,p]=targetBucket.split('|'); a.date=d; a.period=p||a.period||'Manhã'; }
-
-  // Reordenar itens do BUCKET de destino
-  normalizeBucketOrder(targetBucket);
-  const dest = appointments
-    .filter(x=>bucketOf(x)===targetBucket)
-    .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0));
-
-  // Inserir o movido na posição alvo
-  const already = dest.findIndex(x=>x.id===a.id);
-  if(already>-1) dest.splice(already,1);
-  if(targetIndex>=dest.length) dest.push(a);
-  else dest.splice(targetIndex,0,a);
-
-  // Reatribuir sortIndex sequencial
-  dest.forEach((x,idx)=> x.sortIndex = idx+1);
-
-  // Se saiu de um bucket diferente, normalizar o bucket de origem também
-  if (prevBucket !== targetBucket){
-    normalizeBucketOrder(prevBucket);
-  }
-
-  // descobrir quem mudou vs snapshot
-  const changedIds = [];
-  appointments.forEach(cur=>{
-    const s = prev.find(p=>p.id===cur.id);
-    if(!s) return;
-    if(s.date!==cur.date || s.period!==cur.period || s.sortIndex!==cur.sortIndex){
-      changedIds.push(cur.id);
-    }
   });
-
-  // feedback imediato
-  renderAll();
-  showToast('A gravar alterações...', 'info');
-
-  // persistir mudanças (com rollback em caso de erro)
-  await persistDropChanges(prev, changedIds);
 }
 
 // ---------- Render DESKTOP (cartões estilo mobile) ----------
@@ -450,18 +486,17 @@ async function persistStatus(id, newStatus) {
   if (idx < 0) return;
 
   const prev = appointments[idx].status;
-  // otimista
-  appointments[idx].status = newStatus;
+  appointments[idx].status = newStatus; // otimista
 
   try {
-    const payload = { ...appointments[idx], status: newStatus };
+    const payload = { status: newStatus };
     const res = await window.apiClient.updateAppointment(id, payload);
     if (res && typeof res === 'object') {
       appointments[idx] = { ...appointments[idx], ...res };
     }
     showToast(`Status guardado: ${newStatus}`, 'success');
   } catch (err) {
-    appointments[idx].status = prev;      // rollback
+    appointments[idx].status = prev; // rollback
     showToast('Falha ao gravar status: ' + err.message, 'error');
   } finally {
     renderAll();
@@ -473,15 +508,10 @@ function attachStatusListeners(){
   document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb=>{
     cb.addEventListener('change', async function(){
       if (!this.checked) return; // só quando fica marcado
-
       const el=this.closest('.appointment'); if(!el) return;
       const id=Number(el.getAttribute('data-id'));
       const st=this.getAttribute('data-status');
-
-      // deixar apenas este marcado no cartão
       el.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{ if(x!==this) x.checked=false; });
-
-      // grava na BD (com rollback se falhar)
       await persistStatus(id, st);
     });
   });
