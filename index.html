@@ -25,7 +25,7 @@
     </div>
   </header>
 
-  <!-- ===== Barra de pesquisa (toggle pelo #searchBtn no JS) ===== -->
+  <!-- ===== Barra de pesquisa ===== -->
   <div id="searchBar" class="search-bar hidden">
     <input id="searchInput" type="text" placeholder="Pesquisar por matrícula, carro, localidade, notas…" />
     <button id="clearSearch" class="search-clear">Limpar</button>
@@ -49,7 +49,7 @@
     <table id="schedule" class="schedule"></table>
   </section>
 
-  <!-- ===== Por agendar (lista horizontal de cartões) ===== -->
+  <!-- ===== Por agendar ===== -->
   <section class="unscheduled-container">
     <h3>SERVIÇOS POR AGENDAR</h3>
     <div class="unscheduled-actions">
@@ -91,7 +91,7 @@
     <div id="servicesSummary" style="margin-top:8px; color:#6b7280;"></div>
   </section>
 
-  <!-- ===== Vista MOBILE (lista do dia) ===== -->
+  <!-- ===== Vista MOBILE ===== -->
   <section class="mobile-day-container">
     <div class="mobile-day-header">
       <div id="mobileDayLabel" class="mobile-day-label">--</div>
@@ -105,7 +105,7 @@
     <button id="addServiceMobile" class="mobile-add-btn">+ Novo Serviço</button>
   </section>
 
-  <!-- ===== Modal: Novo/Editar agendamento ===== -->
+  <!-- ===== Modal: Novo/Editar ===== -->
   <div id="appointmentModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -153,7 +153,6 @@
 
           <div class="form-group">
             <label>Localidade</label>
-            <!-- dropdown custom + hidden -->
             <div class="locality-dropdown">
               <div id="localitySelected" class="locality-selected" onclick="toggleLocalityDropdown()">
                 <span id="selectedLocalityDot" class="locality-dot"></span>
@@ -194,7 +193,7 @@
     </div>
   </div>
 
-  <!-- ===== Modal: Backup/Import ===== -->
+  <!-- ===== Modal: Backup ===== -->
   <div id="backupModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -236,7 +235,7 @@
     </div>
   </div>
 
-  <!-- ===== Print: Amanhã ===== -->
+  <!-- ===== Print Amanhã ===== -->
   <section class="print-tomorrow-section print-page-2">
     <h2 id="printTomorrowTitle"></h2>
     <div id="printTomorrowDate" class="print-tomorrow-date"></div>
@@ -261,7 +260,7 @@
     </div>
   </section>
 
-  <!-- ===== Print: Por Agendar ===== -->
+  <!-- ===== Print Por Agendar ===== -->
   <section class="print-unscheduled-section print-page-3">
     <h2>SERVIÇOS POR AGENDAR</h2>
     <table class="print-unscheduled-table">
@@ -283,7 +282,28 @@
   <!-- ===== Toasts ===== -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <!-- ===== Script principal ===== -->
+  <!-- ===== IMPORTANTE: carrega o teu cliente de API AQUI (ajusta o caminho) ===== -->
+  <script src="apiClient.js"></script>
+
+  <!-- Fallback de segurança (evita crash se o ficheiro acima não existir/for falhado).
+       A UI abre, mas sem persistência real. Troca pelos teus endpoints se quiseres. -->
+  <script>
+    (function(){
+      if (!window.apiClient || typeof window.apiClient.getAppointments !== 'function') {
+        console.warn('[apiClient] Não encontrado. A usar FALBACK sem BD.');
+        window.apiClient = {
+          async getAppointments(){ return []; },
+          async getLocalities(){ return {}; },
+          getConnectionStatus(){ return { online:false, apiUrl:'(sem API)' }; },
+          async updateAppointment(id, payload){ return payload || {}; },
+          async createAppointment(a){ return a; },
+          async deleteAppointment(){ return true; }
+        };
+      }
+    })();
+  </script>
+
+  <!-- Script principal -->
   <script src="script.js"></script>
 </body>
 </html>
