@@ -18,10 +18,11 @@
         <span id="statusIcon">🌐</span><span id="statusText">Online</span>
       </div>
 
-      <button id="addServiceBtn" class="header-btn primary">+ Novo Serviço</button>
-      <button id="statsBtn" class="header-btn">📊 Estatísticas</button>
-      <button id="backupBtn" class="header-btn">💾 Backup</button>
-      <button id="printPage" class="header-btn">🖨️ Imprimir</button>
+      <!-- Botão principal no header -->
+      <button id="addServiceBtn" class="header-btn primary" aria-label="Adicionar novo serviço">+ Novo Serviço</button>
+      <button id="statsBtn" class="header-btn" aria-label="Abrir estatísticas">📊 Estatísticas</button>
+      <button id="backupBtn" class="header-btn" aria-label="Backup & Import">💾 Backup</button>
+      <button id="printPage" class="header-btn" aria-label="Imprimir">🖨️ Imprimir</button>
     </div>
   </header>
 
@@ -53,7 +54,7 @@
   <section class="unscheduled-container">
     <h3>SERVIÇOS POR AGENDAR</h3>
     <div class="unscheduled-actions">
-      <select id="filterStatus" class="filter-select">
+      <select id="filterStatus" class="filter-select" aria-label="Filtrar por estado">
         <option value="">Todos os estados</option>
         <option value="NE">N/E</option>
         <option value="VE">V/E</option>
@@ -81,9 +82,10 @@
           <th>Serviço</th>
           <th>Localidade</th>
           <th>Observações</th>
-          <th>Estado</th>
+          <th>Status</th>
           <th>Quando</th>
-          <th class="no-print">Ações</th>
+          <!-- visível só em desktop; escondido no mobile e em print -->
+          <th class="desktop-only no-print">Ações</th>
         </tr>
       </thead>
       <tbody id="servicesTableBody"></tbody>
@@ -282,11 +284,10 @@
   <!-- ===== Toasts ===== -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <!-- ===== IMPORTANTE: carrega o teu cliente de API AQUI (ajusta o caminho) ===== -->
+  <!-- ===== Cliente de API ===== -->
   <script src="apiClient.js"></script>
 
-  <!-- Fallback de segurança (evita crash se o ficheiro acima não existir/for falhado).
-       A UI abre, mas sem persistência real. Troca pelos teus endpoints se quiseres. -->
+  <!-- Fallback de segurança (só é usado se apiClient.js falhar) -->
   <script>
     (function(){
       if (!window.apiClient || typeof window.apiClient.getAppointments !== 'function') {
