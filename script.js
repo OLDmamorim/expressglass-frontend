@@ -478,6 +478,104 @@ function attachStatusListeners(){
     });
   });
 }
+// ---------- Stats (faltavam estas funções) ----------
+function generateStats(){
+  const total = appointments.length;
+  const scheduled = appointments.filter(a => a.date && a.period).length;
+  const unscheduled = total - scheduled;
+
+  const byStatus = { NE:0, VE:0, ST:0 };
+  appointments.forEach(a => { if (byStatus[a.status] != null) byStatus[a.status]++; });
+
+  const byService = {};
+  appointments.forEach(a => { byService[a.service] = (byService[a.service] || 0) + 1; });
+
+  const byLocality = {};
+  appointments.forEach(a => { byLocality[a.locality] = (byLocality[a.locality] || 0) + 1; });
+
+  return { total, scheduled, unscheduled, byStatus, byService, byLocality };
+}
+
+function showStats(){
+  const modal = document.getElementById('statsModal');
+  const c = document.getElementById('statsContent');
+  if (!modal || !c) return;
+
+  const s = generateStats();
+  c.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-number">${s.total}</div><div class="stat-label">Total de Agendamentos</div></div>
+      <div class="stat-card"><div class="stat-number">${s.scheduled}</div><div class="stat-label">Agendados</div></div>
+      <div class="stat-card"><div class="stat-number">${s.unscheduled}</div><div class="stat-label">Por Agendar</div></div>
+    </div>
+    <h4>Por Status</h4>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-number">${s.byStatus.NE}</div><div class="stat-label">N/E</div></div>
+      <div class="stat-card"><div class="stat-number">${s.byStatus.VE}</div><div class="stat-label">V/E</div></div>
+      <div class="stat-card"><div class="stat-number">${s.byStatus.ST}</div><div class="stat-label">ST</div></div>
+    </div>
+    <h4>Por Tipo de Serviço</h4>
+    <div class="stats-grid">
+      ${Object.entries(s.byService).map(([svc,cnt])=>`
+        <div class="stat-card">
+          <div class="stat-number">${cnt}</div>
+          <div class="stat-label">${svc}</div>
+        </div>`).join('')}
+    </div>
+  `;
+  modal.classList.add('show');
+}
+
+// ---------- Export/Import (faltavam) ----------
+function exportToJson(){
+  const data = { version: '3.0', exported: new Date().toISOString(), appointments };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `agendamentos_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Backup JSON exportado com sucesso!','success');
+}
+
+function exportToCsv(){
+  const headers = ['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações'];
+  const rows = appointments.map(a => [
+    a.date || '', a.period || '', a.plate || '', a.car || '',
+    a.service || '', a.locality || '', a.status || '', a.notes || ''
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(f => `"${String(f).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `agendamentos_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Dados exportados para CSV com sucesso!','success');
+}
+
+function importFromJson(file){
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const data = JSON.parse(e.target.result);
+      if (data.appointments && Array.isArray(data.appointments)){
+        if (confirm(`Importar ${data.appointments.length} agendamentos? Isto irá substituir todos os dados atuais.`)){
+          appointments = data.appointments.map(a => ({ sortIndex:1, ...a }));
+          save(); renderAll(); showToast('Dados importados com sucesso!','success');
+          closeBackupModal();
+        }
+      } else {
+        showToast('Formato de ficheiro inválido.','error');
+      }
+    }catch(err){
+      showToast('Erro ao ler ficheiro: ' + err.message,'error');
+    }
+  };
+  reader.readAsText(file);
+}
 
 // ---------- Print ----------
 function printPage(){ updatePrintUnscheduledTable(); updatePrintTomorrowTable(); window.print(); }
