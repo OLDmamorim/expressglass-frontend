@@ -1,7 +1,5 @@
 // ===== PORTAL DE AGENDAMENTO MELHORADO =====
 // Versão com API + cartões estilo mobile também no DESKTOP
-// Agora com: (1) DnD robusto p/ dias/posições, (2) persistência do move na BD,
-// (3) persistência do status na BD, (4) coluna de Ações reposta na tabela.
 
 // ---------- Configurações e dados ----------
 const localityColors = {
@@ -123,87 +121,68 @@ function highlightSearchResults(){
   });
 }
 
-// ---------- Drag & Drop (robusto com delegação global) ----------
+// ---------- Drag & Drop ----------
 function enableDragDrop(scope){
   (scope||document).querySelectorAll('.appointment[data-id]').forEach(card=>{
-    card.draggable = true;
-    card.addEventListener('dragstart', e=>{
-      e.dataTransfer.setData('text/plain', card.getAttribute('data-id'));
-      e.dataTransfer.effectAllowed = 'move';
-      card.classList.add('dragging');
+    card.draggable=true;
+    card.addEventListener('dragstart',e=>{
+      e.dataTransfer.setData('text/plain',card.getAttribute('data-id'));
+      e.dataTransfer.effectAllowed='move'; card.classList.add('dragging');
     });
-    card.addEventListener('dragend', ()=> card.classList.remove('dragging'));
+    card.addEventListener('dragend',()=>card.classList.remove('dragging'));
   });
-
-  // zonas diretas (para estilos)
   (scope||document).querySelectorAll('[data-drop-bucket]').forEach(zone=>{
-    zone.style.minHeight = '120px';
-    zone.style.padding = '6px';
-    zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag-over'); });
-    zone.addEventListener('dragleave', ()=> zone.classList.remove('drag-over'));
+    // garantir que dá para largar mesmo quando vazio/baixo
+    zone.style.minHeight = zone.style.minHeight || '140px';
+    zone.addEventListener('dragover',e=>{e.preventDefault(); zone.classList.add('drag-over');});
+    zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
+    zone.addEventListener('drop',e=>{
+      e.preventDefault(); zone.classList.remove('drag-over');
+      const id=Number(e.dataTransfer.getData('text/plain'));
+      const bucket=zone.getAttribute('data-drop-bucket');
+      const idx=zone.querySelectorAll('.appointment').length;
+      onDropAppointment(id,bucket,idx);
+    });
   });
-
-  // delegação global -> aceita drop mesmo sobre filhos/td/coluna
-  document.addEventListener('dragover', onGlobalDragOver);
-  document.addEventListener('drop', onGlobalDrop);
 }
 
-function onGlobalDragOver(e){
-  const zone = e.target.closest('.drop-zone');
-  if(zone){ e.preventDefault(); }
-}
-
-function onGlobalDrop(e){
-  const zone = e.target.closest('.drop-zone');
-  if(!zone) return;
-
-  e.preventDefault();
-  zone.classList.remove('drag-over');
-
-  const id = Number(e.dataTransfer.getData('text/plain'));
-  // calcular índice de inserção com base no apontador
-  const cards = [...zone.querySelectorAll('.appointment')].filter(n=>!n.classList.contains('dragging'));
-  let targetIndex = cards.length;
-  for(let i=0;i<cards.length;i++){
-    const r = cards[i].getBoundingClientRect();
-    const mid = r.top + r.height/2;
-    if(e.clientY < mid){ targetIndex = i; break; }
+async function persistMove(a){
+  try{
+    await window.apiClient.updateAppointment(a.id, {
+      date: a.date || '',
+      period: a.period || '',
+      sortIndex: a.sortIndex || 1
+    });
+    showToast('Movido e gravado na BD.','success');
+  }catch(err){
+    showToast('Falha ao gravar movimento: '+err.message,'error');
   }
-
-  const bucket = zone.getAttribute('data-drop-bucket');
-  onDropAppointment(id, bucket, targetIndex);
 }
 
-async function onDropAppointment(id,targetBucket,targetIndex){
+function onDropAppointment(id,targetBucket,targetIndex){
   const i=appointments.findIndex(a=>a.id===id); if(i<0) return;
   const a=appointments[i];
 
   if(targetBucket==='unscheduled'){ a.date=''; a.period=''; }
-  else { const [d,p]=targetBucket.split('|'); a.date=d; a.period=p||a.period||'Manhã'; }
+  else {
+    const [d,p]=targetBucket.split('|');
+    a.date=d;
+    a.period=p||a.period||'Manhã';
+  }
 
-  // recalcular sort dentro do bucket alvo
   normalizeBucketOrder(targetBucket);
   const list=appointments
     .filter(x=>bucketOf(x)===targetBucket)
-    .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
-    .filter(x=>x.id!==a.id);
+    .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0));
 
-  targetIndex = Math.max(0, Math.min(targetIndex, list.length));
-  list.splice(targetIndex, 0, a);
-  list.forEach((x,idx)=> x.sortIndex = idx+1);
+  list.forEach((x,idx)=>x.sortIndex=idx+1);
+  if(targetIndex>=list.length) a.sortIndex=list.length+1;
+  else { list.splice(targetIndex,0,a); list.forEach((x,idx)=>x.sortIndex=idx+1); }
 
-  try{
-    await window.apiClient.updateAppointment(a.id, {
-      date: a.date || null,
-      period: a.period || '',
-      sortIndex: a.sortIndex
-    });
-    showToast('Agendamento movido com sucesso!','success');
-  }catch(err){
-    showToast('Falha ao gravar movimento: '+err.message,'error');
-  }finally{
-    renderAll();
-  }
+  // grava na BD
+  persistMove(a);
+
+  renderAll();
 }
 
 // ---------- Render DESKTOP (cartões estilo mobile) ----------
@@ -211,7 +190,7 @@ function buildDesktopCard(a){
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
   const bar = statusBarColors[a.status] || '#999';
-  const title = `${a.plate} | ${a.service} | ${a.car.toUpperCase()}`;
+  const title = `${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
   const sub   = [a.locality, a.notes].filter(Boolean).join(' | ');
 
   return `
@@ -248,8 +227,7 @@ function renderSchedule(){
                   .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
     );
     const blocks = items.map(buildDesktopCard).join('');
-    // zona com min-height e padding para facilitar drop
-    return `<div class="drop-zone" data-drop-bucket="${iso}|${period}" style="min-height:120px;padding:6px;">${blocks}</div>`;
+    return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
   };
 
   const tbody=document.createElement('tbody');
@@ -259,9 +237,7 @@ function renderSchedule(){
     tbody.appendChild(row);
   });
   table.appendChild(tbody);
-  enableDragDrop(table);
-  attachStatusListeners();
-  highlightSearchResults();
+  enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
 // ---------- Render PENDENTES (desktop com cartão) ----------
@@ -275,7 +251,7 @@ function renderUnscheduled(){
     const base=getLocColor(a.locality);
     const g=gradFromBase(base);
     const bar=statusBarColors[a.status]||'#999';
-    const title=`${a.plate} | ${a.service} | ${a.car.toUpperCase()}`;
+    const title=`${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
     const sub=[a.locality,a.notes].filter(Boolean).join(' | ');
     return `
       <div class="appointment desk-card unscheduled"
@@ -295,10 +271,8 @@ function renderUnscheduled(){
         </div>
       </div>`;
   }).join('');
-  container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled" style="min-height:120px;padding:6px;">${blocks}</div>`;
-  enableDragDrop(container);
-  attachStatusListeners();
-  highlightSearchResults();
+  container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled">${blocks}</div>`;
+  enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
 // ---------- Render MOBILE (mantido) ----------
@@ -318,7 +292,7 @@ function renderMobileDay(){
     const base=getLocColor(a.locality);
     const g=gradFromBase(base);
     const bar=statusBarColors[a.status]||'#999';
-    const title=`${a.period} – ${a.plate} | ${a.service} | ${a.car.toUpperCase()}`;
+    const title=`${a.period} – ${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
     const sub=[a.locality,a.notes].filter(Boolean).join(' | ');
     return `
       <div class="appointment m-card"
@@ -332,29 +306,33 @@ function renderMobileDay(){
   highlightSearchResults();
 }
 
-// ---------- Render TABELA FUTURA (thead + ações repostos) ----------
+// ---------- Render TABELA FUTURA (com coluna Ações garantida) ----------
 function renderServicesTable(){
-  const table = document.getElementById('servicesTable');
   const tbody = document.getElementById('servicesTableBody');
-  if(!table || !tbody) return;
+  if(!tbody) return;
 
-  // Garante cabeçalho com coluna "Ações"
-  table.querySelector('thead')?.remove();
-  table.insertAdjacentHTML('afterbegin', `
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Período</th>
-        <th>Matrícula</th>
-        <th>Carro</th>
-        <th>Serviço</th>
-        <th>Localidade</th>
-        <th>Observações</th>
-        <th>Estado</th>
-        <th>Dias</th>
-        <th class="no-print">Ações</th>
-      </tr>
-    </thead>`);
+  // encontra a <table> real partindo do tbody
+  const table = tbody.closest('table');
+  if (table) {
+    // recria SEMPRE o thead com a coluna "Ações"
+    const headHtml = `
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Período</th>
+          <th>Matrícula</th>
+          <th>Carro</th>
+          <th>Serviço</th>
+          <th>Localidade</th>
+          <th>Observações</th>
+          <th>Estado</th>
+          <th>Dias</th>
+          <th class="no-print">Ações</th>
+        </tr>
+      </thead>`;
+    table.querySelector('thead')?.remove();
+    table.insertAdjacentHTML('afterbegin', headHtml);
+  }
 
   const today=new Date();
   const future=filterAppointments(
@@ -365,56 +343,35 @@ function renderServicesTable(){
 
   tbody.innerHTML=future.map(a=>{
     const d=new Date(a.date);
-    const diff=Math.ceil((d - today)/(1000*60*60*24));
+    const diff=Math.ceil((d-today)/(1000*60*60*24));
     const when = diff<0? `${Math.abs(diff)} dias atrás` : diff===0? 'Hoje' : diff===1? 'Amanhã' : `${diff} dias`;
+
+    const btnBase = 'display:inline-block;padding:6px 10px;border:none;border-radius:8px;cursor:pointer;font-size:12px;line-height:1;';
+    const btnEdit = `${btnBase}background:#3b82f6;color:#fff;margin-right:6px;`;
+    const btnDel  = `${btnBase}background:#ef4444;color:#fff;`;
+
     return `<tr>
       <td>${d.toLocaleDateString('pt-PT')}</td>
-      <td>${a.period}</td>
-      <td>${a.plate}</td>
-      <td>${a.car}</td>
-      <td><span class="badge badge-${a.service}">${a.service}</span></td>
-      <td>${a.locality}</td>
+      <td>${a.period||''}</td>
+      <td>${a.plate||''}</td>
+      <td>${a.car||''}</td>
+      <td><span class="badge badge-${a.service}">${a.service||''}</span></td>
+      <td>${a.locality||''}</td>
       <td>${a.notes||''}</td>
-      <td><span class="chip chip-${a.status}">${a.status}</span></td>
+      <td><span class="chip chip-${a.status}">${a.status||''}</span></td>
       <td>${when}</td>
       <td class="no-print">
-        <div class="actions">
-          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar">✏️</button>
-          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar">🗑️</button>
-        </div>
+        <button style="${btnEdit}" title="Editar" onclick="editAppointment(${a.id})">Editar</button>
+        <button style="${btnDel}"  title="Eliminar" onclick="deleteAppointment(${a.id})">Eliminar</button>
       </td>
     </tr>`;
   }).join('');
 
-  const sum=document.getElementById('servicesSummary'); 
+  const sum=document.getElementById('servicesSummary');
   if(sum) sum.textContent=`${future.length} serviços pendentes`;
 }
 
 function renderAll(){ renderSchedule(); renderUnscheduled(); renderMobileDay(); renderServicesTable(); }
-
-/* ---------- PERSISTÊNCIA do status (BD) ---------- */
-async function persistStatus(id, newStatus) {
-  const idx = appointments.findIndex(a => a.id === id);
-  if (idx < 0) return;
-  const prev = appointments[idx].status;
-
-  // otimista
-  appointments[idx].status = newStatus;
-
-  try {
-    const payload = { ...appointments[idx], status: newStatus };
-    const res = await window.apiClient.updateAppointment(id, payload);
-    if (res && typeof res === 'object') {
-      appointments[idx] = { ...appointments[idx], ...res };
-    }
-    showToast(`Status guardado: ${newStatus}`, 'success');
-  } catch (err) {
-    appointments[idx].status = prev;      // rollback
-    showToast('Falha ao gravar status: ' + err.message, 'error');
-  } finally {
-    renderAll();
-  }
-}
 
 // ---------- CRUD ----------
 function openAppointmentModal(id=null){
@@ -486,6 +443,30 @@ async function deleteAppointment(id){
       await save(); renderAll(); showToast('Agendamento eliminado com sucesso!','success');
       if(editingId===id) closeAppointmentModal();
     }catch(e){ showToast('Erro ao eliminar: '+e.message,'error'); }
+  }
+}
+
+/* ---------- PERSISTÊNCIA do status (BD) ---------- */
+async function persistStatus(id, newStatus) {
+  const idx = appointments.findIndex(a => a.id === id);
+  if (idx < 0) return;
+
+  const prev = appointments[idx].status;
+  // otimista
+  appointments[idx].status = newStatus;
+
+  try {
+    const payload = { ...appointments[idx], status: newStatus };
+    const res = await window.apiClient.updateAppointment(id, payload);
+    if (res && typeof res === 'object') {
+      appointments[idx] = { ...appointments[idx], ...res };
+    }
+    showToast(`Status guardado: ${newStatus}`, 'success');
+  } catch (err) {
+    appointments[idx].status = prev;      // rollback
+    showToast('Falha ao gravar status: ' + err.message, 'error');
+  } finally {
+    renderAll();
   }
 }
 
