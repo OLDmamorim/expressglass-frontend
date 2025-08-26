@@ -122,6 +122,7 @@ function highlightSearchResults(){
 }
 
 // ---------- Drag & Drop ----------
+// Calcula o índice de inserção pelo Y do rato
 function getDropIndex(zone, mouseY){
   const cards = Array.from(zone.querySelectorAll('.appointment'));
   for(let i=0;i<cards.length;i++){
@@ -130,6 +131,36 @@ function getDropIndex(zone, mouseY){
     if(mouseY < mid) return i;
   }
   return cards.length;
+}
+
+// Delegação global: garante que <td> e filhos também aceitam drop (não apenas o .drop-zone)
+function installGlobalDnDDelegation(){
+  // dragover
+  document.addEventListener('dragover', (e)=>{
+    const zone = e.target.closest?.('[data-drop-bucket]');
+    if(!zone) return;
+    e.preventDefault();
+    zone.classList.add('drag-over');
+  }, true);
+
+  // dragleave
+  document.addEventListener('dragleave', (e)=>{
+    const zone = e.target.closest?.('[data-drop-bucket]');
+    if(!zone) return;
+    zone.classList.remove('drag-over');
+  }, true);
+
+  // drop
+  document.addEventListener('drop', (e)=>{
+    const zone = e.target.closest?.('[data-drop-bucket]');
+    if(!zone) return;
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const id = Number(e.dataTransfer.getData('text/plain'));
+    const bucket = zone.getAttribute('data-drop-bucket');
+    const idx = getDropIndex(zone, e.clientY);
+    onDropAppointment(id, bucket, idx);
+  }, true);
 }
 
 function enableDragDrop(scope){
@@ -143,11 +174,9 @@ function enableDragDrop(scope){
     card.addEventListener('dragend', ()=> card.classList.remove('dragging'));
   });
 
+  // listeners diretos na zona (a delegação global já cobre, mas deixo por redundância segura)
   (scope||document).querySelectorAll('[data-drop-bucket]').forEach(zone=>{
-    zone.addEventListener('dragover', e=>{
-      e.preventDefault();
-      zone.classList.add('drag-over');
-    });
+    zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag-over'); });
     zone.addEventListener('dragleave', ()=> zone.classList.remove('drag-over'));
     zone.addEventListener('drop', e=>{
       e.preventDefault();
@@ -199,7 +228,7 @@ function onDropAppointment(id, targetBucket, targetIndex){
     moved.period = p || moved.period || 'Manhã';
   }
 
-  // recalcular order dos dois buckets
+  // recalcular ordenação dos dois buckets
   const rebucket = (bucket)=>{
     const list = appointments
       .filter(a=>bucketOf(a)===bucket)
@@ -242,15 +271,12 @@ function onDropAppointment(id, targetBucket, targetIndex){
   if(newTargetBucket !== sourceBucket){
     changes = changes.concat(collect(newTargetBucket));
   }
-  // garantir que o movido vai sempre (inclui statusBar/other props se quiseres)
+  // garantir que o movido vai sempre
   if(!changes.find(c=>c.id===moved.id)){
     changes.push({ id:moved.id, date:moved.date||'', period:moved.period||'', sortIndex:moved.sortIndex||0 });
   }
 
-  // Persistir
-  persistBatchUpdates(changes).finally(()=>{
-    renderAll();
-  });
+  persistBatchUpdates(changes).finally(()=>{ renderAll(); });
 }
 
 // ---------- Render DESKTOP (cartões estilo mobile) ----------
@@ -295,7 +321,8 @@ function renderSchedule(){
                   .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
     );
     const blocks = items.map(buildDesktopCard).join('');
-    return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
+    // min-height para facilitar o drop em células vazias
+    return `<div class="drop-zone" data-drop-bucket="${iso}|${period}" style="min-height:44px;">${blocks}</div>`;
   };
 
   const tbody=document.createElement('tbody');
@@ -339,7 +366,7 @@ function renderUnscheduled(){
         </div>
       </div>`;
   }).join('');
-  container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled">${blocks}</div>`;
+  container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled" style="min-height:44px;">${blocks}</div>`;
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
@@ -573,7 +600,7 @@ function showStats(){
     <h4>Por Tipo de Serviço</h4>
     <div class="stats-grid">
       ${Object.entries(s.byService).map(([svc,cnt])=>`
-        <div class="stat-card">
+        <div class="stat-card>
           <div class="stat-number">${cnt}</div>
           <div class="stat-label">${svc}</div>
         </div>`).join('')}
@@ -635,6 +662,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   initializeLocalityDropdown();
   renderAll();
   updateConnectionStatus();
+
+  // instala delegação global de DnD (resolve drop no dia seguinte)
+  installGlobalDnDDelegation();
 
   document.getElementById('prevWeek')?.addEventListener('click', prevWeek);
   document.getElementById('nextWeek')?.addEventListener('click', nextWeek);
