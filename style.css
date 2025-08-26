@@ -509,3 +509,78 @@ select {
 
 /* as células mantêm o espaçamento normal */
 table.schedule td{ padding:8px; }
+
+/* =======================
+   Cartões DESKTOP (mesmo visual do mobile)
+   ======================= */
+
+/* Layout das colunas/linhas do calendário */
+.schedule td .drop-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Cartão base (é renderizado com var(--c1) / var(--c2) pelo JS) */
+.desk-card {
+  position: relative;
+  border-radius: 18px;
+  padding: 14px 14px 12px 14px;
+  background: linear-gradient(180deg, var(--c1, #1e88e5), var(--c2, #1565c0)) !important;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(0,0,0,.18);
+  /* A barra fina vertical do status vem inline (border-left) pelo JS */
+}
+
+/* Força texto branco e legível sobre o gradiente */
+.desk-card, .desk-card * { color: #fff !important; }
+.desk-card .dc-title {
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.25;
+  letter-spacing: .2px;
+  text-shadow: 0 1px 2px rgba(0,0,0,.35);
+  margin-bottom: 6px;
+}
+.desk-card .dc-sub {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: .95;
+  text-shadow: 0 1px 2px rgba(0,0,0,.30);
+}
+
+/* Checkboxes de estado (mantidos) */
+.dc-status {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.dc-status label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  background: rgba(255,255,255,.18);
+  backdrop-filter: blur(2px);
+}
+.dc-status input[type="checkbox"] {
+  inline-size: 16px;
+  block-size: 16px;
+  accent-color: #ffffff;     /* bolinha branca para ficar visível no gradiente */
+}
+
+/* Mantém o cartão arrastável agradável */
+.appointment.dragging { opacity: .6; }
+
+/* Pendente (lista por agendar) usa o mesmo cartão */
+.unscheduled-list .desk-card { margin-bottom: 12px; }
+
+/* Se houver estilos antigos do .appointment-block, garantimos que o gradiente vence */
+.appointment-block.desk-card {
+  border: none;
+  background: linear-gradient(180deg, var(--c1, #1e88e5), var(--c2, #1565c0)) !important;
+}
