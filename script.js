@@ -48,12 +48,8 @@ function parseColor(str){
   if(!str) return null;
   str=String(str).trim();
   if(str[0]==='#'){
-    if(str.length===4){
-      return {r:parseInt(str[1]+str[1],16), g:parseInt(str[2]+str[2],16), b:parseInt(str[3]+str[3],16)};
-    }
-    if(str.length>=7){
-      return {r:parseInt(str.slice(1,3),16), g:parseInt(str.slice(3,5),16), b:parseInt(str.slice(5,7),16)};
-    }
+    if(str.length===4) return {r:parseInt(str[1]+str[1],16), g:parseInt(str[2]+str[2],16), b:parseInt(str[3]+str[3],16)};
+    if(str.length>=7) return {r:parseInt(str.slice(1,3),16), g:parseInt(str.slice(3,5),16), b:parseInt(str.slice(5,7),16)};
   }
   const m=str.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
   if(m) return {r:+m[1], g:+m[2], b:+m[3]};
@@ -121,51 +117,48 @@ function highlightSearchResults(){
   });
 }
 
-/* ---------- PERSISTÊNCIA do status (BD) ---------- */
+// ---------- Persistência de STATUS ----------
 async function persistStatus(id, newStatus) {
   const idx = appointments.findIndex(a => a.id === id);
   if (idx < 0) return;
-
   const prev = appointments[idx].status;
-  // otimista
-  appointments[idx].status = newStatus;
-
+  appointments[idx].status = newStatus; // otimista
   try {
     const payload = { ...appointments[idx], status: newStatus };
     const res = await window.apiClient.updateAppointment(id, payload);
-    if (res && typeof res === 'object') {
-      appointments[idx] = { ...appointments[idx], ...res };
-    }
+    if (res && typeof res === 'object') appointments[idx] = { ...appointments[idx], ...res };
     showToast(`Status guardado: ${newStatus}`, 'success');
   } catch (err) {
-    appointments[idx].status = prev;      // rollback
+    appointments[idx].status = prev;
     showToast('Falha ao gravar status: ' + err.message, 'error');
   } finally {
     renderAll();
   }
 }
 
-/* ---------- PERSISTÊNCIA do movimento (drop) ---------- */
-async function persistMove(a){
-  try{
-    const res = await window.apiClient.updateAppointment(a.id, {
-      date: a.date || '',
-      period: a.period || '',
-      sortIndex: a.sortIndex || 1
-    });
-    if(res && typeof res==='object'){
-      const idx = appointments.findIndex(x=>x.id===a.id);
-      if(idx>=0) appointments[idx] = { ...appointments[idx], ...res };
-    }
-    showToast('Agendamento gravado.', 'success');
-  }catch(e){
-    showToast('Erro ao gravar movimento: '+e.message, 'error');
-  }
+// ---------- Drag & Drop (com persistência total) ----------
+function getBucketList(bucket){
+  return appointments
+    .filter(x => bucketOf(x) === bucket)
+    .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
 }
 
-// ---------- Drag & Drop ----------
+async function persistBuckets(buckets){
+  for (const bucket of buckets){
+    const list = getBucketList(bucket);
+    for (const item of list){
+      try{
+        await window.apiClient.updateAppointment(item.id, { ...item });
+      }catch(e){
+        console.warn('Falha a gravar', item.id, e);
+        showToast('Falha a gravar alguns itens.', 'error');
+      }
+    }
+  }
+  showToast('Alterações gravadas.', 'success');
+}
+
 function enableDragDrop(scope){
-  // 1) tornar cartões arrastáveis
   (scope||document).querySelectorAll('.appointment[data-id]').forEach(card=>{
     card.draggable=true;
     card.addEventListener('dragstart',e=>{
@@ -176,66 +169,54 @@ function enableDragDrop(scope){
     card.addEventListener('dragend',()=>card.classList.remove('dragging'));
   });
 
-  // 2) delegar eventos para QUALQUER zona de drop (funciona em todas as colunas)
-  const host = document; // delegação global
   if (!enableDragDrop._bound){
-    host.addEventListener('dragover', (e)=>{
+    document.addEventListener('dragover', (e)=>{
       const zone = e.target.closest('[data-drop-bucket]');
       if(!zone) return;
-      e.preventDefault(); // permite drop
+      e.preventDefault();
       zone.classList.add('drag-over');
-    }, false);
-
-    host.addEventListener('dragleave', (e)=>{
+    });
+    document.addEventListener('dragleave', (e)=>{
       const zone = e.target.closest('[data-drop-bucket]');
       if(zone) zone.classList.remove('drag-over');
-    }, false);
-
-    host.addEventListener('drop', async (e)=>{
+    });
+    document.addEventListener('drop', async (e)=>{
       const zone = e.target.closest('[data-drop-bucket]');
       if(!zone) return;
       e.preventDefault();
       zone.classList.remove('drag-over');
-
-      const id = Number(e.dataTransfer.getData('text/plain'));
-      const bucket = zone.getAttribute('data-drop-bucket');
-      const idxInZone = zone.querySelectorAll('.appointment').length;
-      await onDropAppointment(id, bucket, idxInZone);
-    }, false);
-
+      const id    = Number(e.dataTransfer.getData('text/plain'));
+      const bucket= zone.getAttribute('data-drop-bucket');
+      const idxIn = zone.querySelectorAll('.appointment').length;
+      await onDropAppointment(id, bucket, idxIn);
+    });
     enableDragDrop._bound = true;
   }
 }
 
-async function onDropAppointment(id,targetBucket,targetIndex){
-  const i=appointments.findIndex(a=>a.id===id); if(i<0) return;
-  const a=appointments[i];
+async function onDropAppointment(id, targetBucket, targetIndex){
+  const i = appointments.findIndex(a => a.id === id);
+  if (i < 0) return;
+
+  const a         = appointments[i];
   const oldBucket = bucketOf(a);
 
-  // actualizar data/período conforme o destino
-  if(targetBucket==='unscheduled'){ a.date=''; a.period=''; }
-  else { const [d,p]=targetBucket.split('|'); a.date=d; a.period=p||a.period||'Manhã'; }
+  if(targetBucket === 'unscheduled'){ a.date=''; a.period=''; }
+  else { const [d,p] = targetBucket.split('|'); a.date=d; a.period=p||'Manhã'; }
 
-  // Reordenar destino
-  normalizeBucketOrder(targetBucket);
-  const targetList = appointments
-    .filter(x=>bucketOf(x)===targetBucket && x.id!==a.id)
-    .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0));
+  const dest = getBucketList(targetBucket).filter(x=>x.id!==a.id);
+  dest.splice(Math.min(targetIndex, dest.length), 0, a);
+  dest.forEach((x,idx)=> x.sortIndex = idx+1);
 
-  // inserir no índice pedido
-  targetList.splice(Math.min(targetIndex, targetList.length), 0, a);
-  targetList.forEach((x,idx)=> x.sortIndex = idx+1);
-
-  // Renumerar bucket de origem se mudou de coluna
   if (oldBucket !== targetBucket){
-    const originList = appointments
-      .filter(x=>bucketOf(x)===oldBucket)
-      .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0));
-    originList.forEach((x,idx)=> x.sortIndex = idx+1);
+    const orig = getBucketList(oldBucket);
+    orig.forEach((x,idx)=> x.sortIndex = idx+1);
   }
 
-  renderAll(); // feedback imediato
-  await persistMove(a); // grava na BD
+  renderAll();
+
+  const bucketsToPersist = new Set([targetBucket, oldBucket]);
+  await persistBuckets(bucketsToPersist);
 }
 
 // ---------- Render DESKTOP (cartões estilo mobile) ----------
@@ -293,7 +274,7 @@ function renderSchedule(){
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
-// ---------- Render PENDENTES (desktop com cartão) ----------
+// ---------- Render PENDENTES ----------
 function renderUnscheduled(){
   const container=document.getElementById('unscheduledList'); if(!container) return;
   const unscheduled=filterAppointments(
@@ -469,13 +450,12 @@ async function deleteAppointment(id){
 function attachStatusListeners(){
   document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb=>{
     cb.addEventListener('change', async function(){
-      if (!this.checked) return; // só quando fica marcado
+      if (!this.checked) return;
       const el=this.closest('.appointment'); if(!el) return;
       const id=Number(el.getAttribute('data-id'));
       const st=this.getAttribute('data-status');
-      // deixar apenas este marcado no cartão
       el.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{ if(x!==this) x.checked=false; });
-      await persistStatus(id, st); // grava na BD (com rollback se falhar)
+      await persistStatus(id, st);
     });
   });
 }
