@@ -383,17 +383,45 @@ async function deleteAppointment(id){
   }
 }
 
+/* ---------- PERSISTÊNCIA do status (BD) ---------- */
+async function persistStatus(id, newStatus) {
+  const idx = appointments.findIndex(a => a.id === id);
+  if (idx < 0) return;
+
+  const prev = appointments[idx].status;
+  // otimista
+  appointments[idx].status = newStatus;
+
+  try {
+    const payload = { ...appointments[idx], status: newStatus };
+    const res = await window.apiClient.updateAppointment(id, payload);
+    if (res && typeof res === 'object') {
+      appointments[idx] = { ...appointments[idx], ...res };
+    }
+    showToast(`Status guardado: ${newStatus}`, 'success');
+  } catch (err) {
+    appointments[idx].status = prev;      // rollback
+    showToast('Falha ao gravar status: ' + err.message, 'error');
+  } finally {
+    renderAll();
+  }
+}
+
 // ---------- Status listeners ----------
 function attachStatusListeners(){
   document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb=>{
-    cb.addEventListener('change',function(){
+    cb.addEventListener('change', async function(){
+      if (!this.checked) return; // só quando fica marcado
+
       const el=this.closest('.appointment'); if(!el) return;
-      const id=Number(el.getAttribute('data-id')); const st=this.getAttribute('data-status');
-      if(this.checked){
-        el.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{ if(x!==this) x.checked=false; });
-        const a=appointments.find(x=>x.id===id);
-        if(a){ a.status=st; save(); renderAll(); showToast(`Status alterado para ${st}`,'success'); }
-      }
+      const id=Number(el.getAttribute('data-id'));
+      const st=this.getAttribute('data-status');
+
+      // deixar apenas este marcado no cartão
+      el.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{ if(x!==this) x.checked=false; });
+
+      // grava na BD (com rollback se falhar)
+      await persistStatus(id, st);
     });
   });
 }
