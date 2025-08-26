@@ -1,5 +1,7 @@
 // ===== PORTAL DE AGENDAMENTO MELHORADO =====
 // Versão com API + cartões estilo mobile também no DESKTOP
+// Agora com: (1) DnD robusto p/ dias/posições, (2) persistência do move na BD,
+// (3) persistência do status na BD, (4) coluna de Ações reposta na tabela.
 
 // ---------- Configurações e dados ----------
 const localityColors = {
@@ -121,93 +123,86 @@ function highlightSearchResults(){
   });
 }
 
-// ---------- Drag & Drop ----------
+// ---------- Drag & Drop (robusto com delegação global) ----------
 function enableDragDrop(scope){
-  // cartões
   (scope||document).querySelectorAll('.appointment[data-id]').forEach(card=>{
-    card.draggable=true;
-    card.addEventListener('dragstart',e=>{
-      e.dataTransfer.setData('text/plain',card.getAttribute('data-id'));
-      e.dataTransfer.effectAllowed='move'; 
+    card.draggable = true;
+    card.addEventListener('dragstart', e=>{
+      e.dataTransfer.setData('text/plain', card.getAttribute('data-id'));
+      e.dataTransfer.effectAllowed = 'move';
       card.classList.add('dragging');
     });
-    card.addEventListener('dragend',()=>card.classList.remove('dragging'));
+    card.addEventListener('dragend', ()=> card.classList.remove('dragging'));
   });
 
-  // zonas explícitas
+  // zonas diretas (para estilos)
   (scope||document).querySelectorAll('[data-drop-bucket]').forEach(zone=>{
-    zone.addEventListener('dragover',e=>{e.preventDefault(); zone.classList.add('drag-over');});
-    zone.addEventListener('dragleave',()=>zone.classList.remove('drag-over'));
-    zone.addEventListener('drop',e=>{
-      e.preventDefault(); zone.classList.remove('drag-over');
-      const id=Number(e.dataTransfer.getData('text/plain'));
-      const bucket=zone.getAttribute('data-drop-bucket');
-      const idx=zone.querySelectorAll('.appointment').length;
-      onDropAppointment(id,bucket,idx);
-    });
+    zone.style.minHeight = '120px';
+    zone.style.padding = '6px';
+    zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag-over'); });
+    zone.addEventListener('dragleave', ()=> zone.classList.remove('drag-over'));
   });
 
-  // DELEGADO — permite largar em QUALQUER ponto da célula (corrige “dia seguinte”)
-  function addDelegatedDnD(rootId){
-    const root=document.getElementById(rootId); if(!root) return;
-    root.addEventListener('dragover',e=>{
-      const t=e.target.closest?.('[data-drop-bucket]');
-      if(t){ e.preventDefault(); t.classList.add('drag-over'); }
-    });
-    root.addEventListener('dragleave',e=>{
-      const t=e.target.closest?.('[data-drop-bucket]');
-      if(t) t.classList.remove('drag-over');
-    });
-    root.addEventListener('drop',e=>{
-      const t=e.target.closest?.('[data-drop-bucket]');
-      if(!t) return;
-      e.preventDefault(); t.classList.remove('drag-over');
-      const id=Number(e.dataTransfer.getData('text/plain'));
-      const idx=t.querySelectorAll('.appointment').length;
-      onDropAppointment(id, t.getAttribute('data-drop-bucket'), idx);
-    });
+  // delegação global -> aceita drop mesmo sobre filhos/td/coluna
+  document.addEventListener('dragover', onGlobalDragOver);
+  document.addEventListener('drop', onGlobalDrop);
+}
+
+function onGlobalDragOver(e){
+  const zone = e.target.closest('.drop-zone');
+  if(zone){ e.preventDefault(); }
+}
+
+function onGlobalDrop(e){
+  const zone = e.target.closest('.drop-zone');
+  if(!zone) return;
+
+  e.preventDefault();
+  zone.classList.remove('drag-over');
+
+  const id = Number(e.dataTransfer.getData('text/plain'));
+  // calcular índice de inserção com base no apontador
+  const cards = [...zone.querySelectorAll('.appointment')].filter(n=>!n.classList.contains('dragging'));
+  let targetIndex = cards.length;
+  for(let i=0;i<cards.length;i++){
+    const r = cards[i].getBoundingClientRect();
+    const mid = r.top + r.height/2;
+    if(e.clientY < mid){ targetIndex = i; break; }
   }
-  addDelegatedDnD('schedule');
-  addDelegatedDnD('unscheduledList');
+
+  const bucket = zone.getAttribute('data-drop-bucket');
+  onDropAppointment(id, bucket, targetIndex);
 }
 
 async function onDropAppointment(id,targetBucket,targetIndex){
   const i=appointments.findIndex(a=>a.id===id); if(i<0) return;
   const a=appointments[i];
-  const prev = { date:a.date, period:a.period, sortIndex:a.sortIndex };
 
-  // aplicar destino
   if(targetBucket==='unscheduled'){ a.date=''; a.period=''; }
   else { const [d,p]=targetBucket.split('|'); a.date=d; a.period=p||a.period||'Manhã'; }
 
-  // recalcular ordem dentro do balde
+  // recalcular sort dentro do bucket alvo
   normalizeBucketOrder(targetBucket);
   const list=appointments
     .filter(x=>bucketOf(x)===targetBucket)
-    .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0));
+    .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
+    .filter(x=>x.id!==a.id);
 
-  list.forEach((x,idx)=>x.sortIndex=idx+1);
+  targetIndex = Math.max(0, Math.min(targetIndex, list.length));
+  list.splice(targetIndex, 0, a);
+  list.forEach((x,idx)=> x.sortIndex = idx+1);
 
-  if(targetIndex>=list.length) a.sortIndex=list.length+1;
-  else {
-    list.splice(targetIndex,0,a);
-    list.forEach((x,idx)=>x.sortIndex=idx+1);
-  }
-
-  // Otimista no UI
-  renderAll();
-
-  // Persistir na BD (com rollback)
   try{
-    const payload = { date:a.date, period:a.period, sortIndex:a.sortIndex };
-    const res = await window.apiClient.updateAppointment(id, payload);
-    if(res && typeof res==='object') appointments[i] = { ...appointments[i], ...res };
-    showToast('Agendamento movido e gravado!','success');
+    await window.apiClient.updateAppointment(a.id, {
+      date: a.date || null,
+      period: a.period || '',
+      sortIndex: a.sortIndex
+    });
+    showToast('Agendamento movido com sucesso!','success');
   }catch(err){
-    // rollback
-    a.date = prev.date; a.period = prev.period; a.sortIndex = prev.sortIndex;
+    showToast('Falha ao gravar movimento: '+err.message,'error');
+  }finally{
     renderAll();
-    showToast('Não foi possível gravar a alteração: '+err.message,'error');
   }
 }
 
@@ -253,8 +248,8 @@ function renderSchedule(){
                   .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
     );
     const blocks = items.map(buildDesktopCard).join('');
-    // a div abaixo ocupa toda a célula e recebe os eventos delegados
-    return `<div class="drop-zone" data-drop-bucket="${iso}|${period}" style="min-height:60px">${blocks}</div>`;
+    // zona com min-height e padding para facilitar drop
+    return `<div class="drop-zone" data-drop-bucket="${iso}|${period}" style="min-height:120px;padding:6px;">${blocks}</div>`;
   };
 
   const tbody=document.createElement('tbody');
@@ -264,7 +259,9 @@ function renderSchedule(){
     tbody.appendChild(row);
   });
   table.appendChild(tbody);
-  enableDragDrop(); attachStatusListeners(); highlightSearchResults();
+  enableDragDrop(table);
+  attachStatusListeners();
+  highlightSearchResults();
 }
 
 // ---------- Render PENDENTES (desktop com cartão) ----------
@@ -298,8 +295,10 @@ function renderUnscheduled(){
         </div>
       </div>`;
   }).join('');
-  container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled" style="min-height:60px">${blocks}</div>`;
-  enableDragDrop(); attachStatusListeners(); highlightSearchResults();
+  container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled" style="min-height:120px;padding:6px;">${blocks}</div>`;
+  enableDragDrop(container);
+  attachStatusListeners();
+  highlightSearchResults();
 }
 
 // ---------- Render MOBILE (mantido) ----------
@@ -333,24 +332,41 @@ function renderMobileDay(){
   highlightSearchResults();
 }
 
-// ---------- Render TABELA FUTURA ----------
+// ---------- Render TABELA FUTURA (thead + ações repostos) ----------
 function renderServicesTable(){
-  const today=new Date();
-  const startOfToday = new Date(); startOfToday.setHours(0,0,0,0);
+  const table = document.getElementById('servicesTable');
+  const tbody = document.getElementById('servicesTableBody');
+  if(!table || !tbody) return;
 
+  // Garante cabeçalho com coluna "Ações"
+  table.querySelector('thead')?.remove();
+  table.insertAdjacentHTML('afterbegin', `
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Período</th>
+        <th>Matrícula</th>
+        <th>Carro</th>
+        <th>Serviço</th>
+        <th>Localidade</th>
+        <th>Observações</th>
+        <th>Estado</th>
+        <th>Dias</th>
+        <th class="no-print">Ações</th>
+      </tr>
+    </thead>`);
+
+  const today=new Date();
   const future=filterAppointments(
-    appointments.filter(a=>a.date && new Date(a.date)>=startOfToday)
-                .sort((a,b)=>new Date(a.date)-new Date(b.date))
+    appointments
+      .filter(a=>a.date && new Date(a.date)>=new Date().setHours(0,0,0,0))
+      .sort((a,b)=>new Date(a.date)-new Date(b.date))
   );
-  const tbody=document.getElementById('servicesTableBody'); if(!tbody) return;
 
   tbody.innerHTML=future.map(a=>{
     const d=new Date(a.date);
     const diff=Math.ceil((d - today)/(1000*60*60*24));
     const when = diff<0? `${Math.abs(diff)} dias atrás` : diff===0? 'Hoje' : diff===1? 'Amanhã' : `${diff} dias`;
-
-    const btnBase = "background:none;border:none;padding:6px 8px;cursor:pointer;font-size:16px;line-height:1;";
-
     return `<tr>
       <td>${d.toLocaleDateString('pt-PT')}</td>
       <td>${a.period}</td>
@@ -362,20 +378,43 @@ function renderServicesTable(){
       <td><span class="chip chip-${a.status}">${a.status}</span></td>
       <td>${when}</td>
       <td class="no-print">
-        <div class="actions" style="display:flex;gap:8px;justify-content:center;align-items:center;">
-          <button type="button" title="Editar" aria-label="Editar"
-                  style="${btnBase}" onclick="editAppointment(${a.id})">✏️</button>
-          <button type="button" title="Eliminar" aria-label="Eliminar"
-                  style="${btnBase}" onclick="deleteAppointment(${a.id})">🗑️</button>
+        <div class="actions">
+          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar">✏️</button>
+          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar">🗑️</button>
         </div>
       </td>
     </tr>`;
   }).join('');
 
-  const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviços pendentes`;
+  const sum=document.getElementById('servicesSummary'); 
+  if(sum) sum.textContent=`${future.length} serviços pendentes`;
 }
 
 function renderAll(){ renderSchedule(); renderUnscheduled(); renderMobileDay(); renderServicesTable(); }
+
+/* ---------- PERSISTÊNCIA do status (BD) ---------- */
+async function persistStatus(id, newStatus) {
+  const idx = appointments.findIndex(a => a.id === id);
+  if (idx < 0) return;
+  const prev = appointments[idx].status;
+
+  // otimista
+  appointments[idx].status = newStatus;
+
+  try {
+    const payload = { ...appointments[idx], status: newStatus };
+    const res = await window.apiClient.updateAppointment(id, payload);
+    if (res && typeof res === 'object') {
+      appointments[idx] = { ...appointments[idx], ...res };
+    }
+    showToast(`Status guardado: ${newStatus}`, 'success');
+  } catch (err) {
+    appointments[idx].status = prev;      // rollback
+    showToast('Falha ao gravar status: ' + err.message, 'error');
+  } finally {
+    renderAll();
+  }
+}
 
 // ---------- CRUD ----------
 function openAppointmentModal(id=null){
@@ -450,30 +489,6 @@ async function deleteAppointment(id){
   }
 }
 
-/* ---------- PERSISTÊNCIA do status (BD) ---------- */
-async function persistStatus(id, newStatus) {
-  const idx = appointments.findIndex(a => a.id === id);
-  if (idx < 0) return;
-
-  const prev = appointments[idx].status;
-  // otimista
-  appointments[idx].status = newStatus;
-  renderAll();
-
-  try {
-    const payload = { status: newStatus };
-    const res = await window.apiClient.updateAppointment(id, payload);
-    if (res && typeof res === 'object') {
-      appointments[idx] = { ...appointments[idx], ...res };
-    }
-    showToast(`Status guardado: ${newStatus}`, 'success');
-  } catch (err) {
-    appointments[idx].status = prev;      // rollback
-    renderAll();
-    showToast('Falha ao gravar status: ' + err.message, 'error');
-  }
-}
-
 // ---------- Status listeners ----------
 function attachStatusListeners(){
   document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb=>{
@@ -482,8 +497,10 @@ function attachStatusListeners(){
       const el=this.closest('.appointment'); if(!el) return;
       const id=Number(el.getAttribute('data-id'));
       const st=this.getAttribute('data-status');
+
       // deixar apenas este marcado no cartão
       el.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{ if(x!==this) x.checked=false; });
+
       // grava na BD (com rollback se falhar)
       await persistStatus(id, st);
     });
