@@ -309,43 +309,34 @@ function renderUnscheduled(){
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
-// ---------- Render MOBILE ----------
-function renderMobileDay(){
-  const label=document.getElementById('mobileDayLabel');
-  if(label){
-    const s=currentMobileDay.toLocaleDateString('pt-PT',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-    label.textContent=cap(s);
+// ---------- Render TABELA FUTURA ----------
+// (agora garantimos que existe cabeçalho com "Ações")
+function ensureServicesHeader(){
+  const table = document.querySelector('.services-table');
+  if(!table) return;
+  let thead = table.querySelector('thead');
+  if(!thead){
+    thead = document.createElement('thead');
+    table.prepend(thead);
   }
-  const iso=localISO(currentMobileDay);
-  const list=filterAppointments(
-    appointments.filter(a=>a.date===iso)
-      .sort((a,b)=>a.period===b.period? (a.sortIndex||0)-(b.sortIndex||0) : (a.period==='Manhã'?-1:1))
-  );
-  const container=document.getElementById('mobileDayList'); if(!container) return;
-  container.innerHTML=list.map(a=>{
-    const base=getLocColor(a.locality);
-    const g=gradFromBase(base);
-    const bar=statusBarColors[a.status]||'#999';
-    const title=`${a.period} – ${a.plate} | ${a.service} | ${a.car.toUpperCase()}`;
-    const sub=[a.locality,a.notes].filter(Boolean).join(' | ');
-    return `
-      <div class="appointment m-card"
-           data-period="${a.period}" data-status="${a.status}"
-           data-locality="${a.locality}" data-loccolor="${base}"
-           style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}; margin-bottom:12px;">
-        <div class="m-title">${title}</div>
-        <div class="m-sub">${sub}</div>
-      </div>`;
-  }).join('');
-  highlightSearchResults();
+  const headers = ['Data','Período','Matrícula','Carro','Serviço','Localidade','Observações','Status','Quando','Ações'];
+  thead.innerHTML = `<tr>${
+    headers.map(h => h==='Ações'
+      ? `<th class="no-print actions-col" style="width:100px;text-align:left">Ações</th>`
+      : `<th>${h}</th>`
+    ).join('')
+  }</tr>`;
 }
 
-// ---------- Render TABELA FUTURA ----------
 function renderServicesTable(){
   const today=new Date();
   const future=filterAppointments(appointments.filter(a=>a.date && new Date(a.date)>=new Date().setHours(0,0,0,0))
     .sort((a,b)=>new Date(a.date)-new Date(b.date)));
   const tbody=document.getElementById('servicesTableBody'); if(!tbody) return;
+
+  // garante colunas certas no thead
+  ensureServicesHeader();
+
   tbody.innerHTML=future.map(a=>{
     const d=new Date(a.date);
     const diff=Math.ceil((d-today)/(1000*60*60*24));
@@ -362,8 +353,8 @@ function renderServicesTable(){
       <td>${when}</td>
       <td class="no-print">
         <div class="actions">
-          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar">✏️</button>
-          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar">🗑️</button>
+          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar" aria-label="Editar">✏️</button>
+          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar" aria-label="Eliminar">🗑️</button>
         </div>
       </td>
     </tr>`;
@@ -460,81 +451,6 @@ function attachStatusListeners(){
   });
 }
 
-// ---------- Export/Import ----------
-function exportToJson(){
-  const data={version:'3.0', exported:new Date().toISOString(), appointments};
-  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob); const a=document.createElement('a');
-  a.href=url; a.download=`agendamentos_${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(url);
-  showToast('Backup JSON exportado com sucesso!','success');
-}
-function exportToCsv(){
-  const headers=['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações'];
-  const rows=appointments.map(a=>[a.date||'',a.period||'',a.plate||'',a.car||'',a.service||'',a.locality||'',a.status||'',a.notes||'']);
-  const csv=[headers,...rows].map(r=>r.map(f=>`"${f}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download=`agendamentos_${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(url);
-  showToast('Dados exportados para CSV com sucesso!','success');
-}
-function importFromJson(file){
-  const reader=new FileReader();
-  reader.onload=function(e){
-    try{
-      const data=JSON.parse(e.target.result);
-      if(data.appointments && Array.isArray(data.appointments)){
-        if(confirm(`Importar ${data.appointments.length} agendamentos? Isto irá substituir todos os dados atuais.`)){
-          appointments=data.appointments; save(); renderAll(); showToast('Dados importados com sucesso!','success'); closeBackupModal();
-        }
-      }else showToast('Formato de ficheiro inválido.','error');
-    }catch(err){ showToast('Erro ao ler ficheiro: '+err.message,'error'); }
-  };
-  reader.readAsText(file);
-}
-
-// ---------- Stats ----------
-function generateStats(){
-  const total=appointments.length, scheduled=appointments.filter(a=>a.date&&a.period).length, unscheduled=total-scheduled;
-  const byStatus={ NE:appointments.filter(a=>a.status==='NE').length, VE:appointments.filter(a=>a.status==='VE').length, ST:appointments.filter(a=>a.status==='ST').length };
-  const byService={}; appointments.forEach(a=>{ byService[a.service]=(byService[a.service]||0)+1; });
-  const byLocality={}; appointments.forEach(a=>{ byLocality[a.locality]=(byLocality[a.locality]||0)+1; });
-  return { total, scheduled, unscheduled, byStatus, byService, byLocality };
-}
-function showStats(){
-  const s=generateStats(); const modal=document.getElementById('statsModal'); const c=document.getElementById('statsContent'); if(!modal||!c) return;
-  c.innerHTML=`
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-number">${s.total}</div><div class="stat-label">Total de Agendamentos</div></div>
-      <div class="stat-card"><div class="stat-number">${s.scheduled}</div><div class="stat-label">Agendados</div></div>
-      <div class="stat-card"><div class="stat-number">${s.unscheduled}</div><div class="stat-label">Por Agendar</div></div>
-    </div>
-    <h4>Por Status</h4>
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-number">${s.byStatus.NE}</div><div class="stat-label">Não Executado</div></div>
-      <div class="stat-card"><div class="stat-number">${s.byStatus.VE}</div><div class="stat-label">Vidro Encomendado</div></div>
-      <div class="stat-card"><div class="stat-number">${s.byStatus.ST}</div><div class="stat-label">Serviço Terminado</div></div>
-    </div>
-    <h4>Por Tipo de Serviço</h4>
-    <div class="stats-grid">
-      ${Object.entries(s.byService).map(([svc,cnt])=>`
-        <div class="stat-card">
-          <div class="stat-number">${cnt}</div>
-          <div class="stat-label">${svc}</div>
-        </div>`).join('')}
-    </div>
-  `;
-  modal.classList.add('show');
-}
-
-// ---------- Modais & navegação ----------
-function closeBackupModal(){ document.getElementById('backupModal')?.classList.remove('show'); }
-function closeStatsModal(){ document.getElementById('statsModal')?.classList.remove('show'); }
-function prevWeek(){ currentMonday=addDays(currentMonday,-7); renderAll(); }
-function nextWeek(){ currentMonday=addDays(currentMonday,7); renderAll(); }
-function todayWeek(){ currentMonday=getMonday(new Date()); renderAll(); }
-function prevDay(){ currentMobileDay=addDays(currentMobileDay,-1); renderMobileDay(); }
-function nextDay(){ currentMobileDay=addDays(currentMobileDay,1); renderMobileDay(); }
-function todayDay(){ currentMobileDay=new Date(); renderMobileDay(); }
-
 // ---------- Print ----------
 function printPage(){ updatePrintUnscheduledTable(); updatePrintTomorrowTable(); window.print(); }
 function updatePrintUnscheduledTable(){
@@ -576,6 +492,10 @@ function updatePrintTomorrowTable(){
 document.addEventListener('DOMContentLoaded', async ()=>{
   await load();
   initializeLocalityDropdown();
+
+  // garante header com "Ações" antes do primeiro render
+  ensureServicesHeader();
+
   renderAll();
   updateConnectionStatus();
 
