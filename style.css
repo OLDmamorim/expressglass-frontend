@@ -287,3 +287,11 @@ table.schedule td:first-child{ border-left:none; }
 textarea, input, select{
   font-size:14px !important; -webkit-text-size-adjust:none;
 }
+/* --- Ações na tabela: visíveis no desktop, escondidas no mobile --- */
+@media (min-width: 821px){
+  .services-table td.no-print { display: table-cell !important; }
+  .services-table .actions { display: flex !important; }
+}
+@media (max-width: 820px){
+  .services-table td.no-print { display: none !important; }
+}
