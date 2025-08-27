@@ -676,3 +676,71 @@ window.addEventListener('offline',updateConnectionStatus);
     }
   }, true);
 })();
+/* ===== Formulário: submit + máscara/validação de matrícula (safe, sem tocar no HTML) ===== */
+(function wireFormSubmitAndPlate(){
+  if (window.__EG_FORM_WIRED__) return;
+  window.__EG_FORM_WIRED__ = true;
+
+  // 1) Intercetar SUBMIT dentro do modal (delegação)
+  document.addEventListener('submit', function(e){
+    const form = e.target && e.target.closest && e.target.closest('#appointmentForm');
+    if (!form) return;
+
+    e.preventDefault();
+    if (typeof window.saveAppointment === 'function') {
+      try { window.saveAppointment(); } catch(err) { console.error('saveAppointment()', err); }
+    } else {
+      console.warn('saveAppointment() não existe');
+    }
+  }, true);
+
+  // 2) Máscara de matrícula em tempo real (XX-XX-XX)
+  function maskPlate(raw){
+    const v = String(raw || '').replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,6);
+    if (v.length <= 2) return v;
+    if (v.length <= 4) return v.slice(0,2) + '-' + v.slice(2);
+    return v.slice(0,2) + '-' + v.slice(2,4) + '-' + v.slice(4);
+  }
+  const PLATE_RE = /^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/;
+
+  // ligar nos eventos (delegação para sobreviver a re-render)
+  document.addEventListener('input', function(e){
+    const el = e.target && e.target.closest && e.target.closest('#appointmentPlate');
+    if (!el) return;
+    const caretEnd = el.selectionEnd; // tentativa de preservar caret
+    const beforeLen = el.value.length;
+    el.value = maskPlate(el.value);
+    // ajustar caret para não saltar demasiado
+    const afterLen = el.value.length;
+    const diff = afterLen - beforeLen;
+    if (typeof caretEnd === 'number') {
+      try { el.setSelectionRange(caretEnd + (diff > 0 ? diff : 0), caretEnd + (diff > 0 ? diff : 0)); } catch {}
+    }
+  }, true);
+
+  // validar ao sair do campo (blur)
+  document.addEventListener('blur', function(e){
+    const el = e.target && e.target.closest && e.target.closest('#appointmentPlate');
+    if (!el) return;
+    const v = maskPlate(el.value);
+    el.value = v;
+    if (v && !PLATE_RE.test(v)) {
+      // aviso suave; não bloqueia o submit (o saveAppointment já valida campos obrigatórios)
+      if (typeof window.showToast === 'function') {
+        window.showToast('Formato de matrícula inválido. Usa o padrão XX-XX-XX.', 'error');
+      } else {
+        console.warn('Matrícula inválida (esperado XX-XX-XX)');
+      }
+    }
+  }, true);
+
+  // 3) Garantir que o botão "Guardar" dispara o submit do form (se for <button type="button"> no HTML)
+  document.addEventListener('click', function(e){
+    const saveBtn = e.target && e.target.closest && e.target.closest('#appointmentForm .btn.primary');
+    if (!saveBtn) return;
+    const form = document.getElementById('appointmentForm');
+    if (form && form.reportValidity && !form.reportValidity()) return; // respeitar obrigatórios do HTML5
+    if (form) {
+      e.preventDefault();
+      // acionar o submit “real” (vai cair no listener acima)
+      try { form
