@@ -55,8 +55,8 @@
       .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; }  /* Estado */
       .print-today-table th:nth-child(7),    .print-today-table td:nth-child(7),
       .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:24%; }  /* Observações */
-      .print-today-table th:nth-child(8),    .print-today-table td:nth-child(8),
-      .print-tomorrow-table th:nth-child(8), .print-tomorrow-table td:nth-child(8){ width:8%; }   /* Outros */
+      .print-today-table th:nth-child(8),    .print-tomorrow-table td:nth-child(8),
+      .print-tomorrow-table td:nth-child(8){ width:8%; }   /* Outros */
 
       .print-today-table th, .print-today-table td,
       .print-tomorrow-table th, .print-tomorrow-table td{
@@ -225,12 +225,12 @@
 
     <!-- Formulário de agendamento -->
     <div id="appointmentModal" class="modal">
-      <div class="modal-content" data-modal-content>
+      <div class="modal-content">
         <div class="modal-header">
           <h3 id="modalTitle">Novo Agendamento</h3>
-          <button id="closeModal" class="close-btn" type="button" data-close-modal>✕</button>
+          <button id="closeModal" class="close-btn">✕</button>
         </div>
-        <form id="appointmentForm" class="appointment-form" novalidate>
+        <form id="appointmentForm" class="appointment-form">
           <div class="form-row">
             <div class="form-group">
               <label for="appointmentDate">Data</label>
@@ -306,9 +306,9 @@
           </div>
 
           <div class="form-actions">
-            <button type="button" id="cancelForm" class="btn secondary" data-cancel-modal>Cancelar</button>
+            <button type="button" id="cancelForm" class="btn secondary">Cancelar</button>
             <button type="button" id="deleteAppointment" class="btn danger hidden">Eliminar</button>
-            <button type="submit" class="btn primary" data-save>Guardar</button>
+            <button type="submit" class="btn primary">Guardar</button>
           </div>
         </form>
       </div>
@@ -319,7 +319,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>Backup de Dados</h3>
-          <button class="close-btn" onclick="closeBackupModal()" type="button">✕</button>
+          <button class="close-btn" onclick="closeBackupModal()">✕</button>
         </div>
         <div class="backup-content">
           <div class="backup-section">
@@ -346,7 +346,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h3>📊 Estatísticas</h3>
-          <button class="close-btn" onclick="closeStatsModal()" type="button">✕</button>
+          <button class="close-btn" onclick="closeStatsModal()">✕</button>
         </div>
         <div id="statsContent" class="stats-content"></div>
       </div>
