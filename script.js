@@ -680,3 +680,43 @@ window.addEventListener('offline',updateConnectionStatus);
     if (modal) modal.classList.add('show');
   }, true);
 })();
+/* ===== Guardar agendamento — fix minimal e isolado ===== */
+(function ensureFormSaves(){
+  if (window.__EG_FORM_SAVE_WIRED__) return;
+  window.__EG_FORM_SAVE_WIRED__ = true;
+
+  // 1) Interceta SUBMIT do formulário e chama saveAppointment()
+  document.addEventListener('submit', function(e){
+    const form = e.target && e.target.closest && e.target.closest('#appointmentForm');
+    if (!form) return;
+    e.preventDefault();
+    if (typeof window.saveAppointment === 'function') {
+      try { window.saveAppointment(); } catch (err) { console.error('saveAppointment()', err); }
+    } else {
+      console.warn('saveAppointment() não existe');
+    }
+  }, true);
+
+  // 2) Se o botão "Guardar" não for type=submit, força o SUBMIT do form
+  document.addEventListener('click', function(e){
+    // tenta apanhar o botão principal de guardar dentro do form
+    const btn = e.target && e.target.closest && e.target.closest(
+      '#appointmentForm .btn.primary, #appointmentForm [data-save]'
+    );
+    if (!btn) return;
+
+    const form = document.getElementById('appointmentForm');
+    if (!form) return;
+
+    // respeita validação HTML5 (campos required, etc.)
+    if (form.reportValidity && !form.reportValidity()) return;
+
+    // dispara o submit “real” (vai cair no listener acima)
+    e.preventDefault();
+    try {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    } catch (err) {
+      console.error('dispatch submit', err);
+    }
+  }, true);
+})();
