@@ -13,35 +13,298 @@
     /* Secções de impressão começam ocultas no ecrã */
     .print-unscheduled-section,
     .print-today-section,
-...
-          <h3>Backup de Dados</h3>
-          <button class="close-btn" onclick="closeBackupModal()">✕</button>
+    .print-tomorrow-section { display: none; }
+
+    /* Tabelas de impressão (base) */
+    .print-unscheduled-table,
+    .print-today-table,
+    .print-tomorrow-table { width: 100%; border-collapse: collapse; }
+    .print-unscheduled-table th, .print-unscheduled-table td,
+    .print-today-table th,        .print-today-table td,
+    .print-tomorrow-table th,     .print-tomorrow-table td {
+      border: 1px solid #111; padding: 4px 6px; font-size: 12px; vertical-align: top
+    }
+    .print-unscheduled-table th, .print-today-table th, .print-tomorrow-table th { background:#eee; }
+    .print-today-table  th, .print-tomorrow-table th { text-align:left; }
+
+    /* Visibilidade de impressão */
+    @media print {
+      /* esconder tudo o que não é secção de impressão */
+      body * { visibility: hidden !important; }
+      .print-page-1, .print-page-2 { display:none !important; }
+
+      /* mostrar só as secções de impressão e o que está dentro delas */
+      .print-unscheduled-section,
+      .print-today-section,
+      .print-tomorrow-section { display: block !important; visibility: visible !important; }
+      .print-unscheduled-section * ,
+      .print-today-section * ,
+      .print-tomorrow-section * { visibility: visible !important; }
+
+      /* cada bloco numa página separada */
+      .print-unscheduled-section { page-break-after: always; }
+      .print-today-section      { page-break-after: always; }
+      .print-tomorrow-section   { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="page-header">
+    <div class="brand">
+      <h1>PORTAL DE AGENDAMENTO</h1>
+      <p>Agendamento serviços Expressglass</p>
+    </div>
+    <div class="header-right">
+      <div class="status-pill online" id="connectionStatus">
+        <span class="dot"></span><span>ONLINE</span>
+      </div>
+      <button id="openBackup" class="icon-btn" title="Importar/Exportar">
+        📁
+      </button>
+      <button id="toggleSearch" class="icon-btn" title="Pesquisar">
+        🔎
+      </button>
+    </div>
+  </header>
+
+  <!-- Barra de navegação -->
+  <div class="nav-container">
+    <div class="nav-left">
+      <button id="prevWeek" class="nav-button small">◀ Anterior</button>
+      <button id="todayBtn" class="nav-button small">📅 Hoje</button>
+      <button id="nextWeek" class="nav-button small full">Seguinte ▶</button>
+    </div>
+    <div class="week-range" id="weekRange">—</div>
+    <div class="nav-right">
+      <button id="printPage" class="nav-button">🖨 Imprimir</button>
+    </div>
+  </div>
+
+  <!-- Botão Novo Serviço (fixo abaixo do cabeçalho) -->
+  <div class="novo-servico-container" style="margin: 12px 0; text-align: right;">
+    <button id="addServiceBtnFixed" class="action-btn primary" onclick="openAppointmentModal()">+ Novo Serviço</button>
+  </div>
+
+  <!-- Calendário (desktop) -->
+  <div class="schedule-container print-page-1">
+    <table id="schedule" class="schedule"></table>
+  </div>
+
+  <!-- Serviços por agendar (desktop) -->
+  <section class="unscheduled-container">
+    <h3>SERVIÇOS POR AGENDAR</h3>
+    <div class="unscheduled-actions">
+      <!-- botão original escondido para evitar ser movido para o header -->
+      <button id="addServiceBtn" class="action-btn primary" style="display:none">+ Novo Serviço</button>
+      <select id="filterStatus" class="filter-select">
+        <option value="">Todos os estados</option>
+        <option value="NE">N/E - Não Executado</option>
+        <option value="VE">V/E - Vidro Encomendado</option>
+        <option value="ST">ST - Serviço Terminado</option>
+      </select>
+    </div>
+    <div id="unscheduledList" class="unscheduled-list" data-drop-bucket="unscheduled"></div>
+  </section>
+
+  <!-- Pesquisa -->
+  <div id="searchBar" class="search-bar hidden">
+    <input id="searchInput" type="text" placeholder="Pesquisar por matrícula, cliente, localidade, carro..." />
+    <button id="clearSearch" class="btn">Limpar</button>
+  </div>
+
+  <!-- Versão Mobile -->
+  <section class="mobile-view">
+    <div class="mobile-header">
+      <div class="mobile-day-nav">
+        <button id="prevDay" class="nav-button small">◀</button>
+        <div id="mobileDateLabel" class="date-label"></div>
+        <button id="nextDay" class="nav-button small">▶</button>
+      </div>
+      <div class="mobile-week-quick">
+        <button id="goToWeek" class="nav-button small full">Ver Semana</button>
+      </div>
+      <div class="mobile-legend">
+        <span class="legend-item ne">N/E</span>
+        <span class="legend-item ve">V/E</span>
+        <span class="legend-item st">ST</span>
+      </div>
+    </div>
+    <div class="mobile-actions">
+      <div class="mobile-filter">
+        <select id="mobileFilterStatus" class="filter-select small">
+          <option value="">Todos</option>
+          <option value="NE">N/E</option>
+          <option value="VE">V/E</option>
+          <option value="ST">ST</option>
+        </select>
+      </div>
+      <button id="prevWeekMobile" class="nav-button small">◀ Semana</button>
+      <button id="nextWeekMobile" class="nav-button small full">Seguinte ▶</button>
+    </div>
+    <div id="mobileDayList" class="mobile-day-list"></div>
+    <button id="addServiceMobile" class="mobile-add-btn">+ Novo Serviço</button>
+  </section>
+
+  <!-- Tabela de serviços a realizar -->
+  <section class="services-table-container print-page-2">
+    <h3 id="servicesTableTitle">SERVIÇOS A REALIZAR</h3>
+    <div class="services-table-wrapper">
+      <table id="servicesTable" class="services-table">
+        <thead id="servicesTableHead"></thead>
+        <tbody id="servicesTableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Secções específicas para impressão -->
+  <section class="print-unscheduled-section">
+    <h2>Serviços por Agendar</h2>
+    <table class="print-unscheduled-table" id="printUnscheduledTable"></table>
+  </section>
+
+  <section class="print-today-section">
+    <h2>Serviços de Hoje</h2>
+    <table class="print-today-table" id="printTodayTable"></table>
+  </section>
+
+  <section class="print-tomorrow-section">
+    <h2>Serviços de Amanhã</h2>
+    <table class="print-tomorrow-table" id="printTomorrowTable"></table>
+  </section>
+
+  <!-- Modal Novo/Editar Agendamento -->
+  <div id="appointmentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Novo Agendamento</h3>
+        <button id="closeModal" class="close-btn">✕</button>
+      </div>
+      <form id="appointmentForm" class="form-grid">
+        <input type="hidden" id="appointmentId" />
+        <div class="form-row">
+          <label for="period">Período</label>
+          <select id="period" required>
+            <option value="morning">Manhã</option>
+            <option value="afternoon">Tarde</option>
+          </select>
         </div>
-        <div class="backup-content">
-          <div class="backup-section">
-            <h4>📤 Exportar Dados</h4>
-            <p>Faça backup dos seus agendamentos</p>
-            <div class="backup-actions">
-              <button id="exportJson" class="btn primary">💾 Exportar JSON</button>
-              <button id="exportCsv" class="btn secondary">📊 Exportar CSV</button>
-            </div>
+        <div class="form-row">
+          <label for="date">Data</label>
+          <input id="date" type="date" required />
+        </div>
+        <div class="form-row">
+          <label for="plate">Matrícula</label>
+          <input id="plate" type="text" placeholder="AA-00-AA" required />
+        </div>
+        <div class="form-row">
+          <label for="service">Serviço</label>
+          <input id="service" type="text" placeholder="PB, TT, Brisa..." required />
+        </div>
+        <div class="form-row">
+          <label for="car">Carro</label>
+          <input id="car" type="text" placeholder="Marca | Modelo" required />
+        </div>
+        <div class="form-row">
+          <label for="locality">Localidade</label>
+          <select id="locality" required>
+            <option value="">—</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="subline">Sub-linha</label>
+          <input id="subline" type="text" placeholder="Observações..." />
+        </div>
+        <div class="form-actions">
+          <button id="saveAppointment" type="submit" class="btn primary">Gravar</button>
+          <button id="cancelForm" type="button" class="btn">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Backup -->
+  <div id="backupModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Backup de Dados</h3>
+        <button class="close-btn" onclick="closeBackupModal()">✕</button>
+      </div>
+      <div class="backup-content">
+        <div class="backup-section">
+          <h4>📤 Exportar Dados</h4>
+          <p>Faça backup dos seus agendamentos</p>
+          <div class="backup-actions">
+            <button id="exportJson" class="btn primary">💾 Exportar JSON</button>
+            <button id="exportCsv" class="btn secondary">📊 Exportar CSV</button>
           </div>
-          <div class="backup-section">
-            <h4>📥 Importar Dados</h4>
-            <p>Restaurar dados de um backup anterior</p>
-            <input type="file" id="importFile" accept=".json" style="display: none;" />
-            <button id="importBtn" class="btn secondary">📁 Selecionar Ficheiro</button>
-            <div id="importStatus" class="import-status"></div>
-          </div>
+        </div>
+        <div class="backup-section">
+          <h4>📥 Importar Dados</h4>
+          <p>Restaurar dados de um backup anterior</p>
+          <input type="file" id="importFile" accept=".json" style="display: none;" />
+          <button id="importBtn" class="btn secondary">📁 Selecionar Ficheiro</button>
+          <div id="importStatus" class="import-status"></div>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- Modal de estatísticas -->
-    <div id="statsModal" class="modal">
-      <div class="modal-content">
-        <div class="modal-header">
-...
+  <!-- Modal de estatísticas -->
+  <div id="statsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Estatísticas</h3>
+        <button class="close-btn" onclick="closeStats()">✕</button>
+      </div>
+      <div id="statsContent" class="stats-content">
+        <!-- conteúdo preenchido por JS -->
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+
+  <!-- Skinner dos cartões (só visual; não mexe no core) -->
+  <script>
+  (() => {
+    const LIST = document.getElementById('unscheduledList');
+    if(!LIST) return;
+
+    const getBaseColor = (node, data) => {
+      const status = (node.getAttribute('data-status')||'').toUpperCase();
+      if(status === 'NE') return '#ef4444';
+      if(status === 'VE') return '#22c55e';
+      if(status === 'ST') return '#10b981';
+      return '#3b82f6';
+    };
+
+    const buildCard = (data, baseColor) => {
+      const card = document.createElement('div');
+      card.className = 'unscheduled-card';
+      card.style.borderLeft = `6px solid ${baseColor}`;
+      card.innerHTML = `
+        <div class="line-1"><span class="plate">${data.plate}</span> | <span class="service">${data.service}</span> | <span class="car">${data.car}</span></div>
+        <div class="line-2">${data.locality} | <span class="subline">${data.subline||''}</span></div>
+        <div class="actions">
+          <button class="btn small">N/E</button>
+          <button class="btn small">V/E</button>
+          <button class="btn small">ST</button>
+        </div>`;
+      return card;
+    };
+
+    function skinItem(node){
+      if(node.classList.contains('unscheduled-card')) return;
+      if(!node.matches('.unscheduled-item')) return;
+
+      const period = node.getAttribute('data-period') || '—';
+      const plate  = node.querySelector('.plate')?.textContent?.trim() || '—';
+      const service= node.querySelector('.service')?.textContent?.trim() || '—';
+      const car    = node.querySelector('.car')?.textContent?.trim() || '—';
+      const locality=node.querySelector('.locality')?.textContent?.trim() || '—';
+      const subline = node.querySelector('.subline')?.textContent?.trim() || '';
+
       const data = { period, plate, service, car, locality, subline };
       const baseColor = getBaseColor(node, data);
       const card = buildCard(data, baseColor);
