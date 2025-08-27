@@ -655,3 +655,28 @@ window.addEventListener('offline',updateConnectionStatus);
     el.value = maskPlate(el.value);
   }, true);
 })();
+/* ===== Novo Serviço — wiring FINAL, seguro e isolado ===== */
+(function(){
+  if (window.__EG_WIRE_NEW_SERVICE__) return;
+  window.__EG_WIRE_NEW_SERVICE__ = true;
+
+  const SELECTOR = '#addServiceBtn, #addServiceMobile, #addServiceBtnFixed, [data-new-service]';
+
+  // Delegação em captura: funciona mesmo se o botão for re-renderizado/movido por outros scripts
+  document.addEventListener('click', function(e){
+    const btn = e.target && e.target.closest && e.target.closest(SELECTOR);
+    if (!btn) return;
+
+    e.preventDefault();
+
+    // caminho normal
+    if (typeof window.openAppointmentModal === 'function') {
+      try { window.openAppointmentModal(); } catch (err) { console.error(err); }
+      return;
+    }
+
+    // fallback: abre o modal diretamente se a função não existir
+    const modal = document.getElementById('appointmentModal');
+    if (modal) modal.classList.add('show');
+  }, true);
+})();
