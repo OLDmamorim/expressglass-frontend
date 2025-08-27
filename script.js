@@ -624,3 +624,19 @@ function updateConnectionStatus(){
 setInterval(updateConnectionStatus,5000);
 window.addEventListener('online',updateConnectionStatus);
 window.addEventListener('offline',updateConnectionStatus);
+/* ===== Novo Serviço — fix minimal ===== */
+(function attachNewServiceDelegation(){
+  if (window.__EG_NEW_SERVICE_WIRED__) return;
+  window.__EG_NEW_SERVICE_WIRED__ = true;
+
+  document.addEventListener('click', function(e){
+    const hit = e.target && e.target.closest &&
+      e.target.closest('#addServiceBtn, #addServiceMobile, #addServiceBtnFixed, [data-new-service]');
+    if (!hit) return;
+
+    if (typeof window.openAppointmentModal === 'function') {
+      e.preventDefault();
+      try { window.openAppointmentModal(); } catch(err) { console.error('openAppointmentModal()', err); }
+    }
+  }, true);
+})();
