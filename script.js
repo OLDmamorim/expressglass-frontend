@@ -720,3 +720,10 @@ window.addEventListener('offline',updateConnectionStatus);
     }
   }, true);
 })();
+// fallback seguro se renderMobileDay não existir
+if (typeof window.renderMobileDay !== 'function') {
+  window.renderMobileDay = function(){
+    // opcional: podes meter um console.log para confirmar
+    console.log('renderMobileDay não implementado nesta versão.');
+  };
+}
