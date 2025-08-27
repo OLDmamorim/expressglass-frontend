@@ -775,3 +775,47 @@ if (typeof window.renderMobileDay !== 'function') {
     console.log('renderMobileDay não implementado nesta versão.');
   };
 }
+/* === PATCH: ações (✏️ / 🗑️) também nos cartões AGENDADOS === */
+(function addActionsToScheduledCards(){
+  function ensureCardActions(scope){
+    (scope || document).querySelectorAll('.desk-card:not(.unscheduled)').forEach(card=>{
+      if (card.querySelector('.unscheduled-actions')) return; // já tem ações
+      const id = Number(card.getAttribute('data-id'));
+      if (!id) return;
+
+      const box = document.createElement('div');
+      box.className = 'unscheduled-actions';
+      box.innerHTML = `
+        <button class="icon edit" title="Editar" aria-label="Editar">✏️</button>
+        <button class="icon delete" title="Eliminar" aria-label="Eliminar">🗑️</button>
+      `;
+
+      // handlers
+      box.querySelector('.edit').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if (window.editAppointment) window.editAppointment(id);
+      });
+      box.querySelector('.delete').addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if (window.deleteAppointment) window.deleteAppointment(id);
+      });
+
+      card.appendChild(box);
+    });
+  }
+
+  // injeta após cada render do calendário
+  const _renderSchedule = window.renderSchedule;
+  window.renderSchedule = function(){
+    if (typeof _renderSchedule === 'function') _renderSchedule();
+    ensureCardActions();
+  };
+
+  // observa mudanças dentro do #schedule (ex.: drag&drop)
+  const sched = document.getElementById('schedule');
+  if (sched) {
+    new MutationObserver(()=>ensureCardActions()).observe(sched, { childList:true, subtree:true });
+  }
+
+  // primeira passagem (se já estava renderizado)
+  ensureCardAction
