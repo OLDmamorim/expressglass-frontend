@@ -1,4 +1,3 @@
-
 if(window.EG_INIT_DONE){};window.EG_INIT_DONE=true;
 // ===== PORTAL DE AGENDAMENTO MELHORADO =====
 // Versão com API + cartões estilo mobile também no DESKTOP
