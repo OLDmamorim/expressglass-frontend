@@ -26,11 +26,11 @@ let statusFilter = '';
 function getMonday(date){ const d=new Date(date); const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1); return new Date(d.setDate(diff)); }
 function addDays(date,days){ const r=new Date(date); r.setDate(r.getDate()+days); return r; }
 function parseDate(dateStr){
-  if(!dateStr) return '';
+  if(!dateStr) return null;
   if(/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
   if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)){ const [d,m,y]=dateStr.split('/'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
   try{ const d=new Date(dateStr); if(!isNaN(d.getTime())) return localISO(d); }catch{}
-  return '';
+  return null; // <— importante: null (não string vazia) para “sem data”
 }
 function formatDateForInput(s){ if(!s) return ''; if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; } return s; }
 function localISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
@@ -100,10 +100,10 @@ function filterAppointments(list){
   if(searchQuery){
     const q=searchQuery.toLowerCase();
     f=f.filter(a=>
-      a.plate.toLowerCase().includes(q) ||
-      a.car.toLowerCase().includes(q) ||
-      a.locality.toLowerCase().includes(q) ||
-      (a.notes && a.notes.toLowerCase().includes(q))
+      (a.plate||'').toLowerCase().includes(q) ||
+      (a.car||'').toLowerCase().includes(q) ||
+      (a.locality||'').toLowerCase().includes(q) ||
+      ((a.notes||'').toLowerCase().includes(q))
     );
   }
   if(statusFilter) f=f.filter(a=>a.status===statusFilter);
@@ -197,7 +197,7 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   const a         = appointments[i];
   const oldBucket = bucketOf(a);
 
-  if(targetBucket === 'unscheduled'){ a.date=''; a.period=''; }
+  if(targetBucket === 'unscheduled'){ a.date=null; a.period=null; }
   else { const [d,p] = targetBucket.split('|'); a.date=d; a.period=p||'Manhã'; }
 
   const dest = getBucketList(targetBucket).filter(x=>x.id!==a.id);
@@ -220,13 +220,13 @@ function buildDesktopCard(a){
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
   const bar = statusBarColors[a.status] || '#999';
-  const title = `${a.plate} | ${a.service} | ${a.car.toUpperCase()}`;
+  const title = `${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
   const sub   = [a.locality, a.notes].filter(Boolean).join(' | ');
 
   return `
     <div class="appointment desk-card"
          data-id="${a.id}" draggable="true"
-         data-locality="${a.locality}" data-loccolor="${base}"
+         data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
       <div class="dc-title">${title}</div>
       <div class="dc-sub">${sub}</div>
@@ -281,12 +281,12 @@ function renderUnscheduled(){
     const base=getLocColor(a.locality);
     const g=gradFromBase(base);
     const bar=statusBarColors[a.status]||'#999';
-    const title=`${a.plate} | ${a.service} | ${a.car.toUpperCase()}`;
+    const title=`${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
     const sub=[a.locality,a.notes].filter(Boolean).join(' | ');
     return `
       <div class="appointment desk-card unscheduled"
            data-id="${a.id}" draggable="true"
-           data-locality="${a.locality}" data-loccolor="${base}"
+           data-locality="${a.locality||''}" data-loccolor="${base}"
            style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
         <div class="dc-title">${title}</div>
         <div class="dc-sub">${sub}</div>
@@ -314,7 +314,8 @@ function ensureServicesHeader(){
     thead = document.createElement('thead');
     table.prepend(thead);
   }
-  const headers = ['Data','Período','Matrícula','Carro','Serviço','Localidade','Observações','Status','Quando','Ações'];
+  // Alinhado com o index.html
+  const headers = ['Data','Período','Matrícula','Carro','Serviço','Localidade','Observações','Estado','Dias','Ações'];
   thead.innerHTML = `<tr>${
     headers.map(h => h==='Ações'
       ? `<th class="no-print actions-col" style="width:100px;text-align:left">Ações</th>`
@@ -338,7 +339,7 @@ function renderServicesTable(){
       .sort((a,b) => new Date(a.date) - new Date(b.date))
   );
 
-  const today = new Date();
+  const today = new Date(); today.setHours(0,0,0,0);
 
   tbody.innerHTML=future.map(a=>{
     const d=new Date(a.date);
@@ -346,13 +347,13 @@ function renderServicesTable(){
     const when = diff<0? `${Math.abs(diff)} dias atrás` : diff===0? 'Hoje' : diff===1? 'Amanhã' : `${diff} dias`;
     return `<tr>
       <td>${d.toLocaleDateString('pt-PT')}</td>
-      <td>${a.period}</td>
-      <td>${a.plate}</td>
-      <td>${a.car}</td>
-      <td><span class="badge badge-${a.service}">${a.service}</span></td>
-      <td>${a.locality}</td>
+      <td>${a.period||''}</td>
+      <td>${a.plate||''}</td>
+      <td>${a.car||''}</td>
+      <td><span class="badge badge-${a.service}">${a.service||''}</span></td>
+      <td>${a.locality||''}</td>
       <td>${a.notes||''}</td>
-      <td><span class="chip chip-${a.status}">${a.status}</span></td>
+      <td><span class="chip chip-${a.status}">${a.status||''}</span></td>
       <td>${when}</td>
       <td class="no-print">
         <div class="actions">
@@ -384,27 +385,49 @@ function openAppointmentModal(id=null){
       document.getElementById('appointmentCar').value = a.car||'';
       document.getElementById('appointmentService').value = a.service||'';
       document.getElementById('appointmentLocality').value = a.locality||'';
+      // UI do dropdown
+      const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
+      if(txt) txt.textContent=a.locality||'Selecione a localidade';
+      if(dot) dot.style.backgroundColor=getLocColor(a.locality);
       document.getElementById('appointmentStatus').value = a.status||'NE';
       document.getElementById('appointmentNotes').value = a.notes||'';
       document.getElementById('appointmentExtra').value = a.extra||'';
       del.classList.remove('hidden');
     }
   }else{
-    title.textContent='Novo Agendamento'; form.reset();
+    title.textContent='Novo Agendamento';
+    if(form) form.reset();
     document.getElementById('appointmentStatus').value='NE';
+    // limpar UI do dropdown
+    const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
+    if(txt) txt.textContent='Selecione a localidade';
+    if(dot) dot.style.backgroundColor='transparent';
     del.classList.add('hidden');
   }
   modal.classList.add('show');
 }
-function closeAppointmentModal(){ document.getElementById('appointmentModal')?.classList.remove('show'); editingId=null; }
+function closeAppointmentModal(){
+  const modal=document.getElementById('appointmentModal'); if(!modal) return;
+  const form=document.getElementById('appointmentForm');
+  if(form) form.reset();
+  // limpar UI do dropdown
+  const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
+  if(txt) txt.textContent='Selecione a localidade';
+  if(dot) dot.style.backgroundColor='transparent';
+  document.getElementById('deleteAppointment')?.classList.add('hidden');
+  editingId=null;
+  modal.classList.remove('show');
+}
 
 async function saveAppointment(){
   const rawDate=document.getElementById('appointmentDate').value;
+  const parsedDate = parseDate(rawDate); // null se vazio/indefinido
+  const periodRaw = document.getElementById('appointmentPeriod').value;
   const a={
     id: editingId || Date.now()+Math.random(),
-    date: parseDate(rawDate),
-    period: document.getElementById('appointmentPeriod').value,
-    plate: document.getElementById('appointmentPlate').value.toUpperCase(),
+    date: parsedDate,                                   // <- null quando sem data
+    period: periodRaw ? periodRaw : null,               // <- null quando vazio
+    plate: (document.getElementById('appointmentPlate').value||'').toUpperCase(),
     car: document.getElementById('appointmentCar').value,
     service: document.getElementById('appointmentService').value,
     locality: document.getElementById('appointmentLocality').value,
@@ -423,8 +446,13 @@ async function saveAppointment(){
       const i=appointments.findIndex(x=>x.id===editingId); if(i>=0) appointments[i]={...appointments[i],...res};
       showToast('Agendamento atualizado com sucesso!','success');
     }else{
-      res=await window.apiClient.createAppointment(a);
-      appointments.push(res); showToast('Serviço criado com sucesso!','success');
+      // Alguns backends ignoram campos null; se necessário, remover as chaves null:
+      const payload = { ...a };
+      if (payload.date === null) delete payload.date;
+      if (payload.period === null) delete payload.period;
+      res=await window.apiClient.createAppointment(payload);
+      appointments.push(res && res.id ? res : a); // fallback local se API não devolver payload completo
+      showToast('Serviço criado com sucesso!','success');
     }
     await save(); renderAll(); closeAppointmentModal();
   }catch(e){ console.error(e); showToast('Erro ao salvar: '+e.message,'error'); }
@@ -484,9 +512,9 @@ function updatePrintTomorrowTable(){
     table.style.display='table'; empty.style.display='none';
     tbody.innerHTML=list.map(a=>`
       <tr>
-        <td>${a.period||''}</td><td>${a.plate}</td><td>${a.car}</td>
-        <td><span class="service-badge badge-${a.service}">${a.service}</span></td>
-        <td>${a.locality}</td><td><span class="status-chip chip-${a.status}">${a.status}</span></td>
+        <td>${a.period||''}</td><td>${a.plate||''}</td><td>${a.car||''}</td>
+        <td><span class="service-badge badge-${a.service}">${a.service||''}</span></td>
+        <td>${a.locality||''}</td><td><span class="status-chip chip-${a.status}">${a.status||''}</span></td>
         <td>${a.notes||''}</td><td>${a.extra||''}</td>
       </tr>`).join('');
   }
@@ -569,7 +597,13 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('importBtn')?.addEventListener('click', ()=> document.getElementById('importFile')?.click());
   document.getElementById('importFile')?.addEventListener('change', e=>{ const f=e.target.files[0]; if(f) importFromJson(f); });
 
-  document.addEventListener('click', e=>{ if(e.target.classList?.contains('modal')) e.target.classList.remove('show'); });
+  // Fechar ao clicar fora do conteúdo do modal
+  const apptModal = document.getElementById('appointmentModal');
+  if (apptModal) {
+    apptModal.addEventListener('click', (e)=>{ if(e.target === apptModal) closeAppointmentModal(); });
+  }
+
+  // Fechar modais com ESC
   document.addEventListener('keydown', e=>{
     if(e.ctrlKey||e.metaKey){
       if(e.key==='f'){ e.preventDefault(); document.getElementById('searchBtn')?.click(); }
@@ -580,11 +614,22 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   });
 });
 
+// ---------- Delegação robusta para X/Cancelar (fallback) ----------
+document.addEventListener('click', (e)=>{
+  const hit = e.target && e.target.closest && e.target.closest('#closeModal, #cancelForm');
+  if (!hit) return;
+  e.preventDefault();
+  closeAppointmentModal();
+}, true);
+
 // ---------- Globais ----------
 window.editAppointment=editAppointment;
 window.deleteAppointment=deleteAppointment;
 window.closeBackupModal=closeBackupModal;
 window.closeStatsModal=closeStatsModal;
+window.openAppointmentModal=openAppointmentModal;   // <— exposto
+window.closeAppointmentModal=closeAppointmentModal; // <— exposto
+window.saveAppointment=saveAppointment;             // <— exposto
 
 // ---------- Locality dropdown ----------
 function initializeLocalityDropdown(){
@@ -624,6 +669,7 @@ function updateConnectionStatus(){
 setInterval(updateConnectionStatus,5000);
 window.addEventListener('online',updateConnectionStatus);
 window.addEventListener('offline',updateConnectionStatus);
+
 /* ===== ExpressGlass — fixes mínimos ===== */
 (function fixesExpressGlass(){
   if (window.__EG_FIXES_APPLIED__) return;
@@ -655,6 +701,7 @@ window.addEventListener('offline',updateConnectionStatus);
     el.value = maskPlate(el.value);
   }, true);
 })();
+
 /* ===== Novo Serviço — wiring FINAL, seguro e isolado ===== */
 (function(){
   if (window.__EG_WIRE_NEW_SERVICE__) return;
@@ -680,6 +727,7 @@ window.addEventListener('offline',updateConnectionStatus);
     if (modal) modal.classList.add('show');
   }, true);
 })();
+
 /* ===== Guardar agendamento — fix minimal e isolado ===== */
 (function ensureFormSaves(){
   if (window.__EG_FORM_SAVE_WIRED__) return;
@@ -720,10 +768,10 @@ window.addEventListener('offline',updateConnectionStatus);
     }
   }, true);
 })();
+
 // fallback seguro se renderMobileDay não existir
 if (typeof window.renderMobileDay !== 'function') {
   window.renderMobileDay = function(){
-    // opcional: podes meter um console.log para confirmar
     console.log('renderMobileDay não implementado nesta versão.');
   };
 }
