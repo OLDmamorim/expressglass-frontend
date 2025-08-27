@@ -290,3 +290,55 @@ table.schedule td:first-child{border-left:none}
    ========================= */
 textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: none; }
 .highlight{ background:#fef3c7 !important; border:2px solid #f59e0b !important; }
+
+/* ======== IMPRESSÃO — SÓ AS 3 TABELAS ======== */
+@media print {
+  /* Página e cores */
+  @page { size: A4; margin: 12mm; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Esconder tudo por defeito */
+  body * { display: none !important; }
+
+  /* Mostrar apenas estas secções + TODO o seu conteúdo */
+  #servicosPorAgendar, #servicosPorAgendar * ,
+  #servicosHoje,         #servicosHoje * ,
+  #servicosAmanha,       #servicosAmanha * {
+    display: revert !important;         /* volta ao display natural */
+    visibility: visible !important;
+  }
+
+  /* Calendário e botões */
+  #calendar,
+  .no-print,
+  .btn,
+  header, nav, footer { display: none !important; }
+
+  /* Garantir que as tabelas imprimem certinhas (fallback se o 'revert' não chegar) */
+  #servicosPorAgendar, #servicosHoje, #servicosAmanha { display:block !important; }
+  #servicosPorAgendar table, #servicosHoje table, #servicosAmanha table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 12px !important;
+  }
+  #servicosPorAgendar thead, #servicosHoje thead, #servicosAmanha thead { 
+    display: table-header-group !important; 
+  }
+  #servicosPorAgendar tbody, #servicosHoje tbody, #servicosAmanha tbody { 
+    display: table-row-group !important; 
+  }
+  #servicosPorAgendar tr, #servicosHoje tr, #servicosAmanha tr { 
+    display: table-row !important; 
+    page-break-inside: avoid !important;
+  }
+  #servicosPorAgendar th, #servicosHoje th, #servicosAmanha th,
+  #servicosPorAgendar td, #servicosHoje td, #servicosAmanha td {
+    display: table-cell !important;
+    border: 1px solid #333 !important;
+    padding: 6px !important;
+    text-align: left !important;
+    vertical-align: top !important;
+  }
+}
+
