@@ -775,3 +775,64 @@ if (typeof window.renderMobileDay !== 'function') {
     console.log('renderMobileDay não implementado nesta versão.');
   };
 }
+/* === PATCH V2: ações (✏️/🗑️) nos cartões AGENDADOS, com estilo inline === */
+(function addActionsToScheduledCards(){
+  function ensureCardActions(scope){
+    (scope || document).querySelectorAll('.desk-card:not(.unscheduled)').forEach(card=>{
+      if (card.classList.contains('has-inline-actions')) return;
+      const id = Number(card.getAttribute('data-id'));
+      if (!id) return;
+
+      // garante que o cartão aceita conteúdo extra visualmente
+      card.style.paddingBottom = card.style.paddingBottom || '10px';
+
+      const box = document.createElement('div');
+      // classe nova para não depender do CSS existente
+      box.className = 'card-actions-inline';
+      // estilos inline para não ser escondido por regras de .unscheduled-actions
+      box.setAttribute('style',
+        'display:flex; gap:8px; margin-top:8px; justify-content:flex-end; align-items:center;');
+
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'icon edit';
+      btnEdit.title = 'Editar';
+      btnEdit.setAttribute('aria-label','Editar');
+      btnEdit.textContent = '✏️';
+      btnEdit.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if (window.editAppointment) window.editAppointment(id);
+      });
+
+      const btnDel = document.createElement('button');
+      btnDel.className = 'icon delete';
+      btnDel.title = 'Eliminar';
+      btnDel.setAttribute('aria-label','Eliminar');
+      btnDel.textContent = '🗑️';
+      btnDel.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if (window.deleteAppointment) window.deleteAppointment(id);
+      });
+
+      box.appendChild(btnEdit);
+      box.appendChild(btnDel);
+      card.appendChild(box);
+      card.classList.add('has-inline-actions');
+    });
+  }
+
+  // injeta depois de cada render do calendário
+  const _renderSchedule = window.renderSchedule;
+  window.renderSchedule = function(){
+    if (typeof _renderSchedule === 'function') _renderSchedule();
+    ensureCardActions();
+  };
+
+  // observa alterações dentro do calendário (drag & drop, etc.)
+  const sched = document.getElementById('schedule');
+  if (sched) {
+    new MutationObserver(()=>ensureCardActions()).observe(sched, { childList:true, subtree:true });
+  }
+
+  // primeira passagem
+  ensureCardActions();
+})();
