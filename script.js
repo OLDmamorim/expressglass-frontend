@@ -1,11 +1,11 @@
 // ===== PORTAL DE AGENDAMENTO MELHORADO =====
-// VersÃ£o com API + cartÃµes estilo mobile tambÃ©m no DESKTOP
+// Versão com API + cartões estilo mobile também no DESKTOP
 
-// ---------- ConfiguraÃ§Ãµes e dados ----------
+// ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
-  'FamalicÃ£o': '#2DD4BF', 'GuimarÃ£es': '#FACC15', 'PÃ³voa de Lanhoso': '#A78BFA',
-  'PÃ³voa de Varzim': '#6EE7B7', 'Riba D\'Ave': '#FBBF24', 'Trofa': '#C084FC',
+  'Famalicão': '#2DD4BF', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
+  'Póvoa de Varzim': '#6EE7B7', 'Riba D\'Ave': '#FBBF24', 'Trofa': '#C084FC',
   'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#FCD34D', 'Vila Verde': '#86EFAC'
 };
 window.LOCALITY_COLORS = localityColors;
@@ -66,11 +66,11 @@ function gradFromBase(hex){
 function showToast(msg,type='info'){
   const c=document.getElementById('toastContainer'); if(!c) return;
   const t=document.createElement('div'); t.className=`toast ${type}`;
-  t.innerHTML=`<span>${type==='success'?'âœ…':type==='error'?'âŒ':'â„¹ï¸'}</span><span>${msg}</span>`;
+  t.innerHTML=`<span>${type==='success'?'✅':type==='error'?'❌':'ℹ️'}</span><span>${msg}</span>`;
   c.appendChild(t); setTimeout(()=>t.remove(),4000);
 }
 
-// ---------- MatrÃ­cula ----------
+// ---------- Matrícula ----------
 function formatPlate(input){
   let v=input.value.replace(/[^A-Za-z0-9]/g,'').toUpperCase();
   if(v.length>2) v=v.slice(0,2)+'-'+v.slice(2);
@@ -79,7 +79,7 @@ function formatPlate(input){
 }
 
 // ---------- API ----------
-async function save(){ try{ showToast('Dados sincronizados com sucesso!','success'); }catch(e){ showToast('Erro na sincronizaÃ§Ã£o: '+e.message,'error'); } }
+async function save(){ try{ showToast('Dados sincronizados com sucesso!','success'); }catch(e){ showToast('Erro na sincronização: '+e.message,'error'); } }
 async function load(){
   try{
     showToast('Carregando dados...','info');
@@ -117,7 +117,7 @@ function highlightSearchResults(){
   });
 }
 
-// ---------- PersistÃªncia de STATUS ----------
+// ---------- Persistência de STATUS ----------
 async function persistStatus(id, newStatus) {
   const idx = appointments.findIndex(a => a.id === id);
   if (idx < 0) return;
@@ -136,7 +136,7 @@ async function persistStatus(id, newStatus) {
   }
 }
 
-// ---------- Drag & Drop (com persistÃªncia total) ----------
+// ---------- Drag & Drop (com persistência total) ----------
 function getBucketList(bucket){
   return appointments
     .filter(x => bucketOf(x) === bucket)
@@ -151,7 +151,7 @@ async function persistBuckets(buckets){
       catch(e){ console.warn('Falha a gravar', item.id, e); showToast('Falha a gravar alguns itens.', 'error'); }
     }
   }
-  showToast('AlteraÃ§Ãµes gravadas.', 'success');
+  showToast('Alterações gravadas.', 'success');
 }
 
 function enableDragDrop(scope){
@@ -198,7 +198,7 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   const oldBucket = bucketOf(a);
 
   if(targetBucket === 'unscheduled'){ a.date=''; a.period=''; }
-  else { const [d,p] = targetBucket.split('|'); a.date=d; a.period=p||'ManhÃ£'; }
+  else { const [d,p] = targetBucket.split('|'); a.date=d; a.period=p||'Manhã'; }
 
   const dest = getBucketList(targetBucket).filter(x=>x.id!==a.id);
   dest.splice(Math.min(targetIndex, dest.length), 0, a);
@@ -215,7 +215,7 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   await persistBuckets(bucketsToPersist);
 }
 
-// ---------- Render DESKTOP (cartÃµes estilo mobile) ----------
+// ---------- Render DESKTOP (cartões estilo mobile) ----------
 function buildDesktopCard(a){
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
@@ -245,7 +245,7 @@ function renderSchedule(){
   const wr=document.getElementById('weekRange');
   if(wr){ wr.textContent = `${week[0].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} - ${week[4].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}`; }
 
-  let thead='<thead><tr><th>PerÃ­odo</th>';
+  let thead='<thead><tr><th>Período</th>';
   for(const d of week){ const h=fmtHeader(d); thead+=`<th><div class="day">${cap(h.day)}</div><div class="date">${h.dm}</div></th>`; }
   thead+='</tr></thead>';
   table.insertAdjacentHTML('beforeend', thead);
@@ -261,7 +261,7 @@ function renderSchedule(){
   };
 
   const tbody=document.createElement('tbody');
-  ['ManhÃ£','Tarde'].forEach(period=>{
+  ['Manhã','Tarde'].forEach(period=>{
     const row=document.createElement('tr');
     row.innerHTML=`<th>${period}</th>` + week.map(d=>`<td>${renderCell(period,d)}</td>`).join('');
     tbody.appendChild(row);
@@ -296,8 +296,8 @@ function renderUnscheduled(){
           <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
         </div>
         <div class="unscheduled-actions">
-          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar">âœï¸</button>
-          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar">ðŸ—‘ï¸</button>
+          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar">✏️</button>
+          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar">🗑️</button>
         </div>
       </div>`;
   }).join('');
@@ -305,7 +305,7 @@ function renderUnscheduled(){
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
-// ---------- Header da tabela (garante coluna AÃ§Ãµes) ----------
+// ---------- Header da tabela (garante coluna Ações) ----------
 function ensureServicesHeader(){
   const table = document.querySelector('.services-table');
   if(!table) return;
@@ -314,10 +314,10 @@ function ensureServicesHeader(){
     thead = document.createElement('thead');
     table.prepend(thead);
   }
-  const headers = ['Data','PerÃ­odo','MatrÃ­cula','Carro','ServiÃ§o','Localidade','ObservaÃ§Ãµes','Status','Quando','AÃ§Ãµes'];
+  const headers = ['Data','Período','Matrícula','Carro','Serviço','Localidade','Observações','Status','Quando','Ações'];
   thead.innerHTML = `<tr>${
-    headers.map(h => h==='AÃ§Ãµes'
-      ? `<th class="no-print actions-col" style="width:100px;text-align:left">AÃ§Ãµes</th>`
+    headers.map(h => h==='Ações'
+      ? `<th class="no-print actions-col" style="width:100px;text-align:left">Ações</th>`
       : `<th>${h}</th>`
     ).join('')
   }</tr>`;
@@ -329,7 +329,7 @@ function renderServicesTable(){
 
   ensureServicesHeader();
 
-  // inÃ­cio de hoje
+  // início de hoje
   const startToday = new Date(); startToday.setHours(0,0,0,0);
 
   const future = filterAppointments(
@@ -343,7 +343,7 @@ function renderServicesTable(){
   tbody.innerHTML=future.map(a=>{
     const d=new Date(a.date);
     const diff=Math.ceil((d - today)/(1000*60*60*24));
-    const when = diff<0? `${Math.abs(diff)} dias atrÃ¡s` : diff===0? 'Hoje' : diff===1? 'AmanhÃ£' : `${diff} dias`;
+    const when = diff<0? `${Math.abs(diff)} dias atrás` : diff===0? 'Hoje' : diff===1? 'Amanhã' : `${diff} dias`;
     return `<tr>
       <td>${d.toLocaleDateString('pt-PT')}</td>
       <td>${a.period}</td>
@@ -356,14 +356,14 @@ function renderServicesTable(){
       <td>${when}</td>
       <td class="no-print">
         <div class="actions">
-          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar" aria-label="Editar">âœï¸</button>
-          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar" aria-label="Eliminar">ðŸ—‘ï¸</button>
+          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar" aria-label="Editar">✏️</button>
+          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar" aria-label="Eliminar">🗑️</button>
         </div>
       </td>
     </tr>`;
   }).join('');
 
-  const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviÃ§os pendentes`;
+  const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviços pendentes`;
 }
 
 function renderAll(){ renderSchedule(); renderUnscheduled(); renderMobileDay(); renderServicesTable(); }
@@ -414,7 +414,7 @@ async function saveAppointment(){
     sortIndex: 1
   };
   if(!a.plate || !a.car || !a.service || !a.locality){
-    showToast('Por favor, preencha todos os campos obrigatÃ³rios (MatrÃ­cula, Carro, ServiÃ§o, Localidade).','error'); return;
+    showToast('Por favor, preencha todos os campos obrigatórios (Matrícula, Carro, Serviço, Localidade).','error'); return;
   }
   try{
     let res;
@@ -424,7 +424,7 @@ async function saveAppointment(){
       showToast('Agendamento atualizado com sucesso!','success');
     }else{
       res=await window.apiClient.createAppointment(a);
-      appointments.push(res); showToast('ServiÃ§o criado com sucesso!','success');
+      appointments.push(res); showToast('Serviço criado com sucesso!','success');
     }
     await save(); renderAll(); closeAppointmentModal();
   }catch(e){ console.error(e); showToast('Erro ao salvar: '+e.message,'error'); }
@@ -473,10 +473,10 @@ function updatePrintUnscheduledTable(){
 }
 function updatePrintTomorrowTable(){
   const t=new Date(); t.setDate(t.getDate()+1); const str=localISO(t);
-  const list=appointments.filter(a=>a.date===str).sort((a,b)=>({ManhÃ£:1,Tarde:2}[a.period]||3 - ({ManhÃ£:1,Tarde:2}[b.period]||3)));
+  const list=appointments.filter(a=>a.date===str).sort((a,b)=>({Manhã:1,Tarde:2}[a.period]||3 - ({Manhã:1,Tarde:2}[b.period]||3)));
   const title=document.getElementById('printTomorrowTitle'); const dateEl=document.getElementById('printTomorrowDate');
   const tbody=document.getElementById('printTomorrowTableBody'); const empty=document.getElementById('printTomorrowEmpty'); const table=document.querySelector('.print-tomorrow-table');
-  if(title) title.textContent='SERVIÃ‡OS DE AMANHÃƒ';
+  if(title) title.textContent='SERVIÇOS DE AMANHÃ';
   if(dateEl) dateEl.textContent=cap(t.toLocaleDateString('pt-PT',{weekday:'long',year:'numeric',month:'long',day:'numeric'}));
   if(!tbody||!table||!empty) return;
   if(list.length===0){ table.style.display='none'; empty.style.display='block'; }
@@ -492,7 +492,7 @@ function updatePrintTomorrowTable(){
   }
 }
 
-// ---------- Colocar â€œ+ Novo ServiÃ§oâ€ no topo (barra azul) ----------
+// ---------- Colocar “+ Novo Serviço” no topo (barra azul) ----------
 function placeAddNewButtonInHeader(){
   const btn = document.getElementById('addServiceBtn');
   if(!btn) return;
@@ -503,11 +503,11 @@ function placeAddNewButtonInHeader(){
   })();
   if(!header) return;
   btn.classList.add('header-btn','primary');
-  btn.textContent = '+ Novo ServiÃ§o';
-  header.prepend(btn); // fica Ã  esquerda dos restantes (perto do imprimir)
+  btn.textContent = '+ Novo Serviço';
+  header.prepend(btn); // fica à esquerda dos restantes (perto do imprimir)
 }
 
-// ---------- Modais & navegaÃ§Ã£o ----------
+// ---------- Modais & navegação ----------
 function closeBackupModal(){ document.getElementById('backupModal')?.classList.remove('show'); }
 function closeStatsModal(){ document.getElementById('statsModal')?.classList.remove('show'); }
 function prevWeek(){ currentMonday=addDays(currentMonday,-7); renderAll(); }
@@ -522,10 +522,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   await load();
   initializeLocalityDropdown();
 
-  // botÃ£o â€œ+ Novo ServiÃ§oâ€ volta para a barra azul
+  // botão “+ Novo Serviço” volta para a barra azul
   placeAddNewButtonInHeader();
 
-  // cabeÃ§alho da tabela com â€œAÃ§Ãµesâ€
+  // cabeçalho da tabela com “Ações”
   ensureServicesHeader();
 
   renderAll();
@@ -618,8 +618,8 @@ function updateConnectionStatus(){
   const el=document.getElementById('connectionStatus'); const ic=document.getElementById('statusIcon'); const tx=document.getElementById('statusText');
   if(!el||!ic||!tx) return;
   const st=window.apiClient.getConnectionStatus();
-  if(st.online){ el.classList.remove('offline'); ic.textContent='ðŸŒ'; tx.textContent='Online'; el.title=`Conectado Ã  API: ${st.apiUrl}`; }
-  else{ el.classList.add('offline'); ic.textContent='ðŸ“±'; tx.textContent='Offline'; el.title='Modo offline - usando dados locais'; }
+  if(st.online){ el.classList.remove('offline'); ic.textContent='🌐'; tx.textContent='Online'; el.title=`Conectado à API: ${st.apiUrl}`; }
+  else{ el.classList.add('offline'); ic.textContent='📱'; tx.textContent='Offline'; el.title='Modo offline - usando dados locais'; }
 }
 setInterval(updateConnectionStatus,5000);
 window.addEventListener('online',updateConnectionStatus);
