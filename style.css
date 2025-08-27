@@ -426,3 +426,101 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
   html, body{ overflow-x: hidden; }
   .page-header *{ max-width: 100%; }
 }
+/* ===== MOBILE CLEAN HEADER & NAV (≤480px) ===== */
+@media (max-width: 480px){
+
+  /* Header compacto e claro */
+  .page-header{
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg,#3b82f6,#1d4ed8);
+    display: flex; flex-direction: column; align-items: center;
+    gap: 8px;
+  }
+
+  .page-header h1{
+    margin: 0;
+    font-size: clamp(20px, 6vw, 24px);
+    line-height: 1.15;
+    text-align: center;
+    letter-spacing: .3px;
+  }
+  .subtitle{
+    margin: 0 0 4px;
+    font-size: 13px;
+    opacity: .95;
+    text-align: center;
+  }
+
+  /* Barra de ações: grelha limpa, sem “vidros” exagerados */
+  .header-actions{
+    position: static !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    width: 100%;
+    margin: 4px 0 0;
+  }
+  .header-btn{
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.25);
+    box-shadow: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    gap: 6px;
+    backdrop-filter: saturate(120%);
+  }
+  .header-btn .label{ font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .header-btn .icon{ width: 18px; height: 18px; display: inline-block; }
+
+  /* Botão “+ Novo Serviço” no topo — ocupa linha inteira e destaca */
+  .page-header .header-btn.new-service{
+    grid-column: 1 / -1;
+    min-height: 48px;
+    background: #ffffff;
+    color: #1d4ed8;
+    border: 1px solid #e5e7eb;
+  }
+
+  /* Intervalo de datas centrado e legível */
+  .date-range, .week-range{
+    display: block;
+    text-align: center;
+    font-size: 16px;
+    margin: 8px 0 0;
+  }
+
+  /* Divider minimalista */
+  .divider{
+    width: 28px; height: 3px; border-radius: 3px;
+    background: #d1d5db; margin: 8px auto 10px;
+  }
+
+  /* Navegação (Anterior / Hoje / Seguinte) em grelha */
+  .week-nav, .nav{
+    display: grid !important;
+    grid-template-columns: repeat(3,1fr);
+    gap: 10px;
+    margin: 6px 12px 0;
+  }
+  .week-nav .btn, .nav .btn{
+    width: 100%;
+    min-height: 44px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+
+  /* Evita overlaps e recortes */
+  html, body{ overflow-x: hidden; }
+  .page-header *{ max-width: 100%; }
+}
+
+/* ===== OPCIONAL: esconder o botão "+ Novo Serviço" do fundo só no mobile ===== */
+/* Se o botão do fundo for o ÚNICO <button> logo após a navegação semanal,
+   isto remove-o em ecrãs pequenos sem tocar no resto. Ajusta o seletor se precisares. */
+@media (max-width: 480px){
+  .week-nav + button{ display:none !important; }
+}
