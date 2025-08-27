@@ -145,6 +145,7 @@ function baseGradFor(a){
   const bar=statusBarColors[a.status]||'#94a3b8';
   return {base, g, bar};
 }
+
 // ---------- Render Desktop ----------
 function renderDesktop(){
   const cont=document.getElementById('desktopView');
@@ -153,8 +154,6 @@ function renderDesktop(){
   for(let i=0;i<7;i++){
     const d=addDays(currentMonday,i);
     const h=fmtHeader(d);
-    const bucket=`${localISO(d)}|Manhã`;
-    const bucket2=`${localISO(d)}|Tarde`;
     const appts=filterAppointments(appointments.filter(a=>a.date===localISO(d)));
     const col=document.createElement('div'); col.className='day-column';
     col.innerHTML=`
@@ -173,14 +172,8 @@ function renderDesktop(){
       card.innerHTML=`
         <div class="left" style="background:${bar}"></div>
         <div class="content">
-          <div class="row1">
-            <span class="period">${a.period||''}</span>
-            <span class="plate">${a.plate}</span>
-          </div>
-          <div class="row2">
-            <span class="service">${a.service}</span>
-            <span class="car">${a.car}</span>
-          </div>
+          <div class="row1"><span class="period">${a.period||''}</span><span class="plate">${a.plate}</span></div>
+          <div class="row2"><span class="service">${a.service}</span><span class="car">${a.car}</span></div>
           <div class="row3">
             <span class="badge"><span class="dot" style="background:${base}"></span>${a.locality}</span>
             <div class="actions">
@@ -189,8 +182,7 @@ function renderDesktop(){
             </div>
           </div>
           ${a.notes?`<div class="notes">${a.notes}</div>`:''}
-        </div>
-      `;
+        </div>`;
       listEl.appendChild(card);
     });
   }
@@ -316,292 +308,17 @@ function generateStats(){
   const total = appointments.length;
   const scheduled = appointments.filter(a => a.date && a.period).length;
   const unscheduled = total - scheduled;
-
   const byStatus = { NE:0, VE:0, ST:0 };
   appointments.forEach(a => { if (byStatus[a.status] != null) byStatus[a.status]++; });
-
-  const byService = {};
-  appointments.forEach(a => { byService[a.service] = (byService[a.service] || 0) + 1; });
-
-  const byLocality = {};
-  appointments.forEach(a => { byLocality[a.locality] = (byLocality[a.locality] || 0) + 1; });
-
+  const byService = {}; appointments.forEach(a => { byService[a.service] = (byService[a.service] || 0) + 1; });
+  const byLocality = {}; appointments.forEach(a => { byLocality[a.locality] = (byLocality[a.locality] || 0) + 1; });
   return { total, scheduled, unscheduled, byStatus, byService, byLocality };
 }
-
 function showStats(){
   const modal = document.getElementById('statsModal');
   const c = document.getElementById('statsContent');
   if (!modal || !c) return;
-
   const s = generateStats();
   c.innerHTML = `
     <div class="stats-grid">
-      <div class="stat-card"><div class="stat-number">${s.total}</div><div class="stat-label">Total de Agendamentos</div></div>
-      <div class="stat-card"><div class="stat-number">${s.scheduled}</div><div class="stat-label">Agendados</div></div>
-      <div class="stat-card"><div class="stat-number">${s.unscheduled}</div><div class="stat-label">Por Agendar</div></div>
-    </div>
-    <h4>Por Status</h4>
-    <div class="stats-grid">
-      <div class="stat-card"><div class="stat-number">${s.byStatus.NE}</div><div class="stat-label">N/E</div></div>
-      <div class="stat-card"><div class="stat-number">${s.byStatus.VE}</div><div class="stat-label">V/E</div></div>
-      <div class="stat-card"><div class="stat-number">${s.byStatus.ST}</div><div class="stat-label">ST</div></div>
-    </div>
-    <h4>Por Tipo de Serviço</h4>
-    <div class="stats-grid">
-      ${Object.entries(s.byService).map(([svc,cnt])=>`
-        <div class="stat-card">
-          <div class="stat-number">${cnt}</div>
-          <div class="stat-label">${svc}</div>
-        </div>`).join('')}
-    </div>
-  `;
-  modal.classList.add('show');
-}
-// ---------- Export / Import ----------
-function exportToJson(){
-  const data = { version: '3.0', exported: new Date().toISOString(), appointments };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `agendamentos_${new Date().toISOString().split('T')[0]}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Backup JSON exportado com sucesso!','success');
-}
-
-function exportToCsv(){
-  const headers = ['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações'];
-  const rows = appointments.map(a => [
-    a.date || '', a.period || '', a.plate || '', a.car || '',
-    a.service || '', a.locality || '', a.status || '', a.notes || ''
-  ]);
-  const csv = [headers, ...rows].map(r => r.map(f => `"${String(f).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `agendamentos_${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Dados exportados para CSV com sucesso!','success');
-}
-
-function importFromJson(file){
-  const reader = new FileReader();
-  reader.onload = function(e){
-    try{
-      const data = JSON.parse(e.target.result);
-      if (data.appointments && Array.isArray(data.appointments)){
-        if (confirm(`Importar ${data.appointments.length} agendamentos? Isto irá substituir todos os dados atuais.`)){
-          appointments = data.appointments.map(a => ({ sortIndex:1, ...a }));
-          save(); renderAll(); showToast('Dados importados com sucesso!','success');
-          closeBackupModal();
-        }
-      } else {
-        showToast('Formato de ficheiro inválido.','error');
-      }
-    }catch(err){
-      showToast('Erro ao ler ficheiro: ' + err.message,'error');
-    }
-  };
-  reader.readAsText(file);
-}
-
-// ---------- Impressão ----------
-function printPage(){ updatePrintUnscheduledTable(); updatePrintTomorrowTable(); window.print(); }
-
-function updatePrintUnscheduledTable(){
-  const list=filterAppointments(appointments.filter(a=>!a.date||!a.period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0)));
-  const tbody=document.getElementById('printUnscheduledTableBody'); const sec=document.querySelector('.print-unscheduled-section');
-  if(!tbody||!sec) return;
-  if(list.length===0){ sec.style.display='none'; return; }
-  sec.style.display='block';
-  tbody.innerHTML=list.map(a=>`
-    <tr>
-      <td>${a.plate}</td><td>${a.car}</td>
-      <td><span class="service-badge badge-${a.service}">${a.service}</span></td>
-      <td>${a.locality}</td><td><span class="status-chip chip-${a.status}">${a.status}</span></td>
-      <td>${a.notes||''}</td><td>${a.extra||''}</td>
-    </tr>`).join('');
-}
-
-function updatePrintTomorrowTable(){
-  const t=new Date(); t.setDate(t.getDate()+1); const str=localISO(t);
-  const list=appointments.filter(a=>a.date===str)
-    .sort((a,b)=>((({Manhã:1,Tarde:2}[a.period])||3) - ((({Manhã:1,Tarde:2}[b.period])||3))));
-  const title=document.getElementById('printTomorrowTitle'); const dateEl=document.getElementById('printTomorrowDate');
-  const tbody=document.getElementById('printTomorrowTableBody'); const empty=document.getElementById('printTomorrowEmpty'); const table=document.querySelector('.print-tomorrow-table');
-  if(title) title.textContent='SERVIÇOS DE AMANHÃ';
-  if(dateEl) dateEl.textContent=cap(t.toLocaleDateString('pt-PT',{weekday:'long',year:'numeric',month:'long',day:'numeric'}));
-  if(!tbody||!table||!empty) return;
-  if(list.length===0){ table.style.display='none'; empty.style.display='block'; }
-  else{
-    table.style.display='table'; empty.style.display='none';
-    tbody.innerHTML=list.map(a=>`
-      <tr>
-        <td>${a.period||''}</td><td>${a.plate}</td><td>${a.car}</td>
-        <td><span class="service-badge badge-${a.service}">${a.service}</span></td>
-        <td>${a.locality}</td><td><span class="status-chip chip-${a.status}">${a.status}</span></td>
-        <td>${a.notes||''}</td><td>${a.extra||''}</td>
-      </tr>`).join('');
-  }
-}
-// ---------- Modais & Navegação ----------
-function closeBackupModal(){ document.getElementById('backupModal')?.classList.remove('show'); }
-function closeStatsModal(){ document.getElementById('statsModal')?.classList.remove('show'); }
-function prevWeek(){ currentMonday=addDays(currentMonday,-7); renderAll(); }
-function nextWeek(){ currentMonday=addDays(currentMonday,7); renderAll(); }
-function todayWeek(){ currentMonday=getMonday(new Date()); renderAll(); }
-function prevDay(){ currentMobileDay=addDays(currentMobileDay,-1); renderMobileDay(); }
-function nextDay(){ currentMobileDay=addDays(currentMobileDay,1); renderMobileDay(); }
-function todayDay(){ currentMobileDay=new Date(); renderMobileDay(); }
-
-// ---------- Init ----------
-document.addEventListener('DOMContentLoaded', async ()=>{
-  // mini logger p/ apanhar erros JS que bloqueiem eventos
-  window.addEventListener('error', e => showToast('Erro: ' + (e?.message||'desconhecido'), 'error'));
-  window.addEventListener('unhandledrejection', e => showToast('Erro: ' + (e?.reason?.message || e?.reason || 'desconhecido'), 'error'));
-
-  await load();
-  initializeLocalityDropdown();
-
-  renderAll();
-  updateConnectionStatus();
-
-  // Navegação topo
-  document.getElementById('prevWeek')?.addEventListener('click', prevWeek);
-  document.getElementById('nextWeek')?.addEventListener('click', nextWeek);
-  document.getElementById('todayWeek')?.addEventListener('click', todayWeek);
-  document.getElementById('prevDay')?.addEventListener('click', prevDay);
-  document.getElementById('nextDay')?.addEventListener('click', nextDay);
-  document.getElementById('todayDay')?.addEventListener('click', todayDay);
-  document.getElementById('printPage')?.addEventListener('click', printPage);
-
-  // Barra de pesquisa / filtros
-  document.getElementById('backupBtn')?.addEventListener('click', ()=> document.getElementById('backupModal')?.classList.add('show'));
-  document.getElementById('statsBtn')?.addEventListener('click', showStats);
-  document.getElementById('searchBtn')?.addEventListener('click', ()=>{
-    const bar=document.getElementById('searchBar'); if(!bar) return;
-    bar.classList.toggle('hidden'); if(!bar.classList.contains('hidden')) document.getElementById('searchInput')?.focus();
-  });
-  document.getElementById('searchInput')?.addEventListener('input', e=>{ searchQuery=e.target.value; renderAll(); });
-  document.getElementById('clearSearch')?.addEventListener('click', ()=>{
-    searchQuery=''; const i=document.getElementById('searchInput'); if(i) i.value='';
-    document.getElementById('searchBar')?.classList.add('hidden'); renderAll();
-  });
-  document.getElementById('filterStatus')?.addEventListener('change', e=>{ statusFilter=e.target.value; renderAll(); });
-
-  // Botões de novo serviço (desktop + mobile)
-  document.getElementById('addServiceBtn')?.addEventListener('click', ()=>openAppointmentModal());
-  document.getElementById('addServiceMobile')?.addEventListener('click', ()=>openAppointmentModal());
-  // delegação extra caso o botão seja re-renderizado
-  document.addEventListener('click', (e)=>{
-    if (e.target && (e.target.id === 'addServiceBtn' || e.target.closest && e.target.closest('#addServiceBtn'))) {
-      openAppointmentModal();
-    }
-  });
-
-  // Modal form
-  document.getElementById('closeModal')?.addEventListener('click', closeAppointmentModal);
-  document.getElementById('cancelForm')?.addEventListener('click', closeAppointmentModal);
-  document.getElementById('appointmentForm')?.addEventListener('submit', e=>{ e.preventDefault(); saveAppointment(); });
-  document.getElementById('deleteAppointment')?.addEventListener('click', ()=>{ if(editingId) deleteAppointment(editingId); });
-  document.getElementById('appointmentPlate')?.addEventListener('input', e=> formatPlate(e.target));
-
-  // Export/Import
-  document.getElementById('exportJson')?.addEventListener('click', exportToJson);
-  document.getElementById('exportCsv')?.addEventListener('click', exportToCsv);
-  document.getElementById('exportServices')?.addEventListener('click', exportToCsv);
-  document.getElementById('importBtn')?.addEventListener('click', ()=> document.getElementById('importFile')?.click());
-  document.getElementById('importFile')?.addEventListener('change', e=>{ const f=e.target.files[0]; if(f) importFromJson(f); });
-
-  // Modais por clique fora / atalhos
-  document.addEventListener('click', e=>{ if(e.target.classList?.contains('modal')) e.target.classList.remove('show'); });
-  document.addEventListener('keydown', e=>{
-    if(e.ctrlKey||e.metaKey){
-      if(e.key==='f'){ e.preventDefault(); document.getElementById('searchBtn')?.click(); }
-      if(e.key==='s'){ e.preventDefault(); save(); }
-      if(e.key==='n'){ e.preventDefault(); openAppointmentModal(); }
-    }
-    if(e.key==='Escape'){ document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show')); }
-  });
-});
-
-// ---------- Globais ----------
-window.editAppointment=editAppointment;
-window.deleteAppointment=deleteAppointment;
-window.closeBackupModal=closeBackupModal;
-window.closeStatsModal=closeStatsModal;
-
-// ---------- Locality dropdown ----------
-function initializeLocalityDropdown(){
-  const box=document.getElementById('localityOptions'); if(!box) return;
-  box.innerHTML='';
-  Object.entries(localityColors).forEach(([loc,color])=>{
-    const div=document.createElement('div'); div.className='locality-option'; div.onclick=()=>selectLocality(loc);
-    div.innerHTML=`<span class="locality-dot" style="background-color:${color}"></span><span>${loc}</span>`;
-    box.appendChild(div);
-  });
-}
-function toggleLocalityDropdown(){
-  const sel=document.getElementById('localitySelected'); const opt=document.getElementById('localityOptions'); if(!sel||!opt) return;
-  sel.classList.toggle('open'); opt.classList.toggle('show');
-  if(opt.classList.contains('show')) document.addEventListener('click', closeLocalityDropdownOutside, {once:true});
-}
-function closeLocalityDropdownOutside(e){ if(!e.target.closest('.locality-dropdown')) closeLocalityDropdown(); else document.addEventListener('click', closeLocalityDropdownOutside, {once:true}); }
-function closeLocalityDropdown(){ document.getElementById('localitySelected')?.classList.remove('open'); document.getElementById('localityOptions')?.classList.remove('show'); }
-function selectLocality(locality){
-  const hidden=document.getElementById('appointmentLocality'); const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
-  if(hidden) hidden.value=locality; if(txt) txt.textContent=locality; if(dot) dot.style.backgroundColor=getLocColor(locality);
-  document.querySelectorAll('.locality-option').forEach(o=>o.classList.remove('selected'));
-  const selOpt=[...document.querySelectorAll('.locality-option')].find(o=>o.textContent.trim()===locality); if(selOpt) selOpt.classList.add('selected');
-  closeLocalityDropdown();
-}
-window.toggleLocalityDropdown=toggleLocalityDropdown;
-window.selectLocality=selectLocality;
-
-// ---------- Connection status ----------
-function updateConnectionStatus(){
-  const el=document.getElementById('connectionStatus'); const ic=document.getElementById('statusIcon'); const tx=document.getElementById('statusText');
-  if(!el||!ic||!tx) return;
-  const st=window.apiClient.getConnectionStatus();
-  if(st.online){ el.classList.remove('offline'); ic.textContent='🌐'; tx.textContent='Online'; el.title=`Conectado à API: ${st.apiUrl}`; }
-  else{ el.classList.add('offline'); ic.textContent='📱'; tx.textContent='Offline'; el.title='Modo offline - usando dados locais'; }
-}
-setInterval(updateConnectionStatus,5000);
-window.addEventListener('online',updateConnectionStatus);
-window.addEventListener('offline',updateConnectionStatus);
-
-// --- Garantir que o "+ Novo Serviço" existe SEMPRE no header e está funcional
-function ensureAddNewButton(){
-  const header = document.querySelector('.header-actions');
-  if (!header) return;
-
-  let btn = document.getElementById('addServiceBtn');
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = 'addServiceBtn';
-    btn.className = 'header-btn primary';
-    btn.textContent = '+ Novo Serviço';
-    header.insertBefore(btn, header.firstChild);
-  }
-  if (!btn._wired) {
-    btn.addEventListener('click', () => openAppointmentModal());
-    btn._wired = true;
-  }
-}
-
-// corre no load…
-document.addEventListener('DOMContentLoaded', ensureAddNewButton);
-
-// …e observa o DOM para repor o botão se algo o remover/mover
-const headerObserver = new MutationObserver(() => ensureAddNewButton());
-headerObserver.observe(document.body, { childList: true, subtree: true });
-
-// segurança extra: delegação global caso o botão reapareça “novo”
-document.addEventListener('click', (e) => {
-  const t = e.target.closest && e.target.closest('#addServiceBtn');
-  if (t) openAppointmentModal();
-});
+      <div class="stat-card"><div class="stat-number">${s.total
