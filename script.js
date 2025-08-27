@@ -836,3 +836,92 @@ if (typeof window.renderMobileDay !== 'function') {
   // primeira passagem
   ensureCardActions();
 })();
+
+/* ======== PRINT — FIXES FINAIS ======== */
+@media print {
+  /* 1) Esconder calendário e navegação SEMPRE */
+  .schedule-container,
+  table.schedule,
+  .drop-zone,
+  .nav-bar,
+  .week-range,
+  .nav-left,
+  .nav-right,
+  #calendar,
+  .calendar, .calendar-container, .calendar-wrapper,
+  .week, .week-grid, .grid-semana, .semana, .calendario,
+  #agendaSemana, #agenda-semana {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* 2) Mostrar apenas as 3 secções de impressão (cobro ambos os nomes/IDs) */
+  /* 2.1 — Por Agendar */
+  #servicosPorAgendar, #servicosPorAgendar * ,
+  .print-unscheduled-section, .print-unscheduled-section * ,
+  /* 2.2 — Hoje */
+  #servicosHoje, #servicosHoje * ,
+  .print-today-section, .print-today-section * ,
+  /* 2.3 — Amanhã */
+  #servicosAmanha, #servicosAmanha * ,
+  .print-tomorrow-section, .print-tomorrow-section * {
+    display: revert !important;
+    visibility: visible !important;
+  }
+
+  /* 3) Desfazer classes que escondem linhas/conteúdo nas 3 secções */
+  #servicosPorAgendar .hidden, #servicosPorAgendar [hidden],
+  #servicosPorAgendar .mobile-only, #servicosPorAgendar .only-mobile, #servicosPorAgendar .collapsed, #servicosPorAgendar .is-collapsed,
+  #servicosHoje .hidden,        #servicosHoje [hidden],
+  #servicosHoje .mobile-only,   #servicosHoje .only-mobile,   #servicosHoje .collapsed,   #servicosHoje .is-collapsed,
+  #servicosAmanha .hidden,      #servicosAmanha [hidden],
+  #servicosAmanha .mobile-only, #servicosAmanha .only-mobile, #servicosAmanha .collapsed, #servicosAmanha .is-collapsed,
+  .print-unscheduled-section .hidden, .print-unscheduled-section [hidden],
+  .print-today-section .hidden,       .print-today-section [hidden],
+  .print-tomorrow-section .hidden,    .print-tomorrow-section [hidden] {
+    display: revert !important;
+    visibility: visible !important;
+  }
+
+  /* 4) Forçar estrutura de tabela nas 3 (caso o motor de impressão seja teimoso) */
+  #servicosPorAgendar table,
+  #servicosHoje table,
+  #servicosAmanha table,
+  .print-unscheduled-table,
+  .print-today-table,
+  .print-tomorrow-table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 12px !important;
+  }
+
+  #servicosPorAgendar thead, #servicosHoje thead, #servicosAmanha thead,
+  .print-unscheduled-section thead, .print-today-section thead, .print-tomorrow-section thead {
+    display: table-header-group !important;
+  }
+
+  #servicosPorAgendar tbody, #servicosHoje tbody, #servicosAmanha tbody,
+  .print-unscheduled-section tbody, .print-today-section tbody, .print-tomorrow-section tbody {
+    display: table-row-group !important;
+  }
+
+  #servicosPorAgendar tr, #servicosHoje tr, #servicosAmanha tr,
+  .print-unscheduled-section tr, .print-today-section tr, .print-tomorrow-section tr {
+    display: table-row !important;
+    page-break-inside: avoid !important;
+  }
+
+  #servicosPorAgendar th, #servicosPorAgendar td,
+  #servicosHoje th, #servicosHoje td,
+  #servicosAmanha th, #servicosAmanha td,
+  .print-unscheduled-section th, .print-unscheduled-section td,
+  .print-today-section th, .print-today-section td,
+  .print-tomorrow-section th, .print-tomorrow-section td {
+    display: table-cell !important;
+    border: 1px solid #000 !important;
+    padding: 6px 8px !important;
+    text-align: left !important;
+    vertical-align: top !important;
+  }
+}
