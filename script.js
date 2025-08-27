@@ -279,3 +279,16 @@ function updateConnectionStatus(){
 setInterval(updateConnectionStatus,5000);
 window.addEventListener('online',updateConnectionStatus);
 window.addEventListener('offline',updateConnectionStatus);
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('addServiceBtn');
+  if (btn && !btn._wired) {
+    btn.addEventListener('click', () => openAppointmentModal());
+    btn._wired = true;
+  }
+
+  const btnMobile = document.getElementById('addServiceMobile');
+  if (btnMobile && !btnMobile._wired) {
+    btnMobile.addEventListener('click', () => openAppointmentModal());
+    btnMobile._wired = true;
+  }
+});
