@@ -640,3 +640,39 @@ window.addEventListener('offline',updateConnectionStatus);
     }
   }, true);
 })();
+/* ===== Fechar modal — fix minimal (X, Cancelar, Esc, clique fora) ===== */
+(function attachCloseModalWiring(){
+  if (window.__EG_CLOSE_MODAL_WIRED__) return;
+  window.__EG_CLOSE_MODAL_WIRED__ = true;
+
+  // 1) Clique no X, no botão Cancelar, ou em qualquer .close-btn lá dentro
+  document.addEventListener('click', function(e){
+    const closeHit = e.target && e.target.closest &&
+      e.target.closest('#closeModal, #cancelForm, .modal .close-btn');
+    if (closeHit) {
+      e.preventDefault();
+      if (typeof window.closeAppointmentModal === 'function') {
+        try { window.closeAppointmentModal(); } catch(err) { console.error(err); }
+      }
+      return;
+    }
+
+    // 2) Clique fora do conteúdo (na overlay do modal)
+    const overlay = e.target && e.target.classList && e.target.classList.contains('modal');
+    if (overlay) {
+      e.preventDefault();
+      if (typeof window.closeAppointmentModal === 'function') {
+        try { window.closeAppointmentModal(); } catch(err) { console.error(err); }
+      }
+    }
+  }, true);
+
+  // 3) Tecla ESC fecha o modal
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') {
+      if (typeof window.closeAppointmentModal === 'function') {
+        try { window.closeAppointmentModal(); } catch(err) { console.error(err); }
+      }
+    }
+  }, true);
+})();
