@@ -624,3 +624,34 @@ function updateConnectionStatus(){
 setInterval(updateConnectionStatus,5000);
 window.addEventListener('online',updateConnectionStatus);
 window.addEventListener('offline',updateConnectionStatus);
+/* ===== ExpressGlass — fixes mínimos ===== */
+(function fixesExpressGlass(){
+  if (window.__EG_FIXES_APPLIED__) return;
+  window.__EG_FIXES_APPLIED__ = true;
+
+  // --- 1) Botões "Novo Serviço" (desktop + mobile)
+  document.addEventListener('click', function(e){
+    const hit = e.target && e.target.closest &&
+      e.target.closest('#addServiceBtn, #addServiceMobile, #addServiceBtnFixed');
+    if (!hit) return;
+
+    if (typeof window.openAppointmentModal === 'function') {
+      e.preventDefault();
+      try { window.openAppointmentModal(); } catch(err) { console.error(err); }
+    }
+  }, true);
+
+  // --- 2) Máscara de matrícula (XX-XX-XX)
+  function maskPlate(raw){
+    const v = String(raw||'').replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,6);
+    if (v.length <= 2) return v;
+    if (v.length <= 4) return v.slice(0,2)+'-'+v.slice(2);
+    return v.slice(0,2)+'-'+v.slice(2,4)+'-'+v.slice(4);
+  }
+
+  document.addEventListener('input', function(e){
+    const el = e.target && e.target.closest && e.target.closest('#appointmentPlate');
+    if (!el) return;
+    el.value = maskPlate(el.value);
+  }, true);
+})();
