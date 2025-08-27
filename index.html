@@ -4,203 +4,55 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1"/>
   <title>Portal de Agendamento - Expressglass</title>
-  <meta name="theme-color" content="#2563eb">
+  <link rel="stylesheet" href="style.css"/>
   <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2563eb">
 
-  <!-- Estilos mínimos e isolados para não estragar o teu CSS existente -->
+  <!-- >>>>>> APENAS PRINT (não afeta ecrã) <<<<<< -->
   <style>
-    :root{
-      --azul:#2563eb; --azul-esc:#1e40af; --cinza:#f3f4f6; --borda:#e5e7eb; --txt:#111827;
-      --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Arial,sans-serif;color:var(--txt);background:#fff}
-    .container{max-width:1200px;margin:0 auto;padding:16px}
-    header.app{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-    .brand{font-weight:700;color:var(--azul)}
-    .shadow-sm{box-shadow:0 1px 2px rgba(0,0,0,.06)}
-    /* ===== Secção Serviços ===== */
-    #servicos-section{background:var(--cinza);border:1px solid var(--borda);border-radius:10px}
-    #servicos-header{
-      display:flex;align-items:center;justify-content:space-between;
-      gap:12px;padding:12px 14px;border-bottom:1px solid var(--borda);background:#fff;border-radius:10px 10px 0 0
-    }
-    #servicos-header h2{margin:0;font-size:18px}
-    .actions{display:flex;gap:8px;align-items:center}
-    .btn{
-      appearance:none;border:0;border-radius:8px;padding:10px 14px;font-weight:600;cursor:pointer;transition:.15s transform,.15s opacity;
-      background:var(--azul);color:#fff
-    }
-    .btn:hover{transform:translateY(-1px);background:var(--azul-esc)}
-    .btn.secondary{background:#11182714;color:#111827;border:1px solid var(--borda)}
-    .btn.secondary:hover{background:#1118271f}
-    #servicos-body{padding:12px}
-    .table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--borda);border-radius:10px;overflow:hidden}
-    .table th,.table td{padding:10px 12px;border-bottom:1px solid var(--borda);text-align:left;font-size:14px;vertical-align:top}
-    .table th{background:#fafafa;font-weight:700}
-    .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 10px;font-size:12px;border:1px solid var(--borda)}
-    .chip-dot{width:8px;height:8px;border-radius:999px;display:inline-block}
-    .estado-NE{background:#fee2e2}
-    .estado-VE{background:#dcfce7}
-    .estado-ST{background:#e0e7ff}
-
-    /* ===== Modal ===== */
-    .modal-backdrop{
-      position:fixed;inset:0;background:rgba(0,0,0,.44);display:none;align-items:center;justify-content:center;padding:16px;z-index:9999
-    }
-    .modal{width:100%;max-width:640px;background:#fff;border-radius:12px;border:1px solid var(--borda);overflow:hidden}
-    .modal-header{padding:14px 16px;border-bottom:1px solid var(--borda);display:flex;justify-content:space-between;align-items:center}
-    .modal-title{margin:0;font-size:18px}
-    .modal-body{padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .modal-body .full{grid-column:1/-1}
-    label{display:block;font-size:12px;color:#374151;margin-bottom:6px}
-    input,select,textarea{
-      width:100%;padding:10px;border:1px solid var(--borda);border-radius:8px;background:#fff;font-size:14px
-    }
-    textarea{min-height:80px;resize:vertical}
-    .modal-footer{padding:12px 16px;border-top:1px solid var(--borda);display:flex;justify-content:flex-end;gap:8px;background:#fafafa}
-
-    /* Botão flutuante de segurança (mobile) */
-    .fab{
-      position:fixed;right:16px;bottom:16px;border-radius:999px;width:56px;height:56px;display:none;align-items:center;justify-content:center;
-      background:var(--azul);color:#fff;font-size:28px;border:none;box-shadow:0 8px 16px rgba(0,0,0,.18);z-index:9998
-    }
-    .fab:active{transform:translateY(1px)}
-    @media (max-width: 800px){
-      .modal-body{grid-template-columns:1fr}
-      #servicos-header h2{font-size:16px}
-      .actions .btn{padding:9px 12px}
-      .fab{display:flex}
-    }
-
-    /* Avisos */
-    .notice{margin:8px 0;padding:10px 12px;border-radius:8px;border:1px solid var(--borda);background:#fafafa;font-size:13px}
-    .notice.ok{border-color:#bbf7d0;background:#f0fdf4}
-    .notice.err{border-color:#fecaca;background:#fff1f2}
-  </style>
-</head>
-
-<body>
-  <div class="container">
-    <header class="app">
-      <div class="brand">Expressglass · Portal de Agendamento</div>
-      <div class="notice secondary">Botão <b>NOVO SERVIÇO</b> fixado no header da secção — e com botão flutuante no mobile.</div>
-    </header>
-
-    <!-- ===== SECÇÃO SERVIÇOS ===== -->
-    <section id="servicos-section" class="shadow-sm">
-      <div id="servicos-header">
-        <h2>SERVIÇOS</h2>
-        <div class="actions">
-          <button id="novoServicoBtn" class="btn">+ Novo Serviço</button>
-          <button id="refreshBtn" class="btn secondary" title="Recarregar lista">Recarregar</button>
+    /* Secções de impressão começam ocultas no ecrã */
+    .print-unscheduled-section,
+    .print-today-section,
+...
+          <h3>Backup de Dados</h3>
+          <button class="close-btn" onclick="closeBackupModal()">✕</button>
+        </div>
+        <div class="backup-content">
+          <div class="backup-section">
+            <h4>📤 Exportar Dados</h4>
+            <p>Faça backup dos seus agendamentos</p>
+            <div class="backup-actions">
+              <button id="exportJson" class="btn primary">💾 Exportar JSON</button>
+              <button id="exportCsv" class="btn secondary">📊 Exportar CSV</button>
+            </div>
+          </div>
+          <div class="backup-section">
+            <h4>📥 Importar Dados</h4>
+            <p>Restaurar dados de um backup anterior</p>
+            <input type="file" id="importFile" accept=".json" style="display: none;" />
+            <button id="importBtn" class="btn secondary">📁 Selecionar Ficheiro</button>
+            <div id="importStatus" class="import-status"></div>
+          </div>
         </div>
       </div>
-
-      <div id="servicos-body">
-        <table class="table" id="servicos-table" aria-label="Lista de serviços">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Hora</th>
-              <th>Cliente</th>
-              <th>Matrícula</th>
-              <th>Localidade</th>
-              <th>Tipo</th>
-              <th>Estado</th>
-              <th>Observações</th>
-            </tr>
-          </thead>
-          <tbody id="servicos-tbody">
-            <!-- linhas renderizadas por JS -->
-          </tbody>
-        </table>
-
-        <div id="lista-vazia" class="notice" style="display:none">
-          Ainda não há serviços registados. Clica em <b>+ Novo Serviço</b>.
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <!-- FAB de segurança no mobile -->
-  <button id="fabNovo" class="fab" aria-label="Novo Serviço">＋</button>
-
-  <!-- ===== MODAL ===== -->
-  <div id="modalBackdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-    <div class="modal">
-      <div class="modal-header">
-        <h3 id="modalTitle" class="modal-title">Novo Serviço</h3>
-        <button id="fecharModal" class="btn secondary" aria-label="Fechar">Fechar</button>
-      </div>
-
-      <form id="formServico">
-        <div class="modal-body">
-          <div>
-            <label for="data">Data</label>
-            <input type="date" id="data" name="data" required />
-          </div>
-          <div>
-            <label for="hora">Hora</label>
-            <input type="time" id="hora" name="hora" required />
-          </div>
-
-          <div>
-            <label for="cliente">Cliente</label>
-            <input type="text" id="cliente" name="cliente" placeholder="Nome do cliente" required />
-          </div>
-          <div>
-            <label for="matricula">Matrícula</label>
-            <input type="text" id="matricula" name="matricula" placeholder="AA-00-00" required />
-          </div>
-
-          <div>
-            <label for="localidade">Localidade</label>
-            <select id="localidade" name="localidade" required>
-              <option value="" selected disabled>— escolher —</option>
-              <option>Barcelos</option>
-              <option>Braga</option>
-              <option>Famalicão</option>
-              <option>Guimarães</option>
-              <option>Póvoa de Varzim</option>
-              <option>Viana do Castelo</option>
-              <option>Vila Verde</option>
-              <option>Outra</option>
-            </select>
-          </div>
-          <div>
-            <label for="tipo">Tipo</label>
-            <select id="tipo" name="tipo" required>
-              <option value="Reparação">Reparação</option>
-              <option value="Substituição">Substituição</option>
-              <option value="Calibração ADAS">Calibração ADAS</option>
-            </select>
-          </div>
-
-          <div>
-            <label for="estado">Estado</label>
-            <select id="estado" name="estado" required>
-              <option value="NE">NE (Não Entregue)</option>
-              <option value="VE">VE (Vidro Entregue)</option>
-              <option value="ST">ST (Stand-by)</option>
-            </select>
-          </div>
-
-          <div class="full">
-            <label for="obs">Observações</label>
-            <textarea id="obs" name="obs" placeholder="Notas relevantes..."></textarea>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" id="cancelar" class="btn secondary">Cancelar</button>
-          <button type="submit" class="btn">Guardar</button>
-        </div>
-      </form>
     </div>
-  </div>
 
-  <!-- Script principal -->
-  <script src="script.js"></script>
+    <!-- Modal de estatísticas -->
+    <div id="statsModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+...
+      const data = { period, plate, service, car, locality, subline };
+      const baseColor = getBaseColor(node, data);
+      const card = buildCard(data, baseColor);
+
+      node.replaceWith(card);
+    }
+
+    const apply = () => Array.from(LIST.children).forEach(skinItem);
+    apply();
+    new MutationObserver(apply).observe(LIST, {childList:true});
+  })();
+  </script>
 </body>
 </html>
