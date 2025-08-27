@@ -524,3 +524,9 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
 @media (max-width: 480px){
   .week-nav + button{ display:none !important; }
 }
+/* ===== REMOVER BOTÃO DUPLICADO NO MOBILE ===== */
+@media (max-width: 768px){
+  #addServiceMobile {
+    display: none !important;
+  }
+}
