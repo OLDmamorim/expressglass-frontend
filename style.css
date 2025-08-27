@@ -342,3 +342,87 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
   }
 }
 
+/* ======= HOTFIX MOBILE HEADER / AÇÕES / NAVEGAÇÃO ======= */
+@media (max-width: 480px) {
+
+  /* Header mais compacto e em coluna */
+  .page-header{
+    padding: 16px 14px;
+    border-radius: 12px;
+  }
+
+  .page-header h1{
+    font-size: clamp(20px, 6vw, 26px);
+    line-height: 1.1;
+    text-align: center;
+    margin: 0 0 6px;
+    word-break: break-word;
+  }
+
+  .subtitle{
+    font-size: 14px;
+    margin: 2px 0 10px;
+    text-align: center;
+  }
+
+  /* Tira as ações do posicionamento absoluto e organiza em grelha */
+  .header-actions{
+    position: static !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    justify-items: center;
+    margin-top: 8px;
+  }
+
+  .header-btn{
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    backdrop-filter: none;
+  }
+
+  /* Se tiveres um botão grande “+ Novo Serviço” dentro do header,
+     força a ir para a linha abaixo e ocupar a largura toda */
+  .page-header > .header-btn:first-child{
+    order: 3;
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  /* Data / intervalo centrados */
+  .date-range, .week-range, .range-label{
+    font-size: 16px;
+    text-align: center;
+    display: block;
+    margin: 8px auto 4px;
+  }
+
+  /* O tracinho divisório */
+  .divider{
+    width: 24px;
+    height: 3px;
+    background: #cbd5e1;
+    border-radius: 3px;
+    margin: 8px auto 10px;
+  }
+
+  /* Botões Anterior / Hoje / Seguinte em grelha */
+  .nav, .week-nav{
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 8px 12px 0;
+  }
+  .nav .btn, .week-nav .btn{
+    width: 100%;
+    min-height: 44px;
+    font-size: 15px;
+    border-radius: 10px;
+  }
+
+  /* Evita overflow horizontal */
+  html, body{ overflow-x: hidden; }
+  .page-header *{ max-width: 100%; }
+}
