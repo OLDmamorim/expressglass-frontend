@@ -290,3 +290,44 @@ table.schedule td:first-child{border-left:none}
    ========================= */
 textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: none; }
 .highlight{ background:#fef3c7 !important; border:2px solid #f59e0b !important; }
+/* ======== ESTILOS PARA IMPRESSÃO ======== */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #servicosPorAgendar,
+  #servicosHoje,
+  #servicosAmanha {
+    visibility: visible;
+    position: relative;
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  #calendar {
+    display: none !important;
+  }
+
+  .btn,
+  .no-print,
+  header,
+  nav,
+  footer {
+    display: none !important;
+  }
+
+  table {
+    font-size: 12px;
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  table th,
+  table td {
+    border: 1px solid #000;
+    padding: 6px;
+    text-align: left;
+  }
+}
+
