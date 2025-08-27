@@ -129,7 +129,7 @@ async function persistStatus(id, newStatus) {
     if (res && typeof res === 'object') appointments[idx] = { ...appointments[idx], ...res };
     showToast(`Status guardado: ${newStatus}`, 'success');
   } catch (err) {
-    appointments[idx].status = prev;
+    appointments[idx] = prev;
     showToast('Falha ao gravar status: ' + err.message, 'error');
   } finally {
     renderAll();
@@ -304,6 +304,68 @@ function renderUnscheduled(){
   container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled">${blocks}</div>`;
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
+
+// ---------- Render MOBILE (lista do dia) ----------
+function renderMobileDay(){
+  const list  = document.getElementById('mobileDayList');
+  const label = document.getElementById('mobileDayLabel');
+  if(!list) return;
+
+  // Label do dia selecionado
+  const d = new Date(currentMobileDay);
+  d.setHours(0,0,0,0);
+  if (label){
+    label.textContent = d.toLocaleDateString('pt-PT', {
+      weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'
+    });
+  }
+
+  // Obter serviços desse dia
+  const iso = localISO(d);
+  const order = { 'Manhã': 0, 'Tarde': 1 };
+  const items = filterAppointments(
+    appointments
+      .filter(a => a.date === iso)
+      .sort((a,b)=>{
+        const cp = (order[a.period] ?? 9) - (order[b.period] ?? 9);
+        if (cp !== 0) return cp;
+        return (a.sortIndex||0) - (b.sortIndex||0);
+      })
+  );
+
+  // Render
+  list.innerHTML = '';
+  if (!items.length){
+    list.innerHTML = `<div class="appt-item">
+      <div class="appt-header">—</div>
+      <div class="appt-sub">Sem serviços neste dia.</div>
+    </div>`;
+    return;
+  }
+
+  items.forEach(a=>{
+    const base = getLocColor(a.locality);
+    const g    = gradFromBase(base);
+
+    const el = document.createElement('div');
+    el.className = 'appt-item';
+    // deixa já o gradiente; o “skin” mobile só acrescenta .m-card
+    el.style.setProperty('--c1', g.c1);
+    el.style.setProperty('--c2', g.c2);
+
+    const title = `${a.period || ''} - ${a.plate || ''} | ${a.service || ''} | ${(a.car||'').toUpperCase()}`;
+    const sub   = [a.locality, a.notes].filter(Boolean).join(' | ');
+
+    el.innerHTML = `
+      <div class="appt-header">${title}</div>
+      <div class="appt-sub">${sub}</div>
+    `;
+
+    list.appendChild(el);
+  });
+}
+// expõe para outros scripts/botões
+window.renderMobileDay = renderMobileDay;
 
 // ---------- Header da tabela (garante coluna Ações) ----------
 function ensureServicesHeader(){
