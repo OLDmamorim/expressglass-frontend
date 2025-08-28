@@ -1,4 +1,4 @@
-/ ===== PORTAL DE AGENDAMENTO MELHORADO =====
+// ===== PORTAL DE AGENDAMENTO MELHORADO =====
 // Versão com API + cartões estilo mobile também no DESKTOP
 
 // ---------- Configurações e dados ----------
@@ -484,7 +484,7 @@ function attachStatusListeners(){
 }
 
 // ---------- Print ----------
-function printPage(){ updatePrintTomorrowTable(); window.print(); }
+function printPage(){ updatePrintUnscheduledTable(); updatePrintTomorrowTable(); window.print(); }
 function updatePrintUnscheduledTable(){
   const list=filterAppointments(appointments.filter(a=>!a.date||!a.period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0)));
   const tbody=document.getElementById('printUnscheduledTableBody'); const sec=document.querySelector('.print-unscheduled-section');
