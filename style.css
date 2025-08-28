@@ -488,4 +488,80 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
    isto remove-o em ecrãs pequenos sem tocar no resto. Ajusta o seletor se precisares. */
 @media (max-width: 480px){
   .week-nav + button{ display:none !important; }
+}@media print {
+  /* Página A4 horizontal */
+  @page { size: A4 landscape; margin: 10mm; }
+
+  html, body { background: #fff !important; color:#111 !important; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* MOSTRAR as 3 secções de impressão */
+  .print-unscheduled-section,
+  .print-today-section,
+  .print-tomorrow-section { 
+    display: block !important; 
+  }
+
+  /* ESCONDER o resto (sem visibility:hidden global) */
+  header, nav, .nav-bar, .page-header, .header-actions,
+  .schedule-container, #schedule, .unscheduled-container,   /* cards/listas do ecrã */
+  .services-table-container, .mobile-day-container,
+  .search-bar, .toast-container, .modal, .no-print {
+    display: none !important;
+  }
+
+  /* Tabelas e cabeçalhos nas páginas de impressão */
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tr, th, td { break-inside: avoid; page-break-inside: avoid; }
+
+  .print-unscheduled-table,
+  .print-today-table,
+  .print-tomorrow-table {
+    width:100% !important;
+    border-collapse:collapse !important;
+    table-layout:fixed !important;
+  }
+
+  .print-unscheduled-table th, .print-unscheduled-table td,
+  .print-today-table th,        .print-today-table td,
+  .print-tomorrow-table th,     .print-tomorrow-table td {
+    border:1px solid #000 !important;
+    padding:4px 6px !important;
+    font-size:12px !important;
+    vertical-align:top !important;
+    white-space:normal !important;
+  }
+
+  /* Uma secção por página */
+  .print-unscheduled-section { page-break-after: always; }
+  .print-today-section       { page-break-after: always; }
+
+  /* Larguras HOJE/AMANHÃ */
+  .print-today-table   th:nth-child(1), .print-today-table   td:nth-child(1),
+  .print-tomorrow-table th:nth-child(1), .print-tomorrow-table td:nth-child(1){ width: 8%; }  /* Período */
+  .print-today-table   th:nth-child(2), .print-today-table   td:nth-child(2),
+  .print-tomorrow-table th:nth-child(2), .print-tomorrow-table td:nth-child(2){ width:12%; } /* Matrícula */
+  .print-today-table   th:nth-child(3), .print-today-table   td:nth-child(3),
+  .print-tomorrow-table th:nth-child(3), .print-tomorrow-table td:nth-child(3){ width:16%; } /* Carro */
+  .print-today-table   th:nth-child(4), .print-today-table   td:nth-child(4),
+  .print-tomorrow-table th:nth-child(4), .print-tomorrow-table td:nth-child(4){ width:10%; } /* Serviço */
+  .print-today-table   th:nth-child(5), .print-today-table   td:nth-child(5),
+  .print-tomorrow-table th:nth-child(5), .print-tomorrow-table td:nth-child(5){ width:14%; } /* Localidade */
+  .print-today-table   th:nth-child(6), .print-today-table   td:nth-child(6),
+  .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; } /* Estado */
+  .print-today-table   th:nth-child(7), .print-today-table   td:nth-child(7),
+  .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:24%; } /* Observações */
+  .print-today-table   th:nth-child(8), .print-today-table   td:nth-child(8),
+  .print-tomorrow-table th:nth-child(8), .print-tomorrow-table td:nth-child(8){ width: 8%; } /* Outros */
+
+  /* Larguras POR AGENDAR */
+  .print-unscheduled-table th:nth-child(1), .print-unscheduled-table td:nth-child(1){ width:12%; } /* Matrícula */
+  .print-unscheduled-table th:nth-child(2), .print-unscheduled-table td:nth-child(2){ width:18%; } /* Modelo */
+  .print-unscheduled-table th:nth-child(3), .print-unscheduled-table td:nth-child(3){ width:12%; } /* Serviço */
+  .print-unscheduled-table th:nth-child(4), .print-unscheduled-table td:nth-child(4){ width:14%; } /* Localidade */
+  .print-unscheduled-table th:nth-child(5), .print-unscheduled-table td:nth-child(5){ width:10%; } /* Estado */
+  .print-unscheduled-table th:nth-child(6), .print-unscheduled-table td:nth-child(6){ width:26%; } /* Observações */
+  .print-unscheduled-table th:nth-child(7), .print-unscheduled-table td:nth-child(7){ width: 8%; } /* Outros */
 }
+
