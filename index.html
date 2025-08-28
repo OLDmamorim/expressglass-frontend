@@ -25,48 +25,6 @@
       border: 1px solid #111; padding: 4px 6px; font-size: 12px; vertical-align: top;
     }
 
-    @media print {
-      .no-print { display: none !important; }
-      .print-unscheduled-section,
-      .print-today-section,
-      .print-tomorrow-section { display: block; }
-
-      .print-break-before { break-before: page; page-break-before: always; }
-      thead { display: table-header-group; }
-      tfoot { display: table-footer-group; }
-      tr, th, td { break-inside: avoid; page-break-inside: avoid; }
-
-      .print-today-table,
-      .print-tomorrow-table{
-        width:100% !important; border-collapse:collapse !important; table-layout:fixed !important;
-      }
-
-      .print-today-table th:nth-child(1),    .print-today-table td:nth-child(1),
-      .print-tomorrow-table th:nth-child(1), .print-tomorrow-table td:nth-child(1){ width: 8%; }  /* Período */
-      .print-today-table th:nth-child(2),    .print-today-table td:nth-child(2),
-      .print-tomorrow-table th:nth-child(2), .print-tomorrow-table td:nth-child(2){ width:12%; }  /* Matrícula */
-      .print-today-table th:nth-child(3),    .print-today-table td:nth-child(3),
-      .print-tomorrow-table th:nth-child(3), .print-tomorrow-table td:nth-child(3){ width:16%; }  /* Carro */
-      .print-today-table th:nth-child(4),    .print-today-table td:nth-child(4),
-      .print-tomorrow-table th:nth-child(4), .print-tomorrow-table td:nth-child(4){ width:10%; }  /* Serviço */
-      .print-today-table th:nth-child(5),    .print-today-table td:nth-child(5),
-      .print-tomorrow-table th:nth-child(5), .print-tomorrow-table td:nth-child(5){ width:14%; }  /* Localidade */
-      .print-today-table th:nth-child(6),    .print-today-table td:nth-child(6),
-      .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; }  /* Estado */
-      .print-today-table th:nth-child(7),    .print-today-table td:nth-child(7),
-      .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:24%; }  /* Observações */
-      .print-today-table th:nth-child(8),    .print-tomorrow-table td:nth-child(8),
-      .print-tomorrow-table td:nth-child(8){ width:8%; }   /* Outros */
-
-      .print-today-table th, .print-today-table td,
-      .print-tomorrow-table th, .print-tomorrow-table td{
-        border:1px solid #000 !important; padding:4px 6px !important; font-size:12px !important;
-        vertical-align:top !important; white-space:normal !important;
-      }
-
-      .print-today-table thead, .print-tomorrow-table thead{ display: table-header-group !important; }
-    }
-
     /* ===== ECRÃ (NÃO PRINT): Ajustes de colunas na tabela principal ===== */
     .services-table { table-layout: fixed; width: 100%; }
     .services-table th, .services-table td{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -120,6 +78,100 @@
       #mobileDayList .m-status,
       #mobileDayList .status,
       #mobileDayList .m-divider{ display:none !important; }
+    }
+
+    /* ===== IMPRESSÃO — APENAS 3 PÁGINAS (SEM CALENDÁRIO) ===== */
+    @media print {
+      /* Página A4 horizontal */
+      @page { size: A4 landscape; margin: 10mm; }
+
+      html, body { background: #fff !important; color:#111 !important; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      /* Esconde TUDO por omissão… */
+      body * { visibility: hidden !important; }
+
+      /* …e mostra só as 3 secções de impressão */
+      .print-unscheduled-section,
+      .print-today-section,
+      .print-tomorrow-section,
+      .print-unscheduled-section * ,
+      .print-today-section * ,
+      .print-tomorrow-section * { visibility: visible !important; }
+
+      /* Garante que não partem a meio e ficam uma por página */
+      .print-unscheduled-section,
+      .print-today-section,
+      .print-tomorrow-section {
+        display: block !important;
+        position: static !important;
+        break-inside: avoid;
+      }
+      .print-unscheduled-section { page-break-after: always; }
+      .print-today-section       { page-break-after: always; }
+
+      /* Esconde explicitamente coisas de ecrã (calendário, botões, etc.) */
+      header, nav, .nav-bar, .page-header, .header-actions,
+      .schedule-container, #schedule, .unscheduled-container,  /* cards de ecrã */
+      .services-table-container, .mobile-day-container,
+      .search-bar, .toast-container, .modal, .no-print { display: none !important; }
+
+      /* Tabelas e cabeçalhos nas páginas de impressão */
+      thead { display: table-header-group; }
+      tfoot { display: table-footer-group; }
+      tr, th, td { break-inside: avoid; page-break-inside: avoid; }
+
+      .print-unscheduled-table,
+      .print-today-table,
+      .print-tomorrow-table {
+        width:100% !important;
+        border-collapse:collapse !important;
+        table-layout:fixed !important;
+      }
+
+      .print-unscheduled-table th, .print-unscheduled-table td,
+      .print-today-table th,        .print-today-table td,
+      .print-tomorrow-table th,     .print-tomorrow-table td {
+        border:1px solid #000 !important;
+        padding:4px 6px !important;
+        font-size:12px !important;
+        vertical-align:top !important;
+        white-space:normal !important;
+      }
+
+      /* Larguras HOJE/AMANHÃ */
+      .print-today-table   th:nth-child(1), .print-today-table   td:nth-child(1),
+      .print-tomorrow-table th:nth-child(1), .print-tomorrow-table td:nth-child(1){ width: 8%; }  /* Período */
+
+      .print-today-table   th:nth-child(2), .print-today-table   td:nth-child(2),
+      .print-tomorrow-table th:nth-child(2), .print-tomorrow-table td:nth-child(2){ width:12%; }  /* Matrícula */
+
+      .print-today-table   th:nth-child(3), .print-today-table   td:nth-child(3),
+      .print-tomorrow-table th:nth-child(3), .print-tomorrow-table td:nth-child(3){ width:16%; }  /* Carro */
+
+      .print-today-table   th:nth-child(4), .print-today-table   td:nth-child(4),
+      .print-tomorrow-table th:nth-child(4), .print-tomorrow-table td:nth-child(4){ width:10%; }  /* Serviço */
+
+      .print-today-table   th:nth-child(5), .print-today-table   td:nth-child(5),
+      .print-tomorrow-table th:nth-child(5), .print-tomorrow-table td:nth-child(5){ width:14%; }  /* Localidade */
+
+      .print-today-table   th:nth-child(6), .print-today-table   td:nth-child(6),
+      .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; }  /* Estado */
+
+      .print-today-table   th:nth-child(7), .print-today-table   td:nth-child(7),
+      .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:24%; }  /* Observações */
+
+      .print-today-table   th:nth-child(8), .print-today-table   td:nth-child(8),
+      .print-tomorrow-table th:nth-child(8), .print-tomorrow-table td:nth-child(8){ width: 8%; }  /* Outros */
+
+      /* Larguras POR AGENDAR */
+      .print-unscheduled-table th:nth-child(1), .print-unscheduled-table td:nth-child(1){ width:12%; } /* Matrícula */
+      .print-unscheduled-table th:nth-child(2), .print-unscheduled-table td:nth-child(2){ width:18%; } /* Modelo */
+      .print-unscheduled-table th:nth-child(3), .print-unscheduled-table td:nth-child(3){ width:12%; } /* Serviço */
+      .print-unscheduled-table th:nth-child(4), .print-unscheduled-table td:nth-child(4){ width:14%; } /* Localidade */
+      .print-unscheduled-table th:nth-child(5), .print-unscheduled-table td:nth-child(5){ width:10%; } /* Estado */
+      .print-unscheduled-table th:nth-child(6), .print-unscheduled-table td:nth-child(6){ width:26%; } /* Observações */
+      .print-unscheduled-table th:nth-child(7), .print-unscheduled-table td:nth-child(7){ width: 8%; } /* Outros */
     }
   </style>
   <!-- /PRINT -->
@@ -373,9 +425,8 @@
     </div>
 
     <!-- PRINT HOJE -->
-    <div class="print-today-section print-break-before">
-      <h2 id="printTodayTitle">SERVIÇOS DE HOJE</h2>
-      <div class="print-today-date" id="printTodayDate"></div>
+    <div class="print-today-section">
+      <h2>SERVIÇOS DE HOJE — <span id="printTodayDate"></span></h2>
       <table class="print-today-table">
         <thead>
           <tr>
@@ -397,9 +448,8 @@
     </div>
 
     <!-- PRINT: Amanhã -->
-    <div class="print-tomorrow-section print-break-before">
-      <h2 id="printTomorrowTitle">SERVIÇOS DE AMANHÃ</h2>
-      <div class="print-tomorrow-date" id="printTomorrowDate"></div>
+    <div class="print-tomorrow-section">
+      <h2>SERVIÇOS DE AMANHÃ — <span id="printTomorrowDate"></span></h2>
       <table class="print-tomorrow-table">
         <thead>
           <tr>
@@ -430,7 +480,7 @@
   <script src="expressglass-sabado-automatico-final.js"></script>
   <script src="expressglass-sabado-definitivo.js"></script>
 
-  <!-- >>>>>> SCRIPT DE IMPRESSÃO (lê da tabela e preenche HOJE/AMANHÃ) <<<<<< -->
+  <!-- >>>>>> SCRIPT DE IMPRESSÃO (preenche POR AGENDAR + HOJE + AMANHÃ) <<<<<< -->
   <script>
   (function(){
     function parsePtOrIso(str) {
@@ -467,6 +517,47 @@
         });
       });
       return rows;
+    }
+
+    function readUnscheduledFromCards(){
+      const list = document.getElementById('unscheduledList');
+      if(!list) return [];
+      const rows = [];
+      list.querySelectorAll(':scope > *').forEach(card=>{
+        const get = (cls, attr) =>
+          card.querySelector(cls)?.textContent?.trim()
+          || card.getAttribute(attr) || '';
+
+        const plate     = get('.plate',     'data-plate');
+        const car       = get('.car',       'data-car');
+        const service   = get('.service',   'data-service');
+        const locality  = get('.locality',  'data-locality');
+        const status    = get('.status',    'data-status');
+        const notes     = get('.notes',     'data-notes');
+        const extra     = get('.extra',     'data-extra');
+
+        if(plate || car || service || locality || status || notes || extra){
+          rows.push({ plate, car, service, locality, status, notes, extra });
+        }
+      });
+      return rows;
+    }
+
+    function fillUnscheduledPrint(){
+      const body = document.getElementById('printUnscheduledTableBody');
+      if(!body) return;
+      const items = readUnscheduledFromCards();
+      body.innerHTML = items.map(r=>`
+        <tr>
+          <td>${r.plate     || '&nbsp;'}</td>
+          <td>${r.car       || '&nbsp;'}</td>
+          <td>${r.service   || '&nbsp;'}</td>
+          <td>${r.locality  || '&nbsp;'}</td>
+          <td>${r.status    || '&nbsp;'}</td>
+          <td>${r.notes     || '&nbsp;'}</td>
+          <td>${r.extra     || '&nbsp;'}</td>
+        </tr>
+      `).join('');
     }
 
     function fillPrintTable(prefix, targetDate, rows){
@@ -506,23 +597,30 @@
       });
     }
 
-    function refreshPrintSections(){
+    function refreshTodayTomorrow(){
       const all = readServicesFromMainTable();
       fillPrintTable('printToday', TODAY, all);
       fillPrintTable('printTomorrow', TOMORROW, all);
     }
 
-    window.addEventListener('load', refreshPrintSections);
-    const tblBody = document.querySelector('#servicesTableBody');
-    if (tblBody) {
-      const obs = new MutationObserver(() => refreshPrintSections());
-      obs.observe(tblBody, { childList: true, subtree: false });
+    function refreshAllPrint(){
+      refreshTodayTomorrow();
+      fillUnscheduledPrint();
     }
-    window.addEventListener('beforeprint', refreshPrintSections);
+
+    window.addEventListener('load', refreshAllPrint);
+    window.addEventListener('beforeprint', refreshAllPrint);
     document.getElementById('printPage')?.addEventListener('click', () => {
-      refreshPrintSections();
+      refreshAllPrint();
       window.print();
     });
+
+    // Observers para reagir a alterações
+    const tblBody = document.querySelector('#servicesTableBody');
+    if (tblBody) new MutationObserver(()=>refreshAllPrint()).observe(tblBody, { childList: true, subtree: false });
+
+    const uns = document.getElementById('unscheduledList');
+    if (uns) new MutationObserver(()=>fillUnscheduledPrint()).observe(uns, { childList: true, subtree: true });
   })();
   </script>
 
@@ -578,7 +676,6 @@
     // aplica estilos sem mexer no DOM
     function skinItem(item){
       if(!(item instanceof HTMLElement)) return;
-      // só quando o conteúdo já existe
       if(!item.querySelector('.appt-header') && !item.querySelector('.appt-sub')) return;
 
       const {locality} = readItemData(item);
