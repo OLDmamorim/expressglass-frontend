@@ -435,7 +435,6 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   /* Mostrar as 3 secções de impressão */
-  .print-unscheduled-section,
   .print-today-section,
   .print-tomorrow-section {
     display: block !important;
@@ -455,7 +454,6 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
   tfoot { display: table-footer-group; }
   tr, th, td { break-inside: avoid; page-break-inside: avoid; }
 
-  .print-unscheduled-table,
   .print-today-table,
   .print-tomorrow-table {
     width:100% !important;
@@ -463,7 +461,6 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     table-layout:fixed !important;
   }
 
-  .print-unscheduled-table th, .print-unscheduled-table td,
   .print-today-table th,        .print-today-table td,
   .print-tomorrow-table th,     .print-tomorrow-table td {
     border:1px solid #000 !important;
