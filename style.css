@@ -256,57 +256,6 @@ table.schedule td:first-child{border-left:none}
 textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: none; }
 .highlight{ background:#fef3c7 !important; border:2px solid #f59e0b !important; }
 
-/* ======== IMPRESSÃO — SÓ AS 3 TABELAS ======== */
-@media print {
-  /* Página e cores */
-  @page { size: A4; margin: 12mm; }
-  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-  /* Esconder tudo por defeito */
-  body * { display: none !important; }
-
-  /* Mostrar apenas estas secções + TODO o seu conteúdo */
-  #servicosPorAgendar, #servicosPorAgendar * ,
-  #servicosHoje,         #servicosHoje * ,
-  #servicosAmanha,       #servicosAmanha * {
-    display: revert !important;         /* volta ao display natural */
-    visibility: visible !important;
-  }
-
-  /* Calendário e botões */
-  #calendar,
-  .no-print,
-  .btn,
-  header, nav, footer { display: none !important; }
-
-  /* Garantir que as tabelas imprimem certinhas (fallback se o 'revert' não chegar) */
-  #servicosPorAgendar, #servicosHoje, #servicosAmanha { display:block !important; }
-  #servicosPorAgendar table, #servicosHoje table, #servicosAmanha table {
-    display: table !important;
-    width: 100% !important;
-    border-collapse: collapse !important;
-    font-size: 12px !important;
-  }
-  #servicosPorAgendar thead, #servicosHoje thead, #servicosAmanha thead { 
-    display: table-header-group !important; 
-  }
-  #servicosPorAgendar tbody, #servicosHoje tbody, #servicosAmanha tbody { 
-    display: table-row-group !important; 
-  }
-  #servicosPorAgendar tr, #servicosHoje tr, #servicosAmanha tr { 
-    display: table-row !important; 
-    page-break-inside: avoid !important;
-  }
-  #servicosPorAgendar th, #servicosHoje th, #servicosAmanha th,
-  #servicosPorAgendar td, #servicosHoje td, #servicosAmanha td {
-    display: table-cell !important;
-    border: 1px solid #333 !important;
-    padding: 6px !important;
-    text-align: left !important;
-    vertical-align: top !important;
-  }
-}
-
 /* ======= HOTFIX MOBILE HEADER / AÇÕES / NAVEGAÇÃO ======= */
 @media (max-width: 480px) {
 
@@ -348,15 +297,12 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     backdrop-filter: none;
   }
 
-  /* Se tiveres um botão grande “+ Novo Serviço” dentro do header,
-     força a ir para a linha abaixo e ocupar a largura toda */
   .page-header > .header-btn:first-child{
     order: 3;
     width: 100%;
     margin-top: 10px;
   }
 
-  /* Data / intervalo centrados */
   .date-range, .week-range, .range-label{
     font-size: 16px;
     text-align: center;
@@ -364,7 +310,6 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     margin: 8px auto 4px;
   }
 
-  /* O tracinho divisório */
   .divider{
     width: 24px;
     height: 3px;
@@ -373,7 +318,6 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     margin: 8px auto 10px;
   }
 
-  /* Botões Anterior / Hoje / Seguinte em grelha */
   .nav, .week-nav{
     display: grid !important;
     grid-template-columns: repeat(3, 1fr);
@@ -387,14 +331,12 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     border-radius: 10px;
   }
 
-  /* Evita overflow horizontal */
   html, body{ overflow-x: hidden; }
   .page-header *{ max-width: 100%; }
 }
 /* ===== MOBILE CLEAN HEADER & NAV (≤480px) ===== */
 @media (max-width: 480px){
 
-  /* Header compacto e claro */
   .page-header{
     padding: 14px 16px;
     border-radius: 16px;
@@ -417,7 +359,6 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     text-align: center;
   }
 
-  /* Barra de ações: grelha limpa, sem “vidros” exagerados */
   .header-actions{
     position: static !important;
     display: grid !important;
@@ -441,7 +382,6 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
   .header-btn .label{ font-size: 13px; font-weight: 700; white-space: nowrap; }
   .header-btn .icon{ width: 18px; height: 18px; display: inline-block; }
 
-  /* Botão “+ Novo Serviço” no topo — ocupa linha inteira e destaca */
   .page-header .header-btn.new-service{
     grid-column: 1 / -1;
     min-height: 48px;
@@ -450,7 +390,6 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     border: 1px solid #e5e7eb;
   }
 
-  /* Intervalo de datas centrado e legível */
   .date-range, .week-range{
     display: block;
     text-align: center;
@@ -458,13 +397,11 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     margin: 8px 0 0;
   }
 
-  /* Divider minimalista */
   .divider{
     width: 28px; height: 3px; border-radius: 3px;
     background: #d1d5db; margin: 8px auto 10px;
   }
 
-  /* Navegação (Anterior / Hoje / Seguinte) em grelha */
   .week-nav, .nav{
     display: grid !important;
     grid-template-columns: repeat(3,1fr);
@@ -478,33 +415,36 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     font-size: 15px;
   }
 
-  /* Evita overlaps e recortes */
   html, body{ overflow-x: hidden; }
   .page-header *{ max-width: 100%; }
 }
 
 /* ===== OPCIONAL: esconder o botão "+ Novo Serviço" do fundo só no mobile ===== */
-/* Se o botão do fundo for o ÚNICO <button> logo após a navegação semanal,
-   isto remove-o em ecrãs pequenos sem tocar no resto. Ajusta o seletor se precisares. */
 @media (max-width: 480px){
   .week-nav + button{ display:none !important; }
-}@media print {
-  /* Página A4 horizontal */
+}
+
+/* =========================
+   IMPRESSÃO — 3 páginas A4 horizontal
+   (único bloco de impressão)
+   ========================= */
+@media print {
   @page { size: A4 landscape; margin: 10mm; }
 
   html, body { background: #fff !important; color:#111 !important; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
-  /* MOSTRAR as 3 secções de impressão */
+  /* Mostrar as 3 secções de impressão */
   .print-unscheduled-section,
   .print-today-section,
-  .print-tomorrow-section { 
-    display: block !important; 
+  .print-tomorrow-section {
+    display: block !important;
+    visibility: visible !important;
   }
 
-  /* ESCONDER o resto (sem visibility:hidden global) */
+  /* Esconder o resto (sem visibility:hidden global) */
   header, nav, .nav-bar, .page-header, .header-actions,
-  .schedule-container, #schedule, .unscheduled-container,   /* cards/listas do ecrã */
+  .schedule-container, #schedule, .unscheduled-container,
   .services-table-container, .mobile-day-container,
   .search-bar, .toast-container, .modal, .no-print {
     display: none !important;
@@ -564,4 +504,3 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
   .print-unscheduled-table th:nth-child(6), .print-unscheduled-table td:nth-child(6){ width:26%; } /* Observações */
   .print-unscheduled-table th:nth-child(7), .print-unscheduled-table td:nth-child(7){ width: 8%; } /* Outros */
 }
-
