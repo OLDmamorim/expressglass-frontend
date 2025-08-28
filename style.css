@@ -501,3 +501,7 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
   .print-unscheduled-table th:nth-child(6), .print-unscheduled-table td:nth-child(6){ width:26%; } /* Observações */
   .print-unscheduled-table th:nth-child(7), .print-unscheduled-table td:nth-child(7){ width: 8%; } /* Outros */
 }
+/* HOTFIX: esconder Por Agendar no ecrã */
+.unscheduled-container,
+.print-unscheduled-section { display: none !important; }
+
