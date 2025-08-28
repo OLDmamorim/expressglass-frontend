@@ -26,16 +26,8 @@
     }
 
     @media print {
-      /* Configuração da página para orientação horizontal */
-      @page { 
-        size: A4 landscape;
-        margin: 1.5cm 1cm;
-      }
-
       .no-print { display: none !important; }
-      
-      /* OCULTAR serviços por agendar - apenas mostrar HOJE e AMANHÃ */
-      .print-unscheduled-section { display: none !important; }
+      .print-unscheduled-section,
       .print-today-section,
       .print-tomorrow-section { display: block; }
 
@@ -44,14 +36,11 @@
       tfoot { display: table-footer-group; }
       tr, th, td { break-inside: avoid; page-break-inside: avoid; }
 
-      /* Optimização para layout horizontal */
       .print-today-table,
       .print-tomorrow-table{
         width:100% !important; border-collapse:collapse !important; table-layout:fixed !important;
-        font-size: 11px !important;
       }
 
-      /* Larguras das colunas optimizadas para horizontal */
       .print-today-table th:nth-child(1),    .print-today-table td:nth-child(1),
       .print-tomorrow-table th:nth-child(1), .print-tomorrow-table td:nth-child(1){ width: 8%; }  /* Período */
       .print-today-table th:nth-child(2),    .print-today-table td:nth-child(2),
@@ -66,28 +55,13 @@
       .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; }  /* Estado */
       .print-today-table th:nth-child(7),    .print-today-table td:nth-child(7),
       .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:24%; }  /* Observações */
-      .print-today-table th:nth-child(8),    .print-today-table td:nth-child(8),
-      .print-tomorrow-table th:nth-child(8), .print-tomorrow-table td:nth-child(8){ width:8%; }   /* Outros */
+      .print-today-table th:nth-child(8),    .print-tomorrow-table td:nth-child(8),
+      .print-tomorrow-table td:nth-child(8){ width:8%; }   /* Outros */
 
-      /* Estilos das células optimizados */
       .print-today-table th, .print-today-table td,
       .print-tomorrow-table th, .print-tomorrow-table td{
-        border:1px solid #000 !important; padding:4px 6px !important; font-size:11px !important;
+        border:1px solid #000 !important; padding:4px 6px !important; font-size:12px !important;
         vertical-align:top !important; white-space:normal !important;
-      }
-
-      /* Cabeçalhos com destaque */
-      .print-today-table th, .print-tomorrow-table th {
-        font-size: 12px !important;
-        font-weight: bold !important;
-        background-color: #f5f5f5 !important;
-      }
-
-      /* Títulos das secções */
-      .print-today-section h2, .print-tomorrow-section h2 {
-        font-size: 18px !important;
-        margin-bottom: 10px !important;
-        text-align: center !important;
       }
 
       .print-today-table thead, .print-tomorrow-table thead{ display: table-header-group !important; }
