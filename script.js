@@ -836,3 +836,36 @@ if (typeof window.renderMobileDay !== 'function') {
   // primeira passagem
   ensureCardActions();
 })();
+/* === HOTFIX NAVEGAÇÃO DIÁRIA — SM BRAGA (append-only, seguro) === */
+(function(){
+  // se os botões não estiverem ligados, ligamos sem tocar no resto
+  const $ = id => document.getElementById(id);
+  const bindOnce = (id, fn) => {
+    const el = $(id);
+    if (!el || el.dataset._bound) return;
+    el.dataset._bound = "1";
+    el.addEventListener('click', fn);
+  };
+
+  // só atuamos se existir a função de render diário
+  if (typeof window.renderMobileDay === 'function') {
+    // cria/usa o currentMobileDay global sem colidir
+    if (!('currentMobileDay' in window) || !(window.currentMobileDay instanceof Date)) {
+      window.currentMobileDay = new Date();
+    }
+
+    bindOnce('prevDay',  () => { try { window.currentMobileDay.setDate(window.currentMobileDay.getDate()-1); window.renderMobileDay(); } catch(e){} });
+    bindOnce('nextDay',  () => { try { window.currentMobileDay.setDate(window.currentMobileDay.getDate()+1); window.renderMobileDay(); } catch(e){} });
+    bindOnce('todayDay', () => { try { window.currentMobileDay = new Date(); window.renderMobileDay(); } catch(e){} });
+  }
+
+  // Navegação semanal (só liga se existirem funções próprias)
+  const callIf = name => (typeof window[name] === 'function') ? window[name] : null;
+  const goPrevWeek = callIf('goPrevWeek');
+  const goNextWeek = callIf('goNextWeek');
+  const goTodayWeek= callIf('goTodayWeek');
+
+  if (goPrevWeek) bindOnce('prevWeek',  () => { try { goPrevWeek(); } catch(e){} });
+  if (goNextWeek) bindOnce('nextWeek',  () => { try { goNextWeek(); } catch(e){} });
+  if (goTodayWeek)bindOnce('todayWeek', () => { try { goTodayWeek(); } catch(e){} });
+})();
