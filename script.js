@@ -836,3 +836,36 @@ if (typeof window.renderMobileDay !== 'function') {
   // primeira passagem
   ensureCardActions();
 })();
+// ---------- Render MOBILE (vista diária) ----------
+function renderMobileDay() {
+  const label = document.getElementById('mobileDayLabel');
+  const list  = document.getElementById('mobileDayList');
+  if (!label || !list) return;
+
+  // cabeçalho com dia e data
+  const d = currentMobileDay;
+  label.textContent = d.toLocaleDateString('pt-PT', {
+    weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'
+  });
+
+  const iso = localISO(d);
+  const items = filterAppointments(
+    appointments
+      .filter(a => a.date === iso)
+      .sort((x,y) => ({Manhã:1,Tarde:2}[x.period] - ({Manhã:1,Tarde:2}[y.period]))
+  ));
+
+  list.innerHTML = items.map(a=>{
+    const base=getLocColor(a.locality);
+    const g=gradFromBase(base);
+    const title = `${a.plate||''} | ${a.service||''} | ${(a.car||'').toUpperCase()}`;
+    const sub   = [a.locality,a.notes].filter(Boolean).join(' | ');
+    return `
+      <div class="m-card" style="--c1:${g.c1}; --c2:${g.c2};">
+        <div class="m-title">${title}</div>
+        <div class="m-chips">${a.period ? `<span class="m-chip">${a.period}</span>`:''}</div>
+        ${sub ? `<div class="m-info">${sub}</div>`:''}
+      </div>`;
+  }).join('');
+}
+
