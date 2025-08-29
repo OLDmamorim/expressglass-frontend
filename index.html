@@ -637,6 +637,49 @@
     apply();
     new MutationObserver(apply).observe(LIST, {childList:true});
   })();
-  </script>
+  </script><!-- SCRIPT FINAL PARA IMPRESSÃO CORRETA -->
+<script>
+function setupPrinting() {
+  const printButton = document.getElementById('printPage');
+  if (!printButton) return;
+
+  printButton.addEventListener('click', function() {
+    // 1. Clona as secções que queremos imprimir
+    const todaySection = document.querySelector('.print-today-section');
+    const tomorrowSection = document.querySelector('.print-tomorrow-section');
+
+    if (!todaySection || !tomorrowSection) {
+      console.error('Secções de impressão não encontradas!');
+      // Se não encontrar, tenta a impressão normal
+      window.print();
+      return;
+    }
+
+    // 2. Cria um contentor temporário para a impressão
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container-temp';
+    printContainer.appendChild(todaySection.cloneNode(true));
+    printContainer.appendChild(tomorrowSection.cloneNode(true));
+
+    // 3. Adiciona o contentor ao body
+    document.body.appendChild(printContainer);
+
+    // 4. Adiciona uma classe ao body para ativar os estilos de impressão
+    document.body.classList.add('printing-now');
+
+    // 5. Chama a impressão do navegador
+    window.print();
+
+    // 6. Limpa tudo depois da impressão (seja confirmada ou cancelada)
+    document.body.classList.remove('printing-now');
+    document.body.removeChild(printContainer);
+  });
+}
+
+// Garante que o script corre depois de a página carregar
+window.addEventListener('load', setupPrinting);
+</script>
+
+  
 </body>
 </html>
