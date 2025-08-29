@@ -341,4 +341,34 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     vertical-align: top !important;
   }
 }
+/* ===== SM BRAGA (MOBILE): alinhar header como Famalicão ===== */
+@media (max-width: 820px){
+  body.page-sm-braga .page-header{
+    padding: 16px 16px 18px 16px;   /* header mais compacto */
+    border-radius: 12px;
+    z-index: 1;                     /* não cobre a navegação */
+  }
+  body.page-sm-braga .page-header h1{
+    font-size: 22px;                /* desce um pouco para caber */
+    line-height: 1.15;
+    margin: 0;
+    text-align: center;
+  }
+  body.page-sm-braga .subtitle{
+    font-size: 12px;
+    margin: 6px 0 0;
+    text-align: center;
+  }
+  /* Ícones deixam de ser absolute: não sobrepõem o título */
+  body.page-sm-braga .header-actions{
+    position: static;
+    display: flex;
+    gap: 8px;
+    justify-content: center;        /* como em Famalicão */
+    margin-top: 8px;
+  }
+  /* Garante cliques na navegação */
+  body.page-sm-braga .nav-bar{ position: relative; z-index: 2; }
+}
+
 
