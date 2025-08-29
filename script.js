@@ -869,3 +869,112 @@ if (typeof window.renderMobileDay !== 'function') {
   if (goNextWeek) bindOnce('nextWeek',  () => { try { goNextWeek(); } catch(e){} });
   if (goTodayWeek)bindOnce('todayWeek', () => { try { goTodayWeek(); } catch(e){} });
 })();
+/* ====== BRAGA RESCUE PATCH (append-only, seguro) ====== */
+(function(){
+  // 0) Detectar que estamos no SM BRAGA
+  var h1 = document.querySelector('.page-header h1');
+  var isBraga = h1 && /SM\s*BRAGA/i.test(h1.textContent || '');
+  if (!isBraga) return;
+
+  // 1) Garantir que o header não bloqueia cliques da navegação
+  try {
+    var header = document.querySelector('.page-header');
+    var actions = document.querySelector('.page-header .header-actions');
+    if (header) {
+      header.style.pointerEvents = 'none';
+      header.style.zIndex = '1';
+    }
+    if (actions) {
+      actions.style.pointerEvents = 'auto';
+    }
+    var navBar = document.querySelector('.nav-bar');
+    if (navBar) {
+      navBar.style.position = 'relative';
+      navBar.style.zIndex = '9999';
+      navBar.style.pointerEvents = 'auto';
+    }
+    var mdh = document.querySelector('.mobile-day-header');
+    if (mdh) {
+      mdh.style.position = 'relative';
+      mdh.style.zIndex = '9999';
+      mdh.style.pointerEvents = 'auto';
+    }
+  } catch(e) {}
+
+  // 2) Utilidades mínimas
+  function $(id){ return document.getElementById(id); }
+  function localISO(d){
+    var z = d.getTimezoneOffset()*60000;
+    return new Date(d - z).toISOString().slice(0,10);
+  }
+
+  // 3) Se NÃO existir renderMobileDay, criamos uma versão mínima (prova de vida)
+  if (typeof window.renderMobileDay !== 'function') {
+    window.renderMobileDay = function(){
+      var label = $('mobileDayLabel');
+      if (!label) return;
+      var d = window.currentMobileDay instanceof Date ? window.currentMobileDay : new Date();
+      d.setHours(0,0,0,0);
+      label.textContent = d.toLocaleDateString('pt-PT', {
+        weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'
+      });
+      // se houver lista e appointments, mostra contagem básica
+      var list = $('mobileDayList');
+      if (list && Array.isArray(window.appointments)) {
+        var iso = localISO(d);
+        var day = window.appointments.filter(a => a && a.date === iso);
+        list.innerHTML = day.length ? 
+          '<div style="opacity:.7;padding:8px">(' + day.length + ' serviço(s))</div>' :
+          '<div style="opacity:.6;padding:8px">Sem serviços.</div>';
+      }
+    };
+  }
+
+  // 4) currentMobileDay seguro
+  if (!(window.currentMobileDay instanceof Date)) {
+    window.currentMobileDay = new Date();
+  }
+
+  // 5) Ligar botões UMA vez (se ainda não estiverem ligados)
+  function bindOnce(id, fn){
+    var el = $(id);
+    if (!el || el.dataset._bound === '1') return;
+    el.dataset._bound = '1';
+    el.addEventListener('click', fn);
+  }
+
+  bindOnce('prevDay',  function(){
+    try { window.currentMobileDay.setDate(window.currentMobileDay.getDate()-1); } catch(e){}
+    try { window.renderMobileDay(); } catch(e){}
+  });
+  bindOnce('nextDay',  function(){
+    try { window.currentMobileDay.setDate(window.currentMobileDay.getDate()+1); } catch(e){}
+    try { window.renderMobileDay(); } catch(e){}
+  });
+  bindOnce('todayDay', function(){
+    try { window.currentMobileDay = new Date(); } catch(e){}
+    try { window.renderMobileDay(); } catch(e){}
+  });
+
+  // 6) Render inicial para veres logo o efeito
+  try { window.renderMobileDay(); } catch(e){}
+
+  // 7) (Opcional) ligar semana se existirem handlers próprios
+  ['prevWeek','nextWeek','todayWeek'].forEach(function(id){
+    var el = $(id);
+    if (!el || el.dataset._wk) return;
+    el.dataset._wk = '1';
+    // se já houver listeners teus, este não atrapalha
+    el.addEventListener('click', function(){
+      // pequeno delay para deixar o teu código correr primeiro
+      setTimeout(function(){
+        // força re-render do que existe
+        try { typeof renderSchedule==='function' && renderSchedule(); } catch(e){}
+        try { typeof renderServicesTable==='function' && renderServicesTable(); } catch(e){}
+        try { typeof renderUnscheduled==='function' && renderUnscheduled(); } catch(e){}
+        try { typeof renderMobileDay==='function' && renderMobileDay(); } catch(e){}
+      }, 0);
+    });
+  });
+})();
+
