@@ -758,6 +758,79 @@
   try { refreshAllPrint(); } catch(e){}
 })();
 </script>
+<script>
+(function(){
+  function openPrintWindow(){
+    const services = [];
+    document.querySelectorAll('#servicesTableBody tr').forEach(tr=>{
+      const td = tr.querySelectorAll('td');
+      if (td.length >= 8){
+        services.push({
+          date: (td[0].textContent||'').trim(),
+          period: (td[1].textContent||'').trim(),
+          plate: (td[2].textContent||'').trim(),
+          car: (td[3].textContent||'').trim(),
+          service: (td[4].textContent||'').trim(),
+          locality: (td[5].textContent||'').trim(),
+          status: (td[7].textContent||'').trim(),
+          notes: (td[6].textContent||'').trim()
+        });
+      }
+    });
+
+    const html = `
+      <html><head><meta charset="utf-8">
+        <title>Impressão SM Braga</title>
+        <style>
+          body{font:13px Arial, sans-serif;color:#111;}
+          h2{margin:12px 0 6px;}
+          table{width:100%;border-collapse:collapse;}
+          th,td{border:1px solid #000;padding:4px 6px;font-size:12px;}
+        </style>
+      </head><body>
+        <h2>Serviços a realizar</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th><th>Período</th><th>Matrícula</th>
+              <th>Carro</th><th>Serviço</th><th>Localidade</th>
+              <th>Estado</th><th>Observações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${services.map(r=>`
+              <tr>
+                <td>${r.date}</td>
+                <td>${r.period}</td>
+                <td>${r.plate}</td>
+                <td>${r.car}</td>
+                <td>${r.service}</td>
+                <td>${r.locality}</td>
+                <td>${r.status}</td>
+                <td>${r.notes}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </body></html>`;
+
+    const w = window.open('', '_blank');
+    w.document.write(html);
+    w.document.close();
+    setTimeout(()=>w.print(),100);
+  }
+
+  // limpar listeners antigos
+  const btn = document.getElementById('printPage');
+  if (btn){
+    btn.replaceWith(btn.cloneNode(true)); // clona e substitui para remover eventos antigos
+    const fresh = document.getElementById('printPage');
+    fresh.addEventListener('click', e=>{
+      e.preventDefault();
+      openPrintWindow();
+    });
+  }
+})();
+</script>
 
 </body>
 </html>
