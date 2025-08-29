@@ -319,87 +319,82 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
 }
 
 /* ==================================================
-   IMPRESSÃO HORIZONTAL (HOJE E AMANHÃ) - VERSÃO 2
+   IMPRESSÃO HORIZONTAL (HOJE E AMANHÃ) - VERSÃO JS
    ================================================== */
-@media print {
 
-  /* 1. Configura a página para A4 paisagem (horizontal) */
+/* Estilos que se aplicam APENAS quando o script está a preparar a impressão */
+body.printing-now > *:not(#print-container-temp) {
+  display: none !important; /* Esconde tudo exceto o nosso contentor */
+}
+
+#print-container-temp {
+  display: block !important; /* Garante que o contentor é visível */
+}
+
+@media print {
+  /* 1. Configura a página para A4 paisagem */
   @page {
     size: A4 landscape;
     margin: 12mm;
   }
 
-  /* 2. Garante que cores e fundos são impressos */
+  /* 2. Estilos gerais do body para impressão */
   body {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    background-color: #fff !important; /* Força fundo branco */
     margin: 0 !important;
     padding: 0 !important;
+    background: #fff !important;
   }
 
-  /* 3. Esconde TUDO o que não é para imprimir de forma agressiva */
-  .no-print,
-  header.page-header,
-  .search-bar,
-  .nav-bar,
-  .schedule-container,
-  .unscheduled-container,
-  .mobile-day-container,
-  .services-table-container,
-  .modal,
-  .toast-container,
-  .print-unscheduled-section, /* Esconde a de "Por Agendar" */
-  script,
-  style,
-  link[rel="stylesheet"] {
-    display: none !important;
-  }
-
-  /* 4. Garante que as secções de impressão e o seu conteúdo são VISÍVEIS */
-  .print-today-section,
-  .print-tomorrow-section {
-    display: block !important; /* Mostra a secção como um bloco */
+  /* 3. Garante que as secções dentro do contentor são visíveis */
+  #print-container-temp .print-today-section,
+  #print-container-temp .print-tomorrow-section {
+    display: block !important;
     visibility: visible !important;
-    page-break-after: always; /* Cada secção ocupa uma página */
+    page-break-before: auto; /* Reset */
+    page-break-after: auto;  /* Reset */
   }
 
-  /* 5. Força a visibilidade de TODOS os elementos dentro das secções de impressão */
-  .print-today-section *,
-  .print-tomorrow-section * {
-    display: revert !important; /* Restaura o display natural (table, tr, td, etc.) */
+  /* 4. Força a quebra de página antes da segunda secção */
+  #print-container-temp .print-tomorrow-section {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* 5. Garante que todo o conteúdo dentro das tabelas é visível */
+  #print-container-temp * {
     visibility: visible !important;
-    color: #000 !important; /* Garante texto preto */
-    background-color: transparent !important; /* Remove fundos coloridos */
+    color: #000 !important;
+    background: transparent !important;
+    font-size: 10pt !important;
   }
 
-  /* 6. Formatação específica para as tabelas de impressão */
-  .print-today-table,
-  .print-tomorrow-table {
+  /* 6. Formatação das tabelas */
+  #print-container-temp table {
     width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 10pt !important; /* Tamanho de letra ajustado */
   }
 
-  .print-today-table th, .print-today-table td,
-  .print-tomorrow-table th, .print-tomorrow-table td {
+  #print-container-temp th,
+  #print-container-temp td {
     border: 1px solid #000 !important;
     padding: 6px !important;
     text-align: left !important;
     vertical-align: top !important;
-    white-space: normal !important; /* Permite quebra de linha */
+    white-space: normal !important;
   }
 
-  .print-today-table thead,
-  .print-tomorrow-table thead {
-    display: table-header-group !important; /* Repete o cabeçalho se a tabela for longa */
+  #print-container-temp thead {
+    display: table-header-group !important;
   }
-
-  /* 7. Estilo dos títulos e datas */
-  #printTodayTitle, #printTomorrowTitle,
-  #printTodayDate, #printTomorrowDate {
-    text-align: center;
-    font-weight: bold;
-    margin-bottom: 15px;
+  
+  /* 7. Títulos */
+  #print-container-temp h2,
+  #print-container-temp .print-today-date,
+  #print-container-temp .print-tomorrow-date {
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 15px;
   }
 }
