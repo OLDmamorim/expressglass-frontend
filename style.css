@@ -370,5 +370,37 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
   /* Garante cliques na navegação */
   body.page-sm-braga .nav-bar{ position: relative; z-index: 2; }
 }
+/* ===== CLICK FIX — SM BRAGA (mobile) ===== */
+@media (max-width: 820px){
+  /* header nunca cobre a navegação */
+  body.page-sm-braga .page-header{
+    position: relative !important;
+    z-index: 1 !important;
+    overflow: visible !important;
+  }
+  /* nenhum pseudo-elemento decorativo por cima */
+  body.page-sm-braga .page-header::before,
+  body.page-sm-braga .page-header::after{ content: none !important; }
+
+  /* ações do header deixam de ser absolutas */
+  body.page-sm-braga .header-actions{
+    position: static !important;
+  }
+
+  /* navegação fica acima de tudo e com cliques garantidos */
+  body.page-sm-braga .nav-bar{
+    position: relative !important;
+    z-index: 9999 !important;
+  }
+  body.page-sm-braga .nav-bar, 
+  body.page-sm-braga .nav-bar *{
+    pointer-events: auto !important;
+  }
+
+  /* se existir algum "+ Novo Serviço" perdido dentro do header, esconde */
+  body.page-sm-braga header.page-header button:not(.header-btn){
+    display: none !important;
+  }
+}
 
 
