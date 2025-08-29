@@ -402,5 +402,80 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     display: none !important;
   }
 }
+/* ===================================
+   IMPRESSÃO HORIZONTAL (HOJE E AMANHÃ)
+   =================================== */
+@media print {
+
+  /* 1. Configura a página para A4 paisagem */
+  @page {
+    size: A4 landscape; /* A4 na horizontal */
+    margin: 15mm;       /* Margens para evitar cortes */
+  }
+
+  /* 2. Garante que o ajuste de cores de fundo é impresso */
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 3. Esconde tudo por defeito na impressão */
+  body * {
+    visibility: hidden;
+    display: none !important;
+  }
+
+  /* 4. Mostra APENAS as secções de hoje e amanhã e o seu conteúdo */
+  .print-today-section, .print-today-section *,
+  .print-tomorrow-section, .print-tomorrow-section * {
+    visibility: visible !important;
+    display: revert !important; /* Restaura o tipo de display original (block, table, etc.) */
+  }
+
+  /* 5. Garante que a secção "Amanhã" começa numa nova página */
+  .print-tomorrow-section {
+    page-break-before: always; /* Força uma quebra de página antes desta secção */
+    break-before: page;
+  }
+
+  /* 6. Formatação e restauro dos elementos das tabelas */
+  .print-today-section,
+  .print-tomorrow-section {
+    position: static !important;
+    margin: 0;
+    padding: 0;
+  }
+
+  .print-today-section h2,
+  .print-tomorrow-section h2,
+  .print-today-date,
+  .print-tomorrow-date {
+    text-align: center;
+    color: #000;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+
+  .print-today-table,
+  .print-tomorrow-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 10px !important; /* Tamanho de letra mais pequeno para caber tudo */
+  }
+
+  .print-today-table th, .print-today-table td,
+  .print-tomorrow-table th, .print-tomorrow-table td {
+    border: 1px solid #333 !important;
+    padding: 5px !important;
+    text-align: left !important;
+    vertical-align: top !important;
+    white-space: normal !important; /* Permite que o texto quebre linha */
+  }
+
+  .print-today-table thead,
+  .print-tomorrow-table thead {
+    display: table-header-group !important; /* Repete o cabeçalho se a tabela ocupar várias páginas */
+  }
+}
 
 
