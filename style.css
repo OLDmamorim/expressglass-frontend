@@ -436,6 +436,71 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
   }
   body.page-sm-braga .mobile-day-header *{ pointer-events: auto !important; }
 }
+/* =============== SM BRAGA — FIX HEADER/NAV (MOBILE) =============== */
+@media (max-width: 820px){
+
+  /* Header em fluxo normal, sem absolutos a flutuar */
+  body.page-sm-braga .page-header{
+    position: static !important;
+    display: block !important;
+    padding: 16px !important;
+    border-radius: 12px !important;
+    background: linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%) !important;
+    margin: 0 0 12px 0 !important;
+    z-index: 1 !important;
+  }
+
+  /* Topo do header: título à esquerda, ícones à direita, mas SEM position:absolute */
+  body.page-sm-braga .page-header .header-top{
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+  }
+
+  body.page-sm-braga .page-header .header-title,
+  body.page-sm-braga .page-header h1{
+    margin: 0 !important;
+    font-size: 20px !important;
+    line-height: 1.2 !important;
+    text-align: left !important;
+    word-break: break-word !important;
+  }
+
+  body.page-sm-braga .page-header .subtitle{
+    margin: 6px 0 0 0 !important;
+    font-size: 13px !important;
+    color: #e5edff !important;
+    text-align: left !important;
+  }
+
+  body.page-sm-braga .page-header .header-actions{
+    position: static !important;
+    display: flex !important;
+    gap: 8px !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Esconde QUALQUER botão estranho dentro do header (ex.: + Novo Serviço perdido) */
+  body.page-sm-braga .page-header .action-btn,
+  body.page-sm-braga .page-header .mobile-add-btn{ display: none !important; }
+
+  /* Garante que a navegação fica por cima e clicável */
+  body.page-sm-braga .nav-bar{
+    position: relative !important;
+    z-index: 10 !important;
+    margin-top: 6px !important;
+  }
+  body.page-sm-braga .mobile-day-header{
+    position: relative !important;
+    z-index: 10 !important;
+  }
+
+  /* Por segurança, o header NÃO bloqueia cliques fora dos seus botões */
+  body.page-sm-braga .page-header{ pointer-events: auto !important; }
+  body.page-sm-braga .page-header *{ pointer-events: auto !important; }
+}
 
 
 
