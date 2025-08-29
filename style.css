@@ -319,7 +319,7 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
 }
 
 /* ==================================================
-   IMPRESSÃO HORIZONTAL (HOJE E AMANHÃ) - VERSÃO JS
+   IMPRESSÃO HORIZONTAL (HOJE E AMANHÃ) - VERSÃO FINAL
    ================================================== */
 
 /* Estilos que se aplicam APENAS quando o script está a preparar a impressão */
@@ -352,8 +352,8 @@ body.printing-now > *:not(#print-container-temp) {
   #print-container-temp .print-tomorrow-section {
     display: block !important;
     visibility: visible !important;
-    page-break-before: auto; /* Reset */
-    page-break-after: auto;  /* Reset */
+    page-break-before: auto;
+    page-break-after: auto;
   }
 
   /* 4. Força a quebra de página antes da segunda secção */
