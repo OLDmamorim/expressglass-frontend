@@ -402,5 +402,40 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     display: none !important;
   }
 }
+/* ===== NUCLEAR FIX — SM BRAGA (mobile) ===== */
+@media (max-width: 820px){
+  /* o header não intercepta cliques (pass-through) */
+  body.page-sm-braga .page-header{
+    position: relative !important;
+    z-index: 1 !important;
+    pointer-events: none !important;   /* <- passa cliques */
+  }
+  /* mas os ícones do header continuam clicáveis */
+  body.page-sm-braga .page-header .header-actions,
+  body.page-sm-braga .page-header .header-actions *{
+    pointer-events: auto !important;
+  }
+  /* qualquer outro botão que apareça no header é escondido */
+  body.page-sm-braga .page-header button:not(.header-btn){
+    display: none !important;
+  }
+
+  /* navegação de semana SEMPRE por cima e clicável */
+  body.page-sm-braga .nav-bar{
+    position: relative !important;
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+  }
+  body.page-sm-braga .nav-bar *{ pointer-events: auto !important; }
+
+  /* navegação do modo diário também por cima e clicável */
+  body.page-sm-braga .mobile-day-header{
+    position: relative !important;
+    z-index: 9999 !important;
+    pointer-events: auto !important;
+  }
+  body.page-sm-braga .mobile-day-header *{ pointer-events: auto !important; }
+}
+
 
 
