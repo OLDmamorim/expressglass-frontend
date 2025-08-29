@@ -484,40 +484,13 @@ function attachStatusListeners(){
 }
 
 // ---------- Print ----------
-function printPage(){ updatePrintUnscheduledTable(); updatePrintTodayTable(); updatePrintTomorrowTable(); window.print(); }
+function printPage(){ updatePrintUnscheduledTable(); updatePrintTomorrowTable(); window.print(); }
 function updatePrintUnscheduledTable(){
   const list=filterAppointments(appointments.filter(a=>!a.date||!a.period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0)));
   const tbody=document.getElementById('printUnscheduledTableBody'); const sec=document.querySelector('.print-unscheduled-section');
   if(!tbody||!sec) return;
   if(list.length===0){ sec.style.display='none'; return; }
-  
-
-function updatePrintTodayTable(){
-  const t = new Date(); t.setHours(0,0,0,0);
-  const str = localISO(t);
-  const list = appointments.filter(a=>a.date===str)
-    .sort((a,b)=>({Manhã:1,Tarde:2}[a.period]||3 - ({Manhã:1,Tarde:2}[b.period]||3)));
-  const title=document.getElementById('printTodayTitle');
-  const dateEl=document.getElementById('printTodayDate');
-  const tbody=document.getElementById('printTodayTableBody');
-  const empty=document.getElementById('printTodayEmpty');
-  const table=document.querySelector('.print-today-table');
-  if(title) title.textContent='SERVIÇOS DE HOJE';
-  if(dateEl) dateEl.textContent=cap(t.toLocaleDateString('pt-PT',{weekday:'long',year:'numeric',month:'long',day:'numeric'}));
-  if(!tbody||!table||!empty) return;
-  if(list.length===0){ table.style.display='none'; empty.style.display='block'; }
-  else{
-    table.style.display='table'; empty.style.display='none';
-    tbody.innerHTML=list.map(a=>`
-      <tr>
-        <td>${a.period||''}</td><td>${a.plate||''}</td><td>${a.car||''}</td>
-        <td><span class="service-badge badge-${a.service}">${a.service||''}</span></td>
-        <td>${a.locality||''}</td><td><span class="status-chip chip-${a.status}">${a.status||''}</span></td>
-        <td>${a.notes||''}</td><td>${a.extra||''}</td>
-      </tr>`).join('');
-  }
-}
-sec.style.display='block';
+  sec.style.display='block';
   tbody.innerHTML=list.map(a=>`
     <tr>
       <td>${a.plate}</td><td>${a.car}</td>
@@ -863,12 +836,3 @@ if (typeof window.renderMobileDay !== 'function') {
   // primeira passagem
   ensureCardActions();
 })();
-
-// --- Garantir que Ctrl+P também preenche as tabelas ---
-window.addEventListener('beforeprint', ()=>{
-  try{
-    updatePrintUnscheduledTable();
-    updatePrintTodayTable();
-    updatePrintTomorrowTable();
-  }catch(e){ console.error('print prep error', e); }
-});
