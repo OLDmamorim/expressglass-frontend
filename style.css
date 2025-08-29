@@ -251,96 +251,11 @@ table.schedule td:first-child{border-left:none}
 }
 
 /* =========================
-   PRINT
-   ========================= */
-@media print{
-  body{margin:0; background:#fff}
-  .nav-bar, .mobile-day-container, .search-bar, .unscheduled-actions, .mobile-add-btn, .export-btn, .no-print{ display:none !important; }
-  .appt-status{display:none !important}
-  .form-container{display:none !important}
-  .unscheduled-container{display:none !important}
-  .services-table th, .services-table td{border:1px solid #ddd}
-}
-
-/* ===== PRINT: Por Agendar ===== */
-.print-unscheduled-section{ display:none; }
-@media print{
-  .print-unscheduled-section{ display:block !important; page-break-before:always; margin:0; padding:20px; }
-  .print-unscheduled-section h2{ font-size:24px; font-weight:bold; text-align:center; margin-bottom:30px; color:#000; }
-  .print-unscheduled-table{ width:100%; border-collapse:collapse; font-size:12px; margin:0; }
-  .print-unscheduled-table th, .print-unscheduled-table td{ border:1px solid #000; padding:8px; text-align:left; vertical-align:top; }
-  .print-unscheduled-table th{ background:#f0f0f0; font-weight:bold; text-align:center; }
-  .print-unscheduled-table .service-badge{ display:inline-block; padding:2px 6px; border-radius:3px; font-weight:bold; font-size:10px; }
-  .print-unscheduled-table .status-chip{ display:inline-block; padding:2px 6px; border-radius:3px; font-weight:bold; font-size:10px; }
-}
-
-/* ===== PRINT: Amanhã ===== */
-.print-tomorrow-section{ display:none; }
-@media print{
-  .print-tomorrow-section{ display:block !important; page-break-before:always; margin:0; padding:20px; }
-  .print-tomorrow-section h2{ font-size:24px; font-weight:bold; text-align:center; margin-bottom:10px; color:#000; }
-  .print-tomorrow-date{ font-size:16px; text-align:center; margin-bottom:30px; color:#666; font-weight:bold; }
-  .print-tomorrow-table{ width:100%; border-collapse:collapse; font-size:12px; margin:0; }
-  .print-tomorrow-table th, .print-tomorrow-table td{ border:1px solid #000; padding:8px; text-align:left; vertical-align:top; }
-  .print-tomorrow-table th{ background:#f0f0f0; font-weight:bold; text-align:center; }
-}
-
-/* =========================
    PEQUENOS AJUSTES
    ========================= */
 textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: none; }
 .highlight{ background:#fef3c7 !important; border:2px solid #f59e0b !important; }
 
-/* ======== IMPRESSÃO — SÓ AS 3 TABELAS ======== */
-@media print {
-  /* Página e cores */
-  @page { size: A4; margin: 12mm; }
-  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-
-  /* Esconder tudo por defeito */
-  body * { display: none !important; }
-
-  /* Mostrar apenas estas secções + TODO o seu conteúdo */
-  #servicosPorAgendar, #servicosPorAgendar * ,
-  #servicosHoje,         #servicosHoje * ,
-  #servicosAmanha,       #servicosAmanha * {
-    display: revert !important;         /* volta ao display natural */
-    visibility: visible !important;
-  }
-
-  /* Calendário e botões */
-  #calendar,
-  .no-print,
-  .btn,
-  header, nav, footer { display: none !important; }
-
-  /* Garantir que as tabelas imprimem certinhas (fallback se o 'revert' não chegar) */
-  #servicosPorAgendar, #servicosHoje, #servicosAmanha { display:block !important; }
-  #servicosPorAgendar table, #servicosHoje table, #servicosAmanha table {
-    display: table !important;
-    width: 100% !important;
-    border-collapse: collapse !important;
-    font-size: 12px !important;
-  }
-  #servicosPorAgendar thead, #servicosHoje thead, #servicosAmanha thead { 
-    display: table-header-group !important; 
-  }
-  #servicosPorAgendar tbody, #servicosHoje tbody, #servicosAmanha tbody { 
-    display: table-row-group !important; 
-  }
-  #servicosPorAgendar tr, #servicosHoje tr, #servicosAmanha tr { 
-    display: table-row !important; 
-    page-break-inside: avoid !important;
-  }
-  #servicosPorAgendar th, #servicosHoje th, #servicosAmanha th,
-  #servicosPorAgendar td, #servicosHoje td, #servicosAmanha td {
-    display: table-cell !important;
-    border: 1px solid #333 !important;
-    padding: 6px !important;
-    text-align: left !important;
-    vertical-align: top !important;
-  }
-}
 /* ===== SM BRAGA (MOBILE): alinhar header como Famalicão ===== */
 @media (max-width: 820px){
   body.page-sm-braga .page-header{
@@ -402,80 +317,89 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     display: none !important;
   }
 }
-/* ===================================
-   IMPRESSÃO HORIZONTAL (HOJE E AMANHÃ)
-   =================================== */
+
+/* ==================================================
+   IMPRESSÃO HORIZONTAL (HOJE E AMANHÃ) - VERSÃO 2
+   ================================================== */
 @media print {
 
-  /* 1. Configura a página para A4 paisagem */
+  /* 1. Configura a página para A4 paisagem (horizontal) */
   @page {
-    size: A4 landscape; /* A4 na horizontal */
-    margin: 15mm;       /* Margens para evitar cortes */
+    size: A4 landscape;
+    margin: 12mm;
   }
 
-  /* 2. Garante que o ajuste de cores de fundo é impresso */
+  /* 2. Garante que cores e fundos são impressos */
   body {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background-color: #fff !important; /* Força fundo branco */
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  /* 3. Esconde tudo por defeito na impressão */
-  body * {
-    visibility: hidden;
+  /* 3. Esconde TUDO o que não é para imprimir de forma agressiva */
+  .no-print,
+  header.page-header,
+  .search-bar,
+  .nav-bar,
+  .schedule-container,
+  .unscheduled-container,
+  .mobile-day-container,
+  .services-table-container,
+  .modal,
+  .toast-container,
+  .print-unscheduled-section, /* Esconde a de "Por Agendar" */
+  script,
+  style,
+  link[rel="stylesheet"] {
     display: none !important;
   }
 
-  /* 4. Mostra APENAS as secções de hoje e amanhã e o seu conteúdo */
-  .print-today-section, .print-today-section *,
-  .print-tomorrow-section, .print-tomorrow-section * {
-    visibility: visible !important;
-    display: revert !important; /* Restaura o tipo de display original (block, table, etc.) */
-  }
-
-  /* 5. Garante que a secção "Amanhã" começa numa nova página */
-  .print-tomorrow-section {
-    page-break-before: always; /* Força uma quebra de página antes desta secção */
-    break-before: page;
-  }
-
-  /* 6. Formatação e restauro dos elementos das tabelas */
+  /* 4. Garante que as secções de impressão e o seu conteúdo são VISÍVEIS */
   .print-today-section,
   .print-tomorrow-section {
-    position: static !important;
-    margin: 0;
-    padding: 0;
+    display: block !important; /* Mostra a secção como um bloco */
+    visibility: visible !important;
+    page-break-after: always; /* Cada secção ocupa uma página */
   }
 
-  .print-today-section h2,
-  .print-tomorrow-section h2,
-  .print-today-date,
-  .print-tomorrow-date {
-    text-align: center;
-    color: #000;
-    font-weight: bold;
-    margin-bottom: 10px;
+  /* 5. Força a visibilidade de TODOS os elementos dentro das secções de impressão */
+  .print-today-section *,
+  .print-tomorrow-section * {
+    display: revert !important; /* Restaura o display natural (table, tr, td, etc.) */
+    visibility: visible !important;
+    color: #000 !important; /* Garante texto preto */
+    background-color: transparent !important; /* Remove fundos coloridos */
   }
 
+  /* 6. Formatação específica para as tabelas de impressão */
   .print-today-table,
   .print-tomorrow-table {
     width: 100% !important;
     border-collapse: collapse !important;
-    font-size: 10px !important; /* Tamanho de letra mais pequeno para caber tudo */
+    font-size: 10pt !important; /* Tamanho de letra ajustado */
   }
 
   .print-today-table th, .print-today-table td,
   .print-tomorrow-table th, .print-tomorrow-table td {
-    border: 1px solid #333 !important;
-    padding: 5px !important;
+    border: 1px solid #000 !important;
+    padding: 6px !important;
     text-align: left !important;
     vertical-align: top !important;
-    white-space: normal !important; /* Permite que o texto quebre linha */
+    white-space: normal !important; /* Permite quebra de linha */
   }
 
   .print-today-table thead,
   .print-tomorrow-table thead {
-    display: table-header-group !important; /* Repete o cabeçalho se a tabela ocupar várias páginas */
+    display: table-header-group !important; /* Repete o cabeçalho se a tabela for longa */
+  }
+
+  /* 7. Estilo dos títulos e datas */
+  #printTodayTitle, #printTomorrowTitle,
+  #printTodayDate, #printTomorrowDate {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 15px;
   }
 }
-
-
