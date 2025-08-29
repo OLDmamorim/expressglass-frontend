@@ -417,3 +417,60 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
   /* garante que a barra de navegação fica clicável acima de tudo */
   .page-sm-braga .nav-bar{ position: relative; z-index: 4; }
 }
+/* ===== FIX FINAL — MOBILE SM BRAGA ===== */
+@media (max-width: 768px){
+
+  /* Header sem sobreposição, com layout em grelha */
+  .page-sm-braga .page-header{
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "title actions"
+      "subtitle actions";
+    align-items: center;
+    gap: 6px 12px;
+    padding: 16px;
+    background: linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%);
+    border-radius: 12px;
+    position: relative;
+    z-index: 1;
+  }
+  .page-sm-braga .page-header h1{
+    grid-area: title;
+    margin: 0;
+    font-size: 22px;     /* mais pequeno p/ caber */
+    line-height: 1.15;
+    text-align: left;    /* evita quebra estranha */
+  }
+  .page-sm-braga .subtitle{
+    grid-area: subtitle;
+    margin: 0;
+    font-size: 14px;
+    color: #e5edff;
+    text-align: left;
+  }
+  .page-sm-braga .header-actions{
+    grid-area: actions;
+    position: static;    /* deixa de ser absolute */
+    display: flex; gap: 8px; align-items: center;
+  }
+
+  /* Garante que a navegação é clicável */
+  .page-sm-braga .nav-bar{ position: relative; z-index: 5; }
+
+  /* O botão flutuante de mobile fica em baixo à direita (não no header) */
+  .page-sm-braga .mobile-add-btn{
+    position: fixed !important;
+    bottom: 16px; right: 16px; left: auto; top: auto;
+    z-index: 10;
+  }
+
+  /* Qualquer "+ Novo Serviço" que por engano entre no header fica oculto */
+  .page-sm-braga .page-header .action-btn,
+  .page-sm-braga .page-header .mobile-add-btn{ display: none !important; }
+
+  /* E o "+ Novo Serviço" da secção 'Por Agendar' não é fixo */
+  .page-sm-braga .unscheduled-container .action-btn.primary{
+    position: static !important;
+  }
+}
