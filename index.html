@@ -730,6 +730,71 @@ function setupPrinting() {
 // Garante que o script corre depois de a página carregar
 window.addEventListener('load', setupPrinting);
 </script>
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <!-- ... todo o seu cabeçalho ... -->
+</head>
+<body>
+  <!-- ... todo o conteúdo da sua página ... -->
+
+  <script src="api.js"></script>
+  <script src="script.js"></script>
+  <!-- ... outros scripts que já lá estão ... -->
+
+  <!-- >>>>> COLOQUE O NOVO SCRIPT AQUI <<<<< -->
+  <!-- SCRIPT FINAL PARA IMPRESSÃO CORRETA (v3 - Corrige a dupla janela) -->
+  <script>
+  function setupPrinting() {
+    const printButton = document.getElementById('printPage');
+    if (!printButton) return;
+
+    // --- INÍCIO DA CORREÇÃO ---
+    // 1. Clona o botão para remover todos os event listeners antigos.
+    const newPrintButton = printButton.cloneNode(true);
+    // 2. Substitui o botão antigo pelo novo no DOM.
+    printButton.parentNode.replaceChild(newPrintButton, printButton);
+    // --- FIM DA CORREÇÃO ---
+
+    // 3. Adiciona o event listener APENAS ao novo botão.
+    newPrintButton.addEventListener('click', function() {
+      const todaySection = document.querySelector('.print-today-section');
+      const tomorrowSection = document.querySelector('.print-tomorrow-section');
+
+      if (!todaySection || !tomorrowSection) {
+        console.error('Secções de impressão de HOJE ou AMANHÃ não encontradas!');
+        window.print();
+        return;
+      }
+
+      const printContainer = document.createElement('div');
+      printContainer.id = 'print-container-temp';
+      printContainer.appendChild(todaySection.cloneNode(true));
+      printContainer.appendChild(tomorrowSection.cloneNode(true));
+
+      document.body.appendChild(printContainer);
+      document.body.classList.add('printing-now');
+
+      window.print();
+
+      // Limpa tudo depois da impressão (usa um pequeno timeout para segurança)
+      setTimeout(() => {
+        document.body.classList.remove('printing-now');
+        const container = document.getElementById('print-container-temp');
+        if (container) {
+          document.body.removeChild(container);
+        }
+      }, 100);
+    });
+  }
+
+  // Garante que o script corre depois de a página carregar
+  window.addEventListener('load', setupPrinting);
+  </script>
+  <!-- >>>>> FIM DO NOVO SCRIPT <<<<< -->
+
+</body>
+</html>
   
 </body>
 </html>
