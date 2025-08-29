@@ -402,23 +402,5 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
     display: none !important;
   }
 }
-/* NAV SEMPRE CLICÁVEL — SM BRAGA (mobile) */
-@media (max-width:820px){
-  body.page-sm-braga .nav-bar{
-    position: sticky !important;
-    top: 0 !important;
-    z-index: 100000 !important;
-    background: #f6f7fb !important;
-  }
-  body.page-sm-braga .mobile-day-header{
-    position: sticky !important;
-    top: 56px !important;
-    z-index: 100000 !important;
-    background: #f6f7fb !important;
-  }
-  /* header não “tapa” nada */
-  body.page-sm-braga .page-header{ z-index: 1 !important; margin-bottom: 16px !important; }
-}
-
 
 
