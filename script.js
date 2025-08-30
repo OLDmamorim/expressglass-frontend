@@ -30,7 +30,7 @@ function parseDate(dateStr){
   if(/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
   if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)){ const [d,m,y]=dateStr.split('/'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
   try{ const d=new Date(dateStr); if(!isNaN(d.getTime())) return localISO(d); }catch{}
-  return null; // <— importante: null (não string vazia) para “sem data”
+  return null; // <— importante: null (não string vazia) para "sem data"
 }
 function formatDateForInput(s){ if(!s) return ''; if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; } return s; }
 function localISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
@@ -241,9 +241,11 @@ function buildDesktopCard(a){
 function renderSchedule(){
   const table=document.getElementById('schedule'); if(!table) return;
   table.innerHTML='';
-  const week=[...Array(5)].map((_,i)=>addDays(currentMonday,i));
+  // ✅ CORREÇÃO: Mudado de Array(5) para Array(6) para incluir sábado
+  const week=[...Array(6)].map((_,i)=>addDays(currentMonday,i));
   const wr=document.getElementById('weekRange');
-  if(wr){ wr.textContent = `${week[0].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} - ${week[4].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}`; }
+  // ✅ CORREÇÃO: Mudado de week[4] para week[5] para mostrar até sábado
+  if(wr){ wr.textContent = `${week[0].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} - ${week[5].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}`; }
 
   let thead='<thead><tr><th>Período</th>';
   for(const d of week){ const h=fmtHeader(d); thead+=`<th><div class="day">${cap(h.day)}</div><div class="date">${h.dm}</div></th>`; }
@@ -398,107 +400,169 @@ function openAppointmentModal(id=null){
     title.textContent='Novo Agendamento';
     if(form) form.reset();
     document.getElementById('appointmentStatus').value='NE';
-    // limpar UI do dropdown
     const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
     if(txt) txt.textContent='Selecione a localidade';
-    if(dot) dot.style.backgroundColor='transparent';
+    if(dot) dot.style.backgroundColor='#ccc';
     del.classList.add('hidden');
   }
   modal.classList.add('show');
 }
+
 function closeAppointmentModal(){
-  const modal=document.getElementById('appointmentModal'); if(!modal) return;
-  const form=document.getElementById('appointmentForm');
-  if(form) form.reset();
-  // limpar UI do dropdown
-  const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
-  if(txt) txt.textContent='Selecione a localidade';
-  if(dot) dot.style.backgroundColor='transparent';
-  document.getElementById('deleteAppointment')?.classList.add('hidden');
+  const modal=document.getElementById('appointmentModal'); if(modal) modal.classList.remove('show');
   editingId=null;
-  modal.classList.remove('show');
 }
 
 async function saveAppointment(){
-  const rawDate=document.getElementById('appointmentDate').value;
-  const parsedDate = parseDate(rawDate); // null se vazio/indefinido
-  const periodRaw = document.getElementById('appointmentPeriod').value;
-  const a={
-    id: editingId || Date.now()+Math.random(),
-    date: parsedDate,                                   // <- null quando sem data
-    period: periodRaw ? periodRaw : null,               // <- null quando vazio
-    plate: (document.getElementById('appointmentPlate').value||'').toUpperCase(),
-    car: document.getElementById('appointmentCar').value,
+  const form=document.getElementById('appointmentForm'); if(!form) return;
+  const data={
+    date: parseDate(document.getElementById('appointmentDate').value),
+    period: document.getElementById('appointmentPeriod').value||null,
+    plate: document.getElementById('appointmentPlate').value.trim(),
+    car: document.getElementById('appointmentCar').value.trim(),
     service: document.getElementById('appointmentService').value,
     locality: document.getElementById('appointmentLocality').value,
-    status: document.getElementById('appointmentStatus').value,
-    notes: document.getElementById('appointmentNotes').value,
-    extra: document.getElementById('appointmentExtra').value,
-    sortIndex: 1
+    status: document.getElementById('appointmentStatus').value||'NE',
+    notes: document.getElementById('appointmentNotes').value.trim()||null,
+    extra: document.getElementById('appointmentExtra').value.trim()||null
   };
-  if(!a.plate || !a.car || !a.service || !a.locality){
-    showToast('Por favor, preencha todos os campos obrigatórios (Matrícula, Carro, Serviço, Localidade).','error'); return;
-  }
+  if(!data.plate){ showToast('Matrícula é obrigatória','error'); return; }
+  if(!data.car){ showToast('Modelo do carro é obrigatório','error'); return; }
+  if(!data.service){ showToast('Tipo de serviço é obrigatório','error'); return; }
+  if(!data.locality){ showToast('Localidade é obrigatória','error'); return; }
+
   try{
-    let res;
     if(editingId){
-      res=await window.apiClient.updateAppointment(editingId,a);
-      const i=appointments.findIndex(x=>x.id===editingId); if(i>=0) appointments[i]={...appointments[i],...res};
-      showToast('Agendamento atualizado com sucesso!','success');
+      const res=await window.apiClient.updateAppointment(editingId,data);
+      const idx=appointments.findIndex(a=>a.id===editingId);
+      if(idx>=0) appointments[idx]={...appointments[idx],...(res||data)};
+      showToast('Agendamento atualizado!','success');
     }else{
-      // Alguns backends ignoram campos null; se necessário, remover as chaves null:
-      const payload = { ...a };
-      if (payload.date === null) delete payload.date;
-      if (payload.period === null) delete payload.period;
-      res=await window.apiClient.createAppointment(payload);
-      appointments.push(res && res.id ? res : a); // fallback local se API não devolver payload completo
-      showToast('Serviço criado com sucesso!','success');
+      const res=await window.apiClient.createAppointment(data);
+      const newAppt={id:Date.now()+Math.random(),sortIndex:1,...data,...(res||{})};
+      appointments.push(newAppt);
+      showToast('Agendamento criado!','success');
     }
-    await save(); renderAll(); closeAppointmentModal();
-  }catch(e){ console.error(e); showToast('Erro ao salvar: '+e.message,'error'); }
+    closeAppointmentModal(); renderAll();
+  }catch(e){
+    showToast('Erro: '+e.message,'error');
+  }
 }
+
 function editAppointment(id){ openAppointmentModal(id); }
+
 async function deleteAppointment(id){
-  if(confirm('Tem certeza que deseja eliminar este agendamento?')){
-    try{
-      await window.apiClient.deleteAppointment(id);
-      appointments=appointments.filter(a=>a.id!==id);
-      await save(); renderAll(); showToast('Agendamento eliminado com sucesso!','success');
-      if(editingId===id) closeAppointmentModal();
-    }catch(e){ showToast('Erro ao eliminar: '+e.message,'error'); }
+  if(!confirm('Eliminar este agendamento?')) return;
+  try{
+    await window.apiClient.deleteAppointment(id);
+    appointments=appointments.filter(a=>a.id!==id);
+    showToast('Agendamento eliminado!','success');
+    closeAppointmentModal(); renderAll();
+  }catch(e){
+    showToast('Erro ao eliminar: '+e.message,'error');
   }
 }
 
 // ---------- Status listeners ----------
 function attachStatusListeners(){
   document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb=>{
-    cb.addEventListener('change', async function(){
-      if (!this.checked) return;
-      const el=this.closest('.appointment'); if(!el) return;
-      const id=Number(el.getAttribute('data-id'));
-      const st=this.getAttribute('data-status');
-      el.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{ if(x!==this) x.checked=false; });
-      await persistStatus(id, st);
+    cb.addEventListener('change',async e=>{
+      if(!e.target.checked) return;
+      const card=e.target.closest('.appointment');
+      if(!card) return;
+      const id=Number(card.getAttribute('data-id'));
+      const status=e.target.getAttribute('data-status');
+      if(!id||!status) return;
+      card.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{
+        if(x!==e.target) x.checked=false;
+      });
+      await persistStatus(id,status);
     });
   });
 }
 
-// ---------- Print ----------
-function printPage(){ updatePrintUnscheduledTable(); updatePrintTomorrowTable(); window.print(); }
-function updatePrintUnscheduledTable(){
-  const list=filterAppointments(appointments.filter(a=>!a.date||!a.period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0)));
-  const tbody=document.getElementById('printUnscheduledTableBody'); const sec=document.querySelector('.print-unscheduled-section');
-  if(!tbody||!sec) return;
-  if(list.length===0){ sec.style.display='none'; return; }
-  sec.style.display='block';
-  tbody.innerHTML=list.map(a=>`
-    <tr>
-      <td>${a.plate}</td><td>${a.car}</td>
-      <td><span class="service-badge badge-${a.service}">${a.service}</span></td>
-      <td>${a.locality}</td><td><span class="status-chip chip-${a.status}">${a.status}</span></td>
-      <td>${a.notes||''}</td><td>${a.extra||''}</td>
-    </tr>`).join('');
+// ---------- Exportação ----------
+function exportToJson(){
+  const data=JSON.stringify(appointments,null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='agendamentos.json'; a.click();
+  URL.revokeObjectURL(url);
 }
+
+function exportToCsv(){
+  const headers=['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações','Extra'];
+  const rows=appointments.map(a=>[
+    a.date||'',a.period||'',a.plate||'',a.car||'',a.service||'',a.locality||'',a.status||'',a.notes||'',a.extra||''
+  ]);
+  const csv=[headers,...rows].map(row=>row.map(cell=>`"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='agendamentos.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function importFromJson(file){
+  try{
+    const text=await file.text();
+    const data=JSON.parse(text);
+    if(!Array.isArray(data)){ showToast('Formato inválido','error'); return; }
+    appointments=data.map(a=>({...a,id:a.id||Date.now()+Math.random(),sortIndex:a.sortIndex||1}));
+    renderAll(); showToast('Dados importados!','success');
+  }catch(e){
+    showToast('Erro na importação: '+e.message,'error');
+  }
+}
+
+// ---------- Estatísticas ----------
+function showStats(){
+  const modal=document.getElementById('statsModal'); if(!modal) return;
+  const total=appointments.length;
+  const scheduled=appointments.filter(a=>a.date&&a.period).length;
+  const unscheduled=total-scheduled;
+  const byStatus=appointments.reduce((acc,a)=>{acc[a.status]=(acc[a.status]||0)+1;return acc;},{});
+  const byLocality=appointments.reduce((acc,a)=>{acc[a.locality]=(acc[a.locality]||0)+1;return acc;},{});
+
+  document.getElementById('totalAppointments').textContent=total;
+  document.getElementById('scheduledCount').textContent=scheduled;
+  document.getElementById('unscheduledCount').textContent=unscheduled;
+
+  const statusList=document.getElementById('statusBreakdown');
+  statusList.innerHTML=Object.entries(byStatus).map(([s,c])=>`<li>${s}: ${c}</li>`).join('');
+
+  const localityList=document.getElementById('localityBreakdown');
+  localityList.innerHTML=Object.entries(byLocality).map(([l,c])=>`<li>${l}: ${c}</li>`).join('');
+
+  modal.classList.add('show');
+}
+
+// ---------- Impressão ----------
+function printPage(){
+  updatePrintTodayTable(); updatePrintTomorrowTable();
+  window.print();
+}
+
+function updatePrintTodayTable(){
+  const today=new Date(); const str=localISO(today);
+  const list=appointments.filter(a=>a.date===str).sort((a,b)=>({Manhã:1,Tarde:2}[a.period]||3 - ({Manhã:1,Tarde:2}[b.period]||3)));
+  const title=document.getElementById('printTodayTitle'); const dateEl=document.getElementById('printTodayDate');
+  const tbody=document.getElementById('printTodayTableBody'); const empty=document.getElementById('printTodayEmpty'); const table=document.querySelector('.print-today-table');
+  if(title) title.textContent='SERVIÇOS DE HOJE';
+  if(dateEl) dateEl.textContent=cap(today.toLocaleDateString('pt-PT',{weekday:'long',year:'numeric',month:'long',day:'numeric'}));
+  if(!tbody||!table||!empty) return;
+  if(list.length===0){ table.style.display='none'; empty.style.display='block'; }
+  else{
+    table.style.display='table'; empty.style.display='none';
+    tbody.innerHTML=list.map(a=>`
+      <tr>
+        <td>${a.period||''}</td><td>${a.plate||''}</td><td>${a.car||''}</td>
+        <td><span class="service-badge badge-${a.service}">${a.service||''}</span></td>
+        <td>${a.locality||''}</td><td><span class="status-chip chip-${a.status}">${a.status||''}</span></td>
+        <td>${a.notes||''}</td><td>${a.extra||''}</td>
+      </tr>`).join('');
+  }
+}
+
 function updatePrintTomorrowTable(){
   const t=new Date(); t.setDate(t.getDate()+1); const str=localISO(t);
   const list=appointments.filter(a=>a.date===str).sort((a,b)=>({Manhã:1,Tarde:2}[a.period]||3 - ({Manhã:1,Tarde:2}[b.period]||3)));
@@ -520,7 +584,7 @@ function updatePrintTomorrowTable(){
   }
 }
 
-// ---------- Colocar “+ Novo Serviço” no topo (barra azul) ----------
+// ---------- Colocar "+ Novo Serviço" no topo (barra azul) ----------
 function placeAddNewButtonInHeader(){
   const btn = document.getElementById('addServiceBtn');
   if(!btn) return;
@@ -550,10 +614,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   await load();
   initializeLocalityDropdown();
 
-  // botão “+ Novo Serviço” volta para a barra azul
+  // botão "+ Novo Serviço" volta para a barra azul
   placeAddNewButtonInHeader();
 
-  // cabeçalho da tabela com “Ações”
+  // cabeçalho da tabela com "Ações"
   ensureServicesHeader();
 
   renderAll();
@@ -759,7 +823,7 @@ window.addEventListener('offline',updateConnectionStatus);
     // respeita validação HTML5 (campos required, etc.)
     if (form.reportValidity && !form.reportValidity()) return;
 
-    // dispara o submit “real” (vai cair no listener acima)
+    // dispara o submit "real" (vai cair no listener acima)
     e.preventDefault();
     try {
       form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
@@ -775,6 +839,7 @@ if (typeof window.renderMobileDay !== 'function') {
     console.log('renderMobileDay não implementado nesta versão.');
   };
 }
+
 /* === PATCH V2: ações (✏️/🗑️) nos cartões AGENDADOS, com estilo inline === */
 (function addActionsToScheduledCards(){
   function ensureCardActions(scope){
@@ -836,6 +901,7 @@ if (typeof window.renderMobileDay !== 'function') {
   // primeira passagem
   ensureCardActions();
 })();
+
 // ---------- Render MOBILE (vista diária) ----------
 function renderMobileDay() {
   const label = document.getElementById('mobileDayLabel');
@@ -852,20 +918,40 @@ function renderMobileDay() {
   const items = filterAppointments(
     appointments
       .filter(a => a.date === iso)
-      .sort((x,y) => ({Manhã:1,Tarde:2}[x.period] - ({Manhã:1,Tarde:2}[y.period]))
-  ));
+      .sort((x,y) => ({Manhã:1,Tarde:2}[x.period] - ({Manhã:1,Tarde:2}[y.period])))
+  );
 
-  list.innerHTML = items.map(a=>{
-    const base=getLocColor(a.locality);
-    const g=gradFromBase(base);
-    const title = `${a.plate||''} | ${a.service||''} | ${(a.car||'').toUpperCase()}`;
-    const sub   = [a.locality,a.notes].filter(Boolean).join(' | ');
+  if (items.length === 0) {
+    list.innerHTML = '<div class="no-appointments">Nenhum agendamento para este dia</div>';
+    return;
+  }
+
+  list.innerHTML = items.map(a => {
+    const base = getLocColor(a.locality);
+    const g = gradFromBase(base);
+    const bar = statusBarColors[a.status] || '#999';
+    const title = `${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
+    const sub = [a.locality, a.notes].filter(Boolean).join(' | ');
+
     return `
-      <div class="m-card" style="--c1:${g.c1}; --c2:${g.c2};">
-        <div class="m-title">${title}</div>
-        <div class="m-chips">${a.period ? `<span class="m-chip">${a.period}</span>`:''}</div>
-        ${sub ? `<div class="m-info">${sub}</div>`:''}
+      <div class="appointment mobile-card"
+           data-id="${a.id}"
+           data-locality="${a.locality||''}" data-loccolor="${base}"
+           style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
+        <div class="mc-period">${a.period}</div>
+        <div class="mc-title">${title}</div>
+        <div class="mc-sub">${sub}</div>
+        <div class="appt-status mc-status">
+          <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
+          <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
+          <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
+        </div>
+        <div class="mobile-actions">
+          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar">✏️</button>
+          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar">🗑️</button>
+        </div>
       </div>`;
   }).join('');
-}
 
+  attachStatusListeners();
+}
