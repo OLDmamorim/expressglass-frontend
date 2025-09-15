@@ -478,8 +478,13 @@ body.printing-now > *:not(#print-container-temp) {
     padding: 12px;
     box-shadow: 0 6px 14px rgba(0,0,0,.12);
   }
+         @media (max-width: 820px){
+  /* garantir contraste do texto nas cartas novas */
+  .m-card, .m-card *{
+    color: #fff !important;
+  }
+  .m-card .m-title{ font-weight: 800; font-size: 16px; line-height: 1.2; }
+  .m-card .m-info{ opacity: .95; font-size: 13px; }
 }
 
-}
 
-}
