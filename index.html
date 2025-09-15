@@ -609,21 +609,54 @@
     }
 
     function skinItem(node){
-      if(!(node instanceof HTMLElement)) return;
-      if(node.classList.contains('m-card')) return;
+  if(!(node instanceof HTMLElement)) return;
+  if(node.classList.contains('m-card')) return;
 
-      const header = node.querySelector('.appt-header')?.textContent || '';
-      const subTxt = node.querySelector('.appt-sub')?.textContent || '';
+  const header = node.querySelector('.appt-header')?.textContent?.trim() || '';
+  const subTxt = node.querySelector('.appt-sub')?.textContent?.trim() || '';
 
-      let period='', plate='', service='', car='';
-      const [p, restRaw] = header.split(' - ');
-      if(p) period = p.trim();
-      if(restRaw){
-        const parts = restRaw.split('|').map(s=>s.trim());
-        plate   = parts[0] || '';
-        service = parts[1] || '';
-        car     = parts[2] || '';
-      }
+  // tentar extrair partes, mas com fallback
+  let period='', plate='', service='', car='';
+  if (header.includes(' - ')) {
+    const [p, restRaw] = header.split(' - ');
+    period = (p || '').trim();
+    if (restRaw) {
+      const parts = restRaw.split('|').map(s => s.trim());
+      plate   = parts[0] || '';
+      service = parts[1] || '';
+      car     = parts[2] || '';
+  }
+
+  // se falhar o formato esperado, usa o header inteiro como título
+  const title =
+    (period || plate || service || car)
+      ? [period, [plate, service, car].filter(Boolean).join(' | ')].filter(Boolean).join(' — ')
+      : (header || '(sem dados)');
+
+  let locality = '';
+  let subline  = '';
+  if (subTxt) {
+    const parts = subTxt.split('|');
+    locality = (parts[0] || '').trim();
+    subline  = subTxt; // mantém linha completa
+  }
+
+  const data = { period, plate, service, car, locality, subline };
+
+  const baseColor = getBaseColor(node, data);  // já corrigida
+  const card = buildCard({ ...data, title }, baseColor);
+
+  // ajustar buildCard para usar 'title' quando existir
+  card.querySelector('.m-title')?.replaceWith((() => {
+    const div = document.createElement('div');
+    div.className = 'm-title';
+    div.textContent = title;
+    return div;
+  })());
+
+  node.replaceWith(card);
+}
+
 
       let locality = '';
       let subline  = '';
