@@ -467,4 +467,8 @@ body.printing-now > *:not(#print-container-temp) {
   .schedule-container,
   .services-table-container,
   .unscheduled-container{ display:none !important; } /* só mobile */
+   @media (max-width: 820px){
+  #addServiceMobile{ display: none !important; }
+}
+
 }
