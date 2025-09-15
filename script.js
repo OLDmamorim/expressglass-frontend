@@ -650,7 +650,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('closeModal')?.addEventListener('click', closeAppointmentModal);
   document.getElementById('cancelForm')?.addEventListener('click', closeAppointmentModal);
 
-  document.getElementById('appointmentForm')?.addEventListener('submit', e=>{ e.preventDefault(); saveAppointment(); });
   document.getElementById('deleteAppointment')?.addEventListener('click', ()=>{ if(editingId) deleteAppointment(editingId); });
   document.getElementById('appointmentPlate')?.addEventListener('input', e=> formatPlate(e.target));
 
