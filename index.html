@@ -568,14 +568,21 @@
     );
 
     function getBaseColor(node, data){
-      const comp = getComputedStyle(node);
-      const bg = comp.backgroundColor || node.style.backgroundColor;
-      if(bg) return bg;
-      if(data.locality && window.LOCALITY_COLORS && window.LOCALITY_COLORS[data.locality]){
-        return window.LOCALITY_COLORS[data.locality];
-      }
-      return '#1e88e5';
-    }
+  // 1) prioridade: Localidade
+  if (data.locality && window.LOCALITY_COLORS && window.LOCALITY_COLORS[data.locality]) {
+    return window.LOCALITY_COLORS[data.locality];
+  }
+
+  // 2) tentar cor de fundo do elemento
+  const comp = getComputedStyle(node);
+  const bg = comp.backgroundColor || node.style.backgroundColor || '';
+
+  // 3) descartar transparentes / rgba(...,0)
+  const isTransparent = /rgba?\(\s*0\s*,\s*0\s*,\s*0\s*(?:,\s*0(?:\.0+)?)?\)/i.test(bg) || bg === 'transparent';
+  if (!bg || isTransparent) return '#1e88e5'; // fallback azul
+
+  return bg;
+}
 
     function buildCard(data, baseColor){
       const el = document.createElement('article');
