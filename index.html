@@ -608,7 +608,7 @@
       return el;
     }
 
-    function skinItem(node){
+   function skinItem(node){
   if(!(node instanceof HTMLElement)) return;
   if(node.classList.contains('m-card')) return;
 
@@ -625,6 +625,7 @@
       plate   = parts[0] || '';
       service = parts[1] || '';
       car     = parts[2] || '';
+    }
   }
 
   // se falhar o formato esperado, usa o header inteiro como título
@@ -656,7 +657,6 @@
 
   node.replaceWith(card);
 }
-
 
       let locality = '';
       let subline  = '';
