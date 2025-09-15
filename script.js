@@ -347,6 +347,7 @@ function renderServicesTable(){
     const d=new Date(a.date);
     const diff=Math.ceil((d - today)/(1000*60*60*24));
     const when = diff<0? `${Math.abs(diff)} dias atrás` : diff===0? 'Hoje' : diff===1? 'Amanhã' : `${diff} dias`;
+    // ✅ INÍCIO DA CORREÇÃO: Adicionada célula escondida com a.extra
     return `<tr>
       <td>${d.toLocaleDateString('pt-PT')}</td>
       <td>${a.period||''}</td>
@@ -357,6 +358,7 @@ function renderServicesTable(){
       <td>${a.notes||''}</td>
       <td><span class="chip chip-${a.status}">${a.status||''}</span></td>
       <td>${when}</td>
+      <td style="display: none;">${a.extra || ''}</td>
       <td class="no-print">
         <div class="actions">
           <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar" aria-label="Editar">✏️</button>
@@ -364,6 +366,7 @@ function renderServicesTable(){
         </div>
       </td>
     </tr>`;
+    // ✅ FIM DA CORREÇÃO
   }).join('');
 
   const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviços pendentes`;
@@ -839,108 +842,39 @@ if (typeof window.renderMobileDay !== 'function') {
   };
 }
 
-/* === PATCH V2: ações (✏️/🗑️) nos cartões AGENDADOS, com estilo inline === */
-(function addActionsToScheduledCards(){
-  function ensureCardActions(scope){
-    (scope || document).querySelectorAll('.desk-card:not(.unscheduled)').forEach(card=>{
-      if (card.classList.contains('has-inline-actions')) return;
-      const id = Number(card.getAttribute('data-id'));
-      if (!id) return;
-
-      // garante que o cartão aceita conteúdo extra visualmente
-      card.style.paddingBottom = card.style.paddingBottom || '10px';
-
-      const box = document.createElement('div');
-      // classe nova para não depender do CSS existente
-      box.className = 'card-actions-inline';
-      // estilos inline para não ser escondido por regras de .unscheduled-actions
-      box.setAttribute('style',
-        'display:flex; gap:8px; margin-top:8px; justify-content:flex-end; align-items:center;');
-
-      const btnEdit = document.createElement('button');
-      btnEdit.className = 'icon edit';
-      btnEdit.title = 'Editar';
-      btnEdit.setAttribute('aria-label','Editar');
-      btnEdit.textContent = '✏️';
-      btnEdit.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        if (window.editAppointment) window.editAppointment(id);
-      });
-
-      const btnDel = document.createElement('button');
-      btnDel.className = 'icon delete';
-      btnDel.title = 'Eliminar';
-      btnDel.setAttribute('aria-label','Eliminar');
-      btnDel.textContent = '🗑️';
-      btnDel.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        if (window.deleteAppointment) window.deleteAppointment(id);
-      });
-
-      box.appendChild(btnEdit);
-      box.appendChild(btnDel);
-      card.appendChild(box);
-      card.classList.add('has-inline-actions');
-    });
-  }
-
-  // injeta depois de cada render do calendário
-  const _renderSchedule = window.renderSchedule;
-  window.renderSchedule = function(){
-    if (typeof _renderSchedule === 'function') _renderSchedule();
-    ensureCardActions();
-  };
-
-  // observa alterações dentro do calendário (drag & drop, etc.)
-  const sched = document.getElementById('schedule');
-  if (sched) {
-    new MutationObserver(()=>ensureCardActions()).observe(sched, { childList:true, subtree:true });
-  }
-
-  // primeira passagem
-  ensureCardActions();
-})();
-
-// ---------- Render MOBILE (vista diária) ----------
-function renderMobileDay() {
+/* === PATCH FINAL: renderMobileDay === */
+function renderMobileDay(){
+  const container = document.getElementById('mobileDayList');
   const label = document.getElementById('mobileDayLabel');
-  const list  = document.getElementById('mobileDayList');
-  if (!label || !list) return;
+  if (!container || !label) return;
 
-  // cabeçalho com dia e data
-  const d = currentMobileDay;
-  label.textContent = d.toLocaleDateString('pt-PT', {
-    weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'
-  });
-
-  const iso = localISO(d);
-  const items = filterAppointments(
-    appointments
-      .filter(a => a.date === iso)
-      .sort((x,y) => ({Manhã:1,Tarde:2}[x.period] - ({Manhã:1,Tarde:2}[y.period])))
+  const iso = localISO(currentMobileDay);
+  const dayAppts = filterAppointments(
+    appointments.filter(a => a.date === iso)
+               .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
   );
 
-  if (items.length === 0) {
-    list.innerHTML = '<div class="no-appointments">Nenhum agendamento para este dia</div>';
+  label.textContent = currentMobileDay.toLocaleDateString('pt-PT', {
+    weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric'
+  });
+
+  if (dayAppts.length === 0) {
+    container.innerHTML = '<div class="empty-day">Não há serviços agendados para este dia.</div>';
     return;
   }
 
-  list.innerHTML = items.map(a => {
+  container.innerHTML = dayAppts.map(a => {
     const base = getLocColor(a.locality);
     const g = gradFromBase(base);
-    const bar = statusBarColors[a.status] || '#999';
-    const title = `${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
+    const title = `${a.period || ''} - ${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
     const sub = [a.locality, a.notes].filter(Boolean).join(' | ');
 
     return `
-      <div class="appointment mobile-card"
-           data-id="${a.id}"
-           data-locality="${a.locality||''}" data-loccolor="${base}"
-           style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
-        <div class="mc-period">${a.period}</div>
-        <div class="mc-title">${title}</div>
-        <div class="mc-sub">${sub}</div>
-        <div class="appt-status mc-status">
+      <div class="appointment mobile-card" data-id="${a.id}"
+           style="--c1:${g.c1}; --c2:${g.c2};">
+        <div class="appt-header">${title}</div>
+        <div class="appt-sub">${sub}</div>
+        <div class="appt-status">
           <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
           <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
           <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
@@ -953,4 +887,6 @@ function renderMobileDay() {
   }).join('');
 
   attachStatusListeners();
+  highlightSearchResults();
 }
+
