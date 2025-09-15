@@ -469,6 +469,17 @@ body.printing-now > *:not(#print-container-temp) {
   .unscheduled-container{ display:none !important; } /* só mobile */
    @media (max-width: 820px){
   #addServiceMobile{ display: none !important; }
+      @media (max-width: 820px){
+  /* dá cor de fundo aos cartões do dia no mobile */
+  #mobileDayList .appointment,
+  #mobileDayList .m-card{
+    background: linear-gradient(180deg, var(--c1, #1e88e5), var(--c2, #1565c0)) !important;
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 6px 14px rgba(0,0,0,.12);
+  }
+}
+
 }
 
 }
