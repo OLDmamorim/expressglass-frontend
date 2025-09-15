@@ -432,7 +432,6 @@
   <script src="expressglass-sabado-automatico-final.js"></script>
   <script src="expressglass-sabado-definitivo.js"></script>
 
-  <!-- ✅ INÍCIO DA CORREÇÃO -->
   <!-- >>>>>> SCRIPT DE IMPRESSÃO (lê da tabela e preenche HOJE/AMANHÃ) <<<<<< -->
   <script>
   (function(){
@@ -457,7 +456,7 @@
       const rows = [];
       tbody.querySelectorAll('tr').forEach(tr => {
         const tds = tr.querySelectorAll('td');
-        if (tds.length < 10) return; // Alterado de 9 para 10 para incluir a nova célula
+        if (tds.length < 9) return;
         rows.push({
           date:    parsePtOrIso(tds[0].textContent),
           period:  (tds[1].textContent||'').trim(),
@@ -467,8 +466,6 @@
           locality:(tds[5].textContent||'').trim(),
           notes:   (tds[6].textContent||'').trim(),
           status:  (tds[7].textContent||'').trim(),
-          // A célula tds[8] é "Dias", que ignoramos na impressão.
-          extra:   (tds[9].textContent||'').trim(), // Lê a 10ª célula (índice 9)
         });
       });
       return rows;
@@ -505,7 +502,7 @@
           <td>${safe(r.locality)}</td>
           <td>${safe(r.status)}</td>
           <td>${safe(r.notes)}</td>
-          <td>${safe(r.extra)}</td>
+          <td>&nbsp;</td>
         `;
         body.appendChild(tr);
       });
@@ -530,7 +527,6 @@
     });
   })();
   </script>
-  <!-- ✅ FIM DA CORREÇÃO -->
 
   <!-- ===== MOBILE CARD SKIN — cor pela LOCALIDADE (sem ícones, sem chip de localidade) ===== -->
   <script>
@@ -572,14 +568,21 @@
     );
 
     function getBaseColor(node, data){
-      const comp = getComputedStyle(node);
-      const bg = comp.backgroundColor || node.style.backgroundColor;
-      if(bg) return bg;
-      if(data.locality && window.LOCALITY_COLORS && window.LOCALITY_COLORS[data.locality]){
-        return window.LOCALITY_COLORS[data.locality];
-      }
-      return '#1e88e5';
-    }
+  // 1) prioridade: Localidade
+  if (data.locality && window.LOCALITY_COLORS && window.LOCALITY_COLORS[data.locality]) {
+    return window.LOCALITY_COLORS[data.locality];
+  }
+
+  // 2) tentar cor de fundo do elemento
+  const comp = getComputedStyle(node);
+  const bg = comp.backgroundColor || node.style.backgroundColor || '';
+
+  // 3) descartar transparentes / rgba(...,0)
+  const isTransparent = /rgba?\(\s*0\s*,\s*0\s*,\s*0\s*(?:,\s*0(?:\.0+)?)?\)/i.test(bg) || bg === 'transparent';
+  if (!bg || isTransparent) return '#1e88e5'; // fallback azul
+
+  return bg;
+}
 
     function buildCard(data, baseColor){
       const el = document.createElement('article');
@@ -605,22 +608,55 @@
       return el;
     }
 
-    function skinItem(node){
-      if(!(node instanceof HTMLElement)) return;
-      if(node.classList.contains('m-card')) return;
+   function skinItem(node){
+  if(!(node instanceof HTMLElement)) return;
+  if(node.classList.contains('m-card')) return;
 
-      const header = node.querySelector('.appt-header')?.textContent || '';
-      const subTxt = node.querySelector('.appt-sub')?.textContent || '';
+  const header = node.querySelector('.appt-header')?.textContent?.trim() || '';
+  const subTxt = node.querySelector('.appt-sub')?.textContent?.trim() || '';
 
-      let period='', plate='', service='', car='';
-      const [p, restRaw] = header.split(' - ');
-      if(p) period = p.trim();
-      if(restRaw){
-        const parts = restRaw.split('|').map(s=>s.trim());
-        plate   = parts[0] || '';
-        service = parts[1] || '';
-        car     = parts[2] || '';
-      }
+  // tentar extrair partes, mas com fallback
+  let period='', plate='', service='', car='';
+  if (header.includes(' - ')) {
+    const [p, restRaw] = header.split(' - ');
+    period = (p || '').trim();
+    if (restRaw) {
+      const parts = restRaw.split('|').map(s => s.trim());
+      plate   = parts[0] || '';
+      service = parts[1] || '';
+      car     = parts[2] || '';
+    }
+  }
+
+  // se falhar o formato esperado, usa o header inteiro como título
+  const title =
+    (period || plate || service || car)
+      ? [period, [plate, service, car].filter(Boolean).join(' | ')].filter(Boolean).join(' — ')
+      : (header || '(sem dados)');
+
+  let locality = '';
+  let subline  = '';
+  if (subTxt) {
+    const parts = subTxt.split('|');
+    locality = (parts[0] || '').trim();
+    subline  = subTxt; // mantém linha completa
+  }
+
+  const data = { period, plate, service, car, locality, subline };
+
+  const baseColor = getBaseColor(node, data);  // já corrigida
+  const card = buildCard({ ...data, title }, baseColor);
+
+  // ajustar buildCard para usar 'title' quando existir
+  card.querySelector('.m-title')?.replaceWith((() => {
+    const div = document.createElement('div');
+    div.className = 'm-title';
+    div.textContent = title;
+    return div;
+  })());
+
+  node.replaceWith(card);
+}
 
       let locality = '';
       let subline  = '';
@@ -641,7 +677,164 @@
     apply();
     new MutationObserver(apply).observe(LIST, {childList:true});
   })();
+  </script><!-- SCRIPT FINAL PARA IMPRESSÃO CORRETA -->
+<script>
+function setupPrinting() {
+  const printButton = document.getElementById('printPage');
+  if (!printButton) return;
+
+  printButton.addEventListener('click', function() {
+    // 1. Clona as secções que queremos imprimir
+    const todaySection = document.querySelector('.print-today-section');
+    const tomorrowSection = document.querySelector('.print-tomorrow-section');
+
+    if (!todaySection || !tomorrowSection) {
+      console.error('Secções de impressão não encontradas!');
+      // Se não encontrar, tenta a impressão normal
+      window.print();
+      return;
+    }
+
+    // 2. Cria um contentor temporário para a impressão
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container-temp';
+    printContainer.appendChild(todaySection.cloneNode(true));
+    printContainer.appendChild(tomorrowSection.cloneNode(true));
+
+    // 3. Adiciona o contentor ao body
+    document.body.appendChild(printContainer);
+
+    // 4. Adiciona uma classe ao body para ativar os estilos de impressão
+    document.body.classList.add('printing-now');
+
+    // 5. Chama a impressão do navegador
+    window.print();
+
+    // 6. Limpa tudo depois da impressão (seja confirmada ou cancelada)
+    document.body.classList.remove('printing-now');
+    document.body.removeChild(printContainer);
+  });
+}
+
+// Garante que o script corre depois de a página carregar
+window.addEventListener('load', setupPrinting);
+</script>
+
+<!-- SCRIPT FINAL PARA IMPRESSÃO CORRETA (v2) -->
+<script>
+function setupPrinting() {
+  const printButton = document.getElementById('printPage');
+  if (!printButton) return;
+
+  // Remove listeners antigos para evitar duplicação
+  const newPrintButton = printButton.cloneNode(true);
+  printButton.parentNode.replaceChild(newPrintButton, printButton);
+
+  newPrintButton.addEventListener('click', function() {
+    // 1. Seleciona as secções corretas para imprimir
+    const todaySection = document.querySelector('.print-today-section');
+    const tomorrowSection = document.querySelector('.print-tomorrow-section');
+
+    if (!todaySection || !tomorrowSection) {
+      console.error('Secções de impressão de HOJE ou AMANHÃ não encontradas!');
+      window.print(); // Tenta a impressão normal como fallback
+      return;
+    }
+
+    // 2. Cria um contentor temporário para a impressão
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container-temp';
+    printContainer.appendChild(todaySection.cloneNode(true));
+    printContainer.appendChild(tomorrowSection.cloneNode(true));
+
+    // 3. Adiciona o contentor ao body
+    document.body.appendChild(printContainer);
+
+    // 4. Adiciona uma classe ao body para ativar os estilos de impressão
+    document.body.classList.add('printing-now');
+
+    // 5. Chama a impressão do navegador
+    window.print();
+
+    // 6. Limpa tudo depois da impressão (seja confirmada ou cancelada)
+    // Usamos um pequeno timeout para garantir que o navegador termina a renderização
+    setTimeout(() => {
+      document.body.classList.remove('printing-now');
+      if (document.getElementById('print-container-temp')) {
+        document.body.removeChild(printContainer);
+      }
+    }, 100);
+  });
+}
+
+// Garante que o script corre depois de a página carregar
+window.addEventListener('load', setupPrinting);
+</script>
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <!-- ... todo o seu cabeçalho ... -->
+</head>
+<body>
+  <!-- ... todo o conteúdo da sua página ... -->
+
+  <script src="api.js"></script>
+  <script src="script.js"></script>
+  <!-- ... outros scripts que já lá estão ... -->
+
+  <!-- >>>>> COLOQUE O NOVO SCRIPT AQUI <<<<< -->
+  <!-- SCRIPT FINAL PARA IMPRESSÃO CORRETA (v3 - Corrige a dupla janela) -->
+  <script>
+  function setupPrinting() {
+    const printButton = document.getElementById('printPage');
+    if (!printButton) return;
+
+    // --- INÍCIO DA CORREÇÃO ---
+    // 1. Clona o botão para remover todos os event listeners antigos.
+    const newPrintButton = printButton.cloneNode(true);
+    // 2. Substitui o botão antigo pelo novo no DOM.
+    printButton.parentNode.replaceChild(newPrintButton, printButton);
+    // --- FIM DA CORREÇÃO ---
+
+    // 3. Adiciona o event listener APENAS ao novo botão.
+    newPrintButton.addEventListener('click', function() {
+      const todaySection = document.querySelector('.print-today-section');
+      const tomorrowSection = document.querySelector('.print-tomorrow-section');
+
+      if (!todaySection || !tomorrowSection) {
+        console.error('Secções de impressão de HOJE ou AMANHÃ não encontradas!');
+        window.print();
+        return;
+      }
+
+      const printContainer = document.createElement('div');
+      printContainer.id = 'print-container-temp';
+      printContainer.appendChild(todaySection.cloneNode(true));
+      printContainer.appendChild(tomorrowSection.cloneNode(true));
+
+      document.body.appendChild(printContainer);
+      document.body.classList.add('printing-now');
+
+      window.print();
+
+      // Limpa tudo depois da impressão (usa um pequeno timeout para segurança)
+      setTimeout(() => {
+        document.body.classList.remove('printing-now');
+        const container = document.getElementById('print-container-temp');
+        if (container) {
+          document.body.removeChild(container);
+        }
+      }, 100);
+    });
+  }
+
+  // Garante que o script corre depois de a página carregar
+  window.addEventListener('load', setupPrinting);
   </script>
+  <!-- >>>>> FIM DO NOVO SCRIPT <<<<< -->
+
+</body>
+</html>
   
 </body>
 </html>
