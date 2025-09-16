@@ -86,7 +86,14 @@ async function load(){
     appointments = await window.apiClient.getAppointments();
     appointments.forEach(a=>{ if(!a.id) a.id=Date.now()+Math.random(); if(!a.sortIndex) a.sortIndex=1; });
     const locs=await window.apiClient.getLocalities();
-    if(locs && typeof locs==='object'){ Object.assign(localityColors,locs); window.LOCALITY_COLORS=localityColors; }
+    if (locs && typeof locs==='object'){
+    for (const [k, v] of Object.entries(locs)){
+        if (!(k in localityColors)) {
+            localityColors[k] = v; // só adiciona novas; não substitui as existentes
+        }
+    }
+    window.LOCALITY_COLORS = localityColors;
+}
     const st=window.apiClient.getConnectionStatus();
     showToast(st.online?'Dados carregados da cloud!':'Dados carregados localmente (offline)', st.online?'success':'info');
   }catch(e){
