@@ -8,6 +8,7 @@ const localityColors = {
   'Póvoa de Varzim': '#6EE7B7', 'Riba D\'Ave': '#FBBF24', 'Trofa': '#C084FC',
   'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#072B5C', 'Vila Verde': '#86EFAC'
 };
+
 window.LOCALITY_COLORS = localityColors;
 const getLocColor = loc => (localityColors && localityColors[loc]) || '#3b82f6';
 
