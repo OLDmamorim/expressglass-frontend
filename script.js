@@ -4,7 +4,7 @@
 // ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
-  'Famalicão': '#2dd4bf', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
+  'Famalicão': '#d42d86', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
   'Póvoa de Varzim': '#6EE7B7', 'Riba D\'Ave': '#FBBF24', 'Trofa': '#C084FC',
   'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#072B5C', 'Vila Verde': '#86EFAC'
 };
