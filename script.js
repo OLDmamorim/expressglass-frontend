@@ -3,19 +3,10 @@
 
 // ---------- Configurações e dados ----------
 const localityColors = {
-  'Outra': '#9CA3AF',
-  'Barcelos': '#F87171',
-  'Braga': '#34D399',
-  'Esposende': '#22D3EE',
-  'Famalicão': '#2DD4BF',
-  'Guimarães': '#FACC15',
-  'Póvoa de Lanhoso': '#A78BFA',
-  'Póvoa de Varzim': '#6EE7B7',
-  'Riba D\'Ave': '#FBBF24',
-  'Trofa': '#C084FC',
-  'Vieira do Minho': '#93C5FD',
-  'Vila do Conde': '#072B5C',  // 🔵 corrigido
-  'Vila Verde': '#86EFAC'
+  'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
+  'Famalicão': '#2DD4BF', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
+  'Póvoa de Varzim': '#6EE7B7', 'Riba D\'Ave': '#FBBF24', 'Trofa': '#C084FC',
+  'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#072B5C', 'Vila Verde': '#86EFAC'
 };
 window.LOCALITY_COLORS = localityColors;
 const getLocColor = loc => (localityColors && localityColors[loc]) || '#3b82f6';
@@ -567,8 +558,7 @@ function updatePrintTodayTable(){
         <td>${a.period||''}</td><td>${a.plate||''}</td><td>${a.car||''}</td>
         <td><span class="service-badge badge-${a.service}">${a.service||''}</span></td>
         <td>${a.locality||''}</td><td><span class="status-chip chip-${a.status}">${a.status||''}</span></td>
-        <td>${a.notes||''}</td>
-        <td>${a.extra||''}</td>
+        <td>${a.notes||''}</td><td>${a.extra||''}</td>
       </tr>`).join('');
   }
 }
@@ -589,8 +579,7 @@ function updatePrintTomorrowTable(){
         <td>${a.period||''}</td><td>${a.plate||''}</td><td>${a.car||''}</td>
         <td><span class="service-badge badge-${a.service}">${a.service||''}</span></td>
         <td>${a.locality||''}</td><td><span class="status-chip chip-${a.status}">${a.status||''}</span></td>
-        <td>${a.notes||''}</td>
-        <td>${a.extra||''}</td>
+        <td>${a.notes||''}</td><td>${a.extra||''}</td>
       </tr>`).join('');
   }
 }
