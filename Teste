@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logótipo N3XTA</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f5f5f5;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        
+        .logo {
+            display: flex;
+            font-family: 'Arial Black', sans-serif;
+            font-size: 80px;
+            letter-spacing: 2px;
+            color: #222;
+        }
+        
+        .letter {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 100px;
+            position: relative;
+        }
+        
+        .n, .x, .t, .a {
+            background-color: #222;
+            color: transparent;
+            text-shadow: 0 0 0 #222;
+        }
+        
+        .three {
+            background-color: #0066cc;
+            color: white;
+            border-radius: 10px;
+            transform: skew(-5deg);
+            box-shadow: 0 0 15px rgba(0, 102, 204, 0.5);
+        }
+        
+        /* Efeitos robóticos nas letras */
+        .letter:not(.three)::before {
+            content: "";
+            position: absolute;
+            width: 90%;
+            height: 5px;
+            background-color: #444;
+            bottom: 10px;
+            left: 5%;
+            border-radius: 2px;
+        }
+        
+        /* Detalhes no número 3 */
+        .three::after {
+            content: "";
+            position: absolute;
+            width: 70%;
+            height: 3px;
+            background-color: #00aaff;
+            bottom: 15px;
+            left: 15%;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="logo">
+        <div class="letter n">N</div>
+        <div class="letter three">3</div>
+        <div class="letter x">X</div>
+        <div class="letter t">T</div>
+        <div class="letter a">A</div>
+    </div>
+</body>
+</html>
