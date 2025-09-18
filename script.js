@@ -3,21 +3,11 @@
 
 // ---------- Configurações e dados ----------
 const localityColors = {
-  'Outra': '#9CA3AF',
-  'Barcelos': '#F87171',
-  'Braga': '#34D399',
-  'Esposende': '#22D3EE',
-  'Famalicão': '#2DD4BF',
-  'Guimarães': '#FACC15',
-  'Póvoa de Lanhoso': '#A78BFA',
-  'Póvoa de Varzim': '#6EE7B7',
-  'Riba D\'Ave': '#FBBF24',
-  'Trofa': '#C084FC',
-  'Vieira do Minho': '#93C5FD',
-  'Vila do Conde': '#072B5C',
-  'Vila Verde': '#86EFAC'
+  'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
+  'Famalicão': '#2DD4BF', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
+  'Póvoa de Varzim': '#6EE7B7', 'Riba D\'Ave': '#FBBF24', 'Trofa': '#C084FC',
+  'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#FCD34D', 'Vila Verde': '#86EFAC'
 };
-
 window.LOCALITY_COLORS = localityColors;
 const getLocColor = loc => (localityColors && localityColors[loc]) || '#3b82f6';
 
@@ -40,7 +30,7 @@ function parseDate(dateStr){
   if(/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
   if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)){ const [d,m,y]=dateStr.split('/'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
   try{ const d=new Date(dateStr); if(!isNaN(d.getTime())) return localISO(d); }catch{}
-  return null;
+  return null; // <— importante: null (não string vazia) para "sem data"
 }
 function formatDateForInput(s){ if(!s) return ''; if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; } return s; }
 function localISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
@@ -251,8 +241,10 @@ function buildDesktopCard(a){
 function renderSchedule(){
   const table=document.getElementById('schedule'); if(!table) return;
   table.innerHTML='';
+  // ✅ CORREÇÃO: Mudado de Array(5) para Array(6) para incluir sábado
   const week=[...Array(6)].map((_,i)=>addDays(currentMonday,i));
   const wr=document.getElementById('weekRange');
+  // ✅ CORREÇÃO: Mudado de week[4] para week[5] para mostrar até sábado
   if(wr){ wr.textContent = `${week[0].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} - ${week[5].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}`; }
 
   let thead='<thead><tr><th>Período</th>';
@@ -324,6 +316,7 @@ function ensureServicesHeader(){
     thead = document.createElement('thead');
     table.prepend(thead);
   }
+  // Alinhado com o index.html
   const headers = ['Data','Período','Matrícula','Carro','Serviço','Localidade','Observações','Estado','Dias','Ações'];
   thead.innerHTML = `<tr>${
     headers.map(h => h==='Ações'
@@ -339,6 +332,7 @@ function renderServicesTable(){
 
   ensureServicesHeader();
 
+  // início de hoje
   const startToday = new Date(); startToday.setHours(0,0,0,0);
 
   const future = filterAppointments(
@@ -393,6 +387,7 @@ function openAppointmentModal(id=null){
       document.getElementById('appointmentCar').value = a.car||'';
       document.getElementById('appointmentService').value = a.service||'';
       document.getElementById('appointmentLocality').value = a.locality||'';
+      // UI do dropdown
       const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
       if(txt) txt.textContent=a.locality||'Selecione a localidade';
       if(dot) dot.style.backgroundColor=getLocColor(a.locality);
@@ -549,13 +544,7 @@ function printPage(){
 
 function updatePrintTodayTable(){
   const today=new Date(); const str=localISO(today);
-  // >>>>> CORREÇÃO DE ORDENAÇÃO APLICADA AQUI <<<<<
-  const list=appointments
-    .filter(a=>a.date===str)
-    .sort((a,b)=>{
-      const order = {'Manhã':1, 'Tarde':2};
-      return (order[a.period]||3) - (order[b.period]||3);
-    });
+  const list=appointments.filter(a=>a.date===str).sort((a,b)=>({Manhã:1,Tarde:2}[a.period]||3 - ({Manhã:1,Tarde:2}[b.period]||3)));
   const title=document.getElementById('printTodayTitle'); const dateEl=document.getElementById('printTodayDate');
   const tbody=document.getElementById('printTodayTableBody'); const empty=document.getElementById('printTodayEmpty'); const table=document.querySelector('.print-today-table');
   if(title) title.textContent='SERVIÇOS DE HOJE';
@@ -576,13 +565,7 @@ function updatePrintTodayTable(){
 
 function updatePrintTomorrowTable(){
   const t=new Date(); t.setDate(t.getDate()+1); const str=localISO(t);
-  // >>>>> CORREÇÃO DE ORDENAÇÃO APLICADA AQUI <<<<<
-  const list=appointments
-    .filter(a=>a.date===str)
-    .sort((a,b)=>{
-      const order = {'Manhã':1, 'Tarde':2};
-      return (order[a.period]||3) - (order[b.period]||3);
-    });
+  const list=appointments.filter(a=>a.date===str).sort((a,b)=>({Manhã:1,Tarde:2}[a.period]||3 - ({Manhã:1,Tarde:2}[b.period]||3)));
   const title=document.getElementById('printTomorrowTitle'); const dateEl=document.getElementById('printTomorrowDate');
   const tbody=document.getElementById('printTomorrowTableBody'); const empty=document.getElementById('printTomorrowEmpty'); const table=document.querySelector('.print-tomorrow-table');
   if(title) title.textContent='SERVIÇOS DE AMANHÃ';
@@ -613,7 +596,7 @@ function placeAddNewButtonInHeader(){
   if(!header) return;
   btn.classList.add('header-btn','primary');
   btn.textContent = '+ Novo Serviço';
-  header.prepend(btn);
+  header.prepend(btn); // fica à esquerda dos restantes (perto do imprimir)
 }
 
 // ---------- Modais & navegação ----------
@@ -630,8 +613,13 @@ function todayDay(){ currentMobileDay=new Date(); renderMobileDay(); }
 document.addEventListener('DOMContentLoaded', async ()=>{
   await load();
   initializeLocalityDropdown();
+
+  // botão "+ Novo Serviço" volta para a barra azul
   placeAddNewButtonInHeader();
+
+  // cabeçalho da tabela com "Ações"
   ensureServicesHeader();
+
   renderAll();
   updateConnectionStatus();
 
@@ -642,6 +630,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('nextDay')?.addEventListener('click', nextDay);
   document.getElementById('todayDay')?.addEventListener('click', todayDay);
   document.getElementById('printPage')?.addEventListener('click', printPage);
+
   document.getElementById('backupBtn')?.addEventListener('click', ()=> document.getElementById('backupModal')?.classList.add('show'));
   document.getElementById('statsBtn')?.addEventListener('click', showStats);
 
@@ -663,7 +652,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
   document.getElementById('deleteAppointment')?.addEventListener('click', ()=>{ if(editingId) deleteAppointment(editingId); });
   document.getElementById('appointmentPlate')?.addEventListener('input', e=> formatPlate(e.target));
-  document.getElementById('appointmentForm')?.addEventListener('submit', (e) => { e.preventDefault(); saveAppointment(); });
 
   document.getElementById('exportJson')?.addEventListener('click', exportToJson);
   document.getElementById('exportCsv')?.addEventListener('click', exportToCsv);
@@ -672,11 +660,13 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('importBtn')?.addEventListener('click', ()=> document.getElementById('importFile')?.click());
   document.getElementById('importFile')?.addEventListener('change', e=>{ const f=e.target.files[0]; if(f) importFromJson(f); });
 
+  // Fechar ao clicar fora do conteúdo do modal
   const apptModal = document.getElementById('appointmentModal');
   if (apptModal) {
     apptModal.addEventListener('click', (e)=>{ if(e.target === apptModal) closeAppointmentModal(); });
   }
 
+  // Fechar modais com ESC
   document.addEventListener('keydown', e=>{
     if(e.ctrlKey||e.metaKey){
       if(e.key==='f'){ e.preventDefault(); document.getElementById('searchBtn')?.click(); }
@@ -700,9 +690,9 @@ window.editAppointment=editAppointment;
 window.deleteAppointment=deleteAppointment;
 window.closeBackupModal=closeBackupModal;
 window.closeStatsModal=closeStatsModal;
-window.openAppointmentModal=openAppointmentModal;
-window.closeAppointmentModal=closeAppointmentModal;
-window.saveAppointment=saveAppointment;
+window.openAppointmentModal=openAppointmentModal;   // <— exposto
+window.closeAppointmentModal=closeAppointmentModal; // <— exposto
+window.saveAppointment=saveAppointment;             // <— exposto
 
 // ---------- Locality dropdown ----------
 function initializeLocalityDropdown(){
@@ -733,35 +723,183 @@ window.selectLocality=selectLocality;
 
 // ---------- Connection status ----------
 function updateConnectionStatus(){
-  const el=document.getElementById('connectionStatus'); 
-  const ic=document.getElementById('statusIcon'); 
-  const tx=document.getElementById('statusText');
+  const el=document.getElementById('connectionStatus'); const ic=document.getElementById('statusIcon'); const tx=document.getElementById('statusText');
   if(!el||!ic||!tx) return;
+  const st=window.apiClient.getConnectionStatus();
+  if(st.online){ el.classList.remove('offline'); ic.textContent='🌐'; tx.textContent='Online'; el.title=`Conectado à API: ${st.apiUrl}`; }
+  else{ el.classList.add('offline'); ic.textContent='📱'; tx.textContent='Offline'; el.title='Modo offline - usando dados locais'; }
+}
+setInterval(updateConnectionStatus,5000);
+window.addEventListener('online',updateConnectionStatus);
+window.addEventListener('offline',updateConnectionStatus);
 
-  if (window.apiClient && typeof window.apiClient.getConnectionStatus === 'function') {
-    const st = window.apiClient.getConnectionStatus();
-    if(st.online){ 
-      el.classList.remove('offline'); 
-      ic.textContent='🌐'; 
-      tx.textContent='Online'; 
-      el.title=`Conectado à API: ${st.apiUrl}`; 
-    } else { 
-      el.classList.add('offline'); 
-      ic.textContent='📱'; 
-      tx.textContent='Offline'; 
-      el.title='Modo offline - usando dados locais'; 
+/* ===== ExpressGlass — fixes mínimos ===== */
+(function fixesExpressGlass(){
+  if (window.__EG_FIXES_APPLIED__) return;
+  window.__EG_FIXES_APPLIED__ = true;
+
+  // --- 1) Botões "Novo Serviço" (desktop + mobile)
+  document.addEventListener('click', function(e){
+    const hit = e.target && e.target.closest &&
+      e.target.closest('#addServiceBtn, #addServiceMobile, #addServiceBtnFixed');
+    if (!hit) return;
+
+    if (typeof window.openAppointmentModal === 'function') {
+      e.preventDefault();
+      try { window.openAppointmentModal(); } catch(err) { console.error(err); }
     }
-  } else {
-    el.classList.add('offline'); 
-    ic.textContent='⚠️'; 
-    tx.textContent='Erro'; 
-    el.title='Erro: O cliente da API não foi encontrado.';
+  }, true);
+
+  // --- 2) Máscara de matrícula (XX-XX-XX)
+  function maskPlate(raw){
+    const v = String(raw||'').replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,6);
+    if (v.length <= 2) return v;
+    if (v.length <= 4) return v.slice(0,2)+'-'+v.slice(2);
+    return v.slice(0,2)+'-'+v.slice(2,4)+'-'+v.slice(4);
   }
+
+  document.addEventListener('input', function(e){
+    const el = e.target && e.target.closest && e.target.closest('#appointmentPlate');
+    if (!el) return;
+    el.value = maskPlate(el.value);
+  }, true);
+})();
+
+/* ===== Novo Serviço — wiring FINAL, seguro e isolado ===== */
+(function(){
+  if (window.__EG_WIRE_NEW_SERVICE__) return;
+  window.__EG_WIRE_NEW_SERVICE__ = true;
+
+  const SELECTOR = '#addServiceBtn, #addServiceMobile, #addServiceBtnFixed, [data-new-service]';
+
+  // Delegação em captura: funciona mesmo se o botão for re-renderizado/movido por outros scripts
+  document.addEventListener('click', function(e){
+    const btn = e.target && e.target.closest && e.target.closest(SELECTOR);
+    if (!btn) return;
+
+    e.preventDefault();
+
+    // caminho normal
+    if (typeof window.openAppointmentModal === 'function') {
+      try { window.openAppointmentModal(); } catch (err) { console.error(err); }
+      return;
+    }
+
+    // fallback: abre o modal diretamente se a função não existir
+    const modal = document.getElementById('appointmentModal');
+    if (modal) modal.classList.add('show');
+  }, true);
+})();
+
+/* ===== Guardar agendamento — fix minimal e isolado ===== */
+(function ensureFormSaves(){
+  if (window.__EG_FORM_SAVE_WIRED__) return;
+  window.__EG_FORM_SAVE_WIRED__ = true;
+
+  // 1) Interceta SUBMIT do formulário e chama saveAppointment()
+  document.addEventListener('submit', function(e){
+    const form = e.target && e.target.closest && e.target.closest('#appointmentForm');
+    if (!form) return;
+    e.preventDefault();
+    if (typeof window.saveAppointment === 'function') {
+      try { window.saveAppointment(); } catch (err) { console.error('saveAppointment()', err); }
+    } else {
+      console.warn('saveAppointment() não existe');
+    }
+  }, true);
+
+  // 2) Se o botão "Guardar" não for type=submit, força o SUBMIT do form
+  document.addEventListener('click', function(e){
+    // tenta apanhar o botão principal de guardar dentro do form
+    const btn = e.target && e.target.closest && e.target.closest(
+      '#appointmentForm .btn.primary, #appointmentForm [data-save]'
+    );
+    if (!btn) return;
+
+    const form = document.getElementById('appointmentForm');
+    if (!form) return;
+
+    // respeita validação HTML5 (campos required, etc.)
+    if (form.reportValidity && !form.reportValidity()) return;
+
+    // dispara o submit "real" (vai cair no listener acima)
+    e.preventDefault();
+    try {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    } catch (err) {
+      console.error('dispatch submit', err);
+    }
+  }, true);
+})();
+
+// fallback seguro se renderMobileDay não existir
+if (typeof window.renderMobileDay !== 'function') {
+  window.renderMobileDay = function(){
+    console.log('renderMobileDay não implementado nesta versão.');
+  };
 }
 
-setInterval(updateConnectionStatus, 5000);
-window.addEventListener('online', updateConnectionStatus);
-window.addEventListener('offline', updateConnectionStatus); // <-- CORREÇÃO FINAL APLICADA AQUI
+/* === PATCH V2: ações (✏️/🗑️) nos cartões AGENDADOS, com estilo inline === */
+(function addActionsToScheduledCards(){
+  function ensureCardActions(scope){
+    (scope || document).querySelectorAll('.desk-card:not(.unscheduled)').forEach(card=>{
+      if (card.classList.contains('has-inline-actions')) return;
+      const id = Number(card.getAttribute('data-id'));
+      if (!id) return;
+
+      // garante que o cartão aceita conteúdo extra visualmente
+      card.style.paddingBottom = card.style.paddingBottom || '10px';
+
+      const box = document.createElement('div');
+      // classe nova para não depender do CSS existente
+      box.className = 'card-actions-inline';
+      // estilos inline para não ser escondido por regras de .unscheduled-actions
+      box.setAttribute('style',
+        'display:flex; gap:8px; margin-top:8px; justify-content:flex-end; align-items:center;');
+
+      const btnEdit = document.createElement('button');
+      btnEdit.className = 'icon edit';
+      btnEdit.title = 'Editar';
+      btnEdit.setAttribute('aria-label','Editar');
+      btnEdit.textContent = '✏️';
+      btnEdit.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if (window.editAppointment) window.editAppointment(id);
+      });
+
+      const btnDel = document.createElement('button');
+      btnDel.className = 'icon delete';
+      btnDel.title = 'Eliminar';
+      btnDel.setAttribute('aria-label','Eliminar');
+      btnDel.textContent = '🗑️';
+      btnDel.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        if (window.deleteAppointment) window.deleteAppointment(id);
+      });
+
+      box.appendChild(btnEdit);
+      box.appendChild(btnDel);
+      card.appendChild(box);
+      card.classList.add('has-inline-actions');
+    });
+  }
+
+  // injeta depois de cada render do calendário
+  const _renderSchedule = window.renderSchedule;
+  window.renderSchedule = function(){
+    if (typeof _renderSchedule === 'function') _renderSchedule();
+    ensureCardActions();
+  };
+
+  // observa alterações dentro do calendário (drag & drop, etc.)
+  const sched = document.getElementById('schedule');
+  if (sched) {
+    new MutationObserver(()=>ensureCardActions()).observe(sched, { childList:true, subtree:true });
+  }
+
+  // primeira passagem
+  ensureCardActions();
+})();
 
 // ---------- Render MOBILE (vista diária) ----------
 function renderMobileDay() {
@@ -769,6 +907,7 @@ function renderMobileDay() {
   const list  = document.getElementById('mobileDayList');
   if (!label || !list) return;
 
+  // cabeçalho com dia e data
   const d = currentMobileDay;
   label.textContent = d.toLocaleDateString('pt-PT', {
     weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'
@@ -778,7 +917,7 @@ function renderMobileDay() {
   const items = filterAppointments(
     appointments
       .filter(a => a.date === iso)
-      .sort((x,y) => ({'Manhã':1,'Tarde':2}[x.period]||3) - ({'Manhã':1,'Tarde':2}[y.period]||3))
+      .sort((x,y) => ({Manhã:1,Tarde:2}[x.period] - ({Manhã:1,Tarde:2}[y.period])))
   );
 
   if (items.length === 0) {
@@ -797,11 +936,21 @@ function renderMobileDay() {
       <div class="appointment mobile-card"
            data-id="${a.id}"
            data-locality="${a.locality||''}" data-loccolor="${base}"
-           style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}"
-           onclick="editAppointment(${a.id})">
+           style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
         <div class="mc-period">${a.period}</div>
         <div class="mc-title">${title}</div>
         <div class="mc-sub">${sub}</div>
+        <div class="appt-status mc-status">
+          <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
+          <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
+          <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
+        </div>
+        <div class="mobile-actions">
+          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar">✏️</button>
+          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar">🗑️</button>
+        </div>
       </div>`;
   }).join('');
+
+  attachStatusListeners();
 }
