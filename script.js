@@ -4,9 +4,9 @@
 // ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
-  'Famalicão': '#2DD4BF', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
+  'Famalicão': '#e807d5', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
   'Póvoa de Varzim': '#6EE7B7', 'Riba D\'Ave': '#FBBF24', 'Trofa': '#C084FC',
-  'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#FCD34D', 'Vila Verde': '#86EFAC'
+  'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#072B5C', 'Vila Verde': '#86EFAC'
 };
 window.LOCALITY_COLORS = localityColors;
 const getLocColor = loc => (localityColors && localityColors[loc]) || '#3b82f6';
