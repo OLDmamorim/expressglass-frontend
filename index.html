@@ -832,50 +832,9 @@ window.addEventListener('load', setupPrinting);
   window.addEventListener('load', setupPrinting);
   </script>
   <!-- >>>>> FIM DO NOVO SCRIPT <<<<< -->
-    <!-- ... (outros scripts que já lá estão) ... -->
-
-  <!-- SCRIPT FINAL PARA CORRIGIR DUPLA IMPRESSÃO -->
-  <script>
-  function setupSinglePrintListener() {
-    const printButton = document.getElementById('printPage');
-    if (!printButton) {
-      console.warn('Botão de impressão #printPage não encontrado.');
-      return;
-    }
-
-    // 1. Clona o botão para remover todos os event listeners antigos.
-    // Esta é a forma mais eficaz de limpar eventos adicionados por outros scripts.
-    const newPrintButton = printButton.cloneNode(true);
-
-    // 2. Substitui o botão antigo pelo novo no DOM.
-    printButton.parentNode.replaceChild(newPrintButton, printButton);
-
-    // 3. Adiciona o nosso ÚNICO event listener ao NOVO botão.
-    newPrintButton.addEventListener('click', function() {
-      console.log('A preparar impressão (listener único)...');
-
-      // Chama as funções que preparam as tabelas de impressão
-      // (Garante que os dados estão atualizados)
-      if (typeof updatePrintTodayTable === 'function') {
-        updatePrintTodayTable();
-      }
-      if (typeof updatePrintTomorrowTable === 'function') {
-        updatePrintTomorrowTable();
-      }
-
-      // 4. Chama a impressão do navegador (apenas uma vez!)
-      window.print();
-    });
-  }
-
-  // Garante que o script corre depois de a página e todos os outros scripts carregarem.
-  window.addEventListener('load', setupSinglePrintListener);
-  </script>
-
-</body>
-</html>
-
 
 </body>
 </html>
   
+</body>
+</html>
