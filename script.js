@@ -223,7 +223,7 @@ function buildDesktopCard(a){
   const title = `${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
   const sub   = [a.locality, a.notes].filter(Boolean).join(' | ');
 
-  return \`
+  return `
     <div class="appointment desk-card"
          data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
@@ -235,7 +235,7 @@ function buildDesktopCard(a){
         <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
         <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
       </div>
-    </div>\`;
+    </div>`;
 }
 
 function renderSchedule(){
@@ -243,10 +243,10 @@ function renderSchedule(){
   table.innerHTML='';
   const week=[...Array(6)].map((_,i)=>addDays(currentMonday,i));
   const wr=document.getElementById('weekRange');
-  if(wr){ wr.textContent = \`\${week[0].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} - \${week[5].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}\`; }
+  if(wr){ wr.textContent = `${week[0].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} - ${week[5].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}`; }
 
   let thead='<thead><tr><th>Período</th>';
-  for(const d of week){ const h=fmtHeader(d); thead+=\`<th><div class="day">\${cap(h.day)}</div><div class="date">\${h.dm}</div></th>\`; }
+  for(const d of week){ const h=fmtHeader(d); thead+=`<th><div class="day">${cap(h.day)}</div><div class="date">${h.dm}</div></th>`; }
   thead+='</tr></thead>';
   table.insertAdjacentHTML('beforeend', thead);
 
@@ -257,18 +257,19 @@ function renderSchedule(){
                   .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
     );
     const blocks = items.map(buildDesktopCard).join('');
-    return \`<div class="drop-zone" data-drop-bucket="\${iso}|\${period}">\${blocks}</div>\`;
+    return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
   };
 
   const tbody=document.createElement('tbody');
   ['Manhã','Tarde'].forEach(period=>{
     const row=document.createElement('tr');
-    row.innerHTML=\`<th>\${period}</th>\` + week.map(d=>\`<td>\${renderCell(period,d)}</td>\`).join('');
+    row.innerHTML=`<th>${period}</th>` + week.map(d=>`<td>${renderCell(period,d)}</td>`).join('');
     tbody.appendChild(row);
   });
   table.appendChild(tbody);
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
+
 // ---------- Render PENDENTES ----------
 function renderUnscheduled(){
   const container=document.getElementById('unscheduledList'); if(!container) return;
@@ -538,7 +539,7 @@ function printPage(){
 
 function updatePrintTodayTable(){
   const today=new Date(); const str=localISO(today);
-  // >>>>> CORREÇÃO APLICADA AQUI <<<<<
+  // >>>>> CORREÇÃO DE ORDENAÇÃO APLICADA AQUI <<<<<
   const list=appointments
     .filter(a=>a.date===str)
     .sort((a,b)=>{
@@ -565,7 +566,7 @@ function updatePrintTodayTable(){
 
 function updatePrintTomorrowTable(){
   const t=new Date(); t.setDate(t.getDate()+1); const str=localISO(t);
-  // >>>>> CORREÇÃO APLICADA AQUI <<<<<
+  // >>>>> CORREÇÃO DE ORDENAÇÃO APLICADA AQUI <<<<<
   const list=appointments
     .filter(a=>a.date===str)
     .sort((a,b)=>{
@@ -722,15 +723,35 @@ window.selectLocality=selectLocality;
 
 // ---------- Connection status ----------
 function updateConnectionStatus(){
-  const el=document.getElementById('connectionStatus'); const ic=document.getElementById('statusIcon'); const tx=document.getElementById('statusText');
+  const el=document.getElementById('connectionStatus'); 
+  const ic=document.getElementById('statusIcon'); 
+  const tx=document.getElementById('statusText');
   if(!el||!ic||!tx) return;
-  const st=window.apiClient.getConnectionStatus();
-  if(st.online){ el.classList.remove('offline'); ic.textContent='🌐'; tx.textContent='Online'; el.title=`Conectado à API: ${st.apiUrl}`; }
-  else{ el.classList.add('offline'); ic.textContent='📱'; tx.textContent='Offline'; el.title='Modo offline - usando dados locais'; }
+
+  if (window.apiClient && typeof window.apiClient.getConnectionStatus === 'function') {
+    const st = window.apiClient.getConnectionStatus();
+    if(st.online){ 
+      el.classList.remove('offline'); 
+      ic.textContent='🌐'; 
+      tx.textContent='Online'; 
+      el.title=`Conectado à API: ${st.apiUrl}`; 
+    } else { 
+      el.classList.add('offline'); 
+      ic.textContent='📱'; 
+      tx.textContent='Offline'; 
+      el.title='Modo offline - usando dados locais'; 
+    }
+  } else {
+    el.classList.add('offline'); 
+    ic.textContent='⚠️'; 
+    tx.textContent='Erro'; 
+    el.title='Erro: O cliente da API não foi encontrado.';
+  }
 }
-setInterval(updateConnectionStatus,5000);
-window.addEventListener('online',updateConnectionStatus);
-window.addEventListener('offline',updateConnection-status);
+
+setInterval(updateConnectionStatus, 5000);
+window.addEventListener('online', updateConnectionStatus);
+window.addEventListener('offline', updateConnectionStatus); // <-- CORREÇÃO FINAL APLICADA AQUI
 
 // ---------- Render MOBILE (vista diária) ----------
 function renderMobileDay() {
