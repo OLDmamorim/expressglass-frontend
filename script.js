@@ -672,3 +672,62 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   await load();
   renderAll();
 });
+
+// CORREÇÃO COMPLETA - Versão com ícones SVG e styling melhorado
+
+function buildMobileCard(a) {
+    // Verificar morada em todos os campos possíveis
+    const endereco = a.address || a.morada || a.addr || null;
+    
+    // Ícones SVG inline para garantir que carregam
+    const googleIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#4285f4"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`;
+    
+    const wazeIcon = `<svg width="18" height="18" viewBox="0 0 24 24" fill="#00d4ff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-1.41-1.41L10.17 14H6v-2h4.17l-1.58-1.59L10 9l4 4-4 4zm6 0l-4-4 4-4 1.41 1.41L15.83 12H20v2h-4.17l1.58 1.59L16 17z"/></svg>`;
+    
+    // Botões de navegação
+    const mapsBtn = endereco ? `
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}"
+           target="_blank" rel="noopener noreferrer"
+           style="position:absolute;top:8px;right:8px;z-index:30;background:#fff;border-radius:50%;padding:8px;box-shadow:0 3px 12px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;text-decoration:none;transition:transform 0.2s;"
+           onmouseover="this.style.transform='scale(1.1)'"
+           onmouseout="this.style.transform='scale(1)'"
+           title="Abrir no Google Maps">
+          ${googleIcon}
+        </a>` : '';
+
+    const wazeBtn = endereco ? `
+        <a href="https://waze.com/ul?q=${encodeURIComponent(endereco)}"
+           target="_blank" rel="noopener noreferrer"
+           style="position:absolute;top:8px;right:50px;z-index:30;background:#fff;border-radius:50%;padding:8px;box-shadow:0 3px 12px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;text-decoration:none;transition:transform 0.2s;"
+           onmouseover="this.style.transform='scale(1.1)'"
+           onmouseout="this.style.transform='scale(1)'"
+           title="Abrir no Waze">
+          ${wazeIcon}
+        </a>` : '';
+
+    const base = getLocColor(a.locality);
+    const g = gradFromBase(base);
+    const title = `${a.plate} • ${(a.car||'').toUpperCase()}`;
+    const chips = [
+        a.period ? `<span class="m-chip">${a.period}</span>` : '',
+        a.service ? `<span class="m-chip">${a.service}</span>` : '',
+        a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
+    ].join('');
+    const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
+    
+    return `
+        <div class="appointment m-card" data-id="${a.id}"
+             style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
+          ${mapsBtn}${wazeBtn}
+          <div class="m-title" style="padding-right:100px;">${title}</div>
+          <div class="m-chips">${chips}</div>
+          ${notes}
+        </div>
+    `;
+}
+
+// Aplicar correção imediatamente
+if (typeof renderMobileDay === 'function') {
+    renderMobileDay();
+    console.log('✅ Correção de morada aplicada - ícones de navegação ativos');
+}
