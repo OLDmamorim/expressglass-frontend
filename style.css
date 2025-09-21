@@ -233,3 +233,13 @@ table.schedule td:first-child{border-left:none}
 .toast.success{ border-color:#86efac; }
 .toast.error{ border-color:#fecaca; }
 .toast.info{ border-color:#bfdbfe; }
+
+
+/* ==== VISIBILIDADE: Desktop vs Mobile ==== */
+#mobileDayView { display:none; }
+@media (max-width: 768px){
+  .schedule-container,
+  .unscheduled-container,
+  .services-table-container { display:none !important; }
+  #mobileDayView { display:block !important; }
+}

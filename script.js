@@ -354,7 +354,62 @@ function renderServicesTable(){
   const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviços pendentes`;
 }
 
-function renderAll(){ renderSchedule(); renderUnscheduled(); renderServicesTable(); /* mobile opcional */ }
+
+// ---------- Render MOBILE (lista do dia) ----------
+function buildMobileCard(a){
+  const base = getLocColor(a.locality);
+  const g = gradFromBase(base);
+  const title = `${a.plate} • ${(a.car||'').toUpperCase()}`;
+  const chips = [
+    a.period ? `<span class="m-chip">${a.period}</span>` : '',
+    a.service ? `<span class="m-chip">${a.service}</span>` : '',
+    a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
+  ].join('');
+  const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
+  return `
+    <div class="appointment m-card" data-id="${a.id}"
+         style="--c1:${g.c1}; --c2:${g.c2};">
+      <div class="m-title">${title}</div>
+      <div class="m-chips">${chips}</div>
+      ${notes}
+    </div>
+  `;
+}
+
+function renderMobileDay(){
+  const list = document.getElementById('mobileDayList');
+  const label = document.getElementById('mobileDayLabel');
+  if(!list || !label) return;
+  const iso = localISO(currentMobileDay);
+  const weekday = currentMobileDay.toLocaleDateString('pt-PT',{ weekday:'long' });
+  const dm = currentMobileDay.toLocaleDateString('pt-PT',{ day:'2-digit', month:'2-digit' });
+  label.textContent = `${cap(weekday)} • ${dm}`;
+
+  const items = filterAppointments(
+    appointments
+      .filter(a => a.date === iso)
+      .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0))
+  );
+
+  if(items.length === 0){
+    list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
+    return;
+  }
+
+  // Separar por período para legibilidade
+  const morning = items.filter(a=>a.period==='Manhã').map(buildMobileCard).join('');
+  const afternoon = items.filter(a=>a.period==='Tarde').map(buildMobileCard).join('');
+  const others = items.filter(a=>!a.period).map(buildMobileCard).join('');
+
+  list.innerHTML = `
+    ${morning? `<h4 style="margin:4px 0 6px 8px;">Manhã</h4>${morning}`:''}
+    ${afternoon? `<h4 style="margin:12px 0 6px 8px;">Tarde</h4>${afternoon}`:''}
+    ${others? `<h4 style="margin:12px 0 6px 8px;">Sem período</h4>${others}`:''}
+  `;
+  highlightSearchResults();
+}
+
+function renderAll(){ renderSchedule(); renderUnscheduled(); renderServicesTable(); renderMobileDay(); }
 
 // ---------- CRUD ----------
 function openAppointmentModal(id=null){
@@ -549,6 +604,11 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
   // filtros
   document.getElementById('filterStatus')?.addEventListener('change', (e)=>{ statusFilter=e.target.value; renderAll(); });
+
+  // navegação dia (mobile)
+  document.getElementById('prevDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, -1); renderMobileDay(); });
+  document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
+  document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
 
   // navegação semana
   document.getElementById('todayWeek')?.addEventListener('click', gotoTodayWeek);
