@@ -400,57 +400,38 @@ body.printing-now > *:not(#print-container-temp) {
 }
 
 
-/* HEADER MOBILE FIX */
-@media (max-width: 768px){
-  .page-header {
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center !important;
-    gap: 6px;
+/* ===== FORCE MOBILE LAYOUT ===== */
+.mobile-mode .schedule-container,
+.mobile-mode .unscheduled-container,
+.mobile-mode .services-table-container {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.mobile-mode #mobileDayView { display: block !important; }
+
+@media (max-width: 1024px){
+  .schedule-container,
+  .unscheduled-container,
+  .services-table-container {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  .page-header h1 {
-    font-size: 20px !important;
-    line-height: 1.2 !important;
-  }
-  .page-header .subtitle {
-    font-size: 13px !important;
-    color: #e5e7eb !important;
-  }
-  .header-actions {
-    position: static !important;
-    margin-top: 6px !important;
-    display: flex !important;
-    gap: 12px !important;
-    justify-content: center !important;
-  }
+  #mobileDayView { display: block !important; }
 }
 
 
-/* === MOBILE ENFORCER (hide desktop, show mobile) === */
+/* ===== MOBILE CARDS (override any desktop tokens) ===== */
+.mobile-mode .m-card,
 @media (max-width: 1024px){
-  .page .schedule-container,
-  .page .unscheduled-container,
-  .page .services-table-container { display: none !important; }
-  .page #mobileDayView { display: block !important; }
-}
-
-/* Ensure mobile cards have gradient + white text */
-@media (max-width: 1024px){
-  #mobileDayList{ display: grid; gap: 16px; padding: 8px 16px; }
-  .m-card{
-    position: relative;
-    border-radius: 22px;
-    padding: 16px;
-    background: linear-gradient(180deg, var(--c1, #1e88e5) 0%, var(--c2, #1565c0) 100%) !important;
-    box-shadow: 0 8px 24px rgba(0,0,0,.18);
-    color: #fff !important;
-  }
-  .m-card, .m-card *{
-    color:#fff !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,.55), 0 0 2px rgba(0,0,0,.35);
-  }
-  .m-title{ display:flex; align-items:center; gap:8px; font-weight:800; font-size:20px; letter-spacing:.2px; }
-  .m-chips{ display:flex; gap:10px; margin:12px 0 8px; flex-wrap:wrap; }
-  .m-chip{ background: transparent; border: 1px solid rgba(255,255,255,.45); border-radius: 999px; padding:6px 10px; font-weight:700; font-size:14px; line-height:1; }
-  .m-info{ margin-top:6px; font-size:15px; font-weight:600; opacity:.95; }
+  .m-card
+}{
+  background: linear-gradient(180deg, var(--c1, #1e88e5) 0%, var(--c2, #1565c0) 100%) !important;
+  color: #fff !important;
+  border-left: none !important;
 }
