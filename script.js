@@ -1,11 +1,12 @@
+
 // ===== PORTAL DE AGENDAMENTO MELHORADO =====
-// Versão com API + cartões estilo mobile também no DESKTOP
+// Versão estabilizada com patches: IDs estáveis, DnD throttle, semana Seg-Sáb, impressão segura, etc.
 
 // ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
   'Famalicão': '#2DD4BF', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
-  'Póvoa de Varzim': '#6EE7B7', 'Riba D\'Ave': '#FBBF24', 'Trofa': '#C084FC',
+  'Póvoa de Varzim': '#6EE7B7', "Riba D'Ave": '#FBBF24', 'Trofa': '#C084FC',
   'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#FCD34D', 'Vila Verde': '#86EFAC'
 };
 window.LOCALITY_COLORS = localityColors;
@@ -23,44 +24,34 @@ let searchQuery = '';
 let statusFilter = '';
 
 // ---------- Utils ----------
-function getMonday(date){ const d=new Date(date); const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1); return new Date(d.setDate(diff)); }
-function addDays(date,days){ const r=new Date(date); r.setDate(r.getDate()+days); return r; }
+function getMonday(date){ const d=new Date(date); const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1); d.setDate(diff); d.setHours(0,0,0,0); return d; }
+function addDays(date,days){ const r=new Date(date); r.setDate(r.getDate()+days); r.setHours(0,0,0,0); return r; }
+function localISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
 function parseDate(dateStr){
   if(!dateStr) return null;
-  if(/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
-  if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)){ const [d,m,y]=dateStr.split('/'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
-  try{ const d=new Date(dateStr); if(!isNaN(d.getTime())) return localISO(d); }catch{}
-  return null; // <— importante: null (não string vazia) para "sem data"
-}
-function formatDateForInput(s){ if(!s) return ''; if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; } return s; }
-function localISO(d){ const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), day=String(d.getDate()).padStart(2,'0'); return `${y}-${m}-${day}`; }
-function fmtHeader(date){ return {day: date.toLocaleDateString('pt-PT',{weekday:'long'}), dm: date.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}; }
-const cap = s => s ? s.charAt(0).toUpperCase()+s.slice(1) : s;
-function hex2rgba(h,a){ const r=parseInt(h.slice(1,3),16), g=parseInt(h.slice(3,5),16), b=parseInt(h.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
-function bucketOf(a){ if(!a.date || !a.period) return 'unscheduled'; return `${a.date}|${a.period}`; }
-function normalizeBucketOrder(bucket){ appointments.filter(a=>bucketOf(a)===bucket).forEach((x,i)=>x.sortIndex=i+1); }
-
-// ------ Helpers de cor p/ gradiente ------
-const clamp = n => Math.max(0, Math.min(255, Math.round(n)));
-const toHex = n => n.toString(16).padStart(2,'0');
-const rgbToHex = ({r,g,b}) => '#'+toHex(clamp(r))+toHex(clamp(g))+toHex(clamp(b));
-function parseColor(str){
-  if(!str) return null;
-  str=String(str).trim();
-  if(str[0]==='#'){
-    if(str.length===4) return {r:parseInt(str[1]+str[1],16), g:parseInt(str[2]+str[2],16), b:parseInt(str[3]+str[3],16)};
-    if(str.length>=7) return {r:parseInt(str.slice(1,3),16), g:parseInt(str.slice(3,5),16), b:parseInt(str.slice(5,7),16)};
-  }
-  const m=str.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
-  if(m) return {r:+m[1], g:+m[2], b:+m[3]};
+  const s=String(dateStr).trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)){ const [d,m,y]=s.split('/'); return `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+  try{ const d=new Date(s); if(!isNaN(d.getTime())) return localISO(d); }catch{}
   return null;
 }
-const lighten = (rgb,a)=>({ r:rgb.r+(255-rgb.r)*a, g:rgb.g+(255-rgb.g)*a, b:rgb.b+(255-rgb.b)*a });
-const darken  = (rgb,a)=>({ r:rgb.r*(1-a),       g:rgb.g*(1-a),       b:rgb.b*(1-a)       });
-function gradFromBase(hex){
-  const rgb = parseColor(hex) || parseColor('#1e88e5');
-  return { c1: rgbToHex(lighten(rgb,0.06)), c2: rgbToHex(darken(rgb,0.18)) };
+function formatDateForInput(s){ if(!s) return ''; if(/^\d{4}-\d{2}-\d{2}$/.test(s)){ const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`; } return s; }
+function fmtHeader(date){ return {day: date.toLocaleDateString('pt-PT',{weekday:'long'}), dm: date.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})}; }
+const cap = s => s ? s.charAt(0).toUpperCase()+s.slice(1) : s;
+function parseColor(str){
+  if(!str) return null; str=String(str).trim();
+  if(str[0]==='#'){ if(str.length===4) return {r:parseInt(str[1]+str[1],16), g:parseInt(str[2]+str[2],16), b:parseInt(str[3]+str[3],16)};
+                    if(str.length>=7) return {r:parseInt(str.slice(1,3),16), g:parseInt(str.slice(3,5),16), b:parseInt(str.slice(5,7),16)};}
+  const m=str.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i); if(m) return {r:+m[1], g:+m[2], b:+m[3]}; return null;
 }
+const clamp=n=>Math.max(0,Math.min(255,Math.round(n))); const toHex=n=>n.toString(16).padStart(2,'0');
+const rgbToHex=({r,g,b})=>'#'+toHex(clamp(r))+toHex(clamp(g))+toHex(clamp(b));
+const lighten=(rgb,a)=>({ r:rgb.r+(255-rgb.r)*a, g:rgb.g+(255-rgb.g)*a, b:rgb.b+(255-rgb.b)*a });
+const darken=(rgb,a)=>({ r:rgb.r*(1-a), g:rgb.g*(1-a), b:rgb.b*(1-a) });
+function gradFromBase(hex){ const rgb=parseColor(hex)||parseColor('#1e88e5'); return { c1: rgbToHex(lighten(rgb,0.06)), c2: rgbToHex(darken(rgb,0.18)) }; }
+function bucketOf(a){ if(!a.date || !a.period) return 'unscheduled'; return `${a.date}|${a.period}`; }
+function getBucketList(bucket){ return appointments.filter(x=>bucketOf(x)===bucket).sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0)); }
+function normalizeBucketOrder(bucket){ appointments.filter(a=>bucketOf(a)===bucket).forEach((x,i)=>x.sortIndex=i+1); }
 
 // ---------- Toast ----------
 function showToast(msg,type='info'){
@@ -78,19 +69,24 @@ function formatPlate(input){
   input.value=v;
 }
 
-// ---------- API ----------
-async function save(){ try{ showToast('Dados sincronizados com sucesso!','success'); }catch(e){ showToast('Erro na sincronização: '+e.message,'error'); } }
+// ---------- API load ----------
 async function load(){
   try{
     showToast('Carregando dados...','info');
     appointments = await window.apiClient.getAppointments();
     appointments.forEach(a=>{ if(!a.id) a.id=Date.now()+Math.random(); if(!a.sortIndex) a.sortIndex=1; });
     const locs=await window.apiClient.getLocalities();
-    if(locs && typeof locs==='object'){ Object.assign(localityColors,locs); window.LOCALITY_COLORS=localityColors; }
+    if(locs && typeof locs==='object'){ Object.assign(localityColors,locs); window.LOCALITY_COLORS=localityColors;
+      for (const [k,v] of Object.entries(localityColors)) {
+        if (!/^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(v)) localityColors[k] = '#3b82f6';
+      }
+    }
     const st=window.apiClient.getConnectionStatus();
     showToast(st.online?'Dados carregados da cloud!':'Dados carregados localmente (offline)', st.online?'success':'info');
   }catch(e){
     appointments=[]; showToast('Erro ao carregar dados: '+e.message,'error');
+  } finally {
+    updateConnBadge();
   }
 }
 
@@ -110,19 +106,20 @@ function filterAppointments(list){
   return f;
 }
 function highlightSearchResults(){
+  document.querySelectorAll('.appointment').forEach(el=>el.classList.remove('highlight'));
   if(!searchQuery) return;
   document.querySelectorAll('.appointment').forEach(el=>{
-    el.classList.remove('highlight');
     if(el.textContent.toLowerCase().includes(searchQuery.toLowerCase())) el.classList.add('highlight');
   });
 }
 
-// ---------- Persistência de STATUS ----------
+// ---------- Persistência de STATUS (exclusivo) ----------
 async function persistStatus(id, newStatus) {
-  const idx = appointments.findIndex(a => a.id === id);
+  const idx = appointments.findIndex(a => String(a.id) === String(id));
   if (idx < 0) return;
+  const valid = ['NE','VE','ST']; if(!valid.includes(newStatus)) return;
   const prev = appointments[idx].status;
-  appointments[idx].status = newStatus; // otimista
+  appointments[idx].status = newStatus; // exclusivo
   try {
     const payload = { ...appointments[idx], status: newStatus };
     const res = await window.apiClient.updateAppointment(id, payload);
@@ -136,22 +133,37 @@ async function persistStatus(id, newStatus) {
   }
 }
 
-// ---------- Drag & Drop (com persistência total) ----------
-function getBucketList(bucket){
-  return appointments
-    .filter(x => bucketOf(x) === bucket)
-    .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
-}
+// ---------- Drag & Drop (com persistência throttle) ----------
+let persistQueue = [];
+let persistTimer = null;
 
 async function persistBuckets(buckets){
+  const payload = [];
   for (const bucket of buckets){
     const list = getBucketList(bucket);
-    for (const item of list){
-      try{ await window.apiClient.updateAppointment(item.id, { ...item }); }
-      catch(e){ console.warn('Falha a gravar', item.id, e); showToast('Falha a gravar alguns itens.', 'error'); }
-    }
+    for (const item of list) payload.push({ ...item });
   }
-  showToast('Alterações gravadas.', 'success');
+  persistQueue = payload;
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(runPersistFlush, 350);
+}
+
+async function runPersistFlush(){
+  const queue = [...persistQueue];
+  persistQueue = [];
+  try{
+    for (const item of queue) {
+      let ok=false, attempts=0;
+      while(!ok && attempts<2){
+        attempts++;
+        try { await window.apiClient.updateAppointment(item.id, item); ok=true; }
+        catch(e){ if(attempts>=2) throw e; }
+      }
+    }
+    showToast('Alterações gravadas.', 'success');
+  }catch(e){
+    showToast('Falha a gravar alguns itens.', 'error');
+  }
 }
 
 function enableDragDrop(scope){
@@ -167,21 +179,16 @@ function enableDragDrop(scope){
 
   if (!enableDragDrop._bound){
     document.addEventListener('dragover', (e)=>{
-      const zone = e.target.closest('[data-drop-bucket]');
-      if(!zone) return;
-      e.preventDefault();
-      zone.classList.add('drag-over');
+      const zone = e.target.closest('[data-drop-bucket]'); if(!zone) return;
+      e.preventDefault(); zone.classList.add('drag-over');
     });
     document.addEventListener('dragleave', (e)=>{
-      const zone = e.target.closest('[data-drop-bucket]');
-      if(zone) zone.classList.remove('drag-over');
+      const zone = e.target.closest('[data-drop-bucket]'); if(zone) zone.classList.remove('drag-over');
     });
     document.addEventListener('drop', async (e)=>{
-      const zone = e.target.closest('[data-drop-bucket]');
-      if(!zone) return;
-      e.preventDefault();
-      zone.classList.remove('drag-over');
-      const id    = Number(e.dataTransfer.getData('text/plain'));
+      const zone = e.target.closest('[data-drop-bucket]'); if(!zone) return;
+      e.preventDefault(); zone.classList.remove('drag-over');
+      const id    = e.dataTransfer.getData('text/plain');
       const bucket= zone.getAttribute('data-drop-bucket');
       const idxIn = zone.querySelectorAll('.appointment').length;
       await onDropAppointment(id, bucket, idxIn);
@@ -191,16 +198,15 @@ function enableDragDrop(scope){
 }
 
 async function onDropAppointment(id, targetBucket, targetIndex){
-  const i = appointments.findIndex(a => a.id === id);
+  const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
-
-  const a         = appointments[i];
+  const a = appointments[i];
   const oldBucket = bucketOf(a);
 
   if(targetBucket === 'unscheduled'){ a.date=null; a.period=null; }
   else { const [d,p] = targetBucket.split('|'); a.date=d; a.period=p||'Manhã'; }
 
-  const dest = getBucketList(targetBucket).filter(x=>x.id!==a.id);
+  const dest = getBucketList(targetBucket).filter(x=>String(x.id)!==String(a.id));
   dest.splice(Math.min(targetIndex, dest.length), 0, a);
   dest.forEach((x,idx)=> x.sortIndex = idx+1);
 
@@ -210,22 +216,19 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   }
 
   renderAll();
-
   const bucketsToPersist = new Set([targetBucket, oldBucket]);
   await persistBuckets(bucketsToPersist);
 }
 
-// ---------- Render DESKTOP (cartões estilo mobile) ----------
+// ---------- Render DESKTOP (cartões) ----------
 function buildDesktopCard(a){
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
   const bar = statusBarColors[a.status] || '#999';
   const title = `${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
   const sub   = [a.locality, a.notes].filter(Boolean).join(' | ');
-
   return `
-    <div class="appointment desk-card"
-         data-id="${a.id}" draggable="true"
+    <div class="appointment desk-card" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
       <div class="dc-title">${title}</div>
@@ -241,10 +244,8 @@ function buildDesktopCard(a){
 function renderSchedule(){
   const table=document.getElementById('schedule'); if(!table) return;
   table.innerHTML='';
-  // ✅ CORREÇÃO: Mudado de Array(5) para Array(6) para incluir sábado
-  const week=[...Array(6)].map((_,i)=>addDays(currentMonday,i));
+  const week=[...Array(6)].map((_,i)=>addDays(currentMonday,i)); // Seg-Sáb
   const wr=document.getElementById('weekRange');
-  // ✅ CORREÇÃO: Mudado de week[4] para week[5] para mostrar até sábado
   if(wr){ wr.textContent = `${week[0].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} - ${week[5].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}`; }
 
   let thead='<thead><tr><th>Período</th>';
@@ -276,8 +277,7 @@ function renderSchedule(){
 function renderUnscheduled(){
   const container=document.getElementById('unscheduledList'); if(!container) return;
   const unscheduled=filterAppointments(
-    appointments.filter(a=>!a.date||!a.period)
-                .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
+    appointments.filter(a=>!a.date||!a.period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
   );
   const blocks = unscheduled.map(a=>{
     const base=getLocColor(a.locality);
@@ -286,8 +286,7 @@ function renderUnscheduled(){
     const title=`${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
     const sub=[a.locality,a.notes].filter(Boolean).join(' | ');
     return `
-      <div class="appointment desk-card unscheduled"
-           data-id="${a.id}" draggable="true"
+      <div class="appointment desk-card unscheduled" data-id="${a.id}" draggable="true"
            data-locality="${a.locality||''}" data-loccolor="${base}"
            style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
         <div class="dc-title">${title}</div>
@@ -298,8 +297,8 @@ function renderUnscheduled(){
           <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
         </div>
         <div class="unscheduled-actions">
-          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar">✏️</button>
-          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar">🗑️</button>
+          <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar">✏️</button>
+          <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar">🗑️</button>
         </div>
       </div>`;
   }).join('');
@@ -307,16 +306,10 @@ function renderUnscheduled(){
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
-// ---------- Header da tabela (garante coluna Ações) ----------
+// ---------- Header da tabela ----------
 function ensureServicesHeader(){
-  const table = document.querySelector('.services-table');
-  if(!table) return;
-  let thead = table.querySelector('thead');
-  if(!thead){
-    thead = document.createElement('thead');
-    table.prepend(thead);
-  }
-  // Alinhado com o index.html
+  const table = document.querySelector('.services-table'); if(!table) return;
+  let thead = table.querySelector('thead'); if(!thead){ thead = document.createElement('thead'); table.prepend(thead); }
   const headers = ['Data','Período','Matrícula','Carro','Serviço','Localidade','Observações','Estado','Dias','Ações'];
   thead.innerHTML = `<tr>${
     headers.map(h => h==='Ações'
@@ -329,24 +322,17 @@ function ensureServicesHeader(){
 // ---------- Render TABELA FUTURA ----------
 function renderServicesTable(){
   const tbody=document.getElementById('servicesTableBody'); if(!tbody) return;
-
   ensureServicesHeader();
-
-  // início de hoje
-  const startToday = new Date(); startToday.setHours(0,0,0,0);
-
-  const future = filterAppointments(
-    appointments
-      .filter(a => a.date && new Date(a.date) >= startToday)
-      .sort((a,b) => new Date(a.date) - new Date(b.date))
-  );
-
   const today = new Date(); today.setHours(0,0,0,0);
-
+  const future = filterAppointments(
+    appointments.filter(a => a.date && new Date(a.date) >= today)
+               .sort((a,b) => new Date(a.date) - new Date(b.date))
+  );
   tbody.innerHTML=future.map(a=>{
-    const d=new Date(a.date);
+    const d=new Date(a.date); d.setHours(0,0,0,0);
     const diff=Math.ceil((d - today)/(1000*60*60*24));
     const when = diff<0? `${Math.abs(diff)} dias atrás` : diff===0? 'Hoje' : diff===1? 'Amanhã' : `${diff} dias`;
+    const notes = (a.notes||'').replace(/"/g,'&quot;');
     return `<tr>
       <td>${d.toLocaleDateString('pt-PT')}</td>
       <td>${a.period||''}</td>
@@ -354,22 +340,76 @@ function renderServicesTable(){
       <td>${a.car||''}</td>
       <td><span class="badge badge-${a.service}">${a.service||''}</span></td>
       <td>${a.locality||''}</td>
-      <td>${a.notes||''}</td>
+      <td title="${notes}">${a.notes||''}</td>
       <td><span class="chip chip-${a.status}">${a.status||''}</span></td>
       <td>${when}</td>
       <td class="no-print">
         <div class="actions">
-          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar" aria-label="Editar">✏️</button>
-          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar" aria-label="Eliminar">🗑️</button>
+          <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
+          <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
         </div>
       </td>
     </tr>`;
   }).join('');
-
   const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviços pendentes`;
 }
 
-function renderAll(){ renderSchedule(); renderUnscheduled(); renderMobileDay(); renderServicesTable(); }
+
+// ---------- Render MOBILE (lista do dia) ----------
+function buildMobileCard(a){
+  const base = getLocColor(a.locality);
+  const g = gradFromBase(base);
+  const title = `${a.plate} • ${(a.car||'').toUpperCase()}`;
+  const chips = [
+    a.period ? `<span class="m-chip">${a.period}</span>` : '',
+    a.service ? `<span class="m-chip">${a.service}</span>` : '',
+    a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
+  ].join('');
+  const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
+  return `
+    <div class="appointment m-card" data-id="${a.id}"
+         style="--c1:${g.c1}; --c2:${g.c2};">
+      <div class="m-title">${title}</div>
+      <div class="m-chips">${chips}</div>
+      ${notes}
+    </div>
+  `;
+}
+
+function renderMobileDay(){
+  const list = document.getElementById('mobileDayList');
+  const label = document.getElementById('mobileDayLabel');
+  if(!list || !label) return;
+  const iso = localISO(currentMobileDay);
+  const weekday = currentMobileDay.toLocaleDateString('pt-PT',{ weekday:'long' });
+  const dm = currentMobileDay.toLocaleDateString('pt-PT',{ day:'2-digit', month:'2-digit' });
+  label.textContent = `${cap(weekday)} • ${dm}`;
+
+  const items = filterAppointments(
+    appointments
+      .filter(a => a.date === iso)
+      .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0))
+  );
+
+  if(items.length === 0){
+    list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
+    return;
+  }
+
+  // Separar por período para legibilidade
+  const morning = items.filter(a=>a.period==='Manhã').map(buildMobileCard).join('');
+  const afternoon = items.filter(a=>a.period==='Tarde').map(buildMobileCard).join('');
+  const others = items.filter(a=>!a.period).map(buildMobileCard).join('');
+
+  list.innerHTML = `
+    ${morning? `<h4 style="margin:4px 0 6px 8px;">Manhã</h4>${morning}`:''}
+    ${afternoon? `<h4 style="margin:12px 0 6px 8px;">Tarde</h4>${afternoon}`:''}
+    ${others? `<h4 style="margin:12px 0 6px 8px;">Sem período</h4>${others}`:''}
+  `;
+  highlightSearchResults();
+}
+
+function renderAll(){ renderSchedule(); renderUnscheduled(); renderServicesTable(); renderMobileDay(); }
 
 // ---------- CRUD ----------
 function openAppointmentModal(id=null){
@@ -378,7 +418,7 @@ function openAppointmentModal(id=null){
   const title=document.getElementById('modalTitle');
   const del=document.getElementById('deleteAppointment');
   if(id){
-    const a=appointments.find(x=>x.id===id);
+    const a=appointments.find(x=>String(x.id)===String(id));
     if(a){
       title.textContent='Editar Agendamento';
       document.getElementById('appointmentDate').value = formatDateForInput(a.date) || '';
@@ -387,7 +427,6 @@ function openAppointmentModal(id=null){
       document.getElementById('appointmentCar').value = a.car||'';
       document.getElementById('appointmentService').value = a.service||'';
       document.getElementById('appointmentLocality').value = a.locality||'';
-      // UI do dropdown
       const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
       if(txt) txt.textContent=a.locality||'Selecione a localidade';
       if(dot) dot.style.backgroundColor=getLocColor(a.locality);
@@ -407,12 +446,7 @@ function openAppointmentModal(id=null){
   }
   modal.classList.add('show');
 }
-
-function closeAppointmentModal(){
-  const modal=document.getElementById('appointmentModal'); if(modal) modal.classList.remove('show');
-  editingId=null;
-}
-
+function closeAppointmentModal(){ const modal=document.getElementById('appointmentModal'); if(modal) modal.classList.remove('show'); editingId=null; }
 async function saveAppointment(){
   const form=document.getElementById('appointmentForm'); if(!form) return;
   const data={
@@ -434,12 +468,13 @@ async function saveAppointment(){
   try{
     if(editingId){
       const res=await window.apiClient.updateAppointment(editingId,data);
-      const idx=appointments.findIndex(a=>a.id===editingId);
+      const idx=appointments.findIndex(a=>String(a.id)===String(editingId));
       if(idx>=0) appointments[idx]={...appointments[idx],...(res||data)};
       showToast('Agendamento atualizado!','success');
     }else{
       const res=await window.apiClient.createAppointment(data);
-      const newAppt={id:Date.now()+Math.random(),sortIndex:1,...data,...(res||{})};
+      const newId = (res && (res.id || res.clientId)) || (Date.now()+Math.random());
+      const newAppt={id:newId,sortIndex:1,...data,...(res||{})};
       appointments.push(newAppt);
       showToast('Agendamento criado!','success');
     }
@@ -448,14 +483,12 @@ async function saveAppointment(){
     showToast('Erro: '+e.message,'error');
   }
 }
-
 function editAppointment(id){ openAppointmentModal(id); }
-
 async function deleteAppointment(id){
   if(!confirm('Eliminar este agendamento?')) return;
   try{
     await window.apiClient.deleteAppointment(id);
-    appointments=appointments.filter(a=>a.id!==id);
+    appointments=appointments.filter(a=>String(a.id)!==String(id));
     showToast('Agendamento eliminado!','success');
     closeAppointmentModal(); renderAll();
   }catch(e){
@@ -468,14 +501,10 @@ function attachStatusListeners(){
   document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb=>{
     cb.addEventListener('change',async e=>{
       if(!e.target.checked) return;
-      const card=e.target.closest('.appointment');
-      if(!card) return;
-      const id=Number(card.getAttribute('data-id'));
-      const status=e.target.getAttribute('data-status');
+      const card=e.target.closest('.appointment'); if(!card) return;
+      const id=card.getAttribute('data-id'); const status=e.target.getAttribute('data-status');
       if(!id||!status) return;
-      card.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{
-        if(x!==e.target) x.checked=false;
-      });
+      card.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{ if(x!==e.target) x.checked=false; });
       await persistStatus(id,status);
     });
   });
@@ -483,25 +512,23 @@ function attachStatusListeners(){
 
 // ---------- Exportação ----------
 function exportToJson(){
+  appointments.forEach(a=>{ if(!a.sortIndex) a.sortIndex=1; });
   const data=JSON.stringify(appointments,null,2);
   const blob=new Blob([data],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='agendamentos.json'; a.click();
   URL.revokeObjectURL(url);
 }
-
 function exportToCsv(){
-  const headers=['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações','Extra'];
-  const rows=appointments.map(a=>[
-    a.date||'',a.period||'',a.plate||'',a.car||'',a.service||'',a.locality||'',a.status||'',a.notes||'',a.extra||''
-  ]);
+  appointments.forEach(a=>{ if(!a.sortIndex) a.sortIndex=1; });
+  const headers=['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações','Extra','Ordem'];
+  const rows=appointments.map(a=>[a.date||'',a.period||'',a.plate||'',a.car||'',a.service||'',a.locality||'',a.status||'',a.notes||'',a.extra||'',a.sortIndex||1]);
   const csv=[headers,...rows].map(row=>row.map(cell=>`"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=url; a.download='agendamentos.csv'; a.click();
   URL.revokeObjectURL(url);
 }
-
 async function importFromJson(file){
   try{
     const text=await file.text();
@@ -509,448 +536,102 @@ async function importFromJson(file){
     if(!Array.isArray(data)){ showToast('Formato inválido','error'); return; }
     appointments=data.map(a=>({...a,id:a.id||Date.now()+Math.random(),sortIndex:a.sortIndex||1}));
     renderAll(); showToast('Dados importados!','success');
-  }catch(e){
-    showToast('Erro na importação: '+e.message,'error');
-  }
+  }catch(e){ showToast('Erro na importação: '+e.message,'error'); }
 }
 
-// ---------- Estatísticas ----------
-function showStats(){
-  const modal=document.getElementById('statsModal'); if(!modal) return;
-  const total=appointments.length;
-  const scheduled=appointments.filter(a=>a.date&&a.period).length;
-  const unscheduled=total-scheduled;
-  const byStatus=appointments.reduce((acc,a)=>{acc[a.status]=(acc[a.status]||0)+1;return acc;},{});
-  const byLocality=appointments.reduce((acc,a)=>{acc[a.locality]=(acc[a.locality]||0)+1;return acc;},{});
-
-  document.getElementById('totalAppointments').textContent=total;
-  document.getElementById('scheduledCount').textContent=scheduled;
-  document.getElementById('unscheduledCount').textContent=unscheduled;
-
-  const statusList=document.getElementById('statusBreakdown');
-  statusList.innerHTML=Object.entries(byStatus).map(([s,c])=>`<li>${s}: ${c}</li>`).join('');
-
-  const localityList=document.getElementById('localityBreakdown');
-  localityList.innerHTML=Object.entries(byLocality).map(([l,c])=>`<li>${l}: ${c}</li>`).join('');
-
-  modal.classList.add('show');
+// ---------- Conexão badge ----------
+function updateConnBadge(){
+  const el = document.getElementById('connectionStatus');
+  if(!el) return;
+  if (window.apiClient?.isOnline){ el.classList.remove('offline'); el.querySelector('#statusText').textContent = 'Online'; }
+  else { el.classList.add('offline'); el.querySelector('#statusText').textContent = 'Offline'; }
 }
 
-// ---------- Impressão ----------
-function printPage(){
-  updatePrintTodayTable(); updatePrintTomorrowTable();
-  window.print();
+// ---------- Dropdown Localidades ----------
+function toggleLocalityDropdown(){
+  const box = document.getElementById('localityOptions');
+  const sel = document.getElementById('localitySelected');
+  if(!box||!sel) return;
+  const open = box.classList.toggle('show');
+  sel.classList.toggle('open', open);
+}
+function closeLocalityDropdown(){ const box=document.getElementById('localityOptions'); const sel=document.getElementById('localitySelected'); if(box){box.classList.remove('show');} if(sel){sel.classList.remove('open');} }
+document.addEventListener('click', (e)=>{ if(!e.target.closest('.locality-dropdown')) closeLocalityDropdown(); });
+
+function buildLocalityOptions(){
+  const box=document.getElementById('localityOptions'); if(!box) return;
+  box.innerHTML = Object.keys(localityColors).map(loc=>`
+    <div class="locality-option" data-loc="${loc}" onclick="selectLocality('${loc}')">
+      <span class="locality-dot" style="background:${getLocColor(loc)}"></span>
+      <span>${loc}</span>
+    </div>
+  `).join('');
+}
+function selectLocality(loc){
+  const hidden=document.getElementById('appointmentLocality');
+  const txt=document.getElementById('selectedLocalityText');
+  const dot=document.getElementById('selectedLocalityDot');
+  if(hidden) hidden.value=loc;
+  if(txt) txt.textContent=loc;
+  if(dot) dot.style.background=getLocColor(loc);
+  closeLocalityDropdown();
 }
 
-function updatePrintTodayTable(){
-  const today=new Date(); const str=localISO(today);
-  const list=appointments.filter(a=>a.date===str).sort((a,b)=>({Manhã:1,Tarde:2}[a.period]||3 - ({Manhã:1,Tarde:2}[b.period]||3)));
-  const title=document.getElementById('printTodayTitle'); const dateEl=document.getElementById('printTodayDate');
-  const tbody=document.getElementById('printTodayTableBody'); const empty=document.getElementById('printTodayEmpty'); const table=document.querySelector('.print-today-table');
-  if(title) title.textContent='SERVIÇOS DE HOJE';
-  if(dateEl) dateEl.textContent=cap(today.toLocaleDateString('pt-PT',{weekday:'long',year:'numeric',month:'long',day:'numeric'}));
-  if(!tbody||!table||!empty) return;
-  if(list.length===0){ table.style.display='none'; empty.style.display='block'; }
-  else{
-    table.style.display='table'; empty.style.display='none';
-    tbody.innerHTML=list.map(a=>`
-      <tr>
-        <td>${a.period||''}</td><td>${a.plate||''}</td><td>${a.car||''}</td>
-        <td><span class="service-badge badge-${a.service}">${a.service||''}</span></td>
-        <td>${a.locality||''}</td><td><span class="status-chip chip-${a.status}">${a.status||''}</span></td>
-        <td>${a.notes||''}</td><td>${a.extra||''}</td>
-      </tr>`).join('');
-  }
-}
+// ---------- Navegação Semana / Dia ----------
+function gotoTodayWeek(){ currentMonday = getMonday(new Date()); renderAll(); }
+function prevWeek(){ currentMonday = addDays(currentMonday, -7); renderAll(); }
+function nextWeek(){ currentMonday = addDays(currentMonday,  7); renderAll(); }
 
-function updatePrintTomorrowTable(){
-  const t=new Date(); t.setDate(t.getDate()+1); const str=localISO(t);
-  const list=appointments.filter(a=>a.date===str).sort((a,b)=>({Manhã:1,Tarde:2}[a.period]||3 - ({Manhã:1,Tarde:2}[b.period]||3)));
-  const title=document.getElementById('printTomorrowTitle'); const dateEl=document.getElementById('printTomorrowDate');
-  const tbody=document.getElementById('printTomorrowTableBody'); const empty=document.getElementById('printTomorrowEmpty'); const table=document.querySelector('.print-tomorrow-table');
-  if(title) title.textContent='SERVIÇOS DE AMANHÃ';
-  if(dateEl) dateEl.textContent=cap(t.toLocaleDateString('pt-PT',{weekday:'long',year:'numeric',month:'long',day:'numeric'}));
-  if(!tbody||!table||!empty) return;
-  if(list.length===0){ table.style.display='none'; empty.style.display='block'; }
-  else{
-    table.style.display='table'; empty.style.display='none';
-    tbody.innerHTML=list.map(a=>`
-      <tr>
-        <td>${a.period||''}</td><td>${a.plate||''}</td><td>${a.car||''}</td>
-        <td><span class="service-badge badge-${a.service}">${a.service||''}</span></td>
-        <td>${a.locality||''}</td><td><span class="status-chip chip-${a.status}">${a.status||''}</span></td>
-        <td>${a.notes||''}</td><td>${a.extra||''}</td>
-      </tr>`).join('');
-  }
-}
-
-// ---------- Colocar "+ Novo Serviço" no topo (barra azul) ----------
-function placeAddNewButtonInHeader(){
-  const btn = document.getElementById('addServiceBtn');
-  if(!btn) return;
-  const header = document.querySelector('.header-actions') || (()=> {
-    const ph = document.querySelector('.page-header');
-    if(!ph) return null;
-    const c = document.createElement('div'); c.className='header-actions'; ph.appendChild(c); return c;
-  })();
-  if(!header) return;
-  btn.classList.add('header-btn','primary');
-  btn.textContent = '+ Novo Serviço';
-  header.prepend(btn); // fica à esquerda dos restantes (perto do imprimir)
-}
-
-// ---------- Modais & navegação ----------
-function closeBackupModal(){ document.getElementById('backupModal')?.classList.remove('show'); }
-function closeStatsModal(){ document.getElementById('statsModal')?.classList.remove('show'); }
-function prevWeek(){ currentMonday=addDays(currentMonday,-7); renderAll(); }
-function nextWeek(){ currentMonday=addDays(currentMonday,7); renderAll(); }
-function todayWeek(){ currentMonday=getMonday(new Date()); renderAll(); }
-function prevDay(){ currentMobileDay=addDays(currentMobileDay,-1); renderMobileDay(); }
-function nextDay(){ currentMobileDay=addDays(currentMobileDay,1); renderMobileDay(); }
-function todayDay(){ currentMobileDay=new Date(); renderMobileDay(); }
-
-// ---------- Init ----------
+// ---------- Eventos DOM ----------
 document.addEventListener('DOMContentLoaded', async ()=>{
-  await load();
-  initializeLocalityDropdown();
-
-  // botão "+ Novo Serviço" volta para a barra azul
-  placeAddNewButtonInHeader();
-
-  // cabeçalho da tabela com "Ações"
-  ensureServicesHeader();
-
-  renderAll();
-  updateConnectionStatus();
-
-  document.getElementById('prevWeek')?.addEventListener('click', prevWeek);
-  document.getElementById('nextWeek')?.addEventListener('click', nextWeek);
-  document.getElementById('todayWeek')?.addEventListener('click', todayWeek);
-  document.getElementById('prevDay')?.addEventListener('click', prevDay);
-  document.getElementById('nextDay')?.addEventListener('click', nextDay);
-  document.getElementById('todayDay')?.addEventListener('click', todayDay);
-  document.getElementById('printPage')?.addEventListener('click', printPage);
-
-  document.getElementById('backupBtn')?.addEventListener('click', ()=> document.getElementById('backupModal')?.classList.add('show'));
-  document.getElementById('statsBtn')?.addEventListener('click', showStats);
-
-  document.getElementById('searchBtn')?.addEventListener('click', ()=>{
-    const bar=document.getElementById('searchBar'); if(!bar) return;
-    bar.classList.toggle('hidden'); if(!bar.classList.contains('hidden')) document.getElementById('searchInput')?.focus();
-  });
-  document.getElementById('searchInput')?.addEventListener('input', e=>{ searchQuery=e.target.value; renderAll(); });
-  document.getElementById('clearSearch')?.addEventListener('click', ()=>{
-    searchQuery=''; const i=document.getElementById('searchInput'); if(i) i.value='';
-    document.getElementById('searchBar')?.classList.add('hidden'); renderAll();
-  });
-  document.getElementById('filterStatus')?.addEventListener('change', e=>{ statusFilter=e.target.value; renderAll(); });
-
+  // inputs
+  document.getElementById('appointmentPlate')?.addEventListener('input', (e)=>formatPlate(e.target));
   document.getElementById('addServiceBtn')?.addEventListener('click', ()=>openAppointmentModal());
   document.getElementById('addServiceMobile')?.addEventListener('click', ()=>openAppointmentModal());
   document.getElementById('closeModal')?.addEventListener('click', closeAppointmentModal);
   document.getElementById('cancelForm')?.addEventListener('click', closeAppointmentModal);
-
   document.getElementById('deleteAppointment')?.addEventListener('click', ()=>{ if(editingId) deleteAppointment(editingId); });
-  document.getElementById('appointmentPlate')?.addEventListener('input', e=> formatPlate(e.target));
 
+  document.getElementById('appointmentForm')?.addEventListener('submit', (e)=>{ e.preventDefault(); saveAppointment(); });
+
+  // search
+  const searchBtn=document.getElementById('searchBtn');
+  const searchBar=document.getElementById('searchBar');
+  const searchInput=document.getElementById('searchInput');
+  document.getElementById('clearSearch')?.addEventListener('click', ()=>{ searchInput.value=''; searchQuery=''; renderAll(); });
+  searchBtn?.addEventListener('click', ()=> searchBar.classList.toggle('hidden'));
+  searchInput?.addEventListener('input', (e)=>{ searchQuery=e.target.value; highlightSearchResults(); });
+
+  // filtros
+  document.getElementById('filterStatus')?.addEventListener('change', (e)=>{ statusFilter=e.target.value; renderAll(); });
+
+  // navegação dia (mobile)
+  document.getElementById('prevDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, -1); renderMobileDay(); });
+  document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
+  document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
+
+  // navegação semana
+  document.getElementById('todayWeek')?.addEventListener('click', gotoTodayWeek);
+  document.getElementById('prevWeek')?.addEventListener('click', prevWeek);
+  document.getElementById('nextWeek')?.addEventListener('click', nextWeek);
+
+  // export/import
+  document.getElementById('exportServices')?.addEventListener('click', exportToCsv);
+  document.getElementById('backupBtn')?.addEventListener('click', ()=>document.getElementById('backupModal').classList.add('show'));
+  document.getElementById('importBtn')?.addEventListener('click', ()=>document.getElementById('importFile')?.click());
+  document.getElementById('importFile')?.addEventListener('change', (e)=>{ const f=e.target.files[0]; if(f) importFromJson(f); });
   document.getElementById('exportJson')?.addEventListener('click', exportToJson);
   document.getElementById('exportCsv')?.addEventListener('click', exportToCsv);
-  document.getElementById('exportServices')?.addEventListener('click', exportToCsv);
+  document.querySelectorAll('#backupModal .close-btn')?.forEach(btn=>btn.addEventListener('click', ()=>document.getElementById('backupModal').classList.remove('show')));
 
-  document.getElementById('importBtn')?.addEventListener('click', ()=> document.getElementById('importFile')?.click());
-  document.getElementById('importFile')?.addEventListener('change', e=>{ const f=e.target.files[0]; if(f) importFromJson(f); });
+  // imprimir
+  document.getElementById('printPage')?.addEventListener('click', ()=>{/* hook em index já chama window.print() */});
 
-  // Fechar ao clicar fora do conteúdo do modal
-  const apptModal = document.getElementById('appointmentModal');
-  if (apptModal) {
-    apptModal.addEventListener('click', (e)=>{ if(e.target === apptModal) closeAppointmentModal(); });
-  }
+  // ligação
+  window.addEventListener('online', updateConnBadge);
+  window.addEventListener('offline', updateConnBadge);
 
-  // Fechar modais com ESC
-  document.addEventListener('keydown', e=>{
-    if(e.ctrlKey||e.metaKey){
-      if(e.key==='f'){ e.preventDefault(); document.getElementById('searchBtn')?.click(); }
-      if(e.key==='s'){ e.preventDefault(); save(); }
-      if(e.key==='n'){ e.preventDefault(); openAppointmentModal(); }
-    }
-    if(e.key==='Escape'){ document.querySelectorAll('.modal.show').forEach(m=>m.classList.remove('show')); }
-  });
+  buildLocalityOptions();
+  await load();
+  renderAll();
 });
-
-// ---------- Delegação robusta para X/Cancelar (fallback) ----------
-document.addEventListener('click', (e)=>{
-  const hit = e.target && e.target.closest && e.target.closest('#closeModal, #cancelForm');
-  if (!hit) return;
-  e.preventDefault();
-  closeAppointmentModal();
-}, true);
-
-// ---------- Globais ----------
-window.editAppointment=editAppointment;
-window.deleteAppointment=deleteAppointment;
-window.closeBackupModal=closeBackupModal;
-window.closeStatsModal=closeStatsModal;
-window.openAppointmentModal=openAppointmentModal;   // <— exposto
-window.closeAppointmentModal=closeAppointmentModal; // <— exposto
-window.saveAppointment=saveAppointment;             // <— exposto
-
-// ---------- Locality dropdown ----------
-function initializeLocalityDropdown(){
-  const box=document.getElementById('localityOptions'); if(!box) return;
-  box.innerHTML='';
-  Object.entries(localityColors).forEach(([loc,color])=>{
-    const div=document.createElement('div'); div.className='locality-option'; div.onclick=()=>selectLocality(loc);
-    div.innerHTML=`<span class="locality-dot" style="background-color:${color}"></span><span>${loc}</span>`;
-    box.appendChild(div);
-  });
-}
-function toggleLocalityDropdown(){
-  const sel=document.getElementById('localitySelected'); const opt=document.getElementById('localityOptions'); if(!sel||!opt) return;
-  sel.classList.toggle('open'); opt.classList.toggle('show');
-  if(opt.classList.contains('show')) document.addEventListener('click', closeLocalityDropdownOutside, {once:true});
-}
-function closeLocalityDropdownOutside(e){ if(!e.target.closest('.locality-dropdown')) closeLocalityDropdown(); else document.addEventListener('click', closeLocalityDropdownOutside, {once:true}); }
-function closeLocalityDropdown(){ document.getElementById('localitySelected')?.classList.remove('open'); document.getElementById('localityOptions')?.classList.remove('show'); }
-function selectLocality(locality){
-  const hidden=document.getElementById('appointmentLocality'); const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
-  if(hidden) hidden.value=locality; if(txt) txt.textContent=locality; if(dot) dot.style.backgroundColor=getLocColor(locality);
-  document.querySelectorAll('.locality-option').forEach(o=>o.classList.remove('selected'));
-  const selOpt=[...document.querySelectorAll('.locality-option')].find(o=>o.textContent.trim()===locality); if(selOpt) selOpt.classList.add('selected');
-  closeLocalityDropdown();
-}
-window.toggleLocalityDropdown=toggleLocalityDropdown;
-window.selectLocality=selectLocality;
-
-// ---------- Connection status ----------
-function updateConnectionStatus(){
-  const el=document.getElementById('connectionStatus'); const ic=document.getElementById('statusIcon'); const tx=document.getElementById('statusText');
-  if(!el||!ic||!tx) return;
-  const st=window.apiClient.getConnectionStatus();
-  if(st.online){ el.classList.remove('offline'); ic.textContent='🌐'; tx.textContent='Online'; el.title=`Conectado à API: ${st.apiUrl}`; }
-  else{ el.classList.add('offline'); ic.textContent='📱'; tx.textContent='Offline'; el.title='Modo offline - usando dados locais'; }
-}
-setInterval(updateConnectionStatus,5000);
-window.addEventListener('online',updateConnectionStatus);
-window.addEventListener('offline',updateConnectionStatus);
-
-/* ===== ExpressGlass — fixes mínimos ===== */
-(function fixesExpressGlass(){
-  if (window.__EG_FIXES_APPLIED__) return;
-  window.__EG_FIXES_APPLIED__ = true;
-
-  // --- 1) Botões "Novo Serviço" (desktop + mobile)
-  document.addEventListener('click', function(e){
-    const hit = e.target && e.target.closest &&
-      e.target.closest('#addServiceBtn, #addServiceMobile, #addServiceBtnFixed');
-    if (!hit) return;
-
-    if (typeof window.openAppointmentModal === 'function') {
-      e.preventDefault();
-      try { window.openAppointmentModal(); } catch(err) { console.error(err); }
-    }
-  }, true);
-
-  // --- 2) Máscara de matrícula (XX-XX-XX)
-  function maskPlate(raw){
-    const v = String(raw||'').replace(/[^A-Za-z0-9]/g,'').toUpperCase().slice(0,6);
-    if (v.length <= 2) return v;
-    if (v.length <= 4) return v.slice(0,2)+'-'+v.slice(2);
-    return v.slice(0,2)+'-'+v.slice(2,4)+'-'+v.slice(4);
-  }
-
-  document.addEventListener('input', function(e){
-    const el = e.target && e.target.closest && e.target.closest('#appointmentPlate');
-    if (!el) return;
-    el.value = maskPlate(el.value);
-  }, true);
-})();
-
-/* ===== Novo Serviço — wiring FINAL, seguro e isolado ===== */
-(function(){
-  if (window.__EG_WIRE_NEW_SERVICE__) return;
-  window.__EG_WIRE_NEW_SERVICE__ = true;
-
-  const SELECTOR = '#addServiceBtn, #addServiceMobile, #addServiceBtnFixed, [data-new-service]';
-
-  // Delegação em captura: funciona mesmo se o botão for re-renderizado/movido por outros scripts
-  document.addEventListener('click', function(e){
-    const btn = e.target && e.target.closest && e.target.closest(SELECTOR);
-    if (!btn) return;
-
-    e.preventDefault();
-
-    // caminho normal
-    if (typeof window.openAppointmentModal === 'function') {
-      try { window.openAppointmentModal(); } catch (err) { console.error(err); }
-      return;
-    }
-
-    // fallback: abre o modal diretamente se a função não existir
-    const modal = document.getElementById('appointmentModal');
-    if (modal) modal.classList.add('show');
-  }, true);
-})();
-
-/* ===== Guardar agendamento — fix minimal e isolado ===== */
-(function ensureFormSaves(){
-  if (window.__EG_FORM_SAVE_WIRED__) return;
-  window.__EG_FORM_SAVE_WIRED__ = true;
-
-  // 1) Interceta SUBMIT do formulário e chama saveAppointment()
-  document.addEventListener('submit', function(e){
-    const form = e.target && e.target.closest && e.target.closest('#appointmentForm');
-    if (!form) return;
-    e.preventDefault();
-    if (typeof window.saveAppointment === 'function') {
-      try { window.saveAppointment(); } catch (err) { console.error('saveAppointment()', err); }
-    } else {
-      console.warn('saveAppointment() não existe');
-    }
-  }, true);
-
-  // 2) Se o botão "Guardar" não for type=submit, força o SUBMIT do form
-  document.addEventListener('click', function(e){
-    // tenta apanhar o botão principal de guardar dentro do form
-    const btn = e.target && e.target.closest && e.target.closest(
-      '#appointmentForm .btn.primary, #appointmentForm [data-save]'
-    );
-    if (!btn) return;
-
-    const form = document.getElementById('appointmentForm');
-    if (!form) return;
-
-    // respeita validação HTML5 (campos required, etc.)
-    if (form.reportValidity && !form.reportValidity()) return;
-
-    // dispara o submit "real" (vai cair no listener acima)
-    e.preventDefault();
-    try {
-      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
-    } catch (err) {
-      console.error('dispatch submit', err);
-    }
-  }, true);
-})();
-
-// fallback seguro se renderMobileDay não existir
-if (typeof window.renderMobileDay !== 'function') {
-  window.renderMobileDay = function(){
-    console.log('renderMobileDay não implementado nesta versão.');
-  };
-}
-
-/* === PATCH V2: ações (✏️/🗑️) nos cartões AGENDADOS, com estilo inline === */
-(function addActionsToScheduledCards(){
-  function ensureCardActions(scope){
-    (scope || document).querySelectorAll('.desk-card:not(.unscheduled)').forEach(card=>{
-      if (card.classList.contains('has-inline-actions')) return;
-      const id = Number(card.getAttribute('data-id'));
-      if (!id) return;
-
-      // garante que o cartão aceita conteúdo extra visualmente
-      card.style.paddingBottom = card.style.paddingBottom || '10px';
-
-      const box = document.createElement('div');
-      // classe nova para não depender do CSS existente
-      box.className = 'card-actions-inline';
-      // estilos inline para não ser escondido por regras de .unscheduled-actions
-      box.setAttribute('style',
-        'display:flex; gap:8px; margin-top:8px; justify-content:flex-end; align-items:center;');
-
-      const btnEdit = document.createElement('button');
-      btnEdit.className = 'icon edit';
-      btnEdit.title = 'Editar';
-      btnEdit.setAttribute('aria-label','Editar');
-      btnEdit.textContent = '✏️';
-      btnEdit.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        if (window.editAppointment) window.editAppointment(id);
-      });
-
-      const btnDel = document.createElement('button');
-      btnDel.className = 'icon delete';
-      btnDel.title = 'Eliminar';
-      btnDel.setAttribute('aria-label','Eliminar');
-      btnDel.textContent = '🗑️';
-      btnDel.addEventListener('click', (e)=>{
-        e.stopPropagation();
-        if (window.deleteAppointment) window.deleteAppointment(id);
-      });
-
-      box.appendChild(btnEdit);
-      box.appendChild(btnDel);
-      card.appendChild(box);
-      card.classList.add('has-inline-actions');
-    });
-  }
-
-  // injeta depois de cada render do calendário
-  const _renderSchedule = window.renderSchedule;
-  window.renderSchedule = function(){
-    if (typeof _renderSchedule === 'function') _renderSchedule();
-    ensureCardActions();
-  };
-
-  // observa alterações dentro do calendário (drag & drop, etc.)
-  const sched = document.getElementById('schedule');
-  if (sched) {
-    new MutationObserver(()=>ensureCardActions()).observe(sched, { childList:true, subtree:true });
-  }
-
-  // primeira passagem
-  ensureCardActions();
-})();
-
-// ---------- Render MOBILE (vista diária) ----------
-function renderMobileDay() {
-  const label = document.getElementById('mobileDayLabel');
-  const list  = document.getElementById('mobileDayList');
-  if (!label || !list) return;
-
-  // cabeçalho com dia e data
-  const d = currentMobileDay;
-  label.textContent = d.toLocaleDateString('pt-PT', {
-    weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'
-  });
-
-  const iso = localISO(d);
-  const items = filterAppointments(
-    appointments
-      .filter(a => a.date === iso)
-      .sort((x,y) => ({Manhã:1,Tarde:2}[x.period] - ({Manhã:1,Tarde:2}[y.period])))
-  );
-
-  if (items.length === 0) {
-    list.innerHTML = '<div class="no-appointments">Nenhum agendamento para este dia</div>';
-    return;
-  }
-
-  list.innerHTML = items.map(a => {
-    const base = getLocColor(a.locality);
-    const g = gradFromBase(base);
-    const bar = statusBarColors[a.status] || '#999';
-    const title = `${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
-    const sub = [a.locality, a.notes].filter(Boolean).join(' | ');
-
-    return `
-      <div class="appointment mobile-card"
-           data-id="${a.id}"
-           data-locality="${a.locality||''}" data-loccolor="${base}"
-           style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
-        <div class="mc-period">${a.period}</div>
-        <div class="mc-title">${title}</div>
-        <div class="mc-sub">${sub}</div>
-        <div class="appt-status mc-status">
-          <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
-          <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
-          <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
-        </div>
-        <div class="mobile-actions">
-          <button class="icon edit" onclick="editAppointment(${a.id})" title="Editar">✏️</button>
-          <button class="icon delete" onclick="deleteAppointment(${a.id})" title="Eliminar">🗑️</button>
-        </div>
-      </div>`;
-  }).join('');
-
-  attachStatusListeners();
-}
