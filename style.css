@@ -1,3 +1,4 @@
+
 /* =========================
    BASE / RESET
    ========================= */
@@ -96,6 +97,12 @@ table.schedule td:first-child{border-left:none}
 .appointment[draggable="true"]:hover{ transform: translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.15); }
 .appointment.dragging{ opacity:.6; transform: rotate(2deg); cursor:grabbing; z-index:1000; }
 
+/* === Destaque de resultados de pesquisa === */
+.appointment.highlight{
+  outline: 3px solid rgba(59,130,246,.6);
+  box-shadow: 0 0 0 4px rgba(59,130,246,.18);
+}
+
 /* =========================
    CARTÕES DESKTOP (gradiente + barra de status)
    ========================= */
@@ -106,7 +113,6 @@ table.schedule td:first-child{border-left:none}
   background: linear-gradient(180deg, var(--c1, #1e88e5), var(--c2, #1565c0)) !important;
   color: #fff;
   box-shadow: 0 8px 20px rgba(0,0,0,.18);
-  /* A barra fina vertical do status vem inline via JS (border-left) */
 }
 .desk-card, .desk-card * { color:#fff !important; }
 .desk-card .dc-title {
@@ -223,178 +229,7 @@ table.schedule td:first-child{border-left:none}
    TOASTS
    ========================= */
 .toast-container{ position:fixed; top:20px; right:20px; z-index:2000; }
-.toast{ background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:12px 16px; margin-bottom:8px; box-shadow:0 4px 6px -1px rgba(0,0,0,.1); display:flex; align-items:center; gap:8px; min-width:300px; }
-.toast.success{ border-left:4px solid #10b981; }
-.toast.error{ border-left:4px solid #ef4444; }
-.toast.info{ border-left:4px solid #3b82f6; }
-
-/* =========================
-   MOBILE: vista do dia
-   ========================= */
-.mobile-day-container{display:none !important;}
-@media (max-width: 820px){
-  body{margin:12px}
-  .schedule-container, .services-table-container{display:none !important}
-  .unscheduled-container{ display:none !important; }
-  .nav-left button#prevWeek, .nav-left button#nextWeek, .nav-right{display:none}
-  .week-range{font-size:14px}
-  .mobile-day-container{display:block !important}
-  .mobile-day-header{ margin-top: 6px; }
-  .mobile-day-label{ font-weight:700; text-align:center; margin-bottom:8px; }
-  .mobile-day-buttons{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; }
-  .mobile-day-buttons .nav-button{ width:100%; padding:12px 10px; text-align:center; }
-  /* esconder ações e checkboxes no mobile */
-  .actions, .appt-status{display:none !important}
-  /* cartões do dia em branco sobre gradiente */
-  #mobileDayList .appointment, #mobileDayList .appointment *{ color:#fff !important; }
-  #mobileDayList .appt-status, #mobileDayList .chip, #mobileDayList .badge{ display:none !important; }
-}
-
-/* =========================
-   PEQUENOS AJUSTES
-   ========================= */
-textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: none; }
-.highlight{ background:#fef3c7 !important; border:2px solid #f59e0b !important; }
-
-/* ===== SM BRAGA (MOBILE): alinhar header como Famalicão ===== */
-@media (max-width: 820px){
-  body.page-sm-braga .page-header{
-    padding: 16px 16px 18px 16px;   /* header mais compacto */
-    border-radius: 12px;
-    z-index: 1;                     /* não cobre a navegação */
-  }
-  body.page-sm-braga .page-header h1{
-    font-size: 22px;                /* desce um pouco para caber */
-    line-height: 1.15;
-    margin: 0;
-    text-align: center;
-  }
-  body.page-sm-braga .subtitle{
-    font-size: 12px;
-    margin: 6px 0 0;
-    text-align: center;
-  }
-  /* Ícones deixam de ser absolute: não sobrepõem o título */
-  body.page-sm-braga .header-actions{
-    position: static;
-    display: flex;
-    gap: 8px;
-    justify-content: center;        /* como em Famalicão */
-    margin-top: 8px;
-  }
-  /* Garante cliques na navegação */
-  body.page-sm-braga .nav-bar{ position: relative; z-index: 2; }
-}
-/* ===== CLICK FIX — SM BRAGA (mobile) ===== */
-@media (max-width: 820px){
-  /* header nunca cobre a navegação */
-  body.page-sm-braga .page-header{
-    position: relative !important;
-    z-index: 1 !important;
-    overflow: visible !important;
-  }
-  /* nenhum pseudo-elemento decorativo por cima */
-  body.page-sm-braga .page-header::before,
-  body.page-sm-braga .page-header::after{ content: none !important; }
-
-  /* ações do header deixam de ser absolutas */
-  body.page-sm-braga .header-actions{
-    position: static !important;
-  }
-
-  /* navegação fica acima de tudo e com cliques garantidos */
-  body.page-sm-braga .nav-bar{
-    position: relative !important;
-    z-index: 9999 !important;
-  }
-  body.page-sm-braga .nav-bar, 
-  body.page-sm-braga .nav-bar *{
-    pointer-events: auto !important;
-  }
-
-  /* se existir algum "+ Novo Serviço" perdido dentro do header, esconde */
-  body.page-sm-braga header.page-header button:not(.header-btn){
-    display: none !important;
-  }
-}
-
-/* ==================================================
-   IMPRESSÃO HORIZONTAL (HOJE E AMANHÃ) - VERSÃO FINAL
-   ================================================== */
-
-/* Estilos que se aplicam APENAS quando o script está a preparar a impressão */
-body.printing-now > *:not(#print-container-temp) {
-  display: none !important; /* Esconde tudo exceto o nosso contentor */
-}
-
-#print-container-temp {
-  display: block !important; /* Garante que o contentor é visível */
-}
-
-@media print {
-  /* 1. Configura a página para A4 paisagem */
-  @page {
-    size: A4 landscape;
-    margin: 12mm;
-  }
-
-  /* 2. Estilos gerais do body para impressão */
-  body {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    background: #fff !important;
-  }
-
-  /* 3. Garante que as secções dentro do contentor são visíveis */
-  #print-container-temp .print-today-section,
-  #print-container-temp .print-tomorrow-section {
-    display: block !important;
-    visibility: visible !important;
-    page-break-before: auto;
-    page-break-after: auto;
-  }
-
-  /* 4. Força a quebra de página antes da segunda secção */
-  #print-container-temp .print-tomorrow-section {
-    break-before: page;
-    page-break-before: always;
-  }
-
-  /* 5. Garante que todo o conteúdo dentro das tabelas é visível */
-  #print-container-temp * {
-    visibility: visible !important;
-    color: #000 !important;
-    background: transparent !important;
-    font-size: 10pt !important;
-  }
-
-  /* 6. Formatação das tabelas */
-  #print-container-temp table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-  }
-
-  #print-container-temp th,
-  #print-container-temp td {
-    border: 1px solid #000 !important;
-    padding: 6px !important;
-    text-align: left !important;
-    vertical-align: top !important;
-    white-space: normal !important;
-  }
-
-  #print-container-temp thead {
-    display: table-header-group !important;
-  }
-  
-  /* 7. Títulos */
-  #print-container-temp h2,
-  #print-container-temp .print-today-date,
-  #print-container-temp .print-tomorrow-date {
-      text-align: center;
-      font-weight: bold;
-      margin-bottom: 15px;
-  }
-}
+.toast{ background:#fff; border:1px solid #e5e7eb; padding:10px 12px; border-radius:8px; display:flex; align-items:center; gap:8px; margin-bottom:8px; box-shadow:0 6px 18px rgba(0,0,0,.06); }
+.toast.success{ border-color:#86efac; }
+.toast.error{ border-color:#fecaca; }
+.toast.info{ border-color:#bfdbfe; }
