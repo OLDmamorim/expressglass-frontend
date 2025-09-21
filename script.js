@@ -826,3 +826,126 @@ setTimeout(() => {
 }, 500);
 
 console.log('✅ Solução persistente instalada - ícones devem permanecer!');
+
+// PATCH IMEDIATO - Corrigir gravação da morada
+// Adicionar ao final do script.js
+
+console.log('🔧 Aplicando patch de morada...');
+
+// Interceptar saveAppointment para forçar gravação da morada
+const originalSaveAppointment = window.saveAppointment;
+
+window.saveAppointment = async function() {
+    console.log('💾 saveAppointment interceptada');
+    
+    // Capturar morada ANTES da gravação
+    const addressField = document.getElementById('appointmentAddress');
+    const moradaCapturada = addressField ? addressField.value.trim() : '';
+    const isEditing = !!editingId;
+    
+    console.log('🏠 Morada capturada:', moradaCapturada);
+    console.log('✏️ Modo edição:', isEditing);
+    
+    try {
+        // Executar função original
+        await originalSaveAppointment.call(this);
+        
+        // FORÇAR gravação da morada após sucesso
+        setTimeout(() => {
+            if (moradaCapturada) {
+                if (isEditing) {
+                    // Edição - encontrar e atualizar
+                    const idx = appointments.findIndex(a => String(a.id) === String(editingId));
+                    if (idx >= 0) {
+                        appointments[idx].address = moradaCapturada;
+                        console.log('✅ Morada forçada na edição:', moradaCapturada);
+                    }
+                } else {
+                    // Criação - atualizar último agendamento
+                    if (appointments.length > 0) {
+                        const lastAppt = appointments[appointments.length - 1];
+                        lastAppt.address = moradaCapturada;
+                        console.log('✅ Morada forçada na criação:', moradaCapturada);
+                    }
+                }
+                
+                // Gravar backup local
+                localStorage.setItem('eg_appointments_v31_api', JSON.stringify(appointments));
+                localStorage.setItem('eg_appointments_backup_morada', JSON.stringify(appointments));
+                
+                console.log('💾 Backup local gravado com morada');
+                
+                // Re-renderizar para mostrar mudanças
+                renderAll();
+            }
+        }, 500);
+        
+    } catch (error) {
+        console.error('❌ Erro no saveAppointment:', error);
+        throw error;
+    }
+};
+
+// Interceptar load para restaurar moradas do backup
+const originalLoad = window.load;
+
+window.load = async function() {
+    console.log('📥 load interceptada');
+    
+    try {
+        await originalLoad.call(this);
+        
+        // Tentar restaurar backup com moradas
+        const backup = localStorage.getItem('eg_appointments_backup_morada');
+        if (backup) {
+            try {
+                const backupData = JSON.parse(backup);
+                
+                // Mesclar moradas do backup com dados atuais
+                backupData.forEach(backupAppt => {
+                    if (backupAppt.address) {
+                        const currentIdx = appointments.findIndex(a => String(a.id) === String(backupAppt.id));
+                        if (currentIdx >= 0 && !appointments[currentIdx].address) {
+                            appointments[currentIdx].address = backupAppt.address;
+                            console.log('🔄 Morada restaurada do backup:', backupAppt.plate, backupAppt.address);
+                        }
+                    }
+                });
+                
+                renderAll();
+                console.log('✅ Moradas restauradas do backup');
+                
+            } catch (e) {
+                console.warn('⚠️ Erro ao restaurar backup:', e);
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro no load:', error);
+        throw error;
+    }
+};
+
+// Aplicar imediatamente se já carregou
+if (typeof appointments !== 'undefined' && appointments.length > 0) {
+    const backup = localStorage.getItem('eg_appointments_backup_morada');
+    if (backup) {
+        try {
+            const backupData = JSON.parse(backup);
+            backupData.forEach(backupAppt => {
+                if (backupAppt.address) {
+                    const currentIdx = appointments.findIndex(a => String(a.id) === String(backupAppt.id));
+                    if (currentIdx >= 0 && !appointments[currentIdx].address) {
+                        appointments[currentIdx].address = backupAppt.address;
+                    }
+                }
+            });
+            renderAll();
+            console.log('🔄 Moradas restauradas na aplicação do patch');
+        } catch (e) {
+            console.warn('⚠️ Erro na restauração imediata:', e);
+        }
+    }
+}
+
+console.log('✅ Patch de morada aplicado - agora as moradas devem persistir!');
