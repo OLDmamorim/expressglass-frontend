@@ -681,3 +681,127 @@ document.addEventListener('DOMContentLoaded',async()=>{
 });
 
 console.log('✅ Portal de Agendamento Expressglass carregado com ícones corrigidos!');
+
+// RECUPERAÇÃO URGENTE - Adicionar ao final do script.js
+// Os dados estão na base de dados, só precisa de recarregar
+
+console.log('🚨 RECUPERAÇÃO DE DADOS INICIADA...');
+
+// Forçar recarregamento dos dados
+async function recuperarDados() {
+    try {
+        console.log('📥 Tentando recuperar dados da base de dados...');
+        
+        // Limpar cache local
+        localStorage.removeItem('eg_appointments_v31_api');
+        
+        // Recarregar da API
+        const dadosRecuperados = await window.apiClient.getAppointments();
+        
+        if (dadosRecuperados && dadosRecuperados.length > 0) {
+            console.log(`✅ ${dadosRecuperados.length} agendamentos recuperados!`);
+            
+            // Atualizar array global
+            window.appointments = dadosRecuperados;
+            appointments = dadosRecuperados;
+            
+            // Normalizar dados
+            appointments.forEach(a => {
+                if (!a.id) a.id = Date.now() + Math.random();
+                if (!a.sortIndex) a.sortIndex = 1;
+                // Garantir compatibilidade de morada
+                a.address = a.address || a.morada || a.addr || null;
+            });
+            
+            // Re-renderizar tudo
+            renderAll();
+            
+            showToast(`${dadosRecuperados.length} agendamentos recuperados com sucesso!`, 'success');
+            
+            return true;
+        } else {
+            console.log('⚠️ Nenhum dado encontrado na API');
+            return false;
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro na recuperação:', error);
+        showToast('Erro ao recuperar dados: ' + error.message, 'error');
+        return false;
+    }
+}
+
+// Executar recuperação imediatamente
+setTimeout(async () => {
+    const sucesso = await recuperarDados();
+    
+    if (!sucesso) {
+        // Tentar recuperar do localStorage como backup
+        console.log('🔄 Tentando backup do localStorage...');
+        
+        const backupKeys = [
+            'eg_appointments_v31_api',
+            'eg_appointments_backup',
+            'eg_appointments_v30',
+            'eg_appointments_v29b'
+        ];
+        
+        for (const key of backupKeys) {
+            try {
+                const backup = localStorage.getItem(key);
+                if (backup) {
+                    const dadosBackup = JSON.parse(backup);
+                    if (dadosBackup && dadosBackup.length > 0) {
+                        console.log(`📦 Backup encontrado em ${key}: ${dadosBackup.length} registos`);
+                        
+                        window.appointments = dadosBackup;
+                        appointments = dadosBackup;
+                        
+                        renderAll();
+                        showToast(`Dados recuperados do backup local: ${dadosBackup.length} agendamentos`, 'info');
+                        break;
+                    }
+                }
+            } catch (e) {
+                console.warn(`Erro ao ler backup ${key}:`, e);
+            }
+        }
+    }
+}, 1000);
+
+// Botão de recuperação manual
+const btnRecuperar = document.createElement('button');
+btnRecuperar.textContent = '🔄 RECUPERAR DADOS';
+btnRecuperar.style.cssText = `
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 9999;
+    background: #ef4444;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+`;
+
+btnRecuperar.onclick = async () => {
+    btnRecuperar.textContent = '⏳ Recuperando...';
+    btnRecuperar.disabled = true;
+    
+    const sucesso = await recuperarDados();
+    
+    if (sucesso) {
+        btnRecuperar.textContent = '✅ Recuperado!';
+        setTimeout(() => btnRecuperar.remove(), 3000);
+    } else {
+        btnRecuperar.textContent = '❌ Erro - Tenta novamente';
+        btnRecuperar.disabled = false;
+    }
+};
+
+document.body.appendChild(btnRecuperar);
+
+console.log('🆘 Sistema de recuperação ativo - clica no botão vermelho se necessário!');
