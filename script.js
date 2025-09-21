@@ -731,3 +731,44 @@ if (typeof renderMobileDay === 'function') {
     renderMobileDay();
     console.log('✅ Correção de morada aplicada - ícones de navegação ativos');
 }
+
+// TESTE SIMPLES - Adicionar ícones a TODOS os cartões
+// Para testar se o problema é a detecção da morada
+
+// Adicionar ao final do script.js
+setTimeout(() => {
+    console.log('🧪 Teste simples - adicionando ícones a todos os cartões');
+    
+    // Encontrar todos os cartões mobile
+    const cards = document.querySelectorAll('.m-card');
+    console.log(`📱 Encontrados ${cards.length} cartões mobile`);
+    
+    cards.forEach((card, index) => {
+        // Remover ícones existentes
+        const existingIcons = card.querySelectorAll('a[href*="maps"], a[href*="waze"]');
+        existingIcons.forEach(icon => icon.remove());
+        
+        // Adicionar ícones de teste
+        const iconsHtml = `
+            <div style="position:absolute;top:8px;right:8px;z-index:100;display:flex;gap:6px;">
+                <a href="https://www.google.com/maps/search/?api=1&query=Rua+Maria+José+Castro+Guimarães" 
+                   target="_blank" 
+                   style="background:#fff;border-radius:50%;padding:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);text-decoration:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;"
+                   title="Google Maps">
+                    📍
+                </a>
+                <a href="https://waze.com/ul?q=Rua+Maria+José+Castro+Guimarães" 
+                   target="_blank"
+                   style="background:#fff;border-radius:50%;padding:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);text-decoration:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;"
+                   title="Waze">
+                    🚗
+                </a>
+            </div>
+        `;
+        
+        card.insertAdjacentHTML('afterbegin', iconsHtml);
+        console.log(`✅ Ícones adicionados ao cartão ${index + 1}`);
+    });
+    
+    console.log('🎯 Teste concluído - todos os cartões devem ter ícones agora');
+}, 1000)
