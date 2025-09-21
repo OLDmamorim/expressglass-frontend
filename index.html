@@ -100,6 +100,7 @@
     }
   </style>
   <!-- /PRINT -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvVgXxjF7NkHsvm9z-O_6ApJ1kKBM0G6U&libraries=places"></script>
 </head>
 <body class="page-sm-braga">
   <div class="page">
@@ -275,6 +276,10 @@
           </div>
 
           <div class="form-group">
+            <div class="form-group">
+              <label for="appointmentAddress">Morada (opcional)</label>
+              <input type="text" id="appointmentAddress" placeholder="Rua, nº, localidade..." autocomplete="off" />
+            </div>
             <label for="appointmentExtra">Outros dados (opcional)</label>
             <textarea id="appointmentExtra" placeholder="Informações adicionais (não aparece no calendário)" rows="2"></textarea>
           </div>
