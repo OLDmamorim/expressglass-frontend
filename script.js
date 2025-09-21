@@ -357,6 +357,14 @@ function renderServicesTable(){
 
 // ---------- Render MOBILE (lista do dia) ----------
 function buildMobileCard(a){
+  const mapsBtn = a.morada ? `
+    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.morada)}"
+       target="_blank" rel="noopener noreferrer"
+       style="position:absolute;top:10px;right:10px;">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/9/99/Google_Maps_icon.svg"
+           alt="Mapa" width="22" height="22"/>
+    </a>` : '';
+
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
   const title = `${a.plate} • ${(a.car||'').toUpperCase()}`;
@@ -367,7 +375,9 @@ function buildMobileCard(a){
   ].join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
   return `
-    <div class="appointment m-card" data-id="${a.id}"
+    <div class="appointment m-card"
+         style="position:relative;">
+    ${mapsBtn} data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2};">
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
@@ -450,6 +460,7 @@ function closeAppointmentModal(){ const modal=document.getElementById('appointme
 async function saveAppointment(){
   const form=document.getElementById('appointmentForm'); if(!form) return;
   const data={
+    morada: document.getElementById("morada")?.value?.trim() || null,
     date: parseDate(document.getElementById('appointmentDate').value),
     period: document.getElementById('appointmentPeriod').value||null,
     plate: document.getElementById('appointmentPlate').value.trim(),

@@ -414,5 +414,18 @@
       setTimeout(()=>window.print(), 20);
     });
   </script>
+
+<script>
+  function initAutocomplete() {
+    const input = document.getElementById("morada");
+    if (!input) return;
+    new google.maps.places.Autocomplete(input, {
+      types: ["geocode"],
+      componentRestrictions: { country: "pt" }
+    });
+  }
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvVgXxjF7NkHsvm9z-O_6ApJ1kKBM0G6U&libraries=places&callback=initAutocomplete" async defer></script>
+
 </body>
 </html>
