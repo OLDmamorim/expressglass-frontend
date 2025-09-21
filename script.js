@@ -1,4 +1,3 @@
-
 // ===== PORTAL DE AGENDAMENTO MELHORADO =====
 // Versão estabilizada com patches: IDs estáveis, DnD throttle, semana Seg-Sáb, impressão segura, etc.
 
@@ -74,7 +73,13 @@ async function load(){
   try{
     showToast('Carregando dados...','info');
     appointments = await window.apiClient.getAppointments();
+    // IDs e ordem estáveis
     appointments.forEach(a=>{ if(!a.id) a.id=Date.now()+Math.random(); if(!a.sortIndex) a.sortIndex=1; });
+    // 🔁 Normalização de morada (compatibilidade com dados antigos)
+    appointments = appointments.map(a => ({
+      ...a,
+      address: a.address || a.morada || a.addr || null
+    }));
     const locs=await window.apiClient.getLocalities();
     if(locs && typeof locs==='object'){ Object.assign(localityColors,locs); window.LOCALITY_COLORS=localityColors;
       for (const [k,v] of Object.entries(localityColors)) {
@@ -365,6 +370,14 @@ function buildMobileCard(a){
            alt="Mapa" width="22" height="22"/>
     </a>` : '';
 
+  const wazeBtn = a.address ? `
+    <a href="https://waze.com/ul?q=${encodeURIComponent(a.address)}"
+       target="_blank" rel="noopener noreferrer"
+       style="position:absolute;top:10px;right:42px;">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/e/e3/Waze_logo.svg"
+           alt="Waze" width="22" height="22"/>
+    </a>` : '';
+
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
   const title = `${a.plate} • ${(a.car||'').toUpperCase()}`;
@@ -377,8 +390,7 @@ function buildMobileCard(a){
   return `
     <div class="appointment m-card" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
-    ${mapsBtn}
-         style="--c1:${g.c1}; --c2:${g.c2};">
+      ${mapsBtn}${wazeBtn}
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
       ${notes}
@@ -442,7 +454,7 @@ function openAppointmentModal(id=null){
       if(dot) dot.style.backgroundColor=getLocColor(a.locality);
       document.getElementById('appointmentStatus').value = a.status||'NE';
       document.getElementById('appointmentNotes').value = a.notes||'';
-            document.getElementById('appointmentAddress').value = a.address || '';
+      document.getElementById('appointmentAddress').value = a.address || '';
       document.getElementById('appointmentExtra').value = a.extra||'';
       del.classList.remove('hidden');
     }
@@ -469,6 +481,7 @@ async function saveAppointment(){
     locality: document.getElementById('appointmentLocality').value,
     status: document.getElementById('appointmentStatus').value||'NE',
     notes: document.getElementById('appointmentNotes').value.trim()||null,
+    address: document.getElementById('appointmentAddress').value.trim() || null, // ✅ gravar morada
     extra: document.getElementById('appointmentExtra').value.trim()||null
   };
   if(!data.plate){ showToast('Matrícula é obrigatória','error'); return; }
@@ -532,8 +545,11 @@ function exportToJson(){
 }
 function exportToCsv(){
   appointments.forEach(a=>{ if(!a.sortIndex) a.sortIndex=1; });
-  const headers=['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações','Extra','Ordem'];
-  const rows=appointments.map(a=>[a.date||'',a.period||'',a.plate||'',a.car||'',a.service||'',a.locality||'',a.status||'',a.notes||'',a.extra||'',a.sortIndex||1]);
+  const headers=['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações','Morada','Extra','Ordem']; // adicionada Morada
+  const rows=appointments.map(a=>[
+    a.date||'',a.period||'',a.plate||'',a.car||'',a.service||'',a.locality||'',a.status||'',
+    a.notes||'',a.address||'',a.extra||'',a.sortIndex||1
+  ]);
   const csv=[headers,...rows].map(row=>row.map(cell=>`"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'});
   const url=URL.createObjectURL(blob);
@@ -545,7 +561,7 @@ async function importFromJson(file){
     const text=await file.text();
     const data=JSON.parse(text);
     if(!Array.isArray(data)){ showToast('Formato inválido','error'); return; }
-    appointments=data.map(a=>({...a,id:a.id||Date.now()+Math.random(),sortIndex:a.sortIndex||1}));
+    appointments=data.map(a=>({...a,id:a.id||Date.now()+Math.random(),sortIndex:a.sortIndex||1, address: a.address || a.morada || a.addr || null}));
     renderAll(); showToast('Dados importados!','success');
   }catch(e){ showToast('Erro na importação: '+e.message,'error'); }
 }
