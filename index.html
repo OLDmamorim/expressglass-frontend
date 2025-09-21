@@ -1,17 +1,35 @@
 
 <!DOCTYPE html>
 <html lang="pt">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
-    <title>EXPRESSGLASS • Agendamento</title>
-    <link rel="stylesheet" href="style.css" />
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvVgXxjF7NkHsvm9z-O_6ApJ1kKBM0G6U&libraries=places"></script>
-  </head>
-  <body>
-    <div id="app">
-      <!-- Conteúdo da aplicação -->
-    </div>
-    <script src="script.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal de Serviços</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Conteúdo principal aqui -->
+  <div id="app">
+    <!-- Simulação do formulário com campo Morada -->
+    <form>
+      <label for="morada">Morada (opcional)</label>
+      <input type="text" id="morada" name="morada" placeholder="Insira a morada" />
+    </form>
+  </div>
+
+  <script src="script.js"></script>
+
+  <!-- Carregar a API do Google Maps Places após o DOM -->
+  <script>
+    function initAutocomplete() {
+      const input = document.getElementById('morada');
+      if (input) {
+        new google.maps.places.Autocomplete(input, { types: ['geocode'] });
+      }
+    }
+  </script>
+  <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvVgXxjF7NkHsvm9z-O_6ApJ1kKBM0G6U&libraries=places&callback=initAutocomplete">
+  </script>
+</body>
 </html>
