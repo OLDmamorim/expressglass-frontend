@@ -400,38 +400,27 @@ body.printing-now > *:not(#print-container-temp) {
 }
 
 
-/* ===== FORCE MOBILE LAYOUT ===== */
-.mobile-mode .schedule-container,
-.mobile-mode .unscheduled-container,
-.mobile-mode .services-table-container {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-.mobile-mode #mobileDayView { display: block !important; }
-
-@media (max-width: 1024px){
-  .schedule-container,
-  .unscheduled-container,
-  .services-table-container {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
+/* HEADER MOBILE FIX */
+@media (max-width: 768px){
+  .page-header {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 6px;
   }
-  #mobileDayView { display: block !important; }
-}
-
-
-/* ===== MOBILE CARDS (override any desktop tokens) ===== */
-.mobile-mode .m-card,
-@media (max-width: 1024px){
-  .m-card
-}{
-  background: linear-gradient(180deg, var(--c1, #1e88e5) 0%, var(--c2, #1565c0) 100%) !important;
-  color: #fff !important;
-  border-left: none !important;
+  .page-header h1 {
+    font-size: 20px !important;
+    line-height: 1.2 !important;
+  }
+  .page-header .subtitle {
+    font-size: 13px !important;
+    color: #e5e7eb !important;
+  }
+  .header-actions {
+    position: static !important;
+    margin-top: 6px !important;
+    display: flex !important;
+    gap: 12px !important;
+    justify-content: center !important;
+  }
 }
