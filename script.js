@@ -357,14 +357,6 @@ function renderServicesTable(){
 
 // ---------- Render MOBILE (lista do dia) ----------
 function buildMobileCard(a){
-  const mapsBtn = a.address ? `
-    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}"
-       target="_blank" rel="noopener noreferrer"
-       style="position:absolute;top:10px;right:10px;">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/9/99/Google_Maps_icon.svg"
-           alt="Mapa" width="22" height="22"/>
-    </a>` : '';
-
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
   const title = `${a.plate} • ${(a.car||'').toUpperCase()}`;
@@ -376,8 +368,6 @@ function buildMobileCard(a){
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
   return `
     <div class="appointment m-card" data-id="${a.id}"
-         style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
-    ${mapsBtn}
          style="--c1:${g.c1}; --c2:${g.c2};">
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
@@ -442,7 +432,6 @@ function openAppointmentModal(id=null){
       if(dot) dot.style.backgroundColor=getLocColor(a.locality);
       document.getElementById('appointmentStatus').value = a.status||'NE';
       document.getElementById('appointmentNotes').value = a.notes||'';
-            document.getElementById('appointmentAddress').value = a.address || '';
       document.getElementById('appointmentExtra').value = a.extra||'';
       del.classList.remove('hidden');
     }
@@ -643,16 +632,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   window.addEventListener('offline', updateConnBadge);
 
   buildLocalityOptions();
-  
-  // Google Places Autocomplete para campo de morada
-  const addressInput = document.getElementById('appointmentAddress');
-  if (addressInput && window.google?.maps?.places) {
-    new google.maps.places.Autocomplete(addressInput, {
-      types: ['geocode'],
-      componentRestrictions: { country: 'pt' }
-    });
-  }
-
   await load();
   renderAll();
 });
