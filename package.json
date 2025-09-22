@@ -1,0 +1,11 @@
+{
+  "name": "expressglass-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "pg": "^8.11.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
