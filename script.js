@@ -1,4 +1,4 @@
-// Portal de Agendamento Expressglass - Versão Completa com Ícones Corrigidos
+// RESTAURAÇÃO COMPLETA - Script original + apenas correção dos ícones
 // Versão estabilizada com patches: IDs estáveis, DnD throttle, semana Seg-Sáb, impressão segura, etc.
 
 // ---------- Configurações e dados ----------
@@ -364,51 +364,22 @@ function renderServicesTable(){
   const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviços pendentes`;
 }
 
-// ---------- Render MOBILE (lista do dia) - CORRIGIDO ----------
+// ---------- Render MOBILE (lista do dia) - APENAS ÍCONES CORRIGIDOS ----------
 function buildMobileCard(a){
-  const endereco = a.address || a.morada || a.addr || null;
-  
-  // Ícones oficiais Google Maps e Waze (SVG limpos)
-  let navIcons = '';
-  if (endereco && endereco.trim()) {
-    const addr = encodeURIComponent(endereco.trim());
-    
-    // Ícone Google Maps (SVG oficial)
-    const googleMapsIcon = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#EA4335"/>
-        <circle cx="12" cy="9" r="2.5" fill="#FFFFFF"/>
-      </svg>
-    `;
-    
-    // Ícone Waze (SVG oficial)
-    const wazeIcon = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="#00D4FF"/>
-      </svg>
-    `;
-    
-    navIcons = `
-      <div class="nav-icons-container" style="position:absolute;top:8px;right:8px;z-index:100;display:flex;gap:4px;">
-        <a href="https://www.google.com/maps/search/?api=1&query=${addr}" 
-           target="_blank" 
-           style="background:#ffffff;border-radius:50%;padding:6px;box-shadow:0 2px 6px rgba(0,0,0,0.25);text-decoration:none;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #e0e0e0;transition:transform 0.2s ease;"
-           title="Abrir no Google Maps"
-           onmouseover="this.style.transform='scale(1.1)'"
-           onmouseout="this.style.transform='scale(1)'">
-          ${googleMapsIcon}
-        </a>
-        <a href="https://waze.com/ul?q=${addr}" 
-           target="_blank"
-           style="background:#ffffff;border-radius:50%;padding:6px;box-shadow:0 2px 6px rgba(0,0,0,0.25);text-decoration:none;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #e0e0e0;transition:transform 0.2s ease;"
-           title="Abrir no Waze"
-           onmouseover="this.style.transform='scale(1.1)'"
-           onmouseout="this.style.transform='scale(1)'">
-          ${wazeIcon}
-        </a>
-      </div>
-    `;
-  }
+  // APENAS correção dos ícones - resto mantido igual ao original
+  const mapsBtn = a.address ? `
+    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}"
+       target="_blank" rel="noopener noreferrer"
+       style="position:absolute;top:8px;right:8px;background:#fff;border-radius:50%;padding:4px;box-shadow:0 2px 6px rgba(0,0,0,0.25);width:28px;height:28px;display:flex;align-items:center;justify-content:center;">
+      📍
+    </a>` : '';
+
+  const wazeBtn = a.address ? `
+    <a href="https://waze.com/ul?q=${encodeURIComponent(a.address)}"
+       target="_blank" rel="noopener noreferrer"
+       style="position:absolute;top:8px;right:40px;background:#fff;border-radius:50%;padding:4px;box-shadow:0 2px 6px rgba(0,0,0,0.25);width:28px;height:28px;display:flex;align-items:center;justify-content:center;">
+      🚗
+    </a>` : '';
 
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
@@ -419,12 +390,11 @@ function buildMobileCard(a){
     a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
   ].join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
-  
   return `
     <div class="appointment m-card" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
-      ${navIcons}
-      <div class="m-title" style="padding-right:${endereco ? '75px' : '10px'};">${title}</div>
+      ${mapsBtn}${wazeBtn}
+      <div class="m-title" style="padding-right:${a.address ? '80px' : '10px'};">${title}</div>
       <div class="m-chips">${chips}</div>
       ${notes}
     </div>
@@ -680,128 +650,4 @@ document.addEventListener('DOMContentLoaded',async()=>{
   });
 });
 
-console.log('✅ Portal de Agendamento Expressglass carregado com ícones corrigidos!');
-
-// RECUPERAÇÃO URGENTE - Adicionar ao final do script.js
-// Os dados estão na base de dados, só precisa de recarregar
-
-console.log('🚨 RECUPERAÇÃO DE DADOS INICIADA...');
-
-// Forçar recarregamento dos dados
-async function recuperarDados() {
-    try {
-        console.log('📥 Tentando recuperar dados da base de dados...');
-        
-        // Limpar cache local
-        localStorage.removeItem('eg_appointments_v31_api');
-        
-        // Recarregar da API
-        const dadosRecuperados = await window.apiClient.getAppointments();
-        
-        if (dadosRecuperados && dadosRecuperados.length > 0) {
-            console.log(`✅ ${dadosRecuperados.length} agendamentos recuperados!`);
-            
-            // Atualizar array global
-            window.appointments = dadosRecuperados;
-            appointments = dadosRecuperados;
-            
-            // Normalizar dados
-            appointments.forEach(a => {
-                if (!a.id) a.id = Date.now() + Math.random();
-                if (!a.sortIndex) a.sortIndex = 1;
-                // Garantir compatibilidade de morada
-                a.address = a.address || a.morada || a.addr || null;
-            });
-            
-            // Re-renderizar tudo
-            renderAll();
-            
-            showToast(`${dadosRecuperados.length} agendamentos recuperados com sucesso!`, 'success');
-            
-            return true;
-        } else {
-            console.log('⚠️ Nenhum dado encontrado na API');
-            return false;
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro na recuperação:', error);
-        showToast('Erro ao recuperar dados: ' + error.message, 'error');
-        return false;
-    }
-}
-
-// Executar recuperação imediatamente
-setTimeout(async () => {
-    const sucesso = await recuperarDados();
-    
-    if (!sucesso) {
-        // Tentar recuperar do localStorage como backup
-        console.log('🔄 Tentando backup do localStorage...');
-        
-        const backupKeys = [
-            'eg_appointments_v31_api',
-            'eg_appointments_backup',
-            'eg_appointments_v30',
-            'eg_appointments_v29b'
-        ];
-        
-        for (const key of backupKeys) {
-            try {
-                const backup = localStorage.getItem(key);
-                if (backup) {
-                    const dadosBackup = JSON.parse(backup);
-                    if (dadosBackup && dadosBackup.length > 0) {
-                        console.log(`📦 Backup encontrado em ${key}: ${dadosBackup.length} registos`);
-                        
-                        window.appointments = dadosBackup;
-                        appointments = dadosBackup;
-                        
-                        renderAll();
-                        showToast(`Dados recuperados do backup local: ${dadosBackup.length} agendamentos`, 'info');
-                        break;
-                    }
-                }
-            } catch (e) {
-                console.warn(`Erro ao ler backup ${key}:`, e);
-            }
-        }
-    }
-}, 1000);
-
-// Botão de recuperação manual
-const btnRecuperar = document.createElement('button');
-btnRecuperar.textContent = '🔄 RECUPERAR DADOS';
-btnRecuperar.style.cssText = `
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    z-index: 9999;
-    background: #ef4444;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    border-radius: 5px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-`;
-
-btnRecuperar.onclick = async () => {
-    btnRecuperar.textContent = '⏳ Recuperando...';
-    btnRecuperar.disabled = true;
-    
-    const sucesso = await recuperarDados();
-    
-    if (sucesso) {
-        btnRecuperar.textContent = '✅ Recuperado!';
-        setTimeout(() => btnRecuperar.remove(), 3000);
-    } else {
-        btnRecuperar.textContent = '❌ Erro - Tenta novamente';
-        btnRecuperar.disabled = false;
-    }
-};
-
-document.body.appendChild(btnRecuperar);
-
-console.log('🆘 Sistema de recuperação ativo - clica no botão vermelho se necessário!');
+console.log('✅ Portal de Agendamento Expressglass restaurado - versão original com ícones simples!');
