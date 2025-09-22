@@ -362,20 +362,19 @@ function renderServicesTable(){
 
 // ---------- Render MOBILE (lista do dia) ----------
 function buildMobileCard(a){
+  // Ícones oficiais (fallback para emoji se falhar)
   const mapsBtn = a.address ? `
     <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}"
-       target="_blank" rel="noopener noreferrer"
-       style="position:absolute;top:10px;right:10px;">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/9/99/Google_Maps_icon.svg"
-           alt="Mapa" width="22" height="22"/>
+       target="_blank" rel="noopener noreferrer" class="icon-btn" title="Abrir no Google Maps">
+      <img src="https://cdn.simpleicons.org/googlemaps/ffffff" alt="Google Maps" width="18" height="18"
+           onerror="this.src=''; this.parentElement.textContent='🌍';"/>
     </a>` : '';
 
   const wazeBtn = a.address ? `
     <a href="https://waze.com/ul?q=${encodeURIComponent(a.address)}"
-       target="_blank" rel="noopener noreferrer"
-       style="position:absolute;top:10px;right:42px;">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/e/e3/Waze_logo.svg"
-           alt="Waze" width="22" height="22"/>
+       target="_blank" rel="noopener noreferrer" class="icon-btn" title="Abrir no Waze">
+      <img src="https://cdn.simpleicons.org/waze/ffffff" alt="Waze" width="18" height="18"
+           onerror="this.src=''; this.parentElement.textContent='🗺️';"/>
     </a>` : '';
 
   const base = getLocColor(a.locality);
@@ -387,10 +386,13 @@ function buildMobileCard(a){
     a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
   ].join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
+
   return `
     <div class="appointment m-card" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
-      ${mapsBtn}${wazeBtn}
+      <div class="map-icons">
+        ${wazeBtn}${mapsBtn}
+      </div>
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
       ${notes}
