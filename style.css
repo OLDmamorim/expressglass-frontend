@@ -426,6 +426,6 @@ body.printing-now > *:not(#print-container-temp) {
 }
 
 /* Forçar o ícone do telefone a ficar branco */
-.m-card .icon-btn img[alt="Ligar"] {
-  filter: brightness(0) invert(1);
+.m-card .phone-icon img {
+  filter: brightness(0) invert(1) !important;
 }
