@@ -73,6 +73,12 @@ async function load(){
   try{
     showToast('Carregando dados...','info');
     appointments = await window.apiClient.getAppointments();
+    appointments.forEach(a => {
+  if (a.date) {
+    a.date = a.date.slice(0, 10); // fica só "YYYY-MM-DD"
+  }
+});
+
     // IDs e ordem estáveis
     appointments.forEach(a=>{ if(!a.id) a.id=Date.now()+Math.random(); if(!a.sortIndex) a.sortIndex=1; });
     // 🔁 Normalização de morada (compatibilidade com dados antigos)
