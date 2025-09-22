@@ -522,6 +522,9 @@ async function saveAppointment(){
       showToast('Agendamento atualizado!','success');
     }else{
       const res=await window.apiClient.createAppointment(data);
+      // garantir formato YYYY-MM-DD para o calendário desktop
+      if (saved && saved.date) saved.date = String(saved.date).slice(0, 10);
+
       const newId = (res && (res.id || res.clientId)) || (Date.now()+Math.random());
       const newAppt={id:newId,sortIndex:1,...data,...(res||{})};
       appointments.push(newAppt);
