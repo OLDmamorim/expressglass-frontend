@@ -4,9 +4,10 @@
 const { Pool } = require('pg');
 
 // Configuração da base de dados Neon
-const client = new Client({
+const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
+});
 });
 
 exports.handler = async (event, context) => {
