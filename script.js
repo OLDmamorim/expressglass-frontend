@@ -392,6 +392,10 @@ function buildMobileCard(a){
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
       <div class="map-icons">
         ${wazeBtn}${mapsBtn}
+        ${a.phone ? `
+    <a href="tel:${a.phone}" class="icon-btn" title="Ligar">
+      📞
+    </a>` : ''}
       </div>
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
