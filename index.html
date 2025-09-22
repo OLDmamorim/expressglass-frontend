@@ -280,6 +280,11 @@
               <label for="appointmentAddress">Morada (opcional)</label>
               <input type="text" id="appointmentAddress" placeholder="Rua, nº, localidade..." autocomplete="off" />
             </div>
+<div class="form-group">
+    <label for="appointmentPhone">Contacto (opcional)</label>
+    <input type="tel" id="appointmentPhone" placeholder="Ex: 912 345 678" pattern="[0-9+\s]{9,15}" />
+    <small class="form-hint">Aceita dígitos e +</small>
+  </div>
             <label for="appointmentExtra">Outros dados (opcional)</label>
             <textarea id="appointmentExtra" placeholder="Informações adicionais (não aparece no calendário)" rows="2"></textarea>
           </div>
