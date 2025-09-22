@@ -365,6 +365,12 @@ function renderServicesTable(){
   const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviços pendentes`;
 }
 
+// Helper: tenta apanhar nº de telefone dentro de texto
+function extractPhoneFromText(txt){
+  if(!txt) return '';
+  const m = String(txt).match(/(\+?\d[\d\s()-]{6,})/); // 9+ dígitos
+  return m ? m[1].trim() : '';
+}
 
 // ---------- Render MOBILE (lista do dia) ----------
 function buildMobileCard(a){
