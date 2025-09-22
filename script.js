@@ -382,6 +382,19 @@ function buildMobileCard(a){
            onerror="this.src=''; this.parentElement.textContent='🌍';"/>
     </a>` : '';
 
+  // Botão telefone (se houver número)
+const phone = a.phone || extractPhoneFromText(a.extra) || extractPhoneFromText(a.notes);
+const telBtn = phone ? `
+  <a href="tel:${phone.replace(/\s+/g,'')}" 
+     class="icon-btn" 
+     title="Telefonar">
+    <img src="https://cdn.simpleicons.org/phone/ffffff" 
+         alt="Ligar" width="18" height="18"
+         onerror="this.src=''; this.parentElement.textContent='📞';"/>
+  </a>
+` : '';
+
+
   const wazeBtn = a.address ? `
     <a href="https://waze.com/ul?q=${encodeURIComponent(a.address)}"
        target="_blank" rel="noopener noreferrer" class="icon-btn" title="Abrir no Waze">
