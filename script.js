@@ -495,7 +495,8 @@ async function saveAppointment(){
     status: document.getElementById('appointmentStatus').value||'NE',
     notes: document.getElementById('appointmentNotes').value.trim()||null,
     address: document.getElementById('appointmentAddress').value.trim() || null, // ✅ gravar morada
-    extra: document.getElementById('appointmentExtra').value.trim()||null
+    extra: document.getElementById('appointmentExtra').value.trim()||null,
+    phone: document.getElementById('appointmentPhone').value.trim() || null
   };
   if(!data.plate){ showToast('Matrícula é obrigatória','error'); return; }
   if(!data.car){ showToast('Modelo do carro é obrigatório','error'); return; }
