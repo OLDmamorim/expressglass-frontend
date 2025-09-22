@@ -41,7 +41,7 @@ exports.handler = async (event, context) => {
         ORDER BY date ASC, period ASC, created_at ASC
       `;
       
-      const result = await client.query(query);
+      const result = await pool.query(query);
       console.log(`✅ ${result.rows.length} agendamentos encontrados`);
       
       return {
