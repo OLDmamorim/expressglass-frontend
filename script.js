@@ -662,14 +662,32 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
   buildLocalityOptions();
   
-  // Google Places Autocomplete para campo de morada
-  const addressInput = document.getElementById('appointmentAddress');
-  if (addressInput && window.google?.maps?.places) {
-    new google.maps.places.Autocomplete(addressInput, {
-      types: ['geocode'],
-      componentRestrictions: { country: 'pt' }
-    });
-  }
+  // Google Places Autocomplete para campo de morada (moradas + empresas/POIs)
+const addressInput = document.getElementById('appointmentAddress');
+if (addressInput && window.google?.maps?.places) {
+  const autocomplete = new google.maps.places.Autocomplete(addressInput, {
+    // antes: types: ['geocode']
+    types: ['geocode', 'establishment'],       // ← moradas + empresas/locais de interesse
+    componentRestrictions: { country: 'pt' },
+    fields: ['place_id', 'name', 'formatted_address', 'geometry'] // traz nome, morada e coords
+  });
+
+  autocomplete.addListener('place_changed', () => {
+    const place = autocomplete.getPlace();
+    if (!place) return;
+
+    // Mostra no input a morada formatada (ou o nome do local se não houver morada)
+    addressInput.value = place.formatted_address || place.name || addressInput.value;
+
+    // Guarda meta em data-* (não mexe no teu schema/BD)
+    addressInput.dataset.placeId = place.place_id || '';
+    addressInput.dataset.placeName = place.name || '';
+    if (place.geometry?.location) {
+      addressInput.dataset.lat = place.geometry.location.lat();
+      addressInput.dataset.lng = place.geometry.location.lng();
+    }
+  });
+}
 
   await load();
   renderAll();
