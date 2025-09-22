@@ -414,22 +414,6 @@ function renderMobileDay(){
       .filter(a => a.date === iso)
       .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0))
   );
-extra: (()=>{
-  const extraInput = document.getElementById('appointmentExtra');
-  const phoneInput = document.getElementById('appointmentPhone');
-  let extra = extraInput.value.trim();
-  const phone = phoneInput.value.trim();
-
-  // remove linha antiga de telefone para não duplicar
-  extra = extra.replace(/(^|\n)☎️\s*[+()\s\d-]{6,}\s*($|\n)/g, '\n').trim();
-
-  if (phone) {
-    extra = extra ? `${extra}\n☎️ ${phone}` : `☎️ ${phone}`;
-  }
-
-  return extra || null;
-})(),
-phone: document.getElementById('appointmentPhone').value.trim() || null
 
   if(items.length === 0){
     list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
