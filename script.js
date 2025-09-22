@@ -1,4 +1,4 @@
-// ===== PORTAL DE AGENDAMENTO MELHORADO =====
+// Portal de Agendamento Expressglass - Versão Completa com Ícones Corrigidos
 // Versão estabilizada com patches: IDs estáveis, DnD throttle, semana Seg-Sáb, impressão segura, etc.
 
 // ---------- Configurações e dados ----------
@@ -100,104 +100,109 @@ function filterAppointments(list){
   let f=[...list];
   if(searchQuery){
     const q=searchQuery.toLowerCase();
-    f=f.filter(a=>
-      (a.plate||'').toLowerCase().includes(q) ||
-      (a.car||'').toLowerCase().includes(q) ||
-      (a.locality||'').toLowerCase().includes(q) ||
-      ((a.notes||'').toLowerCase().includes(q))
-    );
+    f=f.filter(a=>[a.plate,a.car,a.notes,a.locality,a.address].some(x=>(x||'').toLowerCase().includes(q)));
   }
   if(statusFilter) f=f.filter(a=>a.status===statusFilter);
   return f;
 }
+
+// ---------- Pesquisa ----------
 function highlightSearchResults(){
-  document.querySelectorAll('.appointment').forEach(el=>el.classList.remove('highlight'));
   if(!searchQuery) return;
+  const q=searchQuery.toLowerCase();
   document.querySelectorAll('.appointment').forEach(el=>{
-    if(el.textContent.toLowerCase().includes(searchQuery.toLowerCase())) el.classList.add('highlight');
+    const text=el.textContent.toLowerCase();
+    el.classList.toggle('search-match', text.includes(q));
   });
 }
 
-// ---------- Persistência de STATUS (exclusivo) ----------
-async function persistStatus(id, newStatus) {
-  const idx = appointments.findIndex(a => String(a.id) === String(id));
-  if (idx < 0) return;
-  const valid = ['NE','VE','ST']; if(!valid.includes(newStatus)) return;
-  const prev = appointments[idx].status;
-  appointments[idx].status = newStatus; // exclusivo
-  try {
-    const payload = { ...appointments[idx], status: newStatus };
-    const res = await window.apiClient.updateAppointment(id, payload);
-    if (res && typeof res === 'object') appointments[idx] = { ...appointments[idx], ...res };
-    showToast(`Status guardado: ${newStatus}`, 'success');
-  } catch (err) {
-    appointments[idx].status = prev;
-    showToast('Falha ao gravar status: ' + err.message, 'error');
-  } finally {
-    renderAll();
-  }
+// ---------- Conexão ----------
+function updateConnBadge(){
+  const badge=document.getElementById('connectionBadge'); if(!badge) return;
+  const st=window.apiClient.getConnectionStatus();
+  badge.className=`conn-badge ${st.online?'online':'offline'}`;
+  badge.textContent=st.online?'ONLINE':'OFFLINE';
+  badge.title=st.online?'Conectado à cloud':'Modo offline - dados locais';
 }
 
-// ---------- Drag & Drop (com persistência throttle) ----------
-let persistQueue = [];
-let persistTimer = null;
-
+// ---------- Persistência ----------
 async function persistBuckets(buckets){
-  const payload = [];
-  for (const bucket of buckets){
-    const list = getBucketList(bucket);
-    for (const item of list) payload.push({ ...item });
-  }
-  persistQueue = payload;
-  if (persistTimer) clearTimeout(persistTimer);
-  persistTimer = setTimeout(runPersistFlush, 350);
-}
-
-async function runPersistFlush(){
-  const queue = [...persistQueue];
-  persistQueue = [];
-  try{
-    for (const item of queue) {
-      let ok=false, attempts=0;
-      while(!ok && attempts<2){
-        attempts++;
-        try { await window.apiClient.updateAppointment(item.id, item); ok=true; }
-        catch(e){ if(attempts>=2) throw e; }
-      }
+  const promises=[];
+  for(const bucket of buckets){
+    const items=getBucketList(bucket);
+    for(const item of items){
+      if(editingId && String(item.id)===String(editingId)) continue;
+      promises.push(window.apiClient.updateAppointment(item.id,item).catch(e=>console.warn('Persist error:',e)));
     }
-    showToast('Alterações gravadas.', 'success');
-  }catch(e){
-    showToast('Falha a gravar alguns itens.', 'error');
   }
+  await Promise.allSettled(promises);
 }
 
-function enableDragDrop(scope){
-  (scope||document).querySelectorAll('.appointment[data-id]').forEach(card=>{
-    card.draggable=true;
-    card.addEventListener('dragstart',e=>{
-      e.dataTransfer.setData('text/plain',card.getAttribute('data-id'));
-      e.dataTransfer.effectAllowed='move';
-      card.classList.add('dragging');
+// ---------- Status ----------
+function attachStatusListeners(){
+  document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb=>{
+    cb.addEventListener('change', async function(){
+      if(!this.checked) return;
+      const card=this.closest('.appointment');
+      const id=card?.dataset.id;
+      if(!id) return;
+      const newStatus=this.dataset.status;
+      card.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>x.checked=false);
+      this.checked=true;
+      const idx=appointments.findIndex(a=>String(a.id)===String(id));
+      if(idx>=0){
+        appointments[idx].status=newStatus;
+        try{ await window.apiClient.updateAppointment(id,{status:newStatus}); }
+        catch(e){ console.warn('Status update error:',e); }
+      }
+      renderAll();
     });
-    card.addEventListener('dragend',()=>card.classList.remove('dragging'));
   });
+}
 
-  if (!enableDragDrop._bound){
-    document.addEventListener('dragover', (e)=>{
-      const zone = e.target.closest('[data-drop-bucket]'); if(!zone) return;
-      e.preventDefault(); zone.classList.add('drag-over');
-    });
-    document.addEventListener('dragleave', (e)=>{
-      const zone = e.target.closest('[data-drop-bucket]'); if(zone) zone.classList.remove('drag-over');
-    });
-    document.addEventListener('drop', async (e)=>{
-      const zone = e.target.closest('[data-drop-bucket]'); if(!zone) return;
-      e.preventDefault(); zone.classList.remove('drag-over');
-      const id    = e.dataTransfer.getData('text/plain');
-      const bucket= zone.getAttribute('data-drop-bucket');
-      const idxIn = zone.querySelectorAll('.appointment').length;
-      await onDropAppointment(id, bucket, idxIn);
-    });
+// ---------- Drag & Drop ----------
+let dragThrottle=false;
+function enableDragDrop(){
+  if(enableDragDrop._bound) return;
+  document.addEventListener('dragstart',e=>{
+    if(!e.target.classList.contains('appointment')) return;
+    e.dataTransfer.setData('text/plain',e.target.dataset.id);
+    e.target.classList.add('dragging');
+  });
+  document.addEventListener('dragend',e=>{
+    if(!e.target.classList.contains('appointment')) return;
+    e.target.classList.remove('dragging');
+  });
+  document.addEventListener('dragover',e=>{
+    const zone=e.target.closest('.drop-zone');
+    if(!zone) return;
+    e.preventDefault();
+    document.querySelectorAll('.drop-zone').forEach(z=>z.classList.remove('drag-over'));
+    zone.classList.add('drag-over');
+  });
+  document.addEventListener('dragleave',e=>{
+    if(!e.target.closest('.drop-zone')) document.querySelectorAll('.drop-zone').forEach(z=>z.classList.remove('drag-over'));
+  });
+  document.addEventListener('drop',async e=>{
+    const zone=e.target.closest('.drop-zone');
+    if(!zone || dragThrottle) return;
+    e.preventDefault();
+    dragThrottle=true; setTimeout(()=>dragThrottle=false,300);
+    const id=e.dataTransfer.getData('text/plain');
+    const bucket=zone.dataset.dropBucket;
+    const cards=[...zone.querySelectorAll('.appointment:not(.dragging)')];
+    const rect=zone.getBoundingClientRect();
+    const y=e.clientY-rect.top;
+    let targetIndex=0;
+    for(let i=0;i<cards.length;i++){
+      const cardRect=cards[i].getBoundingClientRect();
+      const cardY=cardRect.top-rect.top+cardRect.height/2;
+      if(y>cardY) targetIndex=i+1;
+    }
+    document.querySelectorAll('.drop-zone').forEach(z=>z.classList.remove('drag-over'));
+    await onDropAppointment(id,bucket,targetIndex);
+  });
+  if(!enableDragDrop._bound){
     enableDragDrop._bound = true;
   }
 }
@@ -359,24 +364,51 @@ function renderServicesTable(){
   const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviços pendentes`;
 }
 
-
-// ---------- Render MOBILE (lista do dia) ----------
+// ---------- Render MOBILE (lista do dia) - CORRIGIDO ----------
 function buildMobileCard(a){
-  const mapsBtn = a.address ? `
-    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}"
-       target="_blank" rel="noopener noreferrer"
-       style="position:absolute;top:10px;right:10px;">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/9/99/Google_Maps_icon.svg"
-           alt="Mapa" width="22" height="22"/>
-    </a>` : '';
-
-  const wazeBtn = a.address ? `
-    <a href="https://waze.com/ul?q=${encodeURIComponent(a.address)}"
-       target="_blank" rel="noopener noreferrer"
-       style="position:absolute;top:10px;right:42px;">
-      <img src="https://upload.wikimedia.org/wikipedia/commons/e/e3/Waze_logo.svg"
-           alt="Waze" width="22" height="22"/>
-    </a>` : '';
+  const endereco = a.address || a.morada || a.addr || null;
+  
+  // Ícones oficiais Google Maps e Waze (SVG limpos)
+  let navIcons = '';
+  if (endereco && endereco.trim()) {
+    const addr = encodeURIComponent(endereco.trim());
+    
+    // Ícone Google Maps (SVG oficial)
+    const googleMapsIcon = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#EA4335"/>
+        <circle cx="12" cy="9" r="2.5" fill="#FFFFFF"/>
+      </svg>
+    `;
+    
+    // Ícone Waze (SVG oficial)
+    const wazeIcon = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="#00D4FF"/>
+      </svg>
+    `;
+    
+    navIcons = `
+      <div class="nav-icons-container" style="position:absolute;top:8px;right:8px;z-index:100;display:flex;gap:4px;">
+        <a href="https://www.google.com/maps/search/?api=1&query=${addr}" 
+           target="_blank" 
+           style="background:#ffffff;border-radius:50%;padding:6px;box-shadow:0 2px 6px rgba(0,0,0,0.25);text-decoration:none;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #e0e0e0;transition:transform 0.2s ease;"
+           title="Abrir no Google Maps"
+           onmouseover="this.style.transform='scale(1.1)'"
+           onmouseout="this.style.transform='scale(1)'">
+          ${googleMapsIcon}
+        </a>
+        <a href="https://waze.com/ul?q=${addr}" 
+           target="_blank"
+           style="background:#ffffff;border-radius:50%;padding:6px;box-shadow:0 2px 6px rgba(0,0,0,0.25);text-decoration:none;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid #e0e0e0;transition:transform 0.2s ease;"
+           title="Abrir no Waze"
+           onmouseover="this.style.transform='scale(1.1)'"
+           onmouseout="this.style.transform='scale(1)'">
+          ${wazeIcon}
+        </a>
+      </div>
+    `;
+  }
 
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
@@ -387,11 +419,12 @@ function buildMobileCard(a){
     a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
   ].join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
+  
   return `
     <div class="appointment m-card" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
-      ${mapsBtn}${wazeBtn}
-      <div class="m-title">${title}</div>
+      ${navIcons}
+      <div class="m-title" style="padding-right:${endereco ? '75px' : '10px'};">${title}</div>
       <div class="m-chips">${chips}</div>
       ${notes}
     </div>
@@ -520,432 +553,131 @@ async function deleteAppointment(id){
   }
 }
 
-// ---------- Status listeners ----------
-function attachStatusListeners(){
-  document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb=>{
-    cb.addEventListener('change',async e=>{
-      if(!e.target.checked) return;
-      const card=e.target.closest('.appointment'); if(!card) return;
-      const id=card.getAttribute('data-id'); const status=e.target.getAttribute('data-status');
-      if(!id||!status) return;
-      card.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{ if(x!==e.target) x.checked=false; });
-      await persistStatus(id,status);
-    });
-  });
+// ---------- Navegação ----------
+function prevWeek(){ currentMonday=addDays(currentMonday,-7); renderSchedule(); }
+function nextWeek(){ currentMonday=addDays(currentMonday,7); renderSchedule(); }
+function todayWeek(){ currentMonday=getMonday(new Date()); renderSchedule(); }
+function prevMobileDay(){ currentMobileDay=addDays(currentMobileDay,-1); renderMobileDay(); }
+function nextMobileDay(){ currentMobileDay=addDays(currentMobileDay,1); renderMobileDay(); }
+function todayMobileDay(){ currentMobileDay=new Date(); renderMobileDay(); }
+
+// ---------- Localidades ----------
+function selectLocality(locality){
+  document.getElementById('appointmentLocality').value=locality;
+  const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
+  if(txt) txt.textContent=locality;
+  if(dot) dot.style.backgroundColor=getLocColor(locality);
+  document.getElementById('localityDropdown').classList.remove('show');
+}
+function toggleLocalityDropdown(){
+  document.getElementById('localityDropdown').classList.toggle('show');
+}
+
+// ---------- Filtros ----------
+function setSearchQuery(query){ searchQuery=query; renderAll(); }
+function setStatusFilter(status){ statusFilter=status; renderAll(); }
+
+// ---------- Impressão ----------
+function printSchedule(){
+  const printStyles=`
+    <style>
+      @media print {
+        body * { visibility: hidden; }
+        .schedule-container, .schedule-container * { visibility: visible; }
+        .schedule-container { position: absolute; left: 0; top: 0; width: 100%; }
+        .no-print { display: none !important; }
+        .appointment { break-inside: avoid; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f5f5f5; }
+        .desk-card { margin-bottom: 4px; padding: 6px; border: 1px solid #ddd; }
+        .dc-title { font-weight: bold; font-size: 12px; }
+        .dc-sub { font-size: 10px; color: #666; }
+        .dc-status { display: none; }
+      }
+    </style>
+  `;
+  const head=document.head.innerHTML;
+  const content=document.querySelector('.schedule-container').innerHTML;
+  const printWindow=window.open('','_blank');
+  printWindow.document.write(`
+    <html>
+      <head>${head}${printStyles}</head>
+      <body>
+        <div class="schedule-container">${content}</div>
+        <script>window.onload=()=>window.print();</script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
+function printServices(){
+  const printStyles=`
+    <style>
+      @media print {
+        body * { visibility: hidden; }
+        .services-container, .services-container * { visibility: visible; }
+        .services-container { position: absolute; left: 0; top: 0; width: 100%; }
+        .no-print { display: none !important; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        th { background-color: #f5f5f5; font-weight: bold; }
+        .badge, .chip { padding: 2px 6px; border-radius: 3px; font-size: 10px; }
+        .badge-PB { background: #dbeafe; color: #1e40af; }
+        .badge-VE { background: #fef3c7; color: #92400e; }
+        .badge-ST { background: #d1fae5; color: #065f46; }
+        .chip-NE { background: #fee2e2; color: #991b1b; }
+        .chip-VE { background: #fef3c7; color: #92400e; }
+        .chip-ST { background: #d1fae5; color: #065f46; }
+      }
+    </style>
+  `;
+  const head=document.head.innerHTML;
+  const content=document.querySelector('.services-container').innerHTML;
+  const printWindow=window.open('','_blank');
+  printWindow.document.write(`
+    <html>
+      <head>${head}${printStyles}</head>
+      <body>
+        <div class="services-container">${content}</div>
+        <script>window.onload=()=>window.print();</script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
 }
 
 // ---------- Exportação ----------
-function exportToJson(){
-  appointments.forEach(a=>{ if(!a.sortIndex) a.sortIndex=1; });
-  const data=JSON.stringify(appointments,null,2);
-  const blob=new Blob([data],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='agendamentos.json'; a.click();
-  URL.revokeObjectURL(url);
-}
-function exportToCsv(){
-  appointments.forEach(a=>{ if(!a.sortIndex) a.sortIndex=1; });
-  const headers=['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações','Morada','Extra','Ordem']; // adicionada Morada
+function exportToCSV(){
+  const headers=['Data','Período','Matrícula','Carro','Serviço','Localidade','Estado','Observações','Morada'];
   const rows=appointments.map(a=>[
-    a.date||'',a.period||'',a.plate||'',a.car||'',a.service||'',a.locality||'',a.status||'',
-    a.notes||'',a.address||'',a.extra||'',a.sortIndex||1
+    a.date||'',a.period||'',a.plate||'',a.car||'',a.service||'',a.locality||'',a.status||'',a.notes||'',a.address||''
   ]);
   const csv=[headers,...rows].map(row=>row.map(cell=>`"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='agendamentos.csv'; a.click();
-  URL.revokeObjectURL(url);
-}
-async function importFromJson(file){
-  try{
-    const text=await file.text();
-    const data=JSON.parse(text);
-    if(!Array.isArray(data)){ showToast('Formato inválido','error'); return; }
-    appointments=data.map(a=>({...a,id:a.id||Date.now()+Math.random(),sortIndex:a.sortIndex||1, address: a.address || a.morada || a.addr || null}));
-    renderAll(); showToast('Dados importados!','success');
-  }catch(e){ showToast('Erro na importação: '+e.message,'error'); }
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);
+  link.download=`agendamentos_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
 }
 
-// ---------- Conexão badge ----------
-function updateConnBadge(){
-  const el = document.getElementById('connectionStatus');
-  if(!el) return;
-  if (window.apiClient?.isOnline){ el.classList.remove('offline'); el.querySelector('#statusText').textContent = 'Online'; }
-  else { el.classList.add('offline'); el.querySelector('#statusText').textContent = 'Offline'; }
-}
-
-// ---------- Dropdown Localidades ----------
-function toggleLocalityDropdown(){
-  const box = document.getElementById('localityOptions');
-  const sel = document.getElementById('localitySelected');
-  if(!box||!sel) return;
-  const open = box.classList.toggle('show');
-  sel.classList.toggle('open', open);
-}
-function closeLocalityDropdown(){ const box=document.getElementById('localityOptions'); const sel=document.getElementById('localitySelected'); if(box){box.classList.remove('show');} if(sel){sel.classList.remove('open');} }
-document.addEventListener('click', (e)=>{ if(!e.target.closest('.locality-dropdown')) closeLocalityDropdown(); });
-
-function buildLocalityOptions(){
-  const box=document.getElementById('localityOptions'); if(!box) return;
-  box.innerHTML = Object.keys(localityColors).map(loc=>`
-    <div class="locality-option" data-loc="${loc}" onclick="selectLocality('${loc}')">
-      <span class="locality-dot" style="background:${getLocColor(loc)}"></span>
-      <span>${loc}</span>
-    </div>
-  `).join('');
-}
-function selectLocality(loc){
-  const hidden=document.getElementById('appointmentLocality');
-  const txt=document.getElementById('selectedLocalityText');
-  const dot=document.getElementById('selectedLocalityDot');
-  if(hidden) hidden.value=loc;
-  if(txt) txt.textContent=loc;
-  if(dot) dot.style.background=getLocColor(loc);
-  closeLocalityDropdown();
-}
-
-// ---------- Navegação Semana / Dia ----------
-function gotoTodayWeek(){ currentMonday = getMonday(new Date()); renderAll(); }
-function prevWeek(){ currentMonday = addDays(currentMonday, -7); renderAll(); }
-function nextWeek(){ currentMonday = addDays(currentMonday,  7); renderAll(); }
-
-// ---------- Eventos DOM ----------
-document.addEventListener('DOMContentLoaded', async ()=>{
-  // inputs
-  document.getElementById('appointmentPlate')?.addEventListener('input', (e)=>formatPlate(e.target));
-  document.getElementById('addServiceBtn')?.addEventListener('click', ()=>openAppointmentModal());
-  document.getElementById('addServiceMobile')?.addEventListener('click', ()=>openAppointmentModal());
-  document.getElementById('closeModal')?.addEventListener('click', closeAppointmentModal);
-  document.getElementById('cancelForm')?.addEventListener('click', closeAppointmentModal);
-  document.getElementById('deleteAppointment')?.addEventListener('click', ()=>{ if(editingId) deleteAppointment(editingId); });
-
-  document.getElementById('appointmentForm')?.addEventListener('submit', (e)=>{ e.preventDefault(); saveAppointment(); });
-
-  // search
-  const searchBtn=document.getElementById('searchBtn');
-  const searchBar=document.getElementById('searchBar');
-  const searchInput=document.getElementById('searchInput');
-  document.getElementById('clearSearch')?.addEventListener('click', ()=>{ searchInput.value=''; searchQuery=''; renderAll(); });
-  searchBtn?.addEventListener('click', ()=> searchBar.classList.toggle('hidden'));
-  searchInput?.addEventListener('input', (e)=>{ searchQuery=e.target.value; highlightSearchResults(); });
-
-  // filtros
-  document.getElementById('filterStatus')?.addEventListener('change', (e)=>{ statusFilter=e.target.value; renderAll(); });
-
-  // navegação dia (mobile)
-  document.getElementById('prevDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, -1); renderMobileDay(); });
-  document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
-  document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
-
-  // navegação semana
-  document.getElementById('todayWeek')?.addEventListener('click', gotoTodayWeek);
-  document.getElementById('prevWeek')?.addEventListener('click', prevWeek);
-  document.getElementById('nextWeek')?.addEventListener('click', nextWeek);
-
-  // export/import
-  document.getElementById('exportServices')?.addEventListener('click', exportToCsv);
-  document.getElementById('backupBtn')?.addEventListener('click', ()=>document.getElementById('backupModal').classList.add('show'));
-  document.getElementById('importBtn')?.addEventListener('click', ()=>document.getElementById('importFile')?.click());
-  document.getElementById('importFile')?.addEventListener('change', (e)=>{ const f=e.target.files[0]; if(f) importFromJson(f); });
-  document.getElementById('exportJson')?.addEventListener('click', exportToJson);
-  document.getElementById('exportCsv')?.addEventListener('click', exportToCsv);
-  document.querySelectorAll('#backupModal .close-btn')?.forEach(btn=>btn.addEventListener('click', ()=>document.getElementById('backupModal').classList.remove('show')));
-
-  // imprimir
-  document.getElementById('printPage')?.addEventListener('click', ()=>{/* hook em index já chama window.print() */});
-
-  // ligação
-  window.addEventListener('online', updateConnBadge);
-  window.addEventListener('offline', updateConnBadge);
-
-  buildLocalityOptions();
-  
-  // Google Places Autocomplete para campo de morada
-  const addressInput = document.getElementById('appointmentAddress');
-  if (addressInput && window.google?.maps?.places) {
-    new google.maps.places.Autocomplete(addressInput, {
-      types: ['geocode'],
-      componentRestrictions: { country: 'pt' }
-    });
-  }
-
+// ---------- Inicialização ----------
+document.addEventListener('DOMContentLoaded',async()=>{
   await load();
   renderAll();
+  setInterval(updateConnBadge,30000);
+  
+  // Event listeners
+  document.getElementById('searchInput')?.addEventListener('input',e=>setSearchQuery(e.target.value));
+  document.getElementById('statusFilterSelect')?.addEventListener('change',e=>setStatusFilter(e.target.value));
+  
+  // Fechar dropdown ao clicar fora
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.locality-selector')){
+      document.getElementById('localityDropdown')?.classList.remove('show');
+    }
+  });
 });
 
-
-// SOLUÇÃO PERSISTENTE - Intercepta re-renders e mantém ícones
-// Remove o código de teste anterior e usa este
-
-// 1. Interceptar a função buildMobileCard PERMANENTEMENTE
-const originalBuildMobileCard = window.buildMobileCard;
-
-window.buildMobileCard = function(a) {
-    console.log('🎨 buildMobileCard interceptada para:', a.plate);
-    
-    // Chamar função original primeiro
-    let html = originalBuildMobileCard ? originalBuildMobileCard.call(this, a) : '';
-    
-    // Verificar se tem morada
-    const endereco = a.address || a.morada || a.addr || null;
-    
-    if (endereco && endereco.trim()) {
-        console.log('📍 Adicionando ícones para:', endereco);
-        
-        // Adicionar ícones ao HTML
-        const addr = encodeURIComponent(endereco.trim());
-        const iconsHtml = `
-            <div class="nav-icons" style="position:absolute;top:8px;right:8px;z-index:100;display:flex;gap:6px;">
-                <a href="https://www.google.com/maps/search/?api=1&query=${addr}" 
-                   target="_blank" 
-                   style="background:#fff;border-radius:50%;padding:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);text-decoration:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;"
-                   title="Google Maps">
-                    📍
-                </a>
-                <a href="https://waze.com/ul?q=${addr}" 
-                   target="_blank"
-                   style="background:#fff;border-radius:50%;padding:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);text-decoration:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;"
-                   title="Waze">
-                    🚗
-                </a>
-            </div>
-        `;
-        
-        // Inserir ícones no HTML (após a abertura da div principal)
-        html = html.replace(
-            /(<div[^>]*class="[^"]*m-card[^"]*"[^>]*>)/,
-            `$1${iconsHtml}`
-        );
-    }
-    
-    return html;
-};
-
-// 2. Interceptar renderMobileDay para garantir que sempre aplica
-const originalRenderMobileDay = window.renderMobileDay;
-
-window.renderMobileDay = function() {
-    console.log('🔄 renderMobileDay interceptada');
-    
-    // Chamar função original
-    if (originalRenderMobileDay) {
-        originalRenderMobileDay.call(this);
-    }
-    
-    // Garantir que ícones estão presentes após render
-    setTimeout(() => {
-        console.log('🔧 Verificando ícones após render...');
-        addIconsToExistingCards();
-    }, 100);
-};
-
-// 3. Função para adicionar ícones a cartões existentes
-function addIconsToExistingCards() {
-    const cards = document.querySelectorAll('.m-card[data-id]');
-    console.log(`📱 Verificando ${cards.length} cartões`);
-    
-    cards.forEach(card => {
-        // Verificar se já tem ícones
-        if (card.querySelector('.nav-icons')) {
-            return; // Já tem ícones
-        }
-        
-        // Encontrar dados do agendamento
-        const dataId = card.getAttribute('data-id');
-        const appointment = appointments.find(a => String(a.id) === String(dataId));
-        
-        if (appointment) {
-            const endereco = appointment.address || appointment.morada || appointment.addr;
-            
-            if (endereco && endereco.trim()) {
-                console.log('➕ Adicionando ícones ao cartão:', appointment.plate);
-                
-                const addr = encodeURIComponent(endereco.trim());
-                const iconsDiv = document.createElement('div');
-                iconsDiv.className = 'nav-icons';
-                iconsDiv.style.cssText = 'position:absolute;top:8px;right:8px;z-index:100;display:flex;gap:6px;';
-                
-                iconsDiv.innerHTML = `
-                    <a href="https://www.google.com/maps/search/?api=1&query=${addr}" 
-                       target="_blank" 
-                       style="background:#fff;border-radius:50%;padding:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);text-decoration:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;"
-                       title="Google Maps">
-                        📍
-                    </a>
-                    <a href="https://waze.com/ul?q=${addr}" 
-                       target="_blank"
-                       style="background:#fff;border-radius:50%;padding:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);text-decoration:none;display:flex;align-items:center;justify-content:center;width:32px;height:32px;"
-                       title="Waze">
-                        🚗
-                    </a>
-                `;
-                
-                card.appendChild(iconsDiv);
-            }
-        }
-    });
-}
-
-// 4. Observer para detectar mudanças no DOM
-const observer = new MutationObserver((mutations) => {
-    let shouldCheck = false;
-    
-    mutations.forEach((mutation) => {
-        if (mutation.type === 'childList') {
-            mutation.addedNodes.forEach((node) => {
-                if (node.nodeType === 1 && (
-                    node.classList?.contains('m-card') || 
-                    node.querySelector?.('.m-card')
-                )) {
-                    shouldCheck = true;
-                }
-            });
-        }
-    });
-    
-    if (shouldCheck) {
-        setTimeout(addIconsToExistingCards, 50);
-    }
-});
-
-// Iniciar observação
-observer.observe(document.body, {
-    childList: true,
-    subtree: true
-});
-
-// 5. Aplicar imediatamente
-setTimeout(() => {
-    console.log('🚀 Aplicando solução persistente...');
-    addIconsToExistingCards();
-    
-    // Forçar re-render se necessário
-    if (typeof renderMobileDay === 'function') {
-        renderMobileDay();
-    }
-}, 500);
-
-console.log('✅ Solução persistente instalada - ícones devem permanecer!');
-
-// PATCH IMEDIATO - Corrigir gravação da morada
-// Adicionar ao final do script.js
-
-console.log('🔧 Aplicando patch de morada...');
-
-// Interceptar saveAppointment para forçar gravação da morada
-const originalSaveAppointment = window.saveAppointment;
-
-window.saveAppointment = async function() {
-    console.log('💾 saveAppointment interceptada');
-    
-    // Capturar morada ANTES da gravação
-    const addressField = document.getElementById('appointmentAddress');
-    const moradaCapturada = addressField ? addressField.value.trim() : '';
-    const isEditing = !!editingId;
-    
-    console.log('🏠 Morada capturada:', moradaCapturada);
-    console.log('✏️ Modo edição:', isEditing);
-    
-    try {
-        // Executar função original
-        await originalSaveAppointment.call(this);
-        
-        // FORÇAR gravação da morada após sucesso
-        setTimeout(() => {
-            if (moradaCapturada) {
-                if (isEditing) {
-                    // Edição - encontrar e atualizar
-                    const idx = appointments.findIndex(a => String(a.id) === String(editingId));
-                    if (idx >= 0) {
-                        appointments[idx].address = moradaCapturada;
-                        console.log('✅ Morada forçada na edição:', moradaCapturada);
-                    }
-                } else {
-                    // Criação - atualizar último agendamento
-                    if (appointments.length > 0) {
-                        const lastAppt = appointments[appointments.length - 1];
-                        lastAppt.address = moradaCapturada;
-                        console.log('✅ Morada forçada na criação:', moradaCapturada);
-                    }
-                }
-                
-                // Gravar backup local
-                localStorage.setItem('eg_appointments_v31_api', JSON.stringify(appointments));
-                localStorage.setItem('eg_appointments_backup_morada', JSON.stringify(appointments));
-                
-                console.log('💾 Backup local gravado com morada');
-                
-                // Re-renderizar para mostrar mudanças
-                renderAll();
-            }
-        }, 500);
-        
-    } catch (error) {
-        console.error('❌ Erro no saveAppointment:', error);
-        throw error;
-    }
-};
-
-// Interceptar load para restaurar moradas do backup
-const originalLoad = window.load;
-
-window.load = async function() {
-    console.log('📥 load interceptada');
-    
-    try {
-        await originalLoad.call(this);
-        
-        // Tentar restaurar backup com moradas
-        const backup = localStorage.getItem('eg_appointments_backup_morada');
-        if (backup) {
-            try {
-                const backupData = JSON.parse(backup);
-                
-                // Mesclar moradas do backup com dados atuais
-                backupData.forEach(backupAppt => {
-                    if (backupAppt.address) {
-                        const currentIdx = appointments.findIndex(a => String(a.id) === String(backupAppt.id));
-                        if (currentIdx >= 0 && !appointments[currentIdx].address) {
-                            appointments[currentIdx].address = backupAppt.address;
-                            console.log('🔄 Morada restaurada do backup:', backupAppt.plate, backupAppt.address);
-                        }
-                    }
-                });
-                
-                renderAll();
-                console.log('✅ Moradas restauradas do backup');
-                
-            } catch (e) {
-                console.warn('⚠️ Erro ao restaurar backup:', e);
-            }
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro no load:', error);
-        throw error;
-    }
-};
-
-// Aplicar imediatamente se já carregou
-if (typeof appointments !== 'undefined' && appointments.length > 0) {
-    const backup = localStorage.getItem('eg_appointments_backup_morada');
-    if (backup) {
-        try {
-            const backupData = JSON.parse(backup);
-            backupData.forEach(backupAppt => {
-                if (backupAppt.address) {
-                    const currentIdx = appointments.findIndex(a => String(a.id) === String(backupAppt.id));
-                    if (currentIdx >= 0 && !appointments[currentIdx].address) {
-                        appointments[currentIdx].address = backupAppt.address;
-                    }
-                }
-            });
-            renderAll();
-            console.log('🔄 Moradas restauradas na aplicação do patch');
-        } catch (e) {
-            console.warn('⚠️ Erro na restauração imediata:', e);
-        }
-    }
-}
-
-console.log('✅ Patch de morada aplicado - agora as moradas devem persistir!');
+console.log('✅ Portal de Agendamento Expressglass carregado com ícones corrigidos!');
