@@ -436,6 +436,17 @@ phone: document.getElementById('appointmentPhone').value.trim() || null
     return;
   }
 
+// Preencher o telefone no modal
+const phoneInput = document.getElementById('appointmentPhone');
+if (phoneInput) {
+  let phone = (a && a.phone) || "";
+  if (!phone && a?.extra) {
+    const m = String(a.extra).match(/([+()\s\d-]{6,})/);
+    if (m) phone = m[1].trim();
+  }
+  phoneInput.value = phone || "";
+}
+
   // Separar por período para legibilidade
   const morning = items.filter(a=>a.period==='Manhã').map(buildMobileCard).join('');
   const afternoon = items.filter(a=>a.period==='Tarde').map(buildMobileCard).join('');
