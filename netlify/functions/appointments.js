@@ -1,7 +1,7 @@
 // CORREÇÃO PARA: expressglass-backend/netlify/functions/appointments.js
 // Substituir o conteúdo completo do ficheiro por este código
 
-const { Client } = require('pg');
+const { Pool } = require('pg');
 
 // Configuração da base de dados Neon
 const client = new Client({
