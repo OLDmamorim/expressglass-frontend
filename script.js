@@ -458,6 +458,17 @@ function openAppointmentModal(id=null){
       document.getElementById('appointmentNotes').value = a.notes||'';
       document.getElementById('appointmentAddress').value = a.address || '';
       document.getElementById('appointmentExtra').value = a.extra||'';
+      // Preencher contacto
+const phoneInput = document.getElementById('appointmentPhone');
+if (phoneInput) {
+  let phone = (a && a.phone) || "";
+  if (!phone && a?.extra) {
+    const m = String(a.extra).match(/([+()\s\d-]{6,})/);
+    if (m) phone = m[1].trim();
+  }
+  phoneInput.value = phone || "";
+}
+
       del.classList.remove('hidden');
     }
   }else{
