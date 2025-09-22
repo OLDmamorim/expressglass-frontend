@@ -398,29 +398,3 @@ body.printing-now > *:not(#print-container-temp) {
       margin-bottom: 15px;
   }
 }
-
-
-/* HEADER MOBILE FIX */
-@media (max-width: 768px){
-  .page-header {
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center !important;
-    gap: 6px;
-  }
-  .page-header h1 {
-    font-size: 20px !important;
-    line-height: 1.2 !important;
-  }
-  .page-header .subtitle {
-    font-size: 13px !important;
-    color: #e5e7eb !important;
-  }
-  .header-actions {
-    position: static !important;
-    margin-top: 6px !important;
-    display: flex !important;
-    gap: 12px !important;
-    justify-content: center !important;
-  }
-}

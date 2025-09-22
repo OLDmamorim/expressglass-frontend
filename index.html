@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -59,8 +58,8 @@
       .print-today-table th:nth-child(8),    .print-tomorrow-table td:nth-child(8),
       .print-tomorrow-table td:nth-child(8){ width:8%; }   /* Outros */
 
-      .print-today-table th, .print-tomorrow-table th,
-      .print-tomorrow-table td, .print-today-table td{
+      .print-today-table th, .print-today-table td,
+      .print-tomorrow-table th, .print-tomorrow-table td{
         border:1px solid #000 !important; padding:4px 6px !important; font-size:12px !important;
         vertical-align:top !important; white-space:normal !important;
       }
@@ -83,24 +82,50 @@
     .table-wrapper{ overflow-x:auto; }
     @media (max-width:1100px){ .services-table{ min-width:1100px; } }
 
-    /* ===== MOBILE CARDS — cor pela LOCALIDADE ===== */
+    /* ===== MOBILE CARDS — cor pela LOCALIDADE; texto branco com contorno ===== */
     @media (max-width: 768px){
       #mobileDayList{ display: grid; gap: 16px; padding: 8px 16px; }
+
       .m-card{
-        position: relative; border-radius: 22px; padding: 16px;
+        position: relative;
+        border-radius: 22px;
+        padding: 16px;
         background: linear-gradient(180deg, var(--c1, #1e88e5) 0%, var(--c2, #1565c0) 100%);
-        box-shadow: 0 8px 24px rgba(0,0,0,.18); color: #fff;
+        box-shadow: 0 8px 24px rgba(0,0,0,.18);
+        color: #fff;
       }
-      .m-card, .m-card *{ color:#fff !important; text-shadow: 0 1px 2px rgba(0,0,0,.55), 0 0 2px rgba(0,0,0,.35); }
-      .m-title{ display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 20px; letter-spacing: .2px; }
+      /* texto branco + leve sombra para legibilidade */
+      .m-card, .m-card *{
+        color:#fff !important;
+        text-shadow:
+          0 1px 2px rgba(0,0,0,.55),
+          0 0 2px rgba(0,0,0,.35);
+      }
+
+      .m-title{
+        display: flex; align-items: center; gap: 8px;
+        font-weight: 800; font-size: 20px; letter-spacing: .2px;
+      }
       .m-chips{ display:flex; gap:10px; margin:12px 0 8px; flex-wrap:wrap; }
-      .m-chip{ background: transparent; border: 1px solid rgba(255,255,255,.45); border-radius: 999px; padding: 6px 10px; font-weight: 700; font-size: 14px; line-height: 1; }
+
+      /* === sem “sombreado branco”: chip sem fundo, apenas contorno suave === */
+      .m-chip{
+        background: transparent;                /* sem brilho branco */
+        border: 1px solid rgba(255,255,255,.45);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-weight: 700; font-size: 14px; line-height: 1;
+      }
+
       .m-info{ margin-top: 6px; font-size: 15px; font-weight: 600; opacity: .95; }
-      #mobileDayList .m-status, #mobileDayList .status, #mobileDayList .m-divider{ display:none !important; }
+
+      /* garantir que qualquer “status” herdado fica invisível */
+      #mobileDayList .m-status,
+      #mobileDayList .status,
+      #mobileDayList .m-divider{ display:none !important; }
     }
   </style>
   <!-- /PRINT -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvVgXxjF7NkHsvm9z-O_6ApJ1kKBM0G6U&libraries=places"></script>
 </head>
 <body class="page-sm-braga">
   <div class="page">
@@ -209,7 +234,7 @@
           <div class="form-row">
             <div class="form-group">
               <label for="appointmentDate">Data</label>
-              <input type="date" id="appointmentDate" autocomplete="off"/>
+              <input type="date" id="appointmentDate" />
             </div>
             <div class="form-group">
               <label for="appointmentPeriod">Período</label>
@@ -224,7 +249,7 @@
           <div class="form-row">
             <div class="form-group">
               <label for="appointmentPlate">Matrícula *</label>
-              <input type="text" id="appointmentPlate" placeholder="XX-XX-XX" maxlength="8" inputmode="latin" autocomplete="off" required />
+              <input type="text" id="appointmentPlate" placeholder="XX-XX-XX" maxlength="8" required />
               <small class="form-hint">Formato: XX-XX-XX</small>
             </div>
             <div class="form-group">
@@ -276,10 +301,6 @@
           </div>
 
           <div class="form-group">
-            <div class="form-group">
-              <label for="appointmentAddress">Morada (opcional)</label>
-              <input type="text" id="appointmentAddress" placeholder="Rua, nº, localidade..." autocomplete="off" />
-            </div>
             <label for="appointmentExtra">Outros dados (opcional)</label>
             <textarea id="appointmentExtra" placeholder="Informações adicionais (não aparece no calendário)" rows="2"></textarea>
           </div>
@@ -333,7 +354,7 @@
 
     <!-- Toast notifications -->
     <div id="toastContainer" class="toast-container"></div>
-
+    
     <!-- PRINT: Por agendar -->
     <div class="print-unscheduled-section">
       <h2>SERVIÇOS POR AGENDAR</h2>
@@ -403,21 +424,417 @@
 
   </div>
 
-  <!-- Apenas os 2 scripts principais para evitar conflitos -->
   <script src="api.js"></script>
-  <script src="script.js?v=smbraga_2025-09-21_01"></script>
+  <script src="script.js"></script>
+  <script src="horizontal-services-layout.js"></script>
+  <script src="horizontal-layout-final.js"></script>
+  <script src="expressglass-sabado-final.js"></script>
+  <script src="expressglass-sabado-automatico-final.js"></script>
+  <script src="expressglass-sabado-definitivo.js"></script>
 
-  <!-- >>>>>> SCRIPT DE IMPRESSÃO (garantir preenchimento antes de imprimir) <<<<<< -->
+  <!-- >>>>>> SCRIPT DE IMPRESSÃO (lê da tabela e preenche HOJE/AMANHÃ) <<<<<< -->
   <script>
-    function fillPrintSectionsSafely(){
-      try{ if (typeof renderAll === 'function') renderAll(); }catch(e){}
-      try{ if (typeof window.fillPrintFromAppointments === 'function') window.fillPrintFromAppointments(); }catch(e){}
+  (function(){
+    function parsePtOrIso(str) {
+      if (!str) return null;
+      str = String(str).trim();
+      const m = str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (m) return new Date(+m[3], +m[2]-1, +m[1], 0,0,0,0);
+      const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (iso) return new Date(+iso[1], +iso[2]-1, +iso[3], 0,0,0,0);
+      const d = new Date(str);
+      return isNaN(d) ? null : new Date(d.getFullYear(), d.getMonth(), d.getDate());
     }
-    window.onbeforeprint = fillPrintSectionsSafely;
-    document.getElementById('printPage')?.addEventListener('click', ()=>{
-      fillPrintSectionsSafely();
-      setTimeout(()=>window.print(), 20);
+    function sameDay(a,b){ return a && b && a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+    function startOfToday(){ const d=new Date(); d.setHours(0,0,0,0); return d; }
+    const TODAY = startOfToday();
+    const TOMORROW = new Date(TODAY); TOMORROW.setDate(TOMORROW.getDate()+1);
+
+    function readServicesFromMainTable(){
+      const tbody = document.querySelector('#servicesTableBody');
+      if (!tbody) return [];
+      const rows = [];
+      tbody.querySelectorAll('tr').forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length < 9) return;
+        rows.push({
+          date:    parsePtOrIso(tds[0].textContent),
+          period:  (tds[1].textContent||'').trim(),
+          plate:   (tds[2].textContent||'').trim(),
+          car:     (tds[3].textContent||'').trim(),
+          service: (tds[4].textContent||'').trim(),
+          locality:(tds[5].textContent||'').trim(),
+          notes:   (tds[6].textContent||'').trim(),
+          status:  (tds[7].textContent||'').trim(),
+        });
+      });
+      return rows;
+    }
+
+    function fillPrintTable(prefix, targetDate, rows){
+      const body   = document.getElementById(prefix+'TableBody');
+      const dateEl = document.getElementById(prefix+'Date');
+      const empty  = document.getElementById(prefix+'Empty');
+      if (!body) return;
+
+      if (dateEl){
+        dateEl.textContent = targetDate.toLocaleDateString('pt-PT', {
+          weekday:'long', day:'2-digit', month:'2-digit', year:'numeric'
+        });
+      }
+
+      const dayRows = rows.filter(r => r.date && sameDay(r.date, targetDate));
+      body.innerHTML = '';
+      if (!dayRows.length){
+        if (empty) empty.style.display = 'block';
+        return;
+      }
+      if (empty) empty.style.display = 'none';
+
+      const safe = v => (v && String(v).trim()) ? v : '&nbsp;';
+      dayRows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${safe(r.period)}</td>
+          <td>${safe(r.plate)}</td>
+          <td>${safe(r.car)}</td>
+          <td>${safe(r.service)}</td>
+          <td>${safe(r.locality)}</td>
+          <td>${safe(r.status)}</td>
+          <td>${safe(r.notes)}</td>
+          <td>&nbsp;</td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    function refreshPrintSections(){
+      const all = readServicesFromMainTable();
+      fillPrintTable('printToday', TODAY, all);
+      fillPrintTable('printTomorrow', TOMORROW, all);
+    }
+
+    window.addEventListener('load', refreshPrintSections);
+    const tblBody = document.querySelector('#servicesTableBody');
+    if (tblBody) {
+      const obs = new MutationObserver(() => refreshPrintSections());
+      obs.observe(tblBody, { childList: true, subtree: false });
+    }
+    window.addEventListener('beforeprint', refreshPrintSections);
+    document.getElementById('printPage')?.addEventListener('click', () => {
+      refreshPrintSections();
+      window.print();
     });
+  })();
   </script>
+
+  <!-- ===== MOBILE CARD SKIN — cor pela LOCALIDADE (sem ícones, sem chip de localidade) ===== -->
+  <script>
+  (function(){
+    const LIST = document.getElementById('mobileDayList');
+    if(!LIST) return;
+
+    const clamp = n => Math.max(0, Math.min(255, Math.round(n)));
+    const hx = n => n.toString(16).padStart(2,'0');
+    const rgbToHex = ({r,g,b}) => '#' + hx(clamp(r)) + hx(clamp(g)) + hx(clamp(b));
+
+    function parseColor(str){
+      if(!str) return null;
+      str = String(str).trim();
+      if(str.startsWith('#')){
+        if(str.length === 4){
+          return {
+            r: parseInt(str[1]+str[1],16),
+            g: parseInt(str[2]+str[2],16),
+            b: parseInt(str[3]+str[3],16)
+          };
+        }
+        if(str.length >= 7){
+          return {
+            r: parseInt(str.slice(1,3),16),
+            g: parseInt(str.slice(3,5),16),
+            b: parseInt(str.slice(5,7),16)
+          };
+        }
+      }
+      const m = str.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+      return m ? { r:+m[1], g:+m[2], b:+m[3] } : null;
+    }
+    const lighten = (rgb,a)=>({ r: rgb.r+(255-rgb.r)*a, g: rgb.g+(255-rgb.g)*a, b: rgb.b+(255-rgb.b)*a });
+    const darken  = (rgb,a)=>({ r: rgb.r*(1-a),         g: rgb.g*(1-a),         b: rgb.b*(1-a)         });
+
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, m =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])
+    );
+
+    function getBaseColor(node, data){
+  // 1) prioridade: Localidade
+  if (data.locality && window.LOCALITY_COLORS && window.LOCALITY_COLORS[data.locality]) {
+    return window.LOCALITY_COLORS[data.locality];
+  }
+
+  // 2) tentar cor de fundo do elemento
+  const comp = getComputedStyle(node);
+  const bg = comp.backgroundColor || node.style.backgroundColor || '';
+
+  // 3) descartar transparentes / rgba(...,0)
+  const isTransparent = /rgba?\(\s*0\s*,\s*0\s*,\s*0\s*(?:,\s*0(?:\.0+)?)?\)/i.test(bg) || bg === 'transparent';
+  if (!bg || isTransparent) return '#1e88e5'; // fallback azul
+
+  return bg;
+}
+
+    function buildCard(data, baseColor){
+      const el = document.createElement('article');
+      el.className = 'm-card';
+
+      const rgb = parseColor(baseColor) || parseColor('#1e88e5');
+      const c1 = rgbToHex(lighten(rgb, 0.08)); // topo
+      const c2 = rgbToHex(darken (rgb, 0.15)); // fundo
+      el.style.setProperty('--c1', c1);
+      el.style.setProperty('--c2', c2);
+
+      el.innerHTML = `
+        <div class="m-title">${esc(data.plate||'')}
+          ${data.service ? ' | '+esc(data.service) : ''} 
+          ${data.car ? ' | '+esc(data.car) : ''}</div>
+
+        <div class="m-chips">
+          ${data.period ? `<span class="m-chip">${esc(data.period)}</span>` : ''}
+        </div>
+
+        ${data.subline ? `<div class="m-info">${esc(data.subline)}</div>` : ''}
+      `;
+      return el;
+    }
+
+   function skinItem(node){
+  if(!(node instanceof HTMLElement)) return;
+  if(node.classList.contains('m-card')) return;
+
+  const header = node.querySelector('.appt-header')?.textContent?.trim() || '';
+  const subTxt = node.querySelector('.appt-sub')?.textContent?.trim() || '';
+
+  // tentar extrair partes, mas com fallback
+  let period='', plate='', service='', car='';
+  if (header.includes(' - ')) {
+    const [p, restRaw] = header.split(' - ');
+    period = (p || '').trim();
+    if (restRaw) {
+      const parts = restRaw.split('|').map(s => s.trim());
+      plate   = parts[0] || '';
+      service = parts[1] || '';
+      car     = parts[2] || '';
+    }
+  }
+
+  // se falhar o formato esperado, usa o header inteiro como título
+  const title =
+    (period || plate || service || car)
+      ? [period, [plate, service, car].filter(Boolean).join(' | ')].filter(Boolean).join(' — ')
+      : (header || '(sem dados)');
+
+  let locality = '';
+  let subline  = '';
+  if (subTxt) {
+    const parts = subTxt.split('|');
+    locality = (parts[0] || '').trim();
+    subline  = subTxt; // mantém linha completa
+  }
+
+  const data = { period, plate, service, car, locality, subline };
+
+  const baseColor = getBaseColor(node, data);  // já corrigida
+  const card = buildCard({ ...data, title }, baseColor);
+
+  // ajustar buildCard para usar 'title' quando existir
+  card.querySelector('.m-title')?.replaceWith((() => {
+    const div = document.createElement('div');
+    div.className = 'm-title';
+    div.textContent = title;
+    return div;
+  })());
+
+  node.replaceWith(card);
+}
+
+      let locality = '';
+      let subline  = '';
+      if(subTxt){
+        const parts = subTxt.split('|');
+        locality = (parts[0] || '').trim();
+        subline  = subTxt.trim(); // mantém a linha de baixo com localidade + notas
+      }
+
+      const data = { period, plate, service, car, locality, subline };
+      const baseColor = getBaseColor(node, data);
+      const card = buildCard(data, baseColor);
+
+      node.replaceWith(card);
+    }
+
+    const apply = () => Array.from(LIST.children).forEach(skinItem);
+    apply();
+    new MutationObserver(apply).observe(LIST, {childList:true});
+  })();
+  </script><!-- SCRIPT FINAL PARA IMPRESSÃO CORRETA -->
+<script>
+function setupPrinting() {
+  const printButton = document.getElementById('printPage');
+  if (!printButton) return;
+
+  printButton.addEventListener('click', function() {
+    // 1. Clona as secções que queremos imprimir
+    const todaySection = document.querySelector('.print-today-section');
+    const tomorrowSection = document.querySelector('.print-tomorrow-section');
+
+    if (!todaySection || !tomorrowSection) {
+      console.error('Secções de impressão não encontradas!');
+      // Se não encontrar, tenta a impressão normal
+      window.print();
+      return;
+    }
+
+    // 2. Cria um contentor temporário para a impressão
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container-temp';
+    printContainer.appendChild(todaySection.cloneNode(true));
+    printContainer.appendChild(tomorrowSection.cloneNode(true));
+
+    // 3. Adiciona o contentor ao body
+    document.body.appendChild(printContainer);
+
+    // 4. Adiciona uma classe ao body para ativar os estilos de impressão
+    document.body.classList.add('printing-now');
+
+    // 5. Chama a impressão do navegador
+    window.print();
+
+    // 6. Limpa tudo depois da impressão (seja confirmada ou cancelada)
+    document.body.classList.remove('printing-now');
+    document.body.removeChild(printContainer);
+  });
+}
+
+// Garante que o script corre depois de a página carregar
+window.addEventListener('load', setupPrinting);
+</script>
+
+<!-- SCRIPT FINAL PARA IMPRESSÃO CORRETA (v2) -->
+<script>
+function setupPrinting() {
+  const printButton = document.getElementById('printPage');
+  if (!printButton) return;
+
+  // Remove listeners antigos para evitar duplicação
+  const newPrintButton = printButton.cloneNode(true);
+  printButton.parentNode.replaceChild(newPrintButton, printButton);
+
+  newPrintButton.addEventListener('click', function() {
+    // 1. Seleciona as secções corretas para imprimir
+    const todaySection = document.querySelector('.print-today-section');
+    const tomorrowSection = document.querySelector('.print-tomorrow-section');
+
+    if (!todaySection || !tomorrowSection) {
+      console.error('Secções de impressão de HOJE ou AMANHÃ não encontradas!');
+      window.print(); // Tenta a impressão normal como fallback
+      return;
+    }
+
+    // 2. Cria um contentor temporário para a impressão
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container-temp';
+    printContainer.appendChild(todaySection.cloneNode(true));
+    printContainer.appendChild(tomorrowSection.cloneNode(true));
+
+    // 3. Adiciona o contentor ao body
+    document.body.appendChild(printContainer);
+
+    // 4. Adiciona uma classe ao body para ativar os estilos de impressão
+    document.body.classList.add('printing-now');
+
+    // 5. Chama a impressão do navegador
+    window.print();
+
+    // 6. Limpa tudo depois da impressão (seja confirmada ou cancelada)
+    // Usamos um pequeno timeout para garantir que o navegador termina a renderização
+    setTimeout(() => {
+      document.body.classList.remove('printing-now');
+      if (document.getElementById('print-container-temp')) {
+        document.body.removeChild(printContainer);
+      }
+    }, 100);
+  });
+}
+
+// Garante que o script corre depois de a página carregar
+window.addEventListener('load', setupPrinting);
+</script>
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <!-- ... todo o seu cabeçalho ... -->
+</head>
+<body>
+  <!-- ... todo o conteúdo da sua página ... -->
+
+  <script src="api.js"></script>
+  <script src="script.js"></script>
+  <!-- ... outros scripts que já lá estão ... -->
+
+  <!-- >>>>> COLOQUE O NOVO SCRIPT AQUI <<<<< -->
+  <!-- SCRIPT FINAL PARA IMPRESSÃO CORRETA (v3 - Corrige a dupla janela) -->
+  <script>
+  function setupPrinting() {
+    const printButton = document.getElementById('printPage');
+    if (!printButton) return;
+
+    // --- INÍCIO DA CORREÇÃO ---
+    // 1. Clona o botão para remover todos os event listeners antigos.
+    const newPrintButton = printButton.cloneNode(true);
+    // 2. Substitui o botão antigo pelo novo no DOM.
+    printButton.parentNode.replaceChild(newPrintButton, printButton);
+    // --- FIM DA CORREÇÃO ---
+
+    // 3. Adiciona o event listener APENAS ao novo botão.
+    newPrintButton.addEventListener('click', function() {
+      const todaySection = document.querySelector('.print-today-section');
+      const tomorrowSection = document.querySelector('.print-tomorrow-section');
+
+      if (!todaySection || !tomorrowSection) {
+        console.error('Secções de impressão de HOJE ou AMANHÃ não encontradas!');
+        window.print();
+        return;
+      }
+
+      const printContainer = document.createElement('div');
+      printContainer.id = 'print-container-temp';
+      printContainer.appendChild(todaySection.cloneNode(true));
+      printContainer.appendChild(tomorrowSection.cloneNode(true));
+
+      document.body.appendChild(printContainer);
+      document.body.classList.add('printing-now');
+
+      window.print();
+
+      // Limpa tudo depois da impressão (usa um pequeno timeout para segurança)
+      setTimeout(() => {
+        document.body.classList.remove('printing-now');
+        const container = document.getElementById('print-container-temp');
+        if (container) {
+          document.body.removeChild(container);
+        }
+      }, 100);
+    });
+  }
+
+  // Garante que o script corre depois de a página carregar
+  window.addEventListener('load', setupPrinting);
+  </script>
+  <!-- >>>>> FIM DO NOVO SCRIPT <<<<< -->
+
+</body>
+</html>
+  
 </body>
 </html>
