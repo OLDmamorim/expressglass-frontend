@@ -1,12 +1,9 @@
 // netlify/functions/appointments.js
-// Backend Expressglass — versão Pool (Neon + Netlify Functions)
-
 const { Pool } = require('pg');
 
-// Pool global (reutilizado entre invocações)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // Neon usa SSL
+  ssl: { rejectUnauthorized: false }
 });
 
 exports.handler = async (event) => {
@@ -17,17 +14,16 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json'
   };
 
-  // Preflight CORS
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
 
   try {
-    // ---------- GET: listar ----------
+    // ---------- GET ----------
     if (event.httpMethod === 'GET') {
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
-               notes, address, extra, created_at, updated_at
+               notes, address, extra, phone, created_at, updated_at
         FROM appointments
         ORDER BY date ASC NULLS LAST, period ASC NULLS LAST, created_at ASC
       `;
@@ -35,24 +31,20 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
     }
 
-    // ---------- POST: criar ----------
+    // ---------- POST ----------
     if (event.httpMethod === 'POST') {
       const data = JSON.parse(event.body || '{}');
 
       if (!data.plate || !data.car || !data.service || !data.locality) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: 'Campos obrigatórios: plate, car, service, locality' })
-        };
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Campos obrigatórios: plate, car, service, locality' }) };
       }
 
       const q = `
         INSERT INTO appointments (
           date, period, plate, car, service, locality, status,
-          notes, address, extra, created_at, updated_at
+          notes, address, extra, phone, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
         ) RETURNING *
       `;
       const v = [
@@ -66,6 +58,7 @@ exports.handler = async (event) => {
         data.notes || null,
         data.address || null,
         data.extra || null,
+        data.phone || null,                 // 👈 NOVO
         new Date().toISOString(),
         new Date().toISOString()
       ];
@@ -74,7 +67,7 @@ exports.handler = async (event) => {
       return { statusCode: 201, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
     }
 
-    // ---------- PUT: atualizar ----------
+    // ---------- PUT ----------
     if (event.httpMethod === 'PUT') {
       const id = (event.path || '').split('/').pop();
       const data = JSON.parse(event.body || '{}');
@@ -83,9 +76,9 @@ exports.handler = async (event) => {
         UPDATE appointments SET
           date = $1, period = $2, plate = $3, car = $4,
           service = $5, locality = $6, status = $7,
-          notes = $8, address = $9, extra = $10,
-          updated_at = $11
-        WHERE id = $12
+          notes = $8, address = $9, extra = $10, phone = $11,   -- 👈 NOVO
+          updated_at = $12
+        WHERE id = $13
         RETURNING *
       `;
       const v = [
@@ -99,6 +92,7 @@ exports.handler = async (event) => {
         data.notes || null,
         data.address || null,
         data.extra || null,
+        data.phone || null,                 // 👈 NOVO
         new Date().toISOString(),
         id
       ];
@@ -110,7 +104,7 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
     }
 
-    // ---------- DELETE: apagar ----------
+    // ---------- DELETE ----------
     if (event.httpMethod === 'DELETE') {
       const id = (event.path || '').split('/').pop();
       const { rows } = await pool.query('DELETE FROM appointments WHERE id = $1 RETURNING *', [id]);
@@ -120,7 +114,6 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
     }
 
-    // Método não suportado
     return { statusCode: 405, headers, body: JSON.stringify({ success: false, error: `Método ${event.httpMethod} não permitido` }) };
 
   } catch (err) {
