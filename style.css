@@ -424,7 +424,7 @@ body.printing-now > *:not(#print-container-temp) {
 .m-card .icon-btn:hover {
   background: rgba(255, 255, 255, 0.28);
 }
-..m-card .icon-btn img {
+.m-card .icon-btn img {
   display: block;
 }
 
