@@ -23,15 +23,9 @@ class ApiClient {
   }
   
   // Detectar URL da API automaticamente
-  detectApiUrl( ) {
-  const hostname = window.location.hostname;
-  
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8888/api';
-  } else {
-    // ✅ CORREÇÃO: usar backend específico
-    return 'https://expressglass-backend.netlify.app/api';
-  }
+  detectApiUrl() {
+  // ✅ Agora usa as Netlify Functions do MESMO projeto
+  return '/.netlify/functions';
 }
 
   
