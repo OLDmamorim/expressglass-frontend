@@ -29,14 +29,42 @@ function getGoogleApiKey() {
   return null;
 }
 
-// ===== FUNÇÃO PARA CALCULAR DISTÂNCIA =====
-async function getDistance(from, to) {
-  const apiKey = getGoogleApiKey();
-  if (!apiKey) {
-    console.error("API Key do Google Maps não encontrada!");
-    return Infinity;
-  }
-
+// ===== FUNÇÃO PARA CALCULAR DISTÂNCIA (versão Google JS API – sem CORS) =====
+function getDistance(from, to) {
+  return new Promise((resolve) => {
+    try {
+      if (!window.google || !google.maps || !google.maps.DistanceMatrixService) {
+        console.warn("Google Maps JS API não carregada.");
+        resolve(Infinity);
+        return;
+      }
+      const svc = new google.maps.DistanceMatrixService();
+      svc.getDistanceMatrix(
+        {
+          origins: [from],
+          destinations: [to],
+          travelMode: google.maps.TravelMode.DRIVING,
+          unitSystem: google.maps.UnitSystem.METRIC,
+        },
+        (res, status) => {
+          if (
+            status === "OK" &&
+            res?.rows?.[0]?.elements?.[0]?.status === "OK" &&
+            res.rows[0].elements[0].distance?.value != null
+          ) {
+            resolve(res.rows[0].elements[0].distance.value); // metros
+          } else {
+            console.warn("DistanceMatrix falhou:", status, res?.rows?.[0]?.elements?.[0]?.status);
+            resolve(Infinity);
+          }
+        }
+      );
+    } catch (err) {
+      console.error("Erro a calcular distância:", err);
+      resolve(Infinity);
+    }
+  });
+}
   const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(from)}&destinations=${encodeURIComponent(to)}&key=${apiKey}`;
 
   try {
