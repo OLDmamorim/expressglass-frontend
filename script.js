@@ -18,6 +18,43 @@ const fileInput  = document.getElementById('fileInput');
 const btnUpload  = document.getElementById('btnUpload');
 ...
 
+// Pega a API key que já está no script do Google Maps
+function getGoogleApiKey() {
+  const scripts = document.getElementsByTagName("script");
+  for (let s of scripts) {
+    if (s.src.includes("maps.googleapis.com/maps/api/js")) {
+      const urlParams = new URLSearchParams(s.src.split("?")[1]);
+      return urlParams.get("key");
+    }
+  }
+  return null;
+}
+
+// ===== FUNÇÃO PARA CALCULAR DISTÂNCIA =====
+async function getDistance(from, to) {
+  const apiKey = getGoogleApiKey();
+  if (!apiKey) {
+    console.error("API Key do Google Maps não encontrada!");
+    return Infinity;
+  }
+
+  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(from)}&destinations=${encodeURIComponent(to)}&key=${apiKey}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.rows[0].elements[0].status === "OK") {
+      return data.rows[0].elements[0].distance.value; // metros
+    } else {
+      console.warn("Não foi possível calcular distância:", data.rows[0].elements[0].status);
+      return Infinity;
+    }
+  } catch (error) {
+    console.error("Erro a calcular distância:", error);
+    return Infinity;
+  }
+}
 // ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
