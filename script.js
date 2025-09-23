@@ -552,3 +552,66 @@ const telBtn = phone ? `
   `;
 }
 
+// ===== [PATCH FINAL] — bootstrap + mobile render =====
+
+// Lista (mobile) do dia — com ordenação por distância
+async function renderMobileDay(){
+  const list  = document.getElementById('mobileDayList');
+  const label = document.getElementById('mobileDayLabel');
+  if(!list || !label) return;
+
+  const iso = localISO(currentMobileDay);
+  const weekday = currentMobileDay.toLocaleDateString('pt-PT',{ weekday:'long' });
+  const dm = currentMobileDay.toLocaleDateString('pt-PT',{ day:'2-digit', month:'2-digit' });
+  label.textContent = `${cap(weekday)} • ${dm}`;
+
+  // Itens do dia (base)
+  const itemsRaw = filterAppointments(
+    appointments
+      .filter(a => a.date === iso)
+      .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0))
+  );
+
+  // Ordenação em cadeia (loja -> mais longe -> a partir do último)
+  const items = await ordenarSeNecessario(itemsRaw);
+
+  if(items.length === 0){
+    list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
+    return;
+  }
+
+  const morning   = items.filter(a=>a.period==='Manhã').map(buildMobileCard).join('');
+  const afternoon = items.filter(a=>a.period==='Tarde').map(buildMobileCard).join('');
+  const others    = items.filter(a=>!a.period).map(buildMobileCard).join('');
+
+  list.innerHTML = `
+    ${morning? `<h4 style="margin:4px 0 6px 8px;">Manhã</h4>${morning}`:''}
+    ${afternoon? `<h4 style="margin:12px 0 6px 8px;">Tarde</h4>${afternoon}`:''}
+    ${others? `<h4 style="margin:12px 0 6px 8px;">Sem período</h4>${others}`:''}
+  `;
+  highlightSearchResults();
+}
+
+// Render global
+function renderAll(){
+  try { renderSchedule(); } catch(e){ console.error(e); }
+  try { renderUnscheduled(); } catch(e){ console.error(e); }
+  try { renderServicesTable(); } catch(e){ console.error(e); }
+  try { renderMobileDay(); } catch(e){ console.error(e); }
+}
+
+// Bootstrap da app (carrega BD e desenha)
+document.addEventListener('DOMContentLoaded', async ()=>{
+  try { await load(); } catch(e){ console.error('load() falhou', e); }
+  try { buildLocalityOptions?.(); } catch(e){}
+  renderAll();
+
+  // Navegação mínima (se existirem botões)
+  document.getElementById('todayWeek')?.addEventListener('click', ()=>{ currentMonday = getMonday(new Date()); renderAll(); });
+  document.getElementById('prevWeek')?.addEventListener('click', ()=>{ currentMonday = addDays(currentMonday, -7); renderAll(); });
+  document.getElementById('nextWeek')?.addEventListener('click', ()=>{ currentMonday = addDays(currentMonday,  7); renderAll(); });
+
+  document.getElementById('prevDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, -1); renderMobileDay(); });
+  document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
+  document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
+});
