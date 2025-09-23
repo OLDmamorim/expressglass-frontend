@@ -55,6 +55,46 @@ async function getDistance(from, to) {
     return Infinity;
   }
 }
+
+// ===== NORMALIZAR CAMPO MORADA =====
+// Usa 'address' se existir; senão tenta 'morada' (para compatibilidade com dados antigos)
+function getAddressFromItem(item) {
+  return item.address?.trim?.() || item.morada?.trim?.() || "";
+}
+
+// ===== ORDENAR EM CADEIA: MAIS LONGE PRIMEIRO =====
+// Recebe um array de agendamentos do dia e devolve NOVA lista ordenada
+async function ordenarAgendamentosCadeiaMaisLongePrimeiro(agendamentos, origemInicial = basePartidaDoDia) {
+  // Clonar para não mutar o array original
+  const restantes = agendamentos.filter(a => getAddressFromItem(a));
+  const resultado = [];
+  let origem = origemInicial;
+
+  while (restantes.length) {
+    // calcular distâncias da 'origem' a todos os restantes (em paralelo)
+    const distancias = await Promise.all(
+      restantes.map(async (item) => {
+        const to = getAddressFromItem(item);
+        const d = await getDistance(origem, to);
+        return { item, d };
+      })
+    );
+
+    // escolher o MAIS LONGE (maior distância)
+    distancias.sort((a, b) => b.d - a.d);
+    const escolhido = distancias[0];
+
+    // colocar no resultado e remover dos 'restantes'
+    resultado.push({ ...escolhido.item, _kmFromPrev: Math.round(escolhido.d / 1000) });
+    const idx = restantes.indexOf(escolhido.item);
+    restantes.splice(idx, 1);
+
+    // próxima origem passa a ser a morada do serviço escolhido
+    origem = getAddressFromItem(escolhido.item);
+  }
+
+  return resultado;
+}
 // ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
