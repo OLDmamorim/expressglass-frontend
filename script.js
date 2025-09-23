@@ -1,6 +1,23 @@
 // ===== PORTAL DE AGENDAMENTO MELHORADO =====
 // Versão estabilizada com patches: IDs estáveis, DnD throttle, semana Seg-Sáb, impressão segura, etc.
 
+// ==================
+// SCRIPT PRINCIPAL
+// ==================
+
+// ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
+const BASES_PARTIDA = {
+  SM_BRAGA: "Avenida Robert Smith 59, 4715-249 Braga",
+};
+
+// Por agora usamos sempre a base do SM Braga
+let basePartidaDoDia = BASES_PARTIDA.SM_BRAGA;
+
+// ---- Seletores ----
+const fileInput  = document.getElementById('fileInput');
+const btnUpload  = document.getElementById('btnUpload');
+...
+
 // ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
