@@ -95,6 +95,23 @@ async function ordenarAgendamentosCadeiaMaisLongePrimeiro(agendamentos, origemIn
 
   return resultado;
 }
+
+// ===== CONTROLO (apenas staging, SM Braga) =====
+const ORDER_ROUTE_SM_BRAGA = true;
+
+// Ordena só os serviços com morada, mantendo os restantes no fim
+async function ordenarSeNecessario(lista) {
+  if (!ORDER_ROUTE_SM_BRAGA) return lista;
+
+  // tenta detectar SM Braga (ajusta se usares outro campo para equipa)
+  const comMorada = lista.filter(i => getAddressFromItem(i));
+  if (!comMorada.length) return lista;
+
+  const ordenados = await ordenarAgendamentosCadeiaMaisLongePrimeiro(comMorada, basePartidaDoDia);
+  const idsOrdenados = new Set(ordenados.map(x => x.id));
+  const restantes = lista.filter(i => !idsOrdenados.has(i.id));
+  return [...ordenados, ...restantes];
+}
 // ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
