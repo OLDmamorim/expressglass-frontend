@@ -387,16 +387,16 @@ function buildMobileCard(a){
     </a>` : '';
 
   // Botão telefone (se houver número) — único e com classe para forçar branco
-  const phone = a.phone || extractPhoneFromText(a.extra) || extractPhoneFromText(a.notes);
-  const telBtn = phone ? `
-    <a href="tel:${phone.replace(/\s+/g,'')}" 
-       class="icon-btn phone-icon" 
-       title="Telefonar">
-      <img src="https://cdn.simpleicons.org/phone/ffffff" 
-           alt="Ligar" width="18" height="18"
-           onerror="this.src=''; this.parentElement.textContent='📞';"/>
-    </a>
-  ` : '';
+  // Botão telefone (agora com SVG inline branco)
+const phone = a.phone || extractPhoneFromText(a.extra) || extractPhoneFromText(a.notes);
+const telBtn = phone ? `
+  <a href="tel:${phone.replace(/\s+/g,'')}" class="icon-btn" title="Telefonar" aria-label="Telefonar">
+    <svg viewBox="0 0 24 24" width="18" height="18" role="img" aria-hidden="true">
+      <path fill="#fff"
+        d="M2.003 5.884l3.065-.611a1 1 0 011.023.51l1.5 2.598a1 1 0 01-.091 1.09l-1.2 1.6a12.044 12.044 0 005.516 5.516l1.6-1.2a1 1 0 011.09-.091l2.598 1.5a1 1 0 01.51 1.023l-.611 3.065A1 1 0 0114 21C7.94 21 3 16.06 3 10a1 1 0 01.815-.985z"/>
+    </svg>
+  </a>
+` : '';
 
   const wazeBtn = a.address ? `
     <a href="https://waze.com/ul?q=${encodeURIComponent(a.address)}"
