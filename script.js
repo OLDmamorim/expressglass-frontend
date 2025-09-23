@@ -86,7 +86,9 @@ function getDistance(from, to) {
 // ===== NORMALIZAR CAMPO MORADA =====
 // Usa 'address' se existir; senão tenta 'morada' (para compatibilidade com dados antigos)
 function getAddressFromItem(item) {
-  return item.address?.trim?.() || item.morada?.trim?.() || "";
+  const addr = item.address?.trim?.() || item.morada?.trim?.() || "";
+  if (addr) return addr;
+  return item.locality ? `${item.locality}, Portugal` : "";
 }
 
 // ===== ORDENAR EM CADEIA: MAIS LONGE PRIMEIRO =====
