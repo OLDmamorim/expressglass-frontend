@@ -446,7 +446,6 @@ body.printing-now > *:not(#print-container-temp) {
   background: rgba(255, 255, 255, 0.28);
 }
 
-/* Forçar o ícone do telefone a ficar branco */
-.m-card .phone-icon img {
-  filter: brightness(0) invert(1) !important;
+/* Forçar branco no SVG e dar um ligeiro destaque */
+.m-card .icon-btn svg { display:block; fill:#fff !important; filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); 
 }
