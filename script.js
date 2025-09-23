@@ -65,23 +65,7 @@ function getDistance(from, to) {
     }
   });
 }
-  const url = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${encodeURIComponent(from)}&destinations=${encodeURIComponent(to)}&key=${apiKey}`;
-
-  try {
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (data.rows[0].elements[0].status === "OK") {
-      return data.rows[0].elements[0].distance.value; // metros
-    } else {
-      console.warn("Não foi possível calcular distância:", data.rows[0].elements[0].status);
-      return Infinity;
-    }
-  } catch (error) {
-    console.error("Erro a calcular distância:", error);
-    return Infinity;
-  }
-}
+  
 
 // ===== NORMALIZAR CAMPO MORADA =====
 // Usa 'address' se existir; senão tenta 'morada' (para compatibilidade com dados antigos)
