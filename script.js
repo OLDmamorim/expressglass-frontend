@@ -16,7 +16,6 @@ let basePartidaDoDia = BASES_PARTIDA.SM_BRAGA;
 // ---- Seletores ----
 const fileInput  = document.getElementById('fileInput');
 const btnUpload  = document.getElementById('btnUpload');
-...
 
 // Pega a API key que já está no script do Google Maps
 function getGoogleApiKey() {
