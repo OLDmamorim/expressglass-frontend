@@ -74,10 +74,10 @@ async function load(){
     showToast('Carregando dados...','info');
     appointments = await window.apiClient.getAppointments();
     appointments.forEach(a => {
-  if (a.date) {
-    a.date = a.date.slice(0, 10); // fica só "YYYY-MM-DD"
-  }
-});
+      if (a.date) {
+        a.date = String(a.date).slice(0, 10); // fica só "YYYY-MM-DD"
+      }
+    });
 
     // IDs e ordem estáveis
     appointments.forEach(a=>{ if(!a.id) a.id=Date.now()+Math.random(); if(!a.sortIndex) a.sortIndex=1; });
@@ -137,7 +137,7 @@ async function persistStatus(id, newStatus) {
     if (res && typeof res === 'object') appointments[idx] = { ...appointments[idx], ...res };
     showToast(`Status guardado: ${newStatus}`, 'success');
   } catch (err) {
-    appointments[idx].status = prev;
+    appointments[idx] = { ...appointments[idx], status: prev };
     showToast('Falha ao gravar status: ' + err.message, 'error');
   } finally {
     renderAll();
@@ -382,18 +382,17 @@ function buildMobileCard(a){
            onerror="this.src=''; this.parentElement.textContent='🌍';"/>
     </a>` : '';
 
-  // Botão telefone (se houver número)
-const phone = a.phone || extractPhoneFromText(a.extra) || extractPhoneFromText(a.notes);
-const telBtn = phone ? `
-  <a href="tel:${phone.replace(/\s+/g,'')}" 
-     class="icon-btn" 
-     title="Telefonar">
-    <img src="https://cdn.simpleicons.org/phone/ffffff" 
-         alt="Ligar" width="18" height="18"
-         onerror="this.src=''; this.parentElement.textContent='📞';"/>
-  </a>
-` : '';
-
+  // Botão telefone (se houver número) — único e com classe para forçar branco
+  const phone = a.phone || extractPhoneFromText(a.extra) || extractPhoneFromText(a.notes);
+  const telBtn = phone ? `
+    <a href="tel:${phone.replace(/\s+/g,'')}" 
+       class="icon-btn phone-icon" 
+       title="Telefonar">
+      <img src="https://cdn.simpleicons.org/phone/ffffff" 
+           alt="Ligar" width="18" height="18"
+           onerror="this.src=''; this.parentElement.textContent='📞';"/>
+    </a>
+  ` : '';
 
   const wazeBtn = a.address ? `
     <a href="https://waze.com/ul?q=${encodeURIComponent(a.address)}"
@@ -416,11 +415,7 @@ const telBtn = phone ? `
     <div class="appointment m-card" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
       <div class="map-icons">
-        ${wazeBtn}${mapsBtn}
-        ${a.phone ? `
-    <a href="tel:${a.phone}" class="icon-btn" title="Ligar">
-      📞
-    </a>` : ''}
+        ${wazeBtn}${mapsBtn}${telBtn}
       </div>
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
@@ -487,17 +482,16 @@ function openAppointmentModal(id=null){
       document.getElementById('appointmentNotes').value = a.notes||'';
       document.getElementById('appointmentAddress').value = a.address || '';
       document.getElementById('appointmentExtra').value = a.extra||'';
-     // Preencher contacto
-const phoneInput = document.getElementById('appointmentPhone');
-if (phoneInput) {
-  let phone = (a && a.phone) || "";
-  if (!phone && a?.extra) {
-    const m = String(a.extra).match(/([+()\s\d-]{6,})/);
-    if (m) phone = m[1].trim();
-  }
-  phoneInput.value = phone || "";
-}
-
+      // Preencher contacto
+      const phoneInput = document.getElementById('appointmentPhone');
+      if (phoneInput) {
+        let phone = (a && a.phone) || "";
+        if (!phone && a?.extra) {
+          const m = String(a.extra).match(/([+()\s\d-]{6,})/);
+          if (m) phone = m[1].trim();
+        }
+        phoneInput.value = phone || "";
+      }
 
       del.classList.remove('hidden');
     }
@@ -537,13 +531,16 @@ async function saveAppointment(){
     if(editingId){
       const res=await window.apiClient.updateAppointment(editingId,data);
       const idx=appointments.findIndex(a=>String(a.id)===String(editingId));
-      if(idx>=0) appointments[idx]={...appointments[idx],...(res||data)};
+      const merged = res && typeof res==='object' ? res : data;
+      if(idx>=0) {
+        // garantir formato YYYY-MM-DD
+        if (merged.date) merged.date = String(merged.date).slice(0,10);
+        appointments[idx]={...appointments[idx],...merged};
+      }
       showToast('Agendamento atualizado!','success');
     }else{
-      const res=await window.apiClient.createAppointment(data);
-      // garantir formato YYYY-MM-DD para o calendário desktop
-      if (saved && saved.date) saved.date = String(saved.date).slice(0, 10);
-
+      const res=await window.apiClient.createAppointment(data); // res = row criada
+      if (res && res.date) res.date = String(res.date).slice(0, 10); // normaliza
       const newId = (res && (res.id || res.clientId)) || (Date.now()+Math.random());
       const newAppt={id:newId,sortIndex:1,...data,...(res||{})};
       appointments.push(newAppt);
@@ -708,31 +705,28 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   buildLocalityOptions();
   
   // Google Places Autocomplete para campo de morada (moradas + empresas/POIs)
-const addressInput = document.getElementById('appointmentAddress');
-if (addressInput && window.google?.maps?.places) {
-  const autocomplete = new google.maps.places.Autocomplete(addressInput, {
-    // antes: types: ['geocode']
-    types: ['geocode', 'establishment'],       // ← moradas + empresas/locais de interesse
-    componentRestrictions: { country: 'pt' },
-    fields: ['place_id', 'name', 'formatted_address', 'geometry'] // traz nome, morada e coords
-  });
+  const addressInput = document.getElementById('appointmentAddress');
+  if (addressInput && window.google?.maps?.places) {
+    const autocomplete = new google.maps.places.Autocomplete(addressInput, {
+      types: ['geocode', 'establishment'],
+      componentRestrictions: { country: 'pt' },
+      fields: ['place_id', 'name', 'formatted_address', 'geometry']
+    });
 
-  autocomplete.addListener('place_changed', () => {
-    const place = autocomplete.getPlace();
-    if (!place) return;
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (!place) return;
 
-    // Mostra no input a morada formatada (ou o nome do local se não houver morada)
-    addressInput.value = place.formatted_address || place.name || addressInput.value;
+      addressInput.value = place.formatted_address || place.name || addressInput.value;
 
-    // Guarda meta em data-* (não mexe no teu schema/BD)
-    addressInput.dataset.placeId = place.place_id || '';
-    addressInput.dataset.placeName = place.name || '';
-    if (place.geometry?.location) {
-      addressInput.dataset.lat = place.geometry.location.lat();
-      addressInput.dataset.lng = place.geometry.location.lng();
-    }
-  });
-}
+      addressInput.dataset.placeId = place.place_id || '';
+      addressInput.dataset.placeName = place.name || '';
+      if (place.geometry?.location) {
+        addressInput.dataset.lat = place.geometry.location.lat();
+        addressInput.dataset.lng = place.geometry.location.lng();
+      }
+    });
+  }
 
   await load();
   renderAll();
