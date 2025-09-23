@@ -199,7 +199,9 @@ class ApiClient {
   'Famalicão': '#7E22CE', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
   'Póvoa de Varzim': '#6EE7B7', 'Riba D\'Ave': '#FBBF24', 'Trofa': '#C084FC',
   'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#1E3A8A', 'Vila Verde': '#86EFAC'
-}
+};
+} 
+} 
   
   // ===== FALLBACK LOCALSTORAGE =====
   
