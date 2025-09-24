@@ -786,6 +786,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   try { await load(); } catch(e){ console.error('load() falhou', e); }
   try { buildLocalityOptions?.(); } catch(e){}
   renderAll();
+  document.querySelector('.locality-select')?.addEventListener('click', toggleLocalityDropdown);
+
 
   // Navegação mínima (se existirem botões)
   document.getElementById('todayWeek')?.addEventListener('click', ()=>{ currentMonday = getMonday(new Date()); renderAll(); });
