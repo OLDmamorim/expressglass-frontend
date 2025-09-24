@@ -1020,6 +1020,3 @@ document.addEventListener('click', (e) => {
   }
 });
 
-  
-})();
-
