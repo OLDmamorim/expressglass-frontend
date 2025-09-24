@@ -535,7 +535,7 @@ function buildDesktopCard(a,i){
     </div>`;
 }
 
-function renderSchedule(){
+async function renderSchedule(){
   const table=document.getElementById('schedule'); if(!table) return;
   table.innerHTML='';
   const week=[...Array(6)].map((_,i)=>addDays(currentMonday,i)); // Seg-Sáb
@@ -547,12 +547,13 @@ function renderSchedule(){
   thead+='</tr></thead>';
   table.insertAdjacentHTML('beforeend', thead);
 
-  const renderCell=(period,dayDate)=>{
-    const iso=localISO(dayDate);
-    const items=filterAppointments(
-      appointments.filter(a=>a.date&&a.date===iso&&a.period===period)
+  const renderCell = async (period, dayDate) => {
+    const iso = localISO(dayDate);
+    const itemsRaw = filterAppointments(
+      appointments.filter(a => a.date && a.date === iso && a.period === period)
                  .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0))
     );
+    const items = await ordenarSeNecessario(itemsRaw);
     const blocks = items.map((a,i)=>buildDesktopCard(a,i)).join('');
     return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
   };
@@ -560,8 +561,10 @@ function renderSchedule(){
   const tbody=document.createElement('tbody');
   ['Manhã','Tarde'].forEach(period=>{
     const row=document.createElement('tr');
-    row.innerHTML=`<th>${period}</th>` + week.map(d=>`<td>${renderCell(period,d)}</td>`).join('');
+    row.innerHTML = `<th>${period}</th>`;
     tbody.appendChild(row);
+    const cells = await Promise.all(week.map(d => renderCell(period, d)));
+    row.innerHTML = `<th>${period}</th>` + cells.map(html => `<td>${html}</td>`).join('');
   });
   table.appendChild(tbody);
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
