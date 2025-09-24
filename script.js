@@ -774,3 +774,83 @@ document.addEventListener('DOMContentLoaded', function() {
   if (btnMobile)  btnMobile.addEventListener('click',  openNewServiceModal);
 });
 // --- FIM FIX ---
+
+
+// === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
+(function(){
+  if (window.fillPrintFromAppointments) return; // evitar duplicar
+  function toISO(d){
+    if (!(d instanceof Date)) d = new Date(d);
+    d.setHours(0,0,0,0);
+    const z = new Date(d.getTime() - d.getTimezoneOffset()*60000);
+    return z.toISOString().slice(0,10);
+  }
+  function cap(s){ return (s||'').toString().charAt(0).toUpperCase()+ (s||'').toString().slice(1); }
+  function row(a){
+    const hora = (a.period||'').replace('M','Manhã').replace('T','Tarde').replace('N','Noite') || (a.time||'');
+    return `<tr>
+      <td>${hora||''}</td>
+      <td>${a.plate||''}</td>
+      <td>${(a.car||'').toUpperCase()}</td>
+      <td>${a.service||''}</td>
+      <td>${a.locality||''}</td>
+      <td>${a.notes||''}</td>
+      <td>${a.status||''}</td>
+    </tr>`;
+  }
+  function buildTable(title, dateLabel, list){
+    const headDate = dateLabel ? `<div class="print-date">${dateLabel}</div>` : '';
+    const empty = list.length===0 ? `<div class="print-empty">Sem registos</div>` : '';
+    return `<section class="print-section">
+      <h2 class="print-title">${title}</h2>
+      ${headDate}
+      <table class="print-table">
+        <thead><tr>
+          <th>Período/Hora</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Observações</th><th>Estado</th>
+        </tr></thead>
+        <tbody>${list.map(row).join('')}</tbody>
+      </table>
+      ${empty}
+    </section>`;
+  }
+  window.fillPrintFromAppointments = function(){
+    try{
+      const contOld = document.getElementById('print-container-temp');
+      if (contOld) contOld.remove();
+      const cont = document.createElement('div');
+      cont.id = 'print-container-temp';
+      document.body.appendChild(cont);
+
+      const today = new Date(); today.setHours(0,0,0,0);
+      const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+
+      const isoToday = toISO(today);
+      const isoTomorrow = toISO(tomorrow);
+
+      const list = (Array.isArray(window.appointments)? window.appointments : []).slice();
+
+      const unscheduled = list.filter(a => !a.date || !a.period)
+                              .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0));
+
+      const todayList = list.filter(a => a.date === isoToday)
+                            .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0));
+
+      const tomorrowList = list.filter(a => a.date === isoTomorrow)
+                               .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0));
+
+      const dm = d => new Date(d).toLocaleDateString('pt-PT', { weekday:'long', day:'2-digit', month:'2-digit' });
+      const titleToday = `Serviços Hoje`;
+      const titleTomorrow = `Serviços Amanhã`;
+      const titleUnscheduled = `Serviços por Agendar`;
+
+      cont.innerHTML = [
+        buildTable(titleUnscheduled, '', unscheduled),
+        buildTable(titleToday, cap(dm(today)), todayList),
+        buildTable(titleTomorrow, cap(dm(tomorrow)), tomorrowList),
+      ].join('');
+
+    }catch(e){
+      console.error('fillPrintFromAppointments falhou:', e);
+    }
+  };
+})();
