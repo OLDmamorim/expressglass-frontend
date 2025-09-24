@@ -169,39 +169,43 @@ class ApiClient {
   // ===== LOCALIDADES =====
   
   async getLocalities() {
-    try {
-      if (!this.isOnline) {
-        throw new Error('Sem conexão - usando dados locais');
-      }
-      
-      const response = await this.makeRequest('/localities');
-      
-      if (response.success) {
-        // Guardar no localStorage como backup
-        localStorage.setItem('eg_localities_backup', JSON.stringify(response.data));
-        return response.data;
-      } else {
-        throw new Error(response.error);
-      }
-      
-    } catch (error) {
-      console.warn('📱 Fallback para localidades padrão:', error.message);
-      
-      // Tentar backup do localStorage
-      const backup = localStorage.getItem('eg_localities_backup');
-      if (backup) {
-        return JSON.parse(backup);
-      }
-      
-      // Fallback para localidades padrão
-      return {
-  'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
-  'Famalicão': '#7E22CE', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
-  'Póvoa de Varzim': '#6EE7B7', 'Riba D\'Ave': '#FBBF24', 'Trofa': '#C084FC',
-  'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#1E3A8A', 'Vila Verde': '#86EFAC'
-};
-} 
-} 
+  try {
+    if (!this.isOnline) {
+      throw new Error('Sem conexão - usando dados locais');
+    }
+
+    const response = await this.makeRequest('/localities');
+
+    // O endpoint /localities devolve um OBJETO direto.
+    // Se algum dia vier em { success, data }, também tratamos.
+    const data = (response && typeof response === 'object' && 'success' in response)
+      ? response.data
+      : response;
+
+    if (!data || typeof data !== 'object') {
+      throw new Error('Resposta inválida das localities');
+    }
+
+    localStorage.setItem('eg_localities_backup', JSON.stringify(data));
+    return data;
+
+  } catch (error) {
+    console.warn('📱 Fallback para localidades padrão:', error.message);
+
+    // Tenta backup do localStorage
+    const backup = localStorage.getItem('eg_localities_backup');
+    if (backup) return JSON.parse(backup);
+
+    // Fallback padrão
+    return {
+      'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
+      'Famalicão': '#7E22CE', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
+      'Póvoa de Varzim': '#6EE7B7', "Riba D'Ave": '#FBBF24', 'Trofa': '#C084FC',
+      'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#1E3A8A', 'Vila Verde': '#86EFAC'
+    };
+  }
+}
+
   
   // ===== FALLBACK LOCALSTORAGE =====
   
