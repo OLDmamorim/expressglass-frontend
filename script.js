@@ -481,6 +481,20 @@ function buildDesktopCard(a){
   const bar = statusBarColors[a.status] || '#999';
   const title = `${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
   const sub   = [a.locality, a.notes].filter(Boolean).join(' | ');
+  
+  // Informação de distância (se disponível)
+  const distanceInfo = a._kmFromPrev != null ? `
+    <div class="distance-info">
+      <svg viewBox="0 0 24 24" width="14" height="14" style="fill: #fff; margin-right: 4px;">
+        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+      </svg>
+      <svg viewBox="0 0 24 24" width="12" height="12" style="fill: #fff; margin: 0 4px;">
+        <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+      </svg>
+      <span style="color: #fff; font-size: 12px; font-weight: 600;">${a._kmFromPrev} km</span>
+    </div>
+  ` : '';
+  
   return `
     <div class="appointment desk-card" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
@@ -492,6 +506,7 @@ function buildDesktopCard(a){
         <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
         <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
       </div>
+      ${distanceInfo}
       <div class="card-actions">
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
@@ -658,6 +673,19 @@ const telBtn = phone ? `
   ].join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
 
+  // Informação de distância (se disponível)
+  const distanceInfo = a._kmFromPrev != null ? `
+    <div class="m-distance" style="display: flex; align-items: center; margin-top: 8px; opacity: 0.9;">
+      <svg viewBox="0 0 24 24" width="14" height="14" style="fill: #fff; margin-right: 4px;">
+        <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>
+      </svg>
+      <svg viewBox="0 0 24 24" width="12" height="12" style="fill: #fff; margin: 0 4px;">
+        <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+      </svg>
+      <span style="color: #fff; font-size: 12px; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,.55);">${a._kmFromPrev} km</span>
+    </div>
+  ` : '';
+
   return `
     <div class="appointment m-card" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
@@ -667,6 +695,7 @@ const telBtn = phone ? `
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
       ${notes}
+      ${distanceInfo}
     </div>
   `;
 }
