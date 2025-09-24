@@ -1001,7 +1001,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
 
     window._addressAutocomplete = ac; // debug
-  }
+  };
 
   if (document.readyState === 'complete') {
     setup();
