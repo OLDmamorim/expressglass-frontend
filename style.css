@@ -477,7 +477,6 @@ body.printing-now > *:not(#print-container-temp) {
   #print-container-temp .print-section:last-child { page-break-after: auto; }
 }
 
-
 /* ——— KM strip no rodapé do cartão ——— */
 .card-km {
   display: flex;
@@ -501,8 +500,5 @@ body.printing-now > *:not(#print-container-temp) {
   opacity: 0.95;
 }
 @media print {
-  .card-km { 
-    border-top: 1px solid #000;
-    color: #000;
-  }
+  .card-km { border-top: 1px solid #000; color: #000; }
 }
