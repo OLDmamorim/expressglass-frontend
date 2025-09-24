@@ -952,61 +952,45 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
 
 // === Autocomplete de Morada (novo PlaceAutocompleteElement) ===
-(function initAddressAutocomplete(){
+(function initAddressAutocomplete() {
   const input = document.getElementById('appointmentAddress');
   if (!input) return;
 
-  function setup() {
-    // Se o novo elemento existir, usa-o; senão, cai no fallback antigo
-    const hasNew = !!(window.google &&
-                      google.maps &&
-                      google.maps.places &&
-                      google.maps.places.PlaceAutocompleteElement);
-
-    if (hasNew) {
-      // Criar o elemento e ligar ao nosso input existente
+  const run = () => {
+    // Preferir o novo componente
+    if (window.google?.maps?.places?.PlaceAutocompleteElement) {
       const pae = new google.maps.places.PlaceAutocompleteElement();
-      pae.id = 'pae-address';
-      pae.inputElement = input; // associa ao input já no DOM
+      pae.inputElement = input; // liga ao input existente
       pae.componentRestrictions = { country: ['pt'] };
 
-      // Quando o utilizador escolhe um sítio
       pae.addEventListener('gmp-placeselect', async (e) => {
-        // Garante que temos os campos de que precisamos
-        await e.place.fetchFields({
-          fields: ['displayName', 'formattedAddress']
-        });
-
+        await e.place.fetchFields({ fields: ['displayName', 'formattedAddress'] });
         const name = e.place.displayName?.text || '';
         const addr = e.place.formattedAddress || '';
         const txt  = [name, addr].filter(Boolean).join(' - ');
         if (txt) input.value = txt;
       });
-
-      window._addressAutocomplete = pae; // debug
       return;
     }
 
-    // --- Fallback: Autocomplete antigo (mantém tudo a funcionar) ---
-    if (!(window.google && google.maps && google.maps.places)) {
-      console.warn('Google Places API ainda não disponível.');
-      return;
-    }
+    // Fallback: Autocomplete antigo (continua a funcionar)
+    if (!(window.google?.maps?.places)) return;
+
     const ac = new google.maps.places.Autocomplete(input, {
-      // sem "types" => moradas + empresas/oficinas
       componentRestrictions: { country: 'pt' }
     });
+
     ac.addListener('place_changed', () => {
       const p = ac.getPlace();
       const txt = [p?.name, p?.formatted_address].filter(Boolean).join(' - ');
       if (txt) input.value = txt;
     });
-    window._addressAutocomplete = ac; // debug
-  }
+  };
 
-  if (document.readyState === 'complete') setup();
-  else window.addEventListener('load', setup);
+  if (document.readyState === 'complete') run();
+  else window.addEventListener('load', run);
 })();
+
 
 
     ac.addListener('place_changed', () => {
