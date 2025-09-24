@@ -991,21 +991,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   else window.addEventListener('load', run);
 })(); // fecha a IIFE aqui
 
-  ac.addListener('place_changed', () => {
-  const place = ac.getPlace();
-  const txt = [place?.name, place?.formatted_address].filter(Boolean).join(' - ');
-  if (txt) input.value = txt;
-});
-
-
-    window._addressAutocomplete = ac; // debug
-  }
-
-  if (document.readyState === 'complete') {
-    setup();
-  } else {
-    window.addEventListener('load', setup);
-  }
 // === Localidade: handlers mínimos (fix undefined) ===
 window.toggleLocalityDropdown = function () {
   const dd = document.getElementById('localityDropdown');
