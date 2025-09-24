@@ -425,32 +425,25 @@
     });
   </script>
   <script>
-  // Se já existir um script do Maps sem 'libraries=places', removemos para evitar conflitos
-  (function ensureMapsPlacesLoaded() {
-    const EXISTING = [...document.scripts].find(s => s.src.includes('maps.googleapis.com/maps/api/js'));
-    if (EXISTING) EXISTING.remove();
+ <script>
+// Função initMaps (placeholder por agora, só evita erro)
+window.initMaps = function () {
+  console.info('Google Maps carregado (initMaps pronto).');
+};
 
-    const key = window.GMAPS_API_KEY || 'INSERE_A_TUA_API_KEY_AQUI';
-    const src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=initMaps&v=weekly&language=pt&region=PT`;
-    const js = document.createElement('script');
-    js.src = src;
-    js.defer = true; // não uses async aqui para não “enganar” o callback
-    document.head.appendChild(js);
-  })();
-</script>
-  <script>
-  // Se já existir um script do Maps sem 'libraries=places', removemos para evitar conflitos
-  (function ensureMapsPlacesLoaded() {
-    const EXISTING = [...document.scripts].find(s => s.src.includes('maps.googleapis.com/maps/api/js'));
-    if (EXISTING) EXISTING.remove();
+// Injetar script do Google Maps com Places
+(function ensureMapsPlacesLoaded() {
+  const existing = [...document.scripts].find(s => s.src.includes('maps.googleapis.com/maps/api/js'));
+  if (existing) existing.remove();
 
-    const key = window.GMAPS_API_KEY || 'INSERE_A_TUA_API_KEY_AQUI';
-    const src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=initMaps&v=weekly&language=pt&region=PT`;
-    const js = document.createElement('script');
-    js.src = src;
-    js.defer = true; // não uses async aqui para não “enganar” o callback
-    document.head.appendChild(js);
-  })();
+  const key = window.GMAPS_API_KEY || 'INSERE_A_TUA_API_KEY_AQUI';
+  const src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places&callback=initMaps&v=weekly&language=pt&region=PT`;
+
+  const js = document.createElement('script');
+  js.src = src;
+  js.defer = true; // para não bloquear o resto do JS
+  document.head.appendChild(js);
+})();
 </script>
 
 </body>
