@@ -1,5 +1,129 @@
-// ===== PORTAL DE AGENDAMENTO MELHORADO =====
 // Versão estabilizada com patches: IDs estáveis, DnD throttle, semana Seg-Sáb, impressão segura, etc.
+
+// ==================
+// SCRIPT PRINCIPAL
+// ==================
+
+// ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
+const BASES_PARTIDA = {
+  SM_BRAGA: "Avenida Robert Smith 59, 4715-249 Braga",
+};
+
+// Por agora usamos sempre a base do SM Braga
+let basePartidaDoDia = BASES_PARTIDA.SM_BRAGA;
+
+// ---- Seletores ----
+const fileInput  = document.getElementById('fileInput');
+const btnUpload  = document.getElementById('btnUpload');
+
+// Pega a API key que já está no script do Google Maps
+function getGoogleApiKey() {
+  const scripts = document.getElementsByTagName("script");
+  for (let s of scripts) {
+    if (s.src.includes("maps.googleapis.com/maps/api/js")) {
+      const urlParams = new URLSearchParams(s.src.split("?")[1]);
+      return urlParams.get("key");
+    }
+  }
+  return null;
+}
+
+// ===== FUNÇÃO PARA CALCULAR DISTÂNCIA (versão Google JS API – sem CORS) =====
+function getDistance(from, to) {
+  return new Promise((resolve) => {
+    try {
+      if (!window.google || !google.maps || !google.maps.DistanceMatrixService) {
+        console.warn("Google Maps JS API não carregada.");
+        resolve(Infinity);
+        return;
+      }
+      const svc = new google.maps.DistanceMatrixService();
+      svc.getDistanceMatrix(
+        {
+          origins: [from],
+          destinations: [to],
+          travelMode: google.maps.TravelMode.DRIVING,
+          unitSystem: google.maps.UnitSystem.METRIC,
+        },
+        (res, status) => {
+          if (
+            status === "OK" &&
+            res?.rows?.[0]?.elements?.[0]?.status === "OK" &&
+            res.rows[0].elements[0].distance?.value != null
+          ) {
+            resolve(res.rows[0].elements[0].distance.value); // metros
+          } else {
+            console.warn("DistanceMatrix falhou:", status, res?.rows?.[0]?.elements?.[0]?.status);
+            resolve(Infinity);
+          }
+        }
+      );
+    } catch (err) {
+      console.error("Erro a calcular distância:", err);
+      resolve(Infinity);
+    }
+  });
+}
+  
+
+// ===== NORMALIZAR CAMPO MORADA =====
+// Usa 'address' se existir; senão tenta 'morada' (para compatibilidade com dados antigos)
+function getAddressFromItem(item) {
+  const addr = item.address?.trim?.() || item.morada?.trim?.() || "";
+  if (addr) return addr;
+  return item.locality ? `${item.locality}, Portugal` : "";
+}
+
+// ===== ORDENAR EM CADEIA: MAIS LONGE PRIMEIRO =====
+// Recebe um array de agendamentos do dia e devolve NOVA lista ordenada
+async function ordenarAgendamentosCadeiaMaisLongePrimeiro(agendamentos, origemInicial = basePartidaDoDia) {
+  // Clonar para não mutar o array original
+  const restantes = agendamentos.filter(a => getAddressFromItem(a));
+  const resultado = [];
+  let origem = origemInicial;
+
+  while (restantes.length) {
+    // calcular distâncias da 'origem' a todos os restantes (em paralelo)
+    const distancias = await Promise.all(
+      restantes.map(async (item) => {
+        const to = getAddressFromItem(item);
+        const d = await getDistance(origem, to);
+        return { item, d };
+      })
+    );
+
+    // escolher o MAIS LONGE (maior distância)
+    distancias.sort((a, b) => b.d - a.d);
+    const escolhido = distancias[0];
+
+    // colocar no resultado e remover dos 'restantes'
+    resultado.push({ ...escolhido.item, _kmFromPrev: Math.round(escolhido.d / 1000) });
+    const idx = restantes.indexOf(escolhido.item);
+    restantes.splice(idx, 1);
+
+    // próxima origem passa a ser a morada do serviço escolhido
+    origem = getAddressFromItem(escolhido.item);
+  }
+
+  return resultado;
+}
+
+// ===== CONTROLO (apenas staging, SM Braga) =====
+const ORDER_ROUTE_SM_BRAGA = true;
+
+// Ordena só os serviços com morada, mantendo os restantes no fim
+async function ordenarSeNecessario(lista) {
+  if (!ORDER_ROUTE_SM_BRAGA) return lista;
+
+  // tenta detectar SM Braga (ajusta se usares outro campo para equipa)
+  const comMorada = lista.filter(i => getAddressFromItem(i));
+  if (!comMorada.length) return lista;
+
+  const ordenados = await ordenarAgendamentosCadeiaMaisLongePrimeiro(comMorada, basePartidaDoDia);
+  const idsOrdenados = new Set(ordenados.map(x => x.id));
+  const restantes = lista.filter(i => !idsOrdenados.has(i.id));
+  return [...ordenados, ...restantes];
+}
 
 // ---------- Configurações e dados ----------
 const localityColors = {
@@ -66,6 +190,27 @@ function formatPlate(input){
   if(v.length>2) v=v.slice(0,2)+'-'+v.slice(2);
   if(v.length>5) v=v.slice(0,5)+'-'+v.slice(5,7);
   input.value=v;
+}
+
+// ---------- Connection Badge ----------
+function updateConnBadge(){
+  const status = document.getElementById('connectionStatus');
+  const icon = document.getElementById('statusIcon');
+  const text = document.getElementById('statusText');
+  
+  if (!status || !icon || !text) return;
+  
+  const connStatus = window.apiClient?.getConnectionStatus() || { online: navigator.onLine };
+  
+  if (connStatus.online) {
+    status.className = 'connection-status online';
+    icon.textContent = '🌐';
+    text.textContent = 'Online';
+  } else {
+    status.className = 'connection-status offline';
+    icon.textContent = '📱';
+    text.textContent = 'Offline';
+  }
 }
 
 // ---------- API load ----------
@@ -142,6 +287,28 @@ async function persistStatus(id, newStatus) {
   } finally {
     renderAll();
   }
+}
+
+// ---------- Status Listeners ----------
+function attachStatusListeners(){
+  document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(checkbox => {
+    checkbox.addEventListener('change', async function(e) {
+      if (!this.checked) return;
+      
+      const appointmentEl = this.closest('.appointment');
+      const id = appointmentEl?.getAttribute('data-id');
+      const newStatus = this.getAttribute('data-status');
+      
+      if (!id || !newStatus) return;
+      
+      // Desmarcar outros checkboxes do mesmo agendamento
+      appointmentEl.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb => {
+        if (cb !== this) cb.checked = false;
+      });
+      
+      await persistStatus(id, newStatus);
+    });
+  });
 }
 
 // ---------- Drag & Drop (com persistência throttle) ----------
@@ -231,7 +398,114 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   await persistBuckets(bucketsToPersist);
 }
 
+// ===== FUNÇÕES DE EDIÇÃO E ELIMINAÇÃO =====
+
+function editAppointment(id) {
+  const appointment = appointments.find(a => String(a.id) === String(id));
+  if (!appointment) {
+    showToast('Agendamento não encontrado', 'error');
+    return;
+  }
+
+  editingId = id;
+  
+  // Preencher formulário
+  document.getElementById('appointmentDate').value = appointment.date || '';
+  document.getElementById('appointmentPeriod').value = appointment.period || '';
+  document.getElementById('appointmentPlate').value = appointment.plate || '';
+  document.getElementById('appointmentCar').value = appointment.car || '';
+  document.getElementById('appointmentService').value = appointment.service || '';
+  document.getElementById('appointmentLocality').value = appointment.locality || '';
+  document.getElementById('appointmentNotes').value = appointment.notes || '';
+  document.getElementById('appointmentAddress').value = appointment.address || '';
+  document.getElementById('appointmentPhone').value = appointment.phone || '';
+  document.getElementById('appointmentExtra').value = appointment.extra || '';
+
+  // Atualizar dropdown de localidade
+  if (appointment.locality) {
+    const selectedText = document.getElementById('selectedLocalityText');
+    const selectedDot = document.getElementById('selectedLocalityDot');
+    if (selectedText && selectedDot) {
+      selectedText.textContent = appointment.locality;
+      selectedDot.style.backgroundColor = getLocColor(appointment.locality);
+    }
+  }
+
+  // Alterar modal para modo edição
+  document.getElementById('modalTitle').textContent = 'Editar Agendamento';
+  document.getElementById('deleteAppointment').classList.remove('hidden');
+  document.getElementById('appointmentModal').classList.add('show');
+}
+
+async function deleteAppointment(id) {
+  if (!confirm('Tem a certeza que pretende eliminar este agendamento?')) {
+    return;
+  }
+
+  try {
+    await window.apiClient.deleteAppointment(id);
+    const index = appointments.findIndex(a => String(a.id) === String(id));
+    if (index > -1) {
+      appointments.splice(index, 1);
+    }
+    
+    showToast('Agendamento eliminado com sucesso', 'success');
+    renderAll();
+    document.getElementById('appointmentModal').classList.remove('show');
+    
+  } catch (error) {
+    showToast('Erro ao eliminar agendamento: ' + error.message, 'error');
+  }
+}
+
+function cancelEdit() {
+  editingId = null;
+  document.getElementById('appointmentForm').reset();
+  document.getElementById('modalTitle').textContent = 'Novo Agendamento';
+  document.getElementById('deleteAppointment').classList.add('hidden');
+  
+  const selectedText = document.getElementById('selectedLocalityText');
+  const selectedDot = document.getElementById('selectedLocalityDot');
+  if (selectedText && selectedDot) {
+    selectedText.textContent = 'Selecione a localidade';
+    selectedDot.style.backgroundColor = '';
+  }
+  
+  document.getElementById('appointmentModal').classList.remove('show');
+}
+
 // ---------- Render DESKTOP (cartões) ----------
+
+// ===== KM helpers =====
+function getKmValue(ag) {
+  const v = ag.km ?? ag.kms ?? ag.kilometers ?? ag.kilometros ?? ag.quilometros ?? ag.kilómetros ?? ag.km_total ?? ag.distancia;
+  if (v == null) return null;
+  const n = String(v).match(/[\d,.]+/);
+  if (!n) return null;
+  const parsed = parseFloat(n[0].replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildKmRow(ag) {
+  const km = getKmValue(ag);
+  if (km == null) return '';
+  const kmFmt = Math.round(km);
+  return `
+    <div class="card-km" data-km-row>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 13l2-6a2 2 0 0 1 2-1h8a2 2 0 0 1 2 1l2 6" />
+        <path d="M5 13h14" />
+        <circle cx="7.5" cy="17" r="1.5" />
+        <circle cx="16.5" cy="17" r="1.5" />
+      </svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 12h14" />
+        <path d="M13 6l6 6-6 6" />
+      </svg>
+      <span>${kmFmt} km</span>
+    </div>
+  `;
+}
 function buildDesktopCard(a){
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
@@ -253,7 +527,7 @@ function buildDesktopCard(a){
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
       </div>
-    </div>`;
+    ${buildKmRow(a)}</div>`;
 }
 
 function renderSchedule(){
@@ -272,7 +546,7 @@ function renderSchedule(){
     const iso=localISO(dayDate);
     const items=filterAppointments(
       appointments.filter(a=>a.date&&a.date===iso&&a.period===period)
-                  .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
+                 .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0))
     );
     const blocks = items.map(buildDesktopCard).join('');
     return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
@@ -424,34 +698,41 @@ const telBtn = phone ? `
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
       ${notes}
-    </div>
+    ${buildKmRow(a)}</div>
   `;
 }
 
-function renderMobileDay(){
-  const list = document.getElementById('mobileDayList');
+// ===== [PATCH FINAL] — bootstrap + mobile render =====
+
+// Lista (mobile) do dia — com ordenação por distância
+async function renderMobileDay(){
+  const list  = document.getElementById('mobileDayList');
   const label = document.getElementById('mobileDayLabel');
   if(!list || !label) return;
+
   const iso = localISO(currentMobileDay);
   const weekday = currentMobileDay.toLocaleDateString('pt-PT',{ weekday:'long' });
   const dm = currentMobileDay.toLocaleDateString('pt-PT',{ day:'2-digit', month:'2-digit' });
   label.textContent = `${cap(weekday)} • ${dm}`;
 
-  const items = filterAppointments(
+  // Itens do dia (base)
+  const itemsRaw = filterAppointments(
     appointments
       .filter(a => a.date === iso)
       .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0))
   );
+
+  // Ordenação em cadeia (loja -> mais longe -> a partir do último)
+  const items = await ordenarSeNecessario(itemsRaw);
 
   if(items.length === 0){
     list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
     return;
   }
 
-  // Separar por período para legibilidade
-  const morning = items.filter(a=>a.period==='Manhã').map(buildMobileCard).join('');
+  const morning   = items.filter(a=>a.period==='Manhã').map(buildMobileCard).join('');
   const afternoon = items.filter(a=>a.period==='Tarde').map(buildMobileCard).join('');
-  const others = items.filter(a=>!a.period).map(buildMobileCard).join('');
+  const others    = items.filter(a=>!a.period).map(buildMobileCard).join('');
 
   list.innerHTML = `
     ${morning? `<h4 style="margin:4px 0 6px 8px;">Manhã</h4>${morning}`:''}
@@ -461,277 +742,124 @@ function renderMobileDay(){
   highlightSearchResults();
 }
 
-function renderAll(){ renderSchedule(); renderUnscheduled(); renderServicesTable(); renderMobileDay(); }
-
-// ---------- CRUD ----------
-function openAppointmentModal(id=null){
-  editingId=id; const modal=document.getElementById('appointmentModal'); if(!modal) return;
-  const form=document.getElementById('appointmentForm');
-  const title=document.getElementById('modalTitle');
-  const del=document.getElementById('deleteAppointment');
-  if(id){
-    const a=appointments.find(x=>String(x.id)===String(id));
-    if(a){
-      title.textContent='Editar Agendamento';
-      document.getElementById('appointmentDate').value = formatDateForInput(a.date) || '';
-      document.getElementById('appointmentPeriod').value = a.period||'';
-      document.getElementById('appointmentPlate').value = a.plate||'';
-      document.getElementById('appointmentCar').value = a.car||'';
-      document.getElementById('appointmentService').value = a.service||'';
-      document.getElementById('appointmentLocality').value = a.locality||'';
-      const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
-      if(txt) txt.textContent=a.locality||'Selecione a localidade';
-      if(dot) dot.style.backgroundColor=getLocColor(a.locality);
-      document.getElementById('appointmentStatus').value = a.status||'NE';
-      document.getElementById('appointmentNotes').value = a.notes||'';
-      document.getElementById('appointmentAddress').value = a.address || '';
-      document.getElementById('appointmentExtra').value = a.extra||'';
-      // Preencher contacto
-      const phoneInput = document.getElementById('appointmentPhone');
-      if (phoneInput) {
-        let phone = (a && a.phone) || "";
-        if (!phone && a?.extra) {
-          const m = String(a.extra).match(/([+()\s\d-]{6,})/);
-          if (m) phone = m[1].trim();
-        }
-        phoneInput.value = phone || "";
-      }
-
-      del.classList.remove('hidden');
-    }
-  }else{
-    title.textContent='Novo Agendamento';
-    if(form) form.reset();
-    document.getElementById('appointmentStatus').value='NE';
-    const txt=document.getElementById('selectedLocalityText'); const dot=document.getElementById('selectedLocalityDot');
-    if(txt) txt.textContent='Selecione a localidade';
-    if(dot) dot.style.backgroundColor='#ccc';
-    del.classList.add('hidden');
-  }
-  modal.classList.add('show');
-}
-function closeAppointmentModal(){ const modal=document.getElementById('appointmentModal'); if(modal) modal.classList.remove('show'); editingId=null; }
-async function saveAppointment(){
-  const form=document.getElementById('appointmentForm'); if(!form) return;
-  const data={
-    date: parseDate(document.getElementById('appointmentDate').value),
-    period: document.getElementById('appointmentPeriod').value||null,
-    plate: document.getElementById('appointmentPlate').value.trim(),
-    car: document.getElementById('appointmentCar').value.trim(),
-    service: document.getElementById('appointmentService').value,
-    locality: document.getElementById('appointmentLocality').value,
-    status: document.getElementById('appointmentStatus').value||'NE',
-    notes: document.getElementById('appointmentNotes').value.trim()||null,
-    address: document.getElementById('appointmentAddress').value.trim() || null, // ✅ gravar morada
-    extra: document.getElementById('appointmentExtra').value.trim()||null,
-    phone: document.getElementById('appointmentPhone').value.trim() || null
-  };
-  if(!data.plate){ showToast('Matrícula é obrigatória','error'); return; }
-  if(!data.car){ showToast('Modelo do carro é obrigatório','error'); return; }
-  if(!data.service){ showToast('Tipo de serviço é obrigatório','error'); return; }
-  if(!data.locality){ showToast('Localidade é obrigatória','error'); return; }
-
-  try{
-    if(editingId){
-      const res=await window.apiClient.updateAppointment(editingId,data);
-      const idx=appointments.findIndex(a=>String(a.id)===String(editingId));
-      const merged = res && typeof res==='object' ? res : data;
-      if(idx>=0) {
-        // garantir formato YYYY-MM-DD
-        if (merged.date) merged.date = String(merged.date).slice(0,10);
-        appointments[idx]={...appointments[idx],...merged};
-      }
-      showToast('Agendamento atualizado!','success');
-    }else{
-      const res=await window.apiClient.createAppointment(data); // res = row criada
-      if (res && res.date) res.date = String(res.date).slice(0, 10); // normaliza
-      const newId = (res && (res.id || res.clientId)) || (Date.now()+Math.random());
-      const newAppt={id:newId,sortIndex:1,...data,...(res||{})};
-      appointments.push(newAppt);
-      showToast('Agendamento criado!','success');
-    }
-    closeAppointmentModal(); renderAll();
-  }catch(e){
-    showToast('Erro: '+e.message,'error');
-  }
-}
-function editAppointment(id){ openAppointmentModal(id); }
-async function deleteAppointment(id){
-  if(!confirm('Eliminar este agendamento?')) return;
-  try{
-    await window.apiClient.deleteAppointment(id);
-    appointments=appointments.filter(a=>String(a.id)!==String(id));
-    showToast('Agendamento eliminado!','success');
-    closeAppointmentModal(); renderAll();
-  }catch(e){
-    showToast('Erro ao eliminar: '+e.message,'error');
-  }
+// Render global
+function renderAll(){
+  try { renderSchedule(); } catch(e){ console.error('Erro renderSchedule:', e); }
+  try { renderUnscheduled(); } catch(e){ console.error('Erro renderUnscheduled:', e); }
+  try { renderServicesTable(); } catch(e){ console.error('Erro renderServicesTable:', e); }
+  try { renderMobileDay(); } catch(e){ console.error('Erro renderMobileDay:', e); }
 }
 
-// ---------- Status listeners ----------
-function attachStatusListeners(){
-  document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb=>{
-    cb.addEventListener('change',async e=>{
-      if(!e.target.checked) return;
-      const card=e.target.closest('.appointment'); if(!card) return;
-      const id=card.getAttribute('data-id'); const status=e.target.getAttribute('data-status');
-      if(!id||!status) return;
-      card.querySelectorAll('.appt-status input[type="checkbox"]').forEach(x=>{ if(x!==e.target) x.checked=false; });
-      await persistStatus(id,status);
-    });
-  });
-}
-
-// ---------- Exportação ----------
-function exportToJson(){
-  appointments.forEach(a=>{ if(!a.sortIndex) a.sortIndex=1; });
-  const data=JSON.stringify(appointments,null,2);
-  const blob=new Blob([data],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='agendamentos.json'; a.click();
-  URL.revokeObjectURL(url);
-}
-function exportToCsv(){
-  appointments.forEach(a=>{ if(!a.sortIndex) a.sortIndex=1; });
-  const headers=['Data','Período','Matrícula','Carro','Serviço','Localidade','Status','Observações','Morada','Extra','Ordem']; // adicionada Morada
-  const rows=appointments.map(a=>[
-    a.date||'',a.period||'',a.plate||'',a.car||'',a.service||'',a.locality||'',a.status||'',
-    a.notes||'',a.address||'',a.extra||'',a.sortIndex||1
-  ]);
-  const csv=[headers,...rows].map(row=>row.map(cell=>`"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob=new Blob([csv],{type:'text/csv'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='agendamentos.csv'; a.click();
-  URL.revokeObjectURL(url);
-}
-async function importFromJson(file){
-  try{
-    const text=await file.text();
-    const data=JSON.parse(text);
-    if(!Array.isArray(data)){ showToast('Formato inválido','error'); return; }
-    appointments=data.map(a=>({...a,id:a.id||Date.now()+Math.random(),sortIndex:a.sortIndex||1, address: a.address || a.morada || a.addr || null}));
-    renderAll(); showToast('Dados importados!','success');
-  }catch(e){ showToast('Erro na importação: '+e.message,'error'); }
-}
-
-// ---------- Conexão badge ----------
-function updateConnBadge(){
-  const el = document.getElementById('connectionStatus');
-  if(!el) return;
-  if (window.apiClient?.isOnline){ el.classList.remove('offline'); el.querySelector('#statusText').textContent = 'Online'; }
-  else { el.classList.add('offline'); el.querySelector('#statusText').textContent = 'Offline'; }
-}
-
-// ---------- Dropdown Localidades ----------
-function toggleLocalityDropdown(){
-  const box = document.getElementById('localityOptions');
-  const sel = document.getElementById('localitySelected');
-  if(!box||!sel) return;
-  const open = box.classList.toggle('show');
-  sel.classList.toggle('open', open);
-}
-function closeLocalityDropdown(){ const box=document.getElementById('localityOptions'); const sel=document.getElementById('localitySelected'); if(box){box.classList.remove('show');} if(sel){sel.classList.remove('open');} }
-document.addEventListener('click', (e)=>{ if(!e.target.closest('.locality-dropdown')) closeLocalityDropdown(); });
-
-function buildLocalityOptions(){
-  const box=document.getElementById('localityOptions'); if(!box) return;
-  box.innerHTML = Object.keys(localityColors).map(loc=>`
-    <div class="locality-option" data-loc="${loc}" onclick="selectLocality('${loc}')">
-      <span class="locality-dot" style="background:${getLocColor(loc)}"></span>
-      <span>${loc}</span>
-    </div>
-  `).join('');
-}
-function selectLocality(loc){
-  const hidden=document.getElementById('appointmentLocality');
-  const txt=document.getElementById('selectedLocalityText');
-  const dot=document.getElementById('selectedLocalityDot');
-  if(hidden) hidden.value=loc;
-  if(txt) txt.textContent=loc;
-  if(dot) dot.style.background=getLocColor(loc);
-  closeLocalityDropdown();
-}
-
-// ---------- Navegação Semana / Dia ----------
-function gotoTodayWeek(){ currentMonday = getMonday(new Date()); renderAll(); }
-function prevWeek(){ currentMonday = addDays(currentMonday, -7); renderAll(); }
-function nextWeek(){ currentMonday = addDays(currentMonday,  7); renderAll(); }
-
-// ---------- Eventos DOM ----------
+// Bootstrap da app (carrega BD e desenha)
 document.addEventListener('DOMContentLoaded', async ()=>{
-  // inputs
-  document.getElementById('appointmentPlate')?.addEventListener('input', (e)=>formatPlate(e.target));
-  document.getElementById('addServiceBtn')?.addEventListener('click', ()=>openAppointmentModal());
-  document.getElementById('addServiceMobile')?.addEventListener('click', ()=>openAppointmentModal());
-  document.getElementById('closeModal')?.addEventListener('click', closeAppointmentModal);
-  document.getElementById('cancelForm')?.addEventListener('click', closeAppointmentModal);
-  document.getElementById('deleteAppointment')?.addEventListener('click', ()=>{ if(editingId) deleteAppointment(editingId); });
+  try { await load(); } catch(e){ console.error('load() falhou', e); }
+  try { buildLocalityOptions?.(); } catch(e){}
+  renderAll();
 
-  document.getElementById('appointmentForm')?.addEventListener('submit', (e)=>{ e.preventDefault(); saveAppointment(); });
+  // Navegação mínima (se existirem botões)
+  document.getElementById('todayWeek')?.addEventListener('click', ()=>{ currentMonday = getMonday(new Date()); renderAll(); });
+  document.getElementById('prevWeek')?.addEventListener('click', ()=>{ currentMonday = addDays(currentMonday, -7); renderAll(); });
+  document.getElementById('nextWeek')?.addEventListener('click', ()=>{ currentMonday = addDays(currentMonday,  7); renderAll(); });
 
-  // search
-  const searchBtn=document.getElementById('searchBtn');
-  const searchBar=document.getElementById('searchBar');
-  const searchInput=document.getElementById('searchInput');
-  document.getElementById('clearSearch')?.addEventListener('click', ()=>{ searchInput.value=''; searchQuery=''; renderAll(); });
-  searchBtn?.addEventListener('click', ()=> searchBar.classList.toggle('hidden'));
-  searchInput?.addEventListener('input', (e)=>{ searchQuery=e.target.value; highlightSearchResults(); });
-
-  // filtros
-  document.getElementById('filterStatus')?.addEventListener('change', (e)=>{ statusFilter=e.target.value; renderAll(); });
-
-  // navegação dia (mobile)
   document.getElementById('prevDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, -1); renderMobileDay(); });
   document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
   document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
 
-  // navegação semana
-  document.getElementById('todayWeek')?.addEventListener('click', gotoTodayWeek);
-  document.getElementById('prevWeek')?.addEventListener('click', prevWeek);
-  document.getElementById('nextWeek')?.addEventListener('click', nextWeek);
-
-  // export/import
-  document.getElementById('exportServices')?.addEventListener('click', exportToCsv);
-  document.getElementById('backupBtn')?.addEventListener('click', ()=>document.getElementById('backupModal').classList.add('show'));
-  document.getElementById('importBtn')?.addEventListener('click', ()=>document.getElementById('importFile')?.click());
-  document.getElementById('importFile')?.addEventListener('change', (e)=>{ const f=e.target.files[0]; if(f) importFromJson(f); });
-  document.getElementById('exportJson')?.addEventListener('click', exportToJson);
-  document.getElementById('exportCsv')?.addEventListener('click', exportToCsv);
-  document.querySelectorAll('#backupModal .close-btn')?.forEach(btn=>btn.addEventListener('click', ()=>document.getElementById('backupModal').classList.remove('show')));
-
-  // imprimir
-  document.getElementById('printPage')?.addEventListener('click', ()=>{/* hook em index já chama window.print() */});
-
-  // ligação
-  window.addEventListener('online', updateConnBadge);
-  window.addEventListener('offline', updateConnBadge);
-
-  buildLocalityOptions();
-  
-  // Google Places Autocomplete para campo de morada (moradas + empresas/POIs)
-  const addressInput = document.getElementById('appointmentAddress');
-  if (addressInput && window.google?.maps?.places) {
-    const autocomplete = new google.maps.places.Autocomplete(addressInput, {
-      types: ['geocode', 'establishment'],
-      componentRestrictions: { country: 'pt' },
-      fields: ['place_id', 'name', 'formatted_address', 'geometry']
-    });
-
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      if (!place) return;
-
-      addressInput.value = place.formatted_address || place.name || addressInput.value;
-
-      addressInput.dataset.placeId = place.place_id || '';
-      addressInput.dataset.placeName = place.name || '';
-      if (place.geometry?.location) {
-        addressInput.dataset.lat = place.geometry.location.lat();
-        addressInput.dataset.lng = place.geometry.location.lng();
-      }
-    });
-  }
-
-  await load();
-  renderAll();
+  // Event listeners para edição
+  document.getElementById('cancelForm')?.addEventListener('click', cancelEdit);
+  document.getElementById('closeModal')?.addEventListener('click', cancelEdit);
+  document.getElementById('deleteAppointment')?.addEventListener('click', function() {
+    if (editingId) deleteAppointment(editingId);
+  });
 });
+// === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
+(function(){
+  if (window.fillPrintFromAppointments) return; // evitar duplicar
+  function toISO(d){
+    if (!(d instanceof Date)) d = new Date(d);
+    d.setHours(0,0,0,0);
+    const z = new Date(d.getTime() - d.getTimezoneOffset()*60000);
+    return z.toISOString().slice(0,10);
+  }
+  function cap(s){ return (s||'').toString().charAt(0).toUpperCase()+ (s||'').toString().slice(1); }
+  function normPeriod(p){
+    if(!p) return '';
+    const t = String(p).toLowerCase();
+    if (t.startsWith('m')) return 'Manhã';
+    if (t.startsWith('t')) return 'Tarde';
+    if (t.startsWith('n')) return 'Noite';
+    if (t==='m') return 'Manhã';
+    if (t==='t') return 'Tarde';
+    if (t==='n') return 'Noite';
+    return p;
+  }
+  function row(a){
+    const periodo = normPeriod(a.period || a.time || '');
+    const outros  = a.address || a.extra || '';
+    return `<tr>
+      <td>${periodo||''}</td>
+      <td>${a.plate||''}</td>
+      <td>${(a.car||'').toUpperCase()}</td>
+      <td>${a.service||''}</td>
+      <td>${a.locality||''}</td>
+      <td>${a.status||''}</td>
+      <td>${a.notes || a.extra || ''}</td>
+      <td>${outros}</td>
+    </tr>`;
+  }
+  function buildTable(title, dateLabel, list){
+    const headDate = dateLabel ? `<div class="print-date">${dateLabel}</div>` : '';
+    const empty = list.length===0 ? `<div class="print-empty">Sem registos</div>` : '';
+    return `<section class="print-section">
+      <h2 class="print-title">${title}</h2>
+      ${headDate}
+      <table class="print-table">
+        <thead><tr>
+          <th>Período</th><th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th>
+        </tr></thead>
+        <tbody>${list.map(row).join('')}</tbody>
+      </table>
+      ${empty}
+    </section>`;
+  }
+  window.fillPrintFromAppointments = function(){
+    try{
+      const contOld = document.getElementById('print-container-temp');
+      if (contOld) contOld.remove();
+      const cont = document.createElement('div');
+      cont.id = 'print-container-temp';
+      document.body.appendChild(cont);
+
+      const today = new Date(); today.setHours(0,0,0,0);
+      const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
+
+      const isoToday = toISO(today);
+      const isoTomorrow = toISO(tomorrow);
+
+      const list = (Array.isArray(window.appointments)? window.appointments : []).slice();
+
+      const unscheduled = list.filter(a => !a.date || !a.period)
+                              .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0));
+
+      const todayList = list.filter(a => a.date === isoToday)
+                            .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0));
+
+      const tomorrowList = list.filter(a => a.date === isoTomorrow)
+                               .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0));
+
+      const dm = d => new Date(d).toLocaleDateString('pt-PT', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
+      const titleToday = `SERVIÇOS DE HOJE`;
+      const titleTomorrow = `SERVIÇOS DE AMANHÃ`;
+      const titleUnscheduled = `SERVIÇOS POR AGENDAR`;
+
+      cont.innerHTML = [
+        buildTable(titleToday, cap(dm(today)), todayList),
+        buildTable(titleTomorrow, cap(dm(tomorrow)), tomorrowList),
+        buildTable(titleUnscheduled, '', unscheduled),
+      ].join('');
+
+    }catch(e){
+      console.error('fillPrintFromAppointments falhou:', e);
+    }
+  };
+})();
