@@ -213,6 +213,124 @@ function updateConnBadge(){
   }
 }
 
+
+// ========== MODAL & FORM HELPERS (Novo Serviço) ==========
+
+function openNewAppointment(){
+  try{
+    editingId = null;
+    const form = document.getElementById('appointmentForm');
+    if (form) form.reset();
+
+    // Título + esconder botão eliminar
+    const delBtn = document.getElementById('deleteAppointment');
+    if (delBtn) delBtn.classList.add('hidden');
+    const title = document.getElementById('modalTitle');
+    if (title) title.textContent = 'Novo Agendamento';
+
+    // Reset do dropdown de localidade
+    const selectedText = document.getElementById('selectedLocalityText');
+    const selectedDot = document.getElementById('selectedLocalityDot');
+    if (selectedText) selectedText.textContent = 'Selecione a localidade';
+    if (selectedDot) selectedDot.style.backgroundColor = '';
+
+    // Garante que as localidades estão carregadas
+    try { buildLocalityOptions?.(); } catch(e){}
+
+    // Mostrar modal
+    const modal = document.getElementById('appointmentModal');
+    if (modal) modal.classList.add('show');
+  } catch(e){
+    console.error('openNewAppointment falhou', e);
+  }
+}
+
+async function handleAppointmentSubmit(e){
+  e.preventDefault();
+  const data = {
+    date: document.getElementById('appointmentDate')?.value || null,
+    period: document.getElementById('appointmentPeriod')?.value || '',
+    plate: (document.getElementById('appointmentPlate')?.value || '').toUpperCase(),
+    car: document.getElementById('appointmentCar')?.value || '',
+    service: document.getElementById('appointmentService')?.value || '',
+    locality: document.getElementById('appointmentLocality')?.value || '',
+    notes: document.getElementById('appointmentNotes')?.value || '',
+    address: document.getElementById('appointmentAddress')?.value || '',
+    phone: document.getElementById('appointmentPhone')?.value || '',
+    extra: document.getElementById('appointmentExtra')?.value || ''
+  };
+
+  // Validações mínimas
+  if (!data.plate || !data.car || !data.service || !data.locality){
+    showToast('Preencha Matrícula, Modelo, Tipo de Serviço e Localidade.', 'error');
+    return;
+  }
+
+  try{
+    if (editingId){
+      await window.apiClient.updateAppointment(editingId, data);
+      const idx = appointments.findIndex(a => String(a.id) === String(editingId));
+      if (idx >= 0) appointments[idx] = { ...appointments[idx], ...data };
+    } else {
+      const created = await window.apiClient.createAppointment(data);
+      // Algumas APIs devolvem {success, data}; outras já devolvem o objeto
+      const newAppt = created?.data ?? created;
+      if (newAppt) appointments.push(newAppt);
+      else { // fallback: recarregar lista
+        const list = await window.apiClient.getAppointments();
+        appointments = Array.isArray(list) ? list : (list?.data ?? []);
+      }
+    }
+
+    cancelEdit(); // fecha modal e limpa
+    renderAll();
+    showToast('Agendamento guardado com sucesso.', 'success');
+  }catch(err){
+    console.error('Erro a guardar agendamento', err);
+    showToast('Erro ao guardar: ' + (err?.message || err), 'error');
+  }
+}
+
+// ========== LOCALITY DROPDOWN ==========
+async function buildLocalityOptions(){
+  const optionsEl = document.getElementById('localityOptions');
+  if (!optionsEl) return;
+  try{
+    const localities = await window.apiClient.getLocalities();
+    const list = Array.isArray(localities) ? localities : (localities?.data ?? []);
+    optionsEl.innerHTML = list.map(loc => {
+      const name = loc.name || loc.locality || String(loc);
+      return \`<div class="locality-option" data-value="\${name}">
+        <span class="locality-dot" style="background:\${getLocColor(name)}"></span>
+        <span>\${name}</span>
+      </div>\`;
+    }).join('');
+    optionsEl.querySelectorAll('.locality-option').forEach(opt=>{
+      opt.addEventListener('click', ()=> selectLocality(opt.getAttribute('data-value')));
+    });
+  }catch(e){
+    console.warn('Falhou carregar localidades:', e);
+  }
+}
+
+function toggleLocalityDropdown(){
+  const optionsEl = document.getElementById('localityOptions');
+  const selectedEl = document.getElementById('localitySelected');
+  if (optionsEl) optionsEl.classList.toggle('show');
+  if (selectedEl) selectedEl.classList.toggle('open');
+}
+
+function selectLocality(value){
+  document.getElementById('appointmentLocality').value = value;
+  const selectedText = document.getElementById('selectedLocalityText');
+  const selectedDot = document.getElementById('selectedLocalityDot');
+  if (selectedText) selectedText.textContent = value;
+  if (selectedDot) selectedDot.style.backgroundColor = getLocColor(value);
+  const optionsEl = document.getElementById('localityOptions');
+  const selectedEl = document.getElementById('localitySelected');
+  if (optionsEl) optionsEl.classList.remove('show');
+  if (selectedEl) selectedEl.classList.remove('open');
+}
 // ---------- API load ----------
 async function load(){
   try{
@@ -774,6 +892,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
   document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
 
+
+  // Botão "+ Novo Serviço" e submissão do formulário
+  document.getElementById('addServiceBtn')?.addEventListener('click', openNewAppointment);
+  document.getElementById('appointmentForm')?.addEventListener('submit', handleAppointmentSubmit);
   // Event listeners para edição
   document.getElementById('cancelForm')?.addEventListener('click', cancelEdit);
   document.getElementById('closeModal')?.addEventListener('click', cancelEdit);
