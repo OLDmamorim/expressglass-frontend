@@ -259,19 +259,25 @@
                 <option value="POL">POL - Polimento</option>
               </select>
             </div>
-            <div class="form-group">
-              <label for="appointmentLocality">Localidade *</label>
-              <div class="locality-dropdown">
-                <div class="locality-selected" id="localitySelected" onclick="toggleLocalityDropdown()">
-                  <span class="locality-dot" id="selectedLocalityDot"></span>
-                  <span id="selectedLocalityText">Selecione a localidade</span>
-                  <span class="dropdown-arrow">▼</span>
-                </div>
-                <div class="locality-options" id="localityOptions"></div>
-                <input type="hidden" id="appointmentLocality" required />
-              </div>
-            </div>
-          </div>
+           <div class="form-group">
+  <label for="appointmentLocality">Localidade *</label>
+
+  <!-- display + trigger -->
+  <div class="locality-select" onclick="toggleLocalityDropdown()">
+    <span id="selectedLocalityDot" class="dot"></span>
+    <span id="selectedLocalityText">Selecione a localidade</span>
+    <span class="caret">▾</span>
+  </div>
+
+  <!-- valor real a submeter -->
+  <input type="hidden" id="appointmentLocality" required />
+
+  <!-- DROPDOWN (IDs que a função usa) -->
+  <div id="localityDropdown" class="locality-dropdown">
+    <div id="localityOptions"></div>
+  </div>
+</div>
+
 
           <div class="form-row">
             <div class="form-group">
