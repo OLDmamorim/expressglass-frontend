@@ -480,4 +480,42 @@ body.printing-now > *:not(#print-container-temp) {
 .pac-container {
   z-index: 99999 !important;
 }
+/* Localidade: dropdown escondido por defeito */
+#localityDropdown {
+  display: none;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-top: 6px;
+  padding: 6px;
+  max-height: 220px;
+  overflow: auto;
+  box-shadow: 0 8px 20px rgba(0,0,0,.12);
+}
+
+/* Mostrar quando o JS adiciona a classe */
+#localityDropdown.open,
+#localityDropdown.show {
+  display: block;
+}
+
+/* Estilo dos botões/opções */
+#localityDropdown .loc-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9999px;
+  background: #f8fafc;
+  cursor: pointer;
+  user-select: none;
+}
+#localityDropdown .loc-opt:hover {
+  background: #eef2ff;
+}
+#localityDropdown .loc-opt .dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
 
