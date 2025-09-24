@@ -565,7 +565,7 @@ async function renderSchedule(){
     tbody.appendChild(row);
     const cells = await Promise.all(week.map(d => renderCell(period, d)));
     row.innerHTML = `<th>${period}</th>` + cells.map(html => `<td>${html}</td>`).join('');
-  });
+  }
   table.appendChild(tbody);
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
