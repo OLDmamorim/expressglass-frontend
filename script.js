@@ -496,7 +496,16 @@ if (addressInput && window.google?.maps?.places) {
   });
 }
 
-  await loadAppointments();
+  try {
+  const response = await window.apiClient.getAppointments();
+  if (response && response.success) {
+    appointments = response.data || [];
+    console.log('Dados carregados:', appointments.length);
+  }
+} catch (error) {
+  console.error('Erro ao carregar:', error);
+  appointments = [];
+}
   renderAll();
   
   // Inicializar cálculo de quilómetros após carregar dados
