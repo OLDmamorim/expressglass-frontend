@@ -949,5 +949,35 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   } else {
     window.addEventListener('load', setup);
   }
+// === Localidade: handlers mínimos (fix undefined) ===
+window.toggleLocalityDropdown = function () {
+  const dd = document.getElementById('localityDropdown');
+  if (!dd) return;
+  // aceita .open ou .show (conforme o teu CSS)
+  dd.classList.toggle('open');
+  dd.classList.toggle('show');
+};
+
+window.selectLocality = function (value) {
+  const field = document.getElementById('appointmentLocality');
+  const txt   = document.getElementById('selectedLocalityText');
+  const dot   = document.getElementById('selectedLocalityDot');
+  if (field) field.value = value || '';
+  if (txt)   txt.textContent = value || 'Selecione a localidade';
+  if (dot)   dot.style.backgroundColor = value ? getLocColor(value) : '';
+  const dd = document.getElementById('localityDropdown');
+  dd?.classList.remove('open'); dd?.classList.remove('show');
+};
+
+// fecha o dropdown ao clicar fora
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('localityDropdown');
+  if (!dd) return;
+  if (!dd.contains(e.target)) {
+    dd.classList.remove('open'); dd.classList.remove('show');
+  }
+});
+
+  
 })();
 
