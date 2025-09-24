@@ -559,7 +559,7 @@ async function renderSchedule(){
   };
 
   const tbody=document.createElement('tbody');
-  ['Manhã','Tarde'].forEach(period=>{
+  for (const period of ['Manhã','Tarde']) {
     const row=document.createElement('tr');
     row.innerHTML = `<th>${period}</th>`;
     tbody.appendChild(row);
