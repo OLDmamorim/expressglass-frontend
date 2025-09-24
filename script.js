@@ -897,7 +897,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     }catch(e){
       console.error('fillPrintFromAppointments falhou:', e);
     }
-  };
+  })();
 // === Máscara da matrícula ===
 (function initPlateMask(){
   const el = document.getElementById('appointmentPlate');
@@ -913,6 +913,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     const ok = /^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/.test(e.target.value);
     e.target.setCustomValidity(ok ? '' : 'Use o formato XX-XX-XX');
   });
+  })();
 // === Autocomplete de Morada (Google Places) ===
 (function initAddressAutocomplete(){
   const input = document.getElementById('appointmentAddress');
