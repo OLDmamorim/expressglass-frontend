@@ -897,10 +897,12 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         buildTable(titleUnscheduled, '', unscheduled),
       ].join('');
 
-    }catch(e){
-      console.error('fillPrintFromAppointments falhou:', e);
-    }
-  })();
+      }catch(e){
+    console.error('fillPrintFromAppointments falhou:', e);
+  }
+  };         
+})();         
+
 // === Máscara da matrícula ===
 (function initPlateMask(){
   const el = document.getElementById('appointmentPlate');
