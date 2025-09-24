@@ -131,27 +131,6 @@ table.schedule td:first-child{border-left:none}
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
 }
 
-/* Ações nos cartões agendados (desktop) */
-.card-actions{
-  display:flex;
-  gap:8px;
-  margin-top:10px;
-}
-.card-actions .icon{
-  border:none;
-  background:transparent;
-  cursor:pointer;
-  font-size:18px;
-  line-height:1;
-}
-.card-actions .delete{ color:#dc2626; }
-.card-actions .edit{ color:#374151; }
-
-/* Esconder ações no mobile (mantém como já fazes noutros blocos) */
-@media (max-width: 820px){
-  .card-actions{ display:none !important; }
-}
-
 /* =========================
    POR AGENDAR (grelha)
    ========================= */
@@ -354,7 +333,10 @@ body.printing-now > *:not(#print-container-temp) {
 
 @media print {
   /* 1. Configura a página para A4 paisagem */
-  
+  @page {
+    size: A4 landscape;
+    margin: 12mm;
+  }
 
   /* 2. Estilos gerais do body para impressão */
   body {
@@ -443,62 +425,7 @@ body.printing-now > *:not(#print-container-temp) {
   background: rgba(255, 255, 255, 0.28);
 }
 
-/* Forçar branco no SVG e dar um ligeiro destaque */
-.m-card .icon-btn svg { display:block; fill:#fff !important; filter: drop-shadow(0 1px 1px rgba(0,0,0,.35)); 
-}
-
-
-
-
-/* === PRINT CONFORME v3 (compat mobile): não força A4, escala natural === */
-@media print {
-  /* esconder tudo excepto container de impressão */
-  body > * { display: none !important; }
-  #print-container-temp { display: block !important; }
-
-  /* reset básicos para evitar encolhimento */
-  html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
-  #print-container-temp { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 6mm !important; }
-  #print-container-temp * { box-sizing: border-box; }
-
-  /* tipografia e cabeçalhos */
-  #print-container-temp { font-family: Arial, Helvetica, sans-serif; color:#000; }
-  #print-container-temp .print-title { font-weight: 800; font-size: 16pt; margin: 0 0 4mm 0; text-align: center; text-transform: uppercase; }
-  #print-container-temp .print-date { font-weight: 600; text-align: center; margin: 0 0 6mm 0; }
-
-  /* tabelas */
-  #print-container-temp .print-table { width: 100% !important; border-collapse: collapse !important; font-size: 10.5pt; table-layout: fixed; }
-  #print-container-temp .print-table th,
-  #print-container-temp .print-table td { border: 1px solid #111; padding: 3px 6px; vertical-align: top; word-wrap: break-word; }
-  #print-container-temp .print-table th { background: #f2f2f2; }
-
-  /* quebras de página previsíveis */
-  #print-container-temp .print-section { page-break-after: always; }
-  #print-container-temp .print-section:last-child { page-break-after: auto; }
-}
-
-/* ——— KM strip no rodapé do cartão ——— */
-.card-km {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  margin-top: .5rem;
-  padding-top: .5rem;
-  border-top: 1px solid rgba(255,255,255,.15);
-  color: #fff;
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-.card-km svg {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0.95;
-}
-@media print {
-  .card-km { border-top: 1px solid #000; color: #000; }
+/* Forçar o ícone do telefone a ficar branco */
+.m-card .icon-btn img[alt="Ligar"] {
+  filter: brightness(0) invert(1);
 }
