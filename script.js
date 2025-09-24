@@ -1,4 +1,3 @@
-// ===== PORTAL DE AGENDAMENTO MELHORADO =====
 // Versão estabilizada com patches: IDs estáveis, DnD throttle, semana Seg-Sáb, impressão segura, etc.
 
 // ==================
@@ -355,6 +354,82 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   await persistBuckets(bucketsToPersist);
 }
 
+// ===== FUNÇÕES DE EDIÇÃO E ELIMINAÇÃO =====
+
+function editAppointment(id) {
+  const appointment = appointments.find(a => String(a.id) === String(id));
+  if (!appointment) {
+    showToast('Agendamento não encontrado', 'error');
+    return;
+  }
+
+  editingId = id;
+  
+  // Preencher formulário
+  document.getElementById('appointmentDate').value = appointment.date || '';
+  document.getElementById('appointmentPeriod').value = appointment.period || '';
+  document.getElementById('appointmentPlate').value = appointment.plate || '';
+  document.getElementById('appointmentCar').value = appointment.car || '';
+  document.getElementById('appointmentService').value = appointment.service || '';
+  document.getElementById('appointmentLocality').value = appointment.locality || '';
+  document.getElementById('appointmentNotes').value = appointment.notes || '';
+  document.getElementById('appointmentAddress').value = appointment.address || '';
+  document.getElementById('appointmentPhone').value = appointment.phone || '';
+  document.getElementById('appointmentExtra').value = appointment.extra || '';
+
+  // Atualizar dropdown de localidade
+  if (appointment.locality) {
+    const selectedText = document.getElementById('selectedLocalityText');
+    const selectedDot = document.getElementById('selectedLocalityDot');
+    if (selectedText && selectedDot) {
+      selectedText.textContent = appointment.locality;
+      selectedDot.style.backgroundColor = getLocColor(appointment.locality);
+    }
+  }
+
+  // Alterar modal para modo edição
+  document.getElementById('modalTitle').textContent = 'Editar Agendamento';
+  document.getElementById('deleteAppointment').classList.remove('hidden');
+  document.getElementById('appointmentModal').classList.add('show');
+}
+
+async function deleteAppointment(id) {
+  if (!confirm('Tem a certeza que pretende eliminar este agendamento?')) {
+    return;
+  }
+
+  try {
+    await window.apiClient.deleteAppointment(id);
+    const index = appointments.findIndex(a => String(a.id) === String(id));
+    if (index > -1) {
+      appointments.splice(index, 1);
+    }
+    
+    showToast('Agendamento eliminado com sucesso', 'success');
+    renderAll();
+    document.getElementById('appointmentModal').classList.remove('show');
+    
+  } catch (error) {
+    showToast('Erro ao eliminar agendamento: ' + error.message, 'error');
+  }
+}
+
+function cancelEdit() {
+  editingId = null;
+  document.getElementById('appointmentForm').reset();
+  document.getElementById('modalTitle').textContent = 'Novo Agendamento';
+  document.getElementById('deleteAppointment').classList.add('hidden');
+  
+  const selectedText = document.getElementById('selectedLocalityText');
+  const selectedDot = document.getElementById('selectedLocalityDot');
+  if (selectedText && selectedDot) {
+    selectedText.textContent = 'Selecione a localidade';
+    selectedDot.style.backgroundColor = '';
+  }
+  
+  document.getElementById('appointmentModal').classList.remove('show');
+}
+
 // ---------- Render DESKTOP (cartões) ----------
 function buildDesktopCard(a){
   const base = getLocColor(a.locality);
@@ -396,7 +471,7 @@ function renderSchedule(){
     const iso=localISO(dayDate);
     const items=filterAppointments(
       appointments.filter(a=>a.date&&a.date===iso&&a.period===period)
-                  .sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
+                 .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0))
     );
     const blocks = items.map(buildDesktopCard).join('');
     return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
@@ -589,15 +664,10 @@ async function renderMobileDay(){
     ${afternoon? `<h4 style="margin:12px 0 6px 8px;">Tarde</h4>${afternoon}`:''}
     ${others? `<h4 style="margin:12px 0 6px 8px;">Sem período</h4>${others}`:''}
   `;
-  highlightSearchResults();
 }
 
-// Render global
 function renderAll(){
-  try { renderSchedule(); } catch(e){ console.error(e); }
-  try { renderUnscheduled(); } catch(e){ console.error(e); }
-  try { renderServicesTable(); } catch(e){ console.error(e); }
-  try { renderMobileDay(); } catch(e){ console.error(e); }
+  renderSchedule(); renderUnscheduled(); renderServicesTable(); renderMobileDay();
 }
 
 // Bootstrap da app (carrega BD e desenha)
@@ -615,88 +685,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
   document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
 
-// ===== FUNÇÕES DE EDIÇÃO E ELIMINAÇÃO =====
-
-function editAppointment(id) {
-  const appointment = appointments.find(a => String(a.id) === String(id));
-  if (!appointment) {
-    showToast('Agendamento não encontrado', 'error');
-    return;
-  }
-
-  editingId = id;
-  
-  // Preencher formulário
-  document.getElementById('appointmentDate').value = appointment.date || '';
-  document.getElementById('appointmentPeriod').value = appointment.period || '';
-  document.getElementById('appointmentPlate').value = appointment.plate || '';
-  document.getElementById('appointmentCar').value = appointment.car || '';
-  document.getElementById('appointmentService').value = appointment.service || '';
-  document.getElementById('appointmentLocality').value = appointment.locality || '';
-  document.getElementById('appointmentNotes').value = appointment.notes || '';
-  document.getElementById('appointmentAddress').value = appointment.address || '';
-  document.getElementById('appointmentPhone').value = appointment.phone || '';
-  document.getElementById('appointmentExtra').value = appointment.extra || '';
-
-  // Atualizar dropdown de localidade
-  if (appointment.locality) {
-    const selectedText = document.getElementById('selectedLocalityText');
-    const selectedDot = document.getElementById('selectedLocalityDot');
-    if (selectedText && selectedDot) {
-      selectedText.textContent = appointment.locality;
-      selectedDot.style.backgroundColor = getLocColor(appointment.locality);
-    }
-  }
-
-  // Alterar modal para modo edição
-  document.getElementById('modalTitle').textContent = 'Editar Agendamento';
-  document.getElementById('deleteAppointment').classList.remove('hidden');
-  document.getElementById('appointmentModal').classList.add('show');
-}
-
-async function deleteAppointment(id) {
-  if (!confirm('Tem a certeza que pretende eliminar este agendamento?')) {
-    return;
-  }
-
-  try {
-    await window.apiClient.deleteAppointment(id);
-    const index = appointments.findIndex(a => String(a.id) === String(id));
-    if (index > -1) {
-      appointments.splice(index, 1);
-    }
-    
-    showToast('Agendamento eliminado com sucesso', 'success');
-    renderAll();
-    document.getElementById('appointmentModal').classList.remove('show');
-    
-  } catch (error) {
-    showToast('Erro ao eliminar agendamento: ' + error.message, 'error');
-  }
-}
-
-function cancelEdit() {
-  editingId = null;
-  document.getElementById('appointmentForm').reset();
-  document.getElementById('modalTitle').textContent = 'Novo Agendamento';
-  document.getElementById('deleteAppointment').classList.add('hidden');
-  
-  const selectedText = document.getElementById('selectedLocalityText');
-  const selectedDot = document.getElementById('selectedLocalityDot');
-  if (selectedText && selectedDot) {
-    selectedText.textContent = 'Selecione a localidade';
-    selectedDot.style.backgroundColor = '';
-  }
-  
-  document.getElementById('appointmentModal').classList.remove('show');
-}
-
-// Event listeners para os botões
-document.getElementById('cancelForm')?.addEventListener('click', cancelEdit);
-document.getElementById('closeModal')?.addEventListener('click', cancelEdit);
-document.getElementById('deleteAppointment')?.addEventListener('click', function() {
-  if (editingId) deleteAppointment(editingId);
-});
-
-
+  // Event listeners para edição
+  document.getElementById('cancelForm')?.addEventListener('click', cancelEdit);
+  document.getElementById('closeModal')?.addEventListener('click', cancelEdit);
+  document.getElementById('deleteAppointment')?.addEventListener('click', function() {
+    if (editingId) deleteAppointment(editingId);
+  });
 });
