@@ -124,6 +124,7 @@ async function ordenarSeNecessario(lista) {
   const restantes = lista.filter(i => !idsOrdenados.has(i.id));
   return [...ordenados, ...restantes];
 }
+
 // ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
@@ -189,6 +190,27 @@ function formatPlate(input){
   if(v.length>2) v=v.slice(0,2)+'-'+v.slice(2);
   if(v.length>5) v=v.slice(0,5)+'-'+v.slice(5,7);
   input.value=v;
+}
+
+// ---------- Connection Badge ----------
+function updateConnBadge(){
+  const status = document.getElementById('connectionStatus');
+  const icon = document.getElementById('statusIcon');
+  const text = document.getElementById('statusText');
+  
+  if (!status || !icon || !text) return;
+  
+  const connStatus = window.apiClient?.getConnectionStatus() || { online: navigator.onLine };
+  
+  if (connStatus.online) {
+    status.className = 'connection-status online';
+    icon.textContent = '🌐';
+    text.textContent = 'Online';
+  } else {
+    status.className = 'connection-status offline';
+    icon.textContent = '📱';
+    text.textContent = 'Offline';
+  }
 }
 
 // ---------- API load ----------
@@ -265,6 +287,28 @@ async function persistStatus(id, newStatus) {
   } finally {
     renderAll();
   }
+}
+
+// ---------- Status Listeners ----------
+function attachStatusListeners(){
+  document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(checkbox => {
+    checkbox.addEventListener('change', async function(e) {
+      if (!this.checked) return;
+      
+      const appointmentEl = this.closest('.appointment');
+      const id = appointmentEl?.getAttribute('data-id');
+      const newStatus = this.getAttribute('data-status');
+      
+      if (!id || !newStatus) return;
+      
+      // Desmarcar outros checkboxes do mesmo agendamento
+      appointmentEl.querySelectorAll('.appt-status input[type="checkbox"]').forEach(cb => {
+        if (cb !== this) cb.checked = false;
+      });
+      
+      await persistStatus(id, newStatus);
+    });
+  });
 }
 
 // ---------- Drag & Drop (com persistência throttle) ----------
@@ -664,10 +708,15 @@ async function renderMobileDay(){
     ${afternoon? `<h4 style="margin:12px 0 6px 8px;">Tarde</h4>${afternoon}`:''}
     ${others? `<h4 style="margin:12px 0 6px 8px;">Sem período</h4>${others}`:''}
   `;
+  highlightSearchResults();
 }
 
+// Render global
 function renderAll(){
-  renderSchedule(); renderUnscheduled(); renderServicesTable(); renderMobileDay();
+  try { renderSchedule(); } catch(e){ console.error('Erro renderSchedule:', e); }
+  try { renderUnscheduled(); } catch(e){ console.error('Erro renderUnscheduled:', e); }
+  try { renderServicesTable(); } catch(e){ console.error('Erro renderServicesTable:', e); }
+  try { renderMobileDay(); } catch(e){ console.error('Erro renderMobileDay:', e); }
 }
 
 // Bootstrap da app (carrega BD e desenha)
