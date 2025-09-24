@@ -138,6 +138,34 @@ const getLocColor = loc => (localityColors && localityColors[loc]) || '#3b82f6';
 const statusBarColors = { NE:'#EF4444', VE:'#F59E0B', ST:'#10B981' };
 const localityList = Object.keys(localityColors);
 
+// === Preencher e ligar o dropdown de Localidade ===
+function buildLocalityOptions() {
+  const wrap = document.getElementById('localityDropdown');   // container do dropdown
+  const list = document.getElementById('localityOptions');    // onde vão as opções
+  if (!wrap || !list) return;
+
+  // cria os botões das localidades
+  const items = Object.keys(window.LOCALITY_COLORS || localityColors).map(loc => {
+    const color = getLocColor(loc);
+    return `
+      <button type="button" class="loc-opt" data-value="${loc}">
+        <span class="dot" style="background:${color}"></span>
+        <span class="txt">${loc}</span>
+      </button>`;
+  }).join('');
+
+  list.innerHTML = items;
+
+  // click nas opções → seleciona e fecha
+  list.querySelectorAll('.loc-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.getAttribute('data-value');
+      window.selectLocality?.(val);   // usa o handler global que já criámos
+    });
+  });
+}
+
+
 // ---------- Estado ----------
 let appointments = [];
 let currentMonday = getMonday(new Date());
