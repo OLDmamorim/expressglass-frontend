@@ -496,7 +496,7 @@ if (addressInput && window.google?.maps?.places) {
   });
 }
 
-  await load();
+  await loadAppointments();
   renderAll();
   
   // Inicializar cálculo de quilómetros após carregar dados
