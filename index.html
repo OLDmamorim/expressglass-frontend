@@ -282,16 +282,27 @@
 
 
 
-          <div class="form-row">
-            <div class="form-group">
-              <label for="appointmentStatus">Status do Vidro *</label>
-              <select id="appointmentStatus" required>
-                <option value="NE">N/E - Não Executado</option>
-                <option value="VE">V/E - Vidro Encomendado</option>
-                <option value="ST">ST - Serviço Terminado</option>
-              </select>
-            </div>
-          </div>
+         <div class="form-row">
+  <!-- 1ª coluna: Tipo de Serviço -->
+  <div class="form-group">
+    <label for="appointmentService">Tipo de Serviço *</label>
+    <select id="appointmentService" required>
+      <option value="">Selecione o tipo de serviço</option>
+      <!-- as tuas opções aqui -->
+    </select>
+  </div>
+
+  <!-- 2ª coluna: Status do Vidro -->
+  <div class="form-group">
+    <label for="appointmentStatus">Status do Vidro *</label>
+    <select id="appointmentStatus" required>
+      <option value="NE">N/E - Não Executado</option>
+      <option value="VE">V/E - Vidro Encomendado</option>
+      <option value="ST">ST - Serviço Terminado</option>
+    </select>
+  </div>
+</div>
+
 
           <div class="form-group">
             <label for="appointmentNotes">Observações</label>
