@@ -960,16 +960,18 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       return;
     }
     const ac = new google.maps.places.Autocomplete(input, {
-      types: ['geocode'],
-      componentRestrictions: { country: 'pt' }
-    });
+  // sem "types" => permite moradas + empresas/oficinas
+  componentRestrictions: { country: 'pt' },
+  fields: ['name', 'formatted_address', 'place_id'] // para o getPlace() trazer estes campos
+});
+
 
     ac.addListener('place_changed', () => {
-      const place = ac.getPlace();
-      if (place && place.formatted_address) {
-        input.value = place.formatted_address;
-      }
-    });
+  const place = ac.getPlace();
+  const txt = [place?.name, place?.formatted_address].filter(Boolean).join(' - ');
+  if (txt) input.value = txt;
+});
+
 
     window._addressAutocomplete = ac; // debug
   }
