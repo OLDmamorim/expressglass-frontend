@@ -952,28 +952,28 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
 
 // === Autocomplete de Morada (novo PlaceAutocompleteElement) ===
-(function initAddressAutocomplete() {
+(function initAddressAutocomplete(){
   const input = document.getElementById('appointmentAddress');
   if (!input) return;
 
   const run = () => {
-    // Preferir o novo componente
+    // Novo componente recomendado
     if (window.google?.maps?.places?.PlaceAutocompleteElement) {
       const pae = new google.maps.places.PlaceAutocompleteElement();
-      pae.inputElement = input; // liga ao input existente
+      pae.inputElement = input;                      // liga ao input existente
       pae.componentRestrictions = { country: ['pt'] };
 
       pae.addEventListener('gmp-placeselect', async (e) => {
-        await e.place.fetchFields({ fields: ['displayName', 'formattedAddress'] });
+        await e.place.fetchFields({ fields: ['displayName','formattedAddress'] });
         const name = e.place.displayName?.text || '';
         const addr = e.place.formattedAddress || '';
         const txt  = [name, addr].filter(Boolean).join(' - ');
         if (txt) input.value = txt;
       });
-      return;
+      return; // não usa o fallback se este já funcionou
     }
 
-    // Fallback: Autocomplete antigo (continua a funcionar)
+    // Fallback: Autocomplete antigo
     if (!(window.google?.maps?.places)) return;
 
     const ac = new google.maps.places.Autocomplete(input, {
@@ -981,19 +981,17 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     });
 
     ac.addListener('place_changed', () => {
-      const p = ac.getPlace();
-      const txt = [p?.name, p?.formatted_address].filter(Boolean).join(' - ');
+      const place = ac.getPlace();
+      const txt = [place?.name, place?.formatted_address].filter(Boolean).join(' - ');
       if (txt) input.value = txt;
     });
   };
 
   if (document.readyState === 'complete') run();
   else window.addEventListener('load', run);
-})();
+})(); // fecha a IIFE aqui
 
-
-
-    ac.addListener('place_changed', () => {
+  ac.addListener('place_changed', () => {
   const place = ac.getPlace();
   const txt = [place?.name, place?.formatted_address].filter(Boolean).join(' - ');
   if (txt) input.value = txt;
@@ -1001,7 +999,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
 
 
     window._addressAutocomplete = ac; // debug
-  };
+  }
 
   if (document.readyState === 'complete') {
     setup();
