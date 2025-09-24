@@ -476,3 +476,8 @@ body.printing-now > *:not(#print-container-temp) {
   #print-container-temp .print-section { page-break-after: always; }
   #print-container-temp .print-section:last-child { page-break-after: auto; }
 }
+/* Google Places dropdown acima do modal */
+.pac-container {
+  z-index: 99999 !important;
+}
+
