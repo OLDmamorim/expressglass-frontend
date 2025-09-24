@@ -949,7 +949,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     e.target.setCustomValidity(ok ? '' : 'Use o formato XX-XX-XX');
   });
   })();
-// === Autocomplete de Morada (Google Places) ===
+
+
 // === Autocomplete de Morada (novo PlaceAutocompleteElement) ===
 (function initAddressAutocomplete(){
   const input = document.getElementById('appointmentAddress');
