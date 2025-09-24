@@ -741,41 +741,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     if (editingId) deleteAppointment(editingId);
   });
 });
-
-
-// --- FIX: Botões "+ Novo Serviço" (desktop e mobile) ---
-// Garante que abrir o modal funciona mesmo que o ficheiro tenha sido minificado/truncado noutras partes
-document.addEventListener('DOMContentLoaded', function() {
-  const btnDesktop = document.getElementById('addServiceBtn');
-  const btnMobile  = document.getElementById('addServiceMobile');
-  const modal      = document.getElementById('appointmentModal');
-  const form       = document.getElementById('appointmentForm');
-  const titleEl    = document.getElementById('modalTitle');
-  const delBtn     = document.getElementById('deleteAppointment');
-
-  function openNewServiceModal() {
-    // reset estado de edição
-    try { window.editingId = null; } catch(_) {}
-    if (form) form.reset();
-    if (titleEl) titleEl.textContent = 'Novo Agendamento';
-    if (delBtn) delBtn.classList.add('hidden');
-
-    // limpar seleção de localidade (se existir UI custom)
-    const selectedText = document.getElementById('selectedLocalityText');
-    const selectedDot  = document.getElementById('selectedLocalityDot');
-    if (selectedText) selectedText.textContent = 'Selecione a localidade';
-    if (selectedDot)  selectedDot.style.backgroundColor = '';
-
-    // abrir modal
-    if (modal) modal.classList.add('show');
-  }
-
-  if (btnDesktop) btnDesktop.addEventListener('click', openNewServiceModal);
-  if (btnMobile)  btnMobile.addEventListener('click',  openNewServiceModal);
-});
-// --- FIM FIX ---
-
-
 // === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
 (function(){
   if (window.fillPrintFromAppointments) return; // evitar duplicar
@@ -786,16 +751,29 @@ document.addEventListener('DOMContentLoaded', function() {
     return z.toISOString().slice(0,10);
   }
   function cap(s){ return (s||'').toString().charAt(0).toUpperCase()+ (s||'').toString().slice(1); }
+  function normPeriod(p){
+    if(!p) return '';
+    const t = String(p).toLowerCase();
+    if (t.startsWith('m')) return 'Manhã';
+    if (t.startsWith('t')) return 'Tarde';
+    if (t.startsWith('n')) return 'Noite';
+    if (t==='m') return 'Manhã';
+    if (t==='t') return 'Tarde';
+    if (t==='n') return 'Noite';
+    return p;
+  }
   function row(a){
-    const hora = (a.period||'').replace('M','Manhã').replace('T','Tarde').replace('N','Noite') || (a.time||'');
+    const periodo = normPeriod(a.period || a.time || '');
+    const outros  = a.address || a.extra || '';
     return `<tr>
-      <td>${hora||''}</td>
+      <td>${periodo||''}</td>
       <td>${a.plate||''}</td>
       <td>${(a.car||'').toUpperCase()}</td>
       <td>${a.service||''}</td>
       <td>${a.locality||''}</td>
-      <td>${a.notes||''}</td>
       <td>${a.status||''}</td>
+      <td>${a.notes || a.extra || ''}</td>
+      <td>${outros}</td>
     </tr>`;
   }
   function buildTable(title, dateLabel, list){
@@ -806,7 +784,7 @@ document.addEventListener('DOMContentLoaded', function() {
       ${headDate}
       <table class="print-table">
         <thead><tr>
-          <th>Período/Hora</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Observações</th><th>Estado</th>
+          <th>Período</th><th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th>
         </tr></thead>
         <tbody>${list.map(row).join('')}</tbody>
       </table>
@@ -838,15 +816,15 @@ document.addEventListener('DOMContentLoaded', function() {
       const tomorrowList = list.filter(a => a.date === isoTomorrow)
                                .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0));
 
-      const dm = d => new Date(d).toLocaleDateString('pt-PT', { weekday:'long', day:'2-digit', month:'2-digit' });
-      const titleToday = `Serviços Hoje`;
-      const titleTomorrow = `Serviços Amanhã`;
-      const titleUnscheduled = `Serviços por Agendar`;
+      const dm = d => new Date(d).toLocaleDateString('pt-PT', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
+      const titleToday = `SERVIÇOS DE HOJE`;
+      const titleTomorrow = `SERVIÇOS DE AMANHÃ`;
+      const titleUnscheduled = `SERVIÇOS POR AGENDAR`;
 
       cont.innerHTML = [
-        buildTable(titleUnscheduled, '', unscheduled),
         buildTable(titleToday, cap(dm(today)), todayList),
         buildTable(titleTomorrow, cap(dm(tomorrow)), tomorrowList),
+        buildTable(titleUnscheduled, '', unscheduled),
       ].join('');
 
     }catch(e){
