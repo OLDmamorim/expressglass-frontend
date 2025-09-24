@@ -518,23 +518,34 @@ body.printing-now > *:not(#print-container-temp) {
 #localityDropdown .loc-opt .dot {
   width: 10px; height: 10px; border-radius: 50%;
 }
-/* Modal: form em 2 colunas, campos a 100% */
-#appointmentForm{
-  display:grid;
-  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  column-gap:24px;
-  row-gap:14px;
+/* === Modal -> 2 colunas estáveis === */
+#appointmentModal .form-row{
+  display:grid !important;
+  grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  column-gap:24px !important;
+  row-gap:14px !important;
+  align-items:start !important;
 }
-#appointmentForm .form-group{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
+#appointmentModal .form-group{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:6px !important;
+  width:100% !important;
 }
-#appointmentForm input,
-#appointmentForm select,
-#appointmentForm textarea{
-  width:100%;
-  box-sizing:border-box;
+#appointmentModal .form-group input,
+#appointmentModal .form-group select,
+#appointmentModal .form-group textarea{
+  width:100% !important;
+  box-sizing:border-box !important;
 }
+
+/* Grupos largos (ocupam a linha toda) */
+#appointmentModal .form-group:has(textarea),
+#appointmentModal .form-group:has(#appointmentAddress),
+#appointmentModal .form-group:has(#appointmentPhone),
+#appointmentModal .form-group:has(#appointmentExtra){
+  grid-column:1 / -1 !important;
+}
+
 
 
