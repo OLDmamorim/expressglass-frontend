@@ -963,7 +963,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     }
 
     // ⚠️ Sem 'types' e sem 'fields' — assim apanha moradas *e* empresas/POIs
-    const ac = new google.maps.places.Autocomplete(input);
+   const ac = new google.maps.places.Autocomplete(input, {
+  // isto é obrigatório na versão atual para poderes ler name/formatted_address
+  fields: ['place_id', 'name', 'formatted_address']
+});
 
     // Restrição por país (PT). Usa o método suportado.
     // Em versões recentes aceita string ou array; esta forma é compatível.
