@@ -240,7 +240,7 @@ async function load(){
         if (!/^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(v)) localityColors[k] = '#3b82f6';
       }
     }
-    const st=window.apiClient.getConnectionStatus();
+    const st = window.apiClient?.getConnectionStatus?.() || { online: navigator.onLine };
     showToast(st.online?'Dados carregados da cloud!':'Dados carregados localmente (offline)', st.online?'success':'info');
   }catch(e){
     appointments=[]; showToast('Erro ao carregar dados: '+e.message,'error');
