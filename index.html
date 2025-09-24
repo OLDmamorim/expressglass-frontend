@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -82,6 +81,15 @@
     .table-wrapper{ overflow-x:auto; }
     @media (max-width:1100px){ .services-table{ min-width:1100px; } }
 
+    /* ===== QUILÓMETROS nos cartões desktop ===== */
+    .appointment-kilometers {
+      display: flex; align-items: center; gap: 4px; margin-top: 4px;
+      font-size: 11px; font-weight: 600; opacity: 0.8;
+      color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+    .appointment-kilometers .km-icon { font-size: 12px; }
+    .appointment-kilometers .km-arrow { font-size: 10px; margin: 0 1px; }
+
     /* ===== MOBILE CARDS — cor pela LOCALIDADE ===== */
     @media (max-width: 768px){
       #mobileDayList{ display: grid; gap: 16px; padding: 8px 16px; }
@@ -95,6 +103,12 @@
       .m-chips{ display:flex; gap:10px; margin:12px 0 8px; flex-wrap:wrap; }
       .m-chip{ background: transparent; border: 1px solid rgba(255,255,255,.45); border-radius: 999px; padding: 6px 10px; font-weight: 700; font-size: 14px; line-height: 1; }
       .m-info{ margin-top: 6px; font-size: 15px; font-weight: 600; opacity: .95; }
+      .m-kilometers{ 
+        display: flex; align-items: center; gap: 6px; margin-top: 8px; 
+        font-size: 14px; font-weight: 600; opacity: 0.9;
+      }
+      .m-kilometers .km-icon{ font-size: 16px; }
+      .m-kilometers .km-arrow{ font-size: 12px; margin: 0 2px; }
       #mobileDayList .m-status, #mobileDayList .status, #mobileDayList .m-divider{ display:none !important; }
     }
   </style>
@@ -275,15 +289,17 @@
           </div>
 
           <div class="form-group">
-            <div class="form-group">
-              <label for="appointmentAddress">Morada (opcional)</label>
-              <input type="text" id="appointmentAddress" placeholder="Rua, nº, localidade..." autocomplete="off" />
-            </div>
-<div class="form-group">
-    <label for="appointmentPhone">Contacto (opcional)</label>
-    <input type="tel" id="appointmentPhone" placeholder="Ex: 912 345 678" pattern="[0-9+\s]{9,15}" />
-    <small class="form-hint">Aceita dígitos e +</small>
-  </div>
+            <label for="appointmentAddress">Morada (opcional)</label>
+            <input type="text" id="appointmentAddress" placeholder="Rua, nº, localidade..." autocomplete="off" />
+          </div>
+
+          <div class="form-group">
+            <label for="appointmentPhone">Contacto (opcional)</label>
+            <input type="tel" id="appointmentPhone" placeholder="Ex: 912 345 678" pattern="[0-9+\s]{9,15}" />
+            <small class="form-hint">Aceita dígitos e +</small>
+          </div>
+
+          <div class="form-group">
             <label for="appointmentExtra">Outros dados (opcional)</label>
             <textarea id="appointmentExtra" placeholder="Informações adicionais (não aparece no calendário)" rows="2"></textarea>
           </div>
@@ -350,78 +366,53 @@
             <th>Localidade</th>
             <th>Estado</th>
             <th>Observações</th>
-            <th>Outros Dados</th>
           </tr>
         </thead>
-        <tbody id="printUnscheduledTableBody"></tbody>
+        <tbody id="printUnscheduledBody"></tbody>
       </table>
     </div>
 
-    <!-- PRINT HOJE -->
+    <!-- PRINT: Hoje -->
     <div class="print-today-section print-break-before">
       <h2 id="printTodayTitle">SERVIÇOS DE HOJE</h2>
-      <div class="print-today-date" id="printTodayDate"></div>
       <table class="print-today-table">
         <thead>
           <tr>
             <th>Período</th>
             <th>Matrícula</th>
-            <th>Modelo do Carro</th>
+            <th>Carro</th>
             <th>Serviço</th>
             <th>Localidade</th>
             <th>Estado</th>
             <th>Observações</th>
-            <th>Outros Dados</th>
+            <th>Outros</th>
           </tr>
         </thead>
-        <tbody id="printTodayTableBody"></tbody>
+        <tbody id="printTodayBody"></tbody>
       </table>
-      <div class="print-today-empty" id="printTodayEmpty" style="display:none;">
-        <p>Não há serviços agendados para hoje.</p>
-      </div>
     </div>
 
     <!-- PRINT: Amanhã -->
-    <div class="print-tomorrow-section print-break-before">
+    <div class="print-tomorrow-section">
       <h2 id="printTomorrowTitle">SERVIÇOS DE AMANHÃ</h2>
-      <div class="print-tomorrow-date" id="printTomorrowDate"></div>
       <table class="print-tomorrow-table">
         <thead>
           <tr>
             <th>Período</th>
             <th>Matrícula</th>
-            <th>Modelo do Carro</th>
+            <th>Carro</th>
             <th>Serviço</th>
             <th>Localidade</th>
             <th>Estado</th>
             <th>Observações</th>
-            <th>Outros Dados</th>
+            <th>Outros</th>
           </tr>
         </thead>
-        <tbody id="printTomorrowTableBody"></tbody>
+        <tbody id="printTomorrowBody"></tbody>
       </table>
-      <div class="print-tomorrow-empty" id="printTomorrowEmpty" style="display: none;">
-        <p>Não há serviços agendados para amanhã.</p>
-      </div>
     </div>
-
   </div>
 
-  <!-- Apenas os 2 scripts principais para evitar conflitos -->
-  <script src="api.js"></script>
-  <script src="script.js?v=smbraga_2025-09-21_01"></script>
-
-  <!-- >>>>>> SCRIPT DE IMPRESSÃO (garantir preenchimento antes de imprimir) <<<<<< -->
-  <script>
-    function fillPrintSectionsSafely(){
-      try{ if (typeof renderAll === 'function') renderAll(); }catch(e){}
-      try{ if (typeof window.fillPrintFromAppointments === 'function') window.fillPrintFromAppointments(); }catch(e){}
-    }
-    window.onbeforeprint = fillPrintSectionsSafely;
-    document.getElementById('printPage')?.addEventListener('click', ()=>{
-      fillPrintSectionsSafely();
-      setTimeout(()=>window.print(), 20);
-    });
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
