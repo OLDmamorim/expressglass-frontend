@@ -951,45 +951,39 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   })();
 
 
-// === Autocomplete de Morada (novo PlaceAutocompleteElement) ===
+// === Autocomplete de Morada (Google Places) ===
 (function initAddressAutocomplete(){
   const input = document.getElementById('appointmentAddress');
   if (!input) return;
 
-  const run = () => {
-    // Novo componente recomendado
-    if (window.google?.maps?.places?.PlaceAutocompleteElement) {
-      const pae = new google.maps.places.PlaceAutocompleteElement();
-      pae.inputElement = input;                      // liga ao input existente
-      pae.componentRestrictions = { country: ['pt'] };
-
-      pae.addEventListener('gmp-placeselect', async (e) => {
-        await e.place.fetchFields({ fields: ['displayName','formattedAddress'] });
-        const name = e.place.displayName?.text || '';
-        const addr = e.place.formattedAddress || '';
-        const txt  = [name, addr].filter(Boolean).join(' - ');
-        if (txt) input.value = txt;
-      });
-      return; // não usa o fallback se este já funcionou
+  function run() {
+    if (!(window.google && google.maps && google.maps.places)) {
+      console.warn('Google Places API ainda não disponível.');
+      return;
     }
 
-    // Fallback: Autocomplete antigo
-    if (!(window.google?.maps?.places)) return;
+    // ⚠️ Sem 'types' e sem 'fields' — assim apanha moradas *e* empresas/POIs
+    const ac = new google.maps.places.Autocomplete(input);
 
-    const ac = new google.maps.places.Autocomplete(input, {
-      componentRestrictions: { country: 'pt' }
-    });
+    // Restrição por país (PT). Usa o método suportado.
+    // Em versões recentes aceita string ou array; esta forma é compatível.
+    if (ac.setComponentRestrictions) {
+      ac.setComponentRestrictions({ country: ['pt'] });
+    }
 
     ac.addListener('place_changed', () => {
       const place = ac.getPlace();
-      const txt = [place?.name, place?.formatted_address].filter(Boolean).join(' - ');
+      const txt = [place?.name, place?.formatted_address]
+        .filter(Boolean)
+        .join(' - ');
       if (txt) input.value = txt;
     });
-  };
+  }
 
   if (document.readyState === 'complete') run();
   else window.addEventListener('load', run);
-})(); // fecha a IIFE aqui
+})();
+
 
 // === Localidade: handlers mínimos (fix undefined) ===
 window.toggleLocalityDropdown = function () {
