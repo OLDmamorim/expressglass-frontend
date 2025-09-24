@@ -217,7 +217,10 @@ function updateConnBadge(){
 async function load(){
   try{
     showToast('Carregando dados...','info');
-    appointments = await window.apiClient.getAppointments();
+   appointments = window.apiClient?.getAppointments
+  ? await window.apiClient.getAppointments()
+  : [];
+
     appointments.forEach(a => {
       if (a.date) {
         a.date = String(a.date).slice(0, 10); // fica só "YYYY-MM-DD"
