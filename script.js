@@ -898,4 +898,50 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       console.error('fillPrintFromAppointments falhou:', e);
     }
   };
+// === Máscara da matrícula ===
+(function initPlateMask(){
+  const el = document.getElementById('appointmentPlate');
+  if (!el) return;
+
+  el.addEventListener('input', (e) => {
+    const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    const parts = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 6)].filter(Boolean);
+    e.target.value = parts.join('-');
+  });
+
+  el.addEventListener('blur', (e) => {
+    const ok = /^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/.test(e.target.value);
+    e.target.setCustomValidity(ok ? '' : 'Use o formato XX-XX-XX');
+  });
+// === Autocomplete de Morada (Google Places) ===
+(function initAddressAutocomplete(){
+  const input = document.getElementById('appointmentAddress');
+  if (!input) return;
+
+  function setup() {
+    if (!(window.google && google.maps && google.maps.places)) {
+      console.warn('Google Places API ainda não disponível.');
+      return;
+    }
+    const ac = new google.maps.places.Autocomplete(input, {
+      types: ['geocode'],
+      componentRestrictions: { country: 'pt' }
+    });
+
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (place && place.formatted_address) {
+        input.value = place.formatted_address;
+      }
+    });
+
+    window._addressAutocomplete = ac; // debug
+  }
+
+  if (document.readyState === 'complete') {
+    setup();
+  } else {
+    window.addEventListener('load', setup);
+  }
 })();
+
