@@ -476,22 +476,26 @@ function cancelEdit() {
 
 // ---------- Render DESKTOP (cartões) ----------
 
-// ===== KM helpers =====
-function getKmValue(ag) {
-  const v = ag.km ?? ag.kms ?? ag.kilometers ?? ag.kilometros ?? ag.quilometros ?? ag.kilómetros ?? ag.km_total ?? ag.distancia;
+// ===== KM helpers (index-aware: base vs anterior) =====
+function getKmValue(ag, index = 0) {
+  if (ag._kmFromPrev != null && isFinite(ag._kmFromPrev)) {
+    return { value: Math.round(+ag._kmFromPrev), fromBase: index === 0 };
+  }
+  const v = ag.km ?? ag.kms ?? ag.kmRoute ?? ag.kilometers ?? ag.kilometros ??
+            ag.quilometros ?? ag.kilómetros ?? ag.km_total ?? ag.distancia;
   if (v == null) return null;
   const n = String(v).match(/[\d,.]+/);
   if (!n) return null;
   const parsed = parseFloat(n[0].replace(',', '.'));
-  return Number.isFinite(parsed) ? parsed : null;
+  if (!Number.isFinite(parsed)) return null;
+  return { value: Math.round(parsed), fromBase: index === 0 };
 }
-
-function buildKmRow(ag) {
-  const km = getKmValue(ag);
-  if (km == null) return '';
-  const kmFmt = Math.round(km);
+function buildKmRow(ag, index = 0) {
+  const kmObj = getKmValue(ag, index);
+  if (!kmObj) return '';
+  const label = kmObj.fromBase ? 'desde base' : 'desde anterior';
   return `
-    <div class="card-km" data-km-row>
+    <div class="card-km">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M3 13l2-6a2 2 0 0 1 2-1h8a2 2 0 0 1 2 1l2 6" />
         <path d="M5 13h14" />
@@ -502,11 +506,11 @@ function buildKmRow(ag) {
         <path d="M5 12h14" />
         <path d="M13 6l6 6-6 6" />
       </svg>
-      <span>${kmFmt} km</span>
+      <span>${kmObj.value} km <small>(${label})</small></span>
     </div>
   `;
 }
-function buildDesktopCard(a){
+function buildDesktopCard(a,i){
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
   const bar = statusBarColors[a.status] || '#999';
@@ -527,7 +531,8 @@ function buildDesktopCard(a){
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
       </div>
-    ${buildKmRow(a)}</div>`;
+    ${buildKmRow(a,i)}
+    </div>`;
 }
 
 function renderSchedule(){
@@ -548,7 +553,7 @@ function renderSchedule(){
       appointments.filter(a=>a.date&&a.date===iso&&a.period===period)
                  .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0))
     );
-    const blocks = items.map(buildDesktopCard).join('');
+    const blocks = items.map((a,i)=>buildDesktopCard(a,i)).join('');
     return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
   };
 
@@ -651,7 +656,7 @@ function extractPhoneFromText(txt){
 }
 
 // ---------- Render MOBILE (lista do dia) ----------
-function buildMobileCard(a){
+function buildMobileCard(a,i){
   // Ícones oficiais (fallback para emoji se falhar)
   const mapsBtn = a.address ? `
     <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}"
@@ -698,7 +703,8 @@ const telBtn = phone ? `
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
       ${notes}
-    ${buildKmRow(a)}</div>
+    ${buildKmRow(a,i)}
+    </div>
   `;
 }
 
@@ -730,9 +736,9 @@ async function renderMobileDay(){
     return;
   }
 
-  const morning   = items.filter(a=>a.period==='Manhã').map(buildMobileCard).join('');
-  const afternoon = items.filter(a=>a.period==='Tarde').map(buildMobileCard).join('');
-  const others    = items.filter(a=>!a.period).map(buildMobileCard).join('');
+  const morning   = items.filter(a=>a.period==='Manhã').map((a,i)=>buildMobileCard(a,i)).join('');
+  const afternoon = items.filter(a=>a.period==='Tarde').map((a,i)=>buildMobileCard(a,i)).join('');
+  const others    = items.filter(a=>!a.period).map((a,i)=>buildMobileCard(a,i)).join('');
 
   list.innerHTML = `
     ${morning? `<h4 style="margin:4px 0 6px 8px;">Manhã</h4>${morning}`:''}
