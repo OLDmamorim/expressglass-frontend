@@ -448,27 +448,31 @@ body.printing-now > *:not(#print-container-temp) {
 }
 
 
-/* === PRINT CONFORME v2: A4 landscape, esconder UI e mostrar só o container === */
-@page { size: A4 landscape; margin: 12mm; }
+
+
+/* === PRINT CONFORME v3 (compat mobile): não força A4, escala natural === */
 @media print {
-  /* Esconder tudo o que não for o container de impressão */
+  /* esconder tudo excepto container de impressão */
   body > * { display: none !important; }
   #print-container-temp { display: block !important; }
-  #print-container-temp, #print-container-temp * { visibility: visible !important; }
 
-  /* Reset de estilos */
-  body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* reset básicos para evitar encolhimento */
+  html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
+  #print-container-temp { width: 100% !important; max-width: 100% !important; margin: 0 !important; padding: 0 6mm !important; }
+  #print-container-temp * { box-sizing: border-box; }
 
-  /* Títulos e secções */
-  #print-container-temp { font-family: system-ui, sans-serif; color:#000; }
-  #print-container-temp .print-section { page-break-after: always; margin-bottom: 0; }
-  #print-container-temp .print-section:last-child { page-break-after: auto; }
-  #print-container-temp .print-title { font-weight: 800; font-size: 16pt; margin: 0 0 4mm 0; text-transform: uppercase; }
-  #print-container-temp .print-date { font-weight: 600; margin: -2mm 0 3mm 0; }
+  /* tipografia e cabeçalhos */
+  #print-container-temp { font-family: Arial, Helvetica, sans-serif; color:#000; }
+  #print-container-temp .print-title { font-weight: 800; font-size: 16pt; margin: 0 0 4mm 0; text-align: center; text-transform: uppercase; }
+  #print-container-temp .print-date { font-weight: 600; text-align: center; margin: 0 0 6mm 0; }
 
-  /* Tabela */
-  #print-container-temp .print-table { width:100%; border-collapse: collapse; font-size: 10pt; table-layout: fixed; }
+  /* tabelas */
+  #print-container-temp .print-table { width: 100% !important; border-collapse: collapse !important; font-size: 10.5pt; table-layout: fixed; }
   #print-container-temp .print-table th,
-  #print-container-temp .print-table td { border: 1px solid #111; padding: 3px 5px; vertical-align: top; word-wrap: break-word; }
+  #print-container-temp .print-table td { border: 1px solid #111; padding: 3px 6px; vertical-align: top; word-wrap: break-word; }
   #print-container-temp .print-table th { background: #f2f2f2; }
+
+  /* quebras de página previsíveis */
+  #print-container-temp .print-section { page-break-after: always; }
+  #print-container-temp .print-section:last-child { page-break-after: auto; }
 }
