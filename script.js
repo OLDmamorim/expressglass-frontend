@@ -475,6 +475,37 @@ function cancelEdit() {
 }
 
 // ---------- Render DESKTOP (cartões) ----------
+
+// ===== KM helpers =====
+function getKmValue(ag) {
+  const v = ag.km ?? ag.kms ?? ag.kilometers ?? ag.kilometros ?? ag.quilometros ?? ag.kilómetros ?? ag.km_total ?? ag.distancia;
+  if (v == null) return null;
+  const n = String(v).match(/[\d,.]+/);
+  if (!n) return null;
+  const parsed = parseFloat(n[0].replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildKmRow(ag) {
+  const km = getKmValue(ag);
+  if (km == null) return '';
+  const kmFmt = Math.round(km);
+  return `
+    <div class="card-km" data-km-row>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 13l2-6a2 2 0 0 1 2-1h8a2 2 0 0 1 2 1l2 6" />
+        <path d="M5 13h14" />
+        <circle cx="7.5" cy="17" r="1.5" />
+        <circle cx="16.5" cy="17" r="1.5" />
+      </svg>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5 12h14" />
+        <path d="M13 6l6 6-6 6" />
+      </svg>
+      <span>${kmFmt} km</span>
+    </div>
+  `;
+}
 function buildDesktopCard(a){
   const base = getLocColor(a.locality);
   const g = gradFromBase(base);
@@ -496,7 +527,7 @@ function buildDesktopCard(a){
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
       </div>
-    </div>`;
+    ${buildKmRow(a)}</div>`;
 }
 
 function renderSchedule(){
@@ -667,7 +698,7 @@ const telBtn = phone ? `
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
       ${notes}
-    </div>
+    ${buildKmRow(a)}</div>
   `;
 }
 
