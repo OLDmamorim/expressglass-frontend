@@ -863,6 +863,13 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       } else {
         // CREATE
         const created = await window.apiClient.createAppointment(payload);
+       
+        // Refaz o array e redesenha já
+appointments = await window.apiClient.getAppointments();
+renderAll();
+
+// (opcional) fechar modal
+cancelEdit?.();
 
 // 👉 Mete já no array em memória e força re-render
 const id = created?.id ?? (Date.now() + Math.random());
