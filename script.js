@@ -863,6 +863,12 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       } else {
         // CREATE
         const created = await window.apiClient.createAppointment(payload);
+
+// 👉 Mete já no array em memória e força re-render
+const id = created?.id ?? (Date.now() + Math.random());
+appointments.push({ id, sortIndex: 1, ...payload, ...created, date: (payload.date||'').slice(0,10) });
+renderAll();
+
         const item = { id: created?.id || (Date.now()+Math.random()), sortIndex: 1, ...payload, ...created };
         appointments.push(item);
         showToast('Agendamento criado', 'success');
