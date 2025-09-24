@@ -805,6 +805,103 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     if (editingId) deleteAppointment(editingId);
   });
 
+  // === Guardar Agendamento (criar/editar) ===
+(function hookFormSubmit() {
+  const form = document.getElementById('appointmentForm');
+  const saveBtn = document.getElementById('saveAppointment'); // se existir
+  if (!form) return;
+
+  async function collectFormData() {
+    const get = id => document.getElementById(id)?.value?.trim() || '';
+
+    // normaliza data p/ YYYY-MM-DD
+    const rawDate = get('appointmentDate');   // dd/mm/aaaa ou yyyy-mm-dd
+    let date = '';
+    if (rawDate) {
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+        const [d,m,y] = rawDate.split('/');
+        date = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+        date = rawDate;
+      }
+    }
+
+    return {
+      // campos base
+      date,
+      period: get('appointmentPeriod') || '',     // "Manhã" | "Tarde" | ""
+      plate:  get('appointmentPlate').toUpperCase(),
+      car:    get('appointmentCar'),
+      service:get('appointmentService'),
+      locality:get('appointmentLocality'),
+      notes:  get('appointmentNotes'),
+      address:get('appointmentAddress'),
+      phone:  get('appointmentPhone'),
+      extra:  get('appointmentExtra'),
+      status: (document.getElementById('appointmentStatus')?.value || 'NE')
+    };
+  }
+
+  async function onSubmit(e) {
+    e?.preventDefault?.();
+
+    const payload = await collectFormData();
+
+    // defaults mínimos
+    if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
+    if (!payload.service) { showToast('Tipo de serviço é obrigatório', 'error'); return; }
+    if (!payload.locality) { showToast('Localidade é obrigatória', 'error'); return; }
+
+    try {
+      if (editingId) {
+        // UPDATE
+        const updated = await window.apiClient.updateAppointment(editingId, payload);
+        // aplica no array local
+        const idx = appointments.findIndex(a => String(a.id) === String(editingId));
+        if (idx >= 0) appointments[idx] = { ...appointments[idx], ...updated, ...payload };
+        showToast('Agendamento atualizado', 'success');
+      } else {
+        // CREATE
+        const created = await window.apiClient.createAppointment(payload);
+        const item = { id: created?.id || (Date.now()+Math.random()), sortIndex: 1, ...payload, ...created };
+        appointments.push(item);
+        showToast('Agendamento criado', 'success');
+      }
+
+      // re-render e fechar modal
+      renderAll();
+      document.getElementById('appointmentModal')?.classList?.remove('show');
+      form.reset();
+      editingId = null;
+
+    } catch (err) {
+      // fallback offline (caso a API falhe)
+      try {
+        if (editingId) {
+          const local = window.apiClient.updateAppointmentOffline(editingId, payload);
+          const idx = appointments.findIndex(a => String(a.id) === String(editingId));
+          if (idx >= 0) appointments[idx] = { ...appointments[idx], ...local };
+        } else {
+          const local = window.apiClient.createAppointmentOffline(payload);
+          appointments.push(local);
+        }
+        renderAll();
+        showToast('Guardado localmente (offline).', 'info');
+        document.getElementById('appointmentModal')?.classList?.remove('show');
+        form.reset();
+        editingId = null;
+      } catch (e2) {
+        showToast('Falha ao guardar: ' + e2.message, 'error');
+      }
+    }
+  }
+
+  // garante que o botão "Guardar" submete o form
+  form.addEventListener('submit', onSubmit);
+  if (saveBtn) saveBtn.addEventListener('click', onSubmit);
+})();
+
+  
   // --- Novo Serviço (desktop) ---
   document.getElementById('addServiceBtn')?.addEventListener('click', () => {
     editingId = null;
