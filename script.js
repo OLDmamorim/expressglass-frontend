@@ -771,7 +771,43 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('deleteAppointment')?.addEventListener('click', function() {
     if (editingId) deleteAppointment(editingId);
   });
-});
+
+  // --- Novo Serviço (desktop) ---
+  document.getElementById('addServiceBtn')?.addEventListener('click', () => {
+    editingId = null;
+    document.getElementById('appointmentForm').reset();
+    document.getElementById('modalTitle').textContent = 'Novo Agendamento';
+    document.getElementById('deleteAppointment').classList.add('hidden');
+
+    // Reset dropdown da localidade
+    const selectedText = document.getElementById('selectedLocalityText');
+    const selectedDot = document.getElementById('selectedLocalityDot');
+    if (selectedText && selectedDot) {
+      selectedText.textContent = 'Selecione a localidade';
+      selectedDot.style.backgroundColor = '';
+    }
+
+    document.getElementById('appointmentModal').classList.add('show');
+  });
+
+  // --- Novo Serviço (mobile) ---
+  document.getElementById('addServiceMobile')?.addEventListener('click', () => {
+    editingId = null;
+    document.getElementById('appointmentForm').reset();
+    document.getElementById('modalTitle').textContent = 'Novo Agendamento';
+    document.getElementById('deleteAppointment').classList.add('hidden');
+
+    const selectedText = document.getElementById('selectedLocalityText');
+    const selectedDot = document.getElementById('selectedLocalityDot');
+    if (selectedText && selectedDot) {
+      selectedText.textContent = 'Selecione a localidade';
+      selectedDot.style.backgroundColor = '';
+    }
+
+    document.getElementById('appointmentModal').classList.add('show');
+  });
+}); // 👈 FECHO DO DOMContentLoaded
+
 // === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
 (function(){
   if (window.fillPrintFromAppointments) return; // evitar duplicar
