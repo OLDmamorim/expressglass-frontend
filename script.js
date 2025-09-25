@@ -4,8 +4,8 @@
 // SCRIPT PRINCIPAL
 // ==================
 
-// 🚨 TESTE DE DEPLOY - 25/09/2025 14:45 - BARRA DE PROGRESSO
-console.log('📊 VERSÃO BARRA DE PROGRESSO - 25/09/2025 14:45 - SIMPLES E FUNCIONAL!');
+// 🚨 TESTE DE DEPLOY - 25/09/2025 15:00 - BARRA ABAIXO DO CABEÇALHO
+console.log('📊 VERSÃO BARRA ABAIXO CABEÇALHO - 25/09/2025 15:00 - POSIÇÃO PERFEITA!');
 
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
@@ -352,10 +352,10 @@ function showProgressModal() {
     </div>
   `;
   
-  // Posicionar no topo da página
+  // Posicionar abaixo do cabeçalho
   Object.assign(progressContainer.style, {
     position: 'fixed',
-    top: '0',
+    top: '80px', // Abaixo do cabeçalho azul
     left: '0',
     right: '0',
     zIndex: '10000',
@@ -363,11 +363,19 @@ function showProgressModal() {
     padding: '0'
   });
   
-  // Adicionar ao início do body
-  document.body.insertBefore(progressContainer, document.body.firstChild);
+  // Encontrar o cabeçalho e adicionar a barra logo após
+  const header = document.querySelector('header') || document.querySelector('.header') || document.body;
+  if (header.nextSibling) {
+    header.parentNode.insertBefore(progressContainer, header.nextSibling);
+  } else {
+    header.parentNode.appendChild(progressContainer);
+  }
   
-  // Ajustar o body para não ficar por baixo
-  document.body.style.paddingTop = '80px';
+  // Ajustar margem do conteúdo principal
+  const mainContent = document.querySelector('main') || document.querySelector('.container') || document.body;
+  if (mainContent) {
+    mainContent.style.marginTop = '20px';
+  }
   
   console.log('✅ BARRA DE PROGRESSO CRIADA NO TOPO!');
   
@@ -378,7 +386,13 @@ function hideProgressModal() {
   const progressBar = document.getElementById('progressBar');
   if (progressBar) {
     progressBar.remove();
-    document.body.style.paddingTop = '0';
+    
+    // Resetar margens
+    const mainContent = document.querySelector('main') || document.querySelector('.container') || document.body;
+    if (mainContent) {
+      mainContent.style.marginTop = '0';
+    }
+    
     console.log('✅ Barra de progresso removida');
   }
 }
