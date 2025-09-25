@@ -864,7 +864,10 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         // CREATE
         const created = await window.apiClient.createAppointment(payload);
        
-        // Refaça o array e redesenha já
+        // CREATE
+const created = await window.apiClient.createAppointment(payload);
+
+// Refaça o array e redesenha já
 appointments = await window.apiClient.getAppointments();
 
 // 🔧 NORMALIZAÇÃO (igual ao load)
@@ -881,10 +884,12 @@ renderAll();
 // (opcional) fechar modal
 cancelEdit?.();
 
-// 👉 Mete já no array em memória e força re-render
-const id = created?.id ?? (Date.now() + Math.random());
-appointments.push({ id, sortIndex: 1, ...payload, ...created, date: (payload.date||'').slice(0,10) });
-renderAll();
+// ⛔️ APAGAR/COMENTAR tudo o que estava aqui:
+// // 👉 Mete já no array em memória e força re-render
+// const id = created?.id ?? (Date.now() + Math.random());
+// const newItem = { ...payload, id, ...normalização... };
+// appointments = [newItem]; // ou qualquer atribuição que substitua a lista
+// renderAll();
 
         const item = { id: created?.id || (Date.now()+Math.random()), sortIndex: 1, ...payload, ...created };
         appointments.push(item);
