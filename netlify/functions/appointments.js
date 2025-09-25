@@ -23,9 +23,9 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
-               notes, address, extra, phone, created_at, updated_at
+               notes, address, extra, phone, km, sortIndex, created_at, updated_at
         FROM appointments
-        ORDER BY date ASC NULLS LAST, period ASC NULLS LAST, created_at ASC
+        ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
       `;
       const { rows } = await pool.query(q);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
