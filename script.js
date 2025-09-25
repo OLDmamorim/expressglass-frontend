@@ -4,8 +4,8 @@
 // SCRIPT PRINCIPAL
 // ==================
 
-// 🚨 TESTE DE DEPLOY - 25/09/2025 15:00 - BARRA ABAIXO DO CABEÇALHO
-console.log('📊 VERSÃO BARRA ABAIXO CABEÇALHO - 25/09/2025 15:00 - POSIÇÃO PERFEITA!');
+// 🚨 TESTE DE DEPLOY - 25/09/2025 16:00 - SELECT CORRIGIDO
+console.log('🔄 VERSÃO SELECT CORRIGIDO - 25/09/2025 16:00 - CARREGA KM + SORTINDEX!');
 
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
@@ -281,30 +281,79 @@ async function optimizeDayServices(services) {
     }
   }
   
-  // 4. Atualizar sortIndex para refletir a nova ordem
-  optimizedRoute.forEach((service, index) => {
+  // 4. Recalcular quilómetros entre pontos da rota otimizada
+  for (let i = 0; i < optimizedRoute.length; i++) {
+    const service = optimizedRoute[i];
     const appointmentIndex = appointments.findIndex(a => a.id === service.id);
+    
     if (appointmentIndex >= 0) {
-      appointments[appointmentIndex].sortIndex = index + 1;
+      // Atualizar sortIndex
+      appointments[appointmentIndex].sortIndex = i + 1;
+      
+      // Calcular quilómetros do ponto anterior para este
+      let newKm = 0;
+      if (i === 0) {
+        // Primeiro serviço: distância da loja
+        const serviceAddress = getAddressFromItem(service);
+        const distanceFromBase = await getDistance(basePartidaDoDia, serviceAddress);
+        newKm = distanceFromBase !== Infinity ? Math.round(distanceFromBase / 1000) : 0;
+      } else {
+        // Serviços seguintes: distância do serviço anterior
+        const previousService = optimizedRoute[i - 1];
+        const previousAddress = getAddressFromItem(previousService);
+        const currentAddress = getAddressFromItem(service);
+        const distanceFromPrevious = await getDistance(previousAddress, currentAddress);
+        newKm = distanceFromPrevious !== Infinity ? Math.round(distanceFromPrevious / 1000) : 0;
+      }
+      
+      // Atualizar quilómetros no appointment
+      appointments[appointmentIndex].km = newKm;
+      
       // Marcar como otimizado para feedback visual
       appointments[appointmentIndex]._optimized = true;
+      
+      console.log(`🗺️ Serviço ${i + 1}: ${newKm}km ${i === 0 ? 'da loja' : 'do anterior'}`);
     }
-  });
+  }
 }
 
 // Guardar rotas otimizadas na base de dados
 async function saveOptimizedRoutes() {
   const optimizedServices = appointments.filter(a => a._optimized);
   
+  console.log(`💾 Guardando ${optimizedServices.length} serviços otimizados...`);
+  
   for (const service of optimizedServices) {
     try {
-      // Remover flag temporário antes de guardar
-      const { _optimized, ...serviceData } = service;
+      // Preparar dados para guardar (incluindo km e sortIndex)
+      const serviceData = {
+        id: service.id,
+        date: service.date,
+        address: service.address,
+        km: service.km, // ← IMPORTANTE: Incluir quilómetros recalculados
+        sortIndex: service.sortIndex, // ← IMPORTANTE: Incluir nova ordem
+        // Incluir todos os outros campos necessários
+        client: service.client,
+        phone: service.phone,
+        car: service.car,
+        plate: service.plate,
+        service: service.service,
+        locality: service.locality,
+        observations: service.observations,
+        status: service.status
+      };
+      
+      console.log(`💾 Guardando serviço ${service.id}: ${service.km}km, ordem ${service.sortIndex}`);
+      
       await window.apiClient.updateAppointment(service.id, serviceData);
+      
     } catch (error) {
-      console.warn('Erro ao guardar serviço otimizado:', service.id, error);
+      console.error('❌ Erro ao guardar serviço otimizado:', service.id, error);
+      showToast(`Erro ao guardar serviço ${service.client}: ${error.message}`, 'error');
     }
   }
+  
+  console.log('✅ Todos os serviços otimizados foram guardados na base de dados');
   
   // Limpar flags temporários
   appointments.forEach(a => delete a._optimized);
@@ -974,7 +1023,6 @@ function renderServicesTable(){
     const notes = (a.notes||'').replace(/"/g,'&quot;');
     return `<tr>
       <td>${d.toLocaleDateString('pt-PT')}</td>
-      <td>—</td>
       <td>${a.plate||''}</td>
       <td>${a.car||''}</td>
       <td><span class="badge badge-${a.service}">${a.service||''}</span></td>
@@ -1321,17 +1369,15 @@ cancelEdit?.();
       return ''; // Sem períodos
     }
   function row(a){
-    const periodo = normPeriod(a.period || a.time || '');
-    const outros  = a.address || a.extra || '';
+    const dataFormatada = a.date ? new Date(a.date).toLocaleDateString('pt-PT') : '—';
     return `<tr>
-      <td>—</td>
+      <td>${dataFormatada}</td>
       <td>${a.plate||''}</td>
       <td>${(a.car||'').toUpperCase()}</td>
       <td>${a.service||''}</td>
       <td>${a.locality||''}</td>
+      <td>${a.notes || a.observations || ''}</td>
       <td>${a.status||''}</td>
-      <td>${a.notes || a.extra || ''}</td>
-      <td>${outros}</td>
     </tr>`;
   }
   function buildTable(title, dateLabel, list){
@@ -1342,7 +1388,7 @@ cancelEdit?.();
       ${headDate}
       <table class="print-table">
         <thead><tr>
-          <th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th>
+          <th>Data</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Observações</th><th>Estado</th>
         </tr></thead>
         <tbody>${list.map(row).join('')}</tbody>
       </table>
@@ -1367,9 +1413,9 @@ cancelEdit?.();
 
         const unscheduled = list.filter(a => !a.date)
                             .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
-      const todayServices = list.filter(a => a.date === todayISO)
+      const todayServices = list.filter(a => a.date === isoToday)
                             .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
-      const tomorrowServices = list.filter(a => a.date === tomorrowISO)
+      const tomorrowServices = list.filter(a => a.date === isoTomorrow)
                                .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
 
       const dm = d => new Date(d).toLocaleDateString('pt-PT', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
