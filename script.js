@@ -142,21 +142,17 @@ async function calculateOptimalRoutes() {
     let totalOptimized = 0;
     let processedDays = 0;
     
-    // Contar total de períodos para otimizar
+    // Contar total de dias para otimizar
     let totalPeriods = 0;
     for (const dayDate of week) {
       const dayISO = localISO(dayDate);
+      // Obter serviços do dia que têm morada
       const dayServices = appointments.filter(a => 
         a.date === dayISO && 
-        getAddressFromItem(a) && 
-        a.period
+        getAddressFromItem(a)
       );
       
-      const morningServices = dayServices.filter(a => a.period === 'Manhã');
-      const afternoonServices = dayServices.filter(a => a.period === 'Tarde');
-      
-      if (morningServices.length >= 2) totalPeriods++;
-      if (afternoonServices.length >= 2) totalPeriods++;
+      if (dayServices.length >= 2) totalPeriods++;
     }
     
     if (totalPeriods === 0) {
@@ -184,8 +180,7 @@ async function calculateOptimalRoutes() {
       // Obter serviços do dia que têm morada
       const dayServices = appointments.filter(a => 
         a.date === dayISO && 
-        getAddressFromItem(a) && 
-        a.period
+        getAddressFromItem(a)
       );
       
       if (dayServices.length < 2) {
@@ -193,32 +188,15 @@ async function calculateOptimalRoutes() {
         continue;
       }
       
-      // Agrupar por período
-      const morningServices = dayServices.filter(a => a.period === 'Manhã');
-      const afternoonServices = dayServices.filter(a => a.period === 'Tarde');
-      
-      // Otimizar cada período separadamente
-      if (morningServices.length >= 2) {
-        updateProgress(
-          Math.round(50 + (processedPeriods / totalPeriods) * 40),
-          `Otimizando ${dayName} - Manhã`,
-          `${morningServices.length} serviços a reorganizar`
-        );
-        await optimizePeriodServices(morningServices, 'Manhã');
-        totalOptimized += morningServices.length;
-        processedPeriods++;
-      }
-      
-      if (afternoonServices.length >= 2) {
-        updateProgress(
-          Math.round(50 + (processedPeriods / totalPeriods) * 40),
-          `Otimizando ${dayName} - Tarde`,
-          `${afternoonServices.length} serviços a reorganizar`
-        );
-        await optimizePeriodServices(afternoonServices, 'Tarde');
-        totalOptimized += afternoonServices.length;
-        processedPeriods++;
-      }
+      // Otimizar todos os serviços do dia
+      updateProgress(
+        Math.round(50 + (processedPeriods / totalPeriods) * 40),
+        `Otimizando ${dayName}`,
+        `${dayServices.length} serviços a reorganizar`
+      );
+      await optimizeDayServices(dayServices);
+      totalOptimized += dayServices.length;
+      processedPeriods++;
       
       processedDays++;
     }
@@ -251,8 +229,8 @@ async function calculateOptimalRoutes() {
   }
 }
 
-// Otimizar serviços de um período específico
-async function optimizePeriodServices(services, period) {
+// Otimizar serviços de um dia específico
+async function optimizeDayServices(services) {
   if (services.length < 2) return;
   
   // 1. Encontrar o serviço mais distante da loja
@@ -705,7 +683,6 @@ function editAppointment(id) {
   
   // Preencher formulário
   document.getElementById('appointmentDate').value = appointment.date || '';
-  document.getElementById('appointmentPeriod').value = appointment.period || '';
   document.getElementById('appointmentPlate').value = appointment.plate || '';
   document.getElementById('appointmentCar').value = appointment.car || '';
   document.getElementById('appointmentService').value = appointment.service || '';
@@ -1133,7 +1110,6 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     return {
       // campos base
       date,
-      period: get('appointmentPeriod') || '',     // "Manhã" | "Tarde" | ""
       plate:  get('appointmentPlate').toUpperCase(),
       car:    get('appointmentCar'),
       service:get('appointmentService'),
