@@ -23,7 +23,7 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
-               notes, address, extra, phone, created_at, updated_at
+               notes, address, extra, phone, km, created_at, updated_at
         FROM appointments
         ORDER BY date ASC NULLS LAST, period ASC NULLS LAST, created_at ASC
       `;
@@ -42,9 +42,9 @@ exports.handler = async (event) => {
       const q = `
         INSERT INTO appointments (
           date, period, plate, car, service, locality, status,
-          notes, address, extra, phone, created_at, updated_at
+          notes, address, extra, phone, km, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14
         ) RETURNING *
       `;
       const v = [
@@ -58,7 +58,8 @@ exports.handler = async (event) => {
         data.notes || null,
         data.address || null,
         data.extra || null,
-        data.phone || null,                 // 👈 NOVO
+        data.phone || null,
+        data.km || null,                    // 👈 NOVO: Campo km
         new Date().toISOString(),
         new Date().toISOString()
       ];
@@ -76,9 +77,9 @@ exports.handler = async (event) => {
         UPDATE appointments SET
           date = $1, period = $2, plate = $3, car = $4,
           service = $5, locality = $6, status = $7,
-          notes = $8, address = $9, extra = $10, phone = $11,   -- 👈 NOVO
-          updated_at = $12
-        WHERE id = $13
+          notes = $8, address = $9, extra = $10, phone = $11, km = $12,
+          updated_at = $13
+        WHERE id = $14
         RETURNING *
       `;
       const v = [
@@ -92,7 +93,8 @@ exports.handler = async (event) => {
         data.notes || null,
         data.address || null,
         data.extra || null,
-        data.phone || null,                 // 👈 NOVO
+        data.phone || null,
+        data.km || null,                    // 👈 NOVO: Campo km
         new Date().toISOString(),
         id
       ];
