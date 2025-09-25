@@ -864,8 +864,18 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         // CREATE
         const created = await window.apiClient.createAppointment(payload);
        
-        // Refaz o array e redesenha já
+        // Refaça o array e redesenha já
 appointments = await window.apiClient.getAppointments();
+
+// 🔧 NORMALIZAÇÃO (igual ao load)
+appointments = appointments.map(a => ({
+  ...a,
+  date: a.date ? String(a.date).slice(0, 10) : null,
+  address: a.address || a.morada || a.addr || null,
+  sortIndex: a.sortIndex || 1,
+  id: a.id ?? (Date.now() + Math.random())
+}));
+
 renderAll();
 
 // (opcional) fechar modal
