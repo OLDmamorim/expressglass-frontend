@@ -4,6 +4,9 @@
 // SCRIPT PRINCIPAL
 // ==================
 
+// 🚨 TESTE DE DEPLOY - 25/09/2025 13:20
+console.log('🚨 VERSÃO NOVA CARREGADA - 25/09/2025 13:20 - MODAL DEVE FUNCIONAR!');
+
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
   SM_BRAGA: "Avenida Robert Smith 59, 4715-249 Braga",
