@@ -1373,7 +1373,6 @@ cancelEdit?.();
     const periodo = normPeriod(a.period || a.time || '');
     const outros  = a.address || a.extra || '';
     return `<tr>
-      <td>—</td>
       <td>${a.plate||''}</td>
       <td>${(a.car||'').toUpperCase()}</td>
       <td>${a.service||''}</td>
