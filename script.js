@@ -530,13 +530,25 @@ function cancelEdit() {
 
 // ===== KM helpers =====
 function getKmValue(ag) {
-  const v = ag.km ?? ag.kms ?? ag.kilometers ?? ag.kilometros ?? ag.quilometros ?? ag.kilómetros ?? ag.km_total ?? ag.distancia;
+  // 👉 dá prioridade ao km calculado na cadeia (loja → +longe → …)
+  const v =
+    ag._kmFromPrev ??
+    ag.km ??
+    ag.kms ??
+    ag.kilometers ??
+    ag.kilometros ??
+    ag.quilometros ??
+    ag.kilómetros ??
+    ag.km_total ??
+    ag.distancia;
+
   if (v == null) return null;
   const n = String(v).match(/[\d,.]+/);
   if (!n) return null;
   const parsed = parseFloat(n[0].replace(',', '.'));
   return Number.isFinite(parsed) ? parsed : null;
 }
+
 
 function buildKmRow(ag) {
   const km = getKmValue(ag);
