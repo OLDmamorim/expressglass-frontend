@@ -606,6 +606,14 @@ async function load(){
   ? await window.apiClient.getAppointments()
   : [];
 
+    // 🔍 DEBUG: Verificar dados RAW da base de dados
+    console.log('🔍 LOAD DEBUG - Dados RAW da base de dados:');
+    appointments.forEach(a => {
+      if (a.date === '2025-09-26') {
+        console.log(`🔍 RAW - ${a.plate}: sortIndex=${a.sortindex || a.sortIndex}, km=${a.km}`);
+      }
+    });
+
     appointments.forEach(a => {
       if (a.date) {
         a.date = String(a.date).slice(0, 10); // fica só "YYYY-MM-DD"
@@ -615,8 +623,23 @@ async function load(){
     // IDs e ordem estáveis
     appointments.forEach(a=>{ 
       if(!a.id) a.id=Date.now()+Math.random(); 
+      
+      // 🔍 DEBUG: Verificar antes e depois
+      const beforeSortIndex = a.sortIndex || a.sortindex;
+      
       // 🔧 CORREÇÃO: Só definir sortIndex=1 se for null/undefined, não se for 0 ou outro valor
-      if(a.sortIndex === null || a.sortIndex === undefined) a.sortIndex=1; 
+      if(a.sortIndex === null || a.sortIndex === undefined) {
+        // Verificar se vem como 'sortindex' (minúsculo) da base de dados
+        if(a.sortindex !== null && a.sortindex !== undefined) {
+          a.sortIndex = a.sortindex;
+        } else {
+          a.sortIndex = 1;
+        }
+      }
+      
+      if (a.date === '2025-09-26') {
+        console.log(`🔍 LOAD - ${a.plate}: antes=${beforeSortIndex}, depois=${a.sortIndex}`);
+      }
     });
     // 🔁 Normalização de morada (compatibilidade com dados antigos)
     appointments = appointments.map(a => ({
