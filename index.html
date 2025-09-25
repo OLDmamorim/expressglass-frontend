@@ -100,7 +100,10 @@
     }
   </style>
   <!-- /PRINT -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvVgXxjF7NkHsvm9z-O_6ApJ1kKBM0G6U&libraries=places"></script>
+  <script
+  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvVgXxjF7NkHsvm9z-O_6ApJ1kKBM0G6U&libraries=places&v=weekly&loading=async"
+  async defer></script>
+
 </head>
 <body class="page-sm-braga">
   <div class="page">
@@ -224,7 +227,17 @@
           <div class="form-row">
             <div class="form-group">
               <label for="appointmentPlate">Matrícula *</label>
-              <input type="text" id="appointmentPlate" placeholder="XX-XX-XX" maxlength="8" inputmode="latin" autocomplete="off" required />
+              <input
+  type="text"
+  id="appointmentPlate"
+  placeholder="XX-XX-XX"
+  maxlength="8"
+  inputmode="text"
+  autocomplete="off"
+  required
+  pattern="^[A-Za-z0-9]{2}-[A-Za-z0-9]{2}-[A-Za-z0-9]{2}$"
+  title="Use o formato XX-XX-XX (algarismos/letras)"
+
               <small class="form-hint">Formato: XX-XX-XX</small>
             </div>
             <div class="form-group">
@@ -235,40 +248,52 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label for="appointmentService">Tipo de Serviço *</label>
-              <select id="appointmentService" required>
-                <option value="">Selecione o tipo de serviço</option>
-                <option value="PB">PB - Para-brisas</option>
-                <option value="LT">LT - Lateral</option>
-                <option value="OC">OC - Óculo</option>
-                <option value="REP">REP - Reparação</option>
-                <option value="POL">POL - Polimento</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="appointmentLocality">Localidade *</label>
-              <div class="locality-dropdown">
-                <div class="locality-selected" id="localitySelected" onclick="toggleLocalityDropdown()">
-                  <span class="locality-dot" id="selectedLocalityDot"></span>
-                  <span id="selectedLocalityText">Selecione a localidade</span>
-                  <span class="dropdown-arrow">▼</span>
-                </div>
-                <div class="locality-options" id="localityOptions"></div>
-                <input type="hidden" id="appointmentLocality" required />
-              </div>
-            </div>
-          </div>
+            <label for="appointmentLocality">Localidade *</label>
+  <select id="appointmentLocality" required>
+    <option value="">Selecione a localidade</option>
+    <option>Outra</option>
+    <option>Barcelos</option>
+    <option>Braga</option>
+    <option>Esposende</option>
+    <option>Famalicão</option>
+    <option>Guimarães</option>
+    <option>Póvoa de Lanhoso</option>
+    <option>Póvoa de Varzim</option>
+    <option>Riba D'Ave</option>
+    <option>Trofa</option>
+    <option>Vieira do Minho</option>
+    <option>Vila do Conde</option>
+    <option>Vila Verde</option>
+  </select>
+</div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label for="appointmentStatus">Status do Vidro *</label>
-              <select id="appointmentStatus" required>
-                <option value="NE">N/E - Não Executado</option>
-                <option value="VE">V/E - Vidro Encomendado</option>
-                <option value="ST">ST - Serviço Terminado</option>
-              </select>
-            </div>
-          </div>
+
+
+        <div class="form-row">
+  <!-- Tipo de Serviço -->
+  <div class="form-group">
+    <label for="appointmentService">Tipo de Serviço *</label>
+    <select id="appointmentService" required>
+      <option value="">Selecione o tipo de serviço</option>
+      <option value="PB">PB - Para-brisas</option>
+      <option value="LT">LT - Lateral</option>
+      <option value="OC">OC - Óculo</option>
+      <option value="REP">REP - Reparação</option>
+      <option value="POL">POL - Polimento</option>
+    </select>
+  </div>
+
+  <!-- 2ª coluna: Status do Vidro -->
+  <div class="form-group">
+    <label for="appointmentStatus">Status do Vidro *</label>
+    <select id="appointmentStatus" required>
+      <option value="NE">N/E - Não Executado</option>
+      <option value="VE">V/E - Vidro Encomendado</option>
+      <option value="ST">ST - Serviço Terminado</option>
+    </select>
+  </div>
+</div>
+
 
           <div class="form-group">
             <label for="appointmentNotes">Observações</label>

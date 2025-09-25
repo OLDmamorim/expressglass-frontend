@@ -138,6 +138,34 @@ const getLocColor = loc => (localityColors && localityColors[loc]) || '#3b82f6';
 const statusBarColors = { NE:'#EF4444', VE:'#F59E0B', ST:'#10B981' };
 const localityList = Object.keys(localityColors);
 
+// === Preencher e ligar o dropdown de Localidade ===
+function buildLocalityOptions() {
+  const wrap = document.getElementById('localityDropdown');   // container do dropdown
+  const list = document.getElementById('localityOptions');    // onde vão as opções
+  if (!wrap || !list) return;
+
+  // cria os botões das localidades
+  const items = Object.keys(window.LOCALITY_COLORS || localityColors).map(loc => {
+    const color = getLocColor(loc);
+    return `
+      <button type="button" class="loc-opt" data-value="${loc}">
+        <span class="dot" style="background:${color}"></span>
+        <span class="txt">${loc}</span>
+      </button>`;
+  }).join('');
+
+  list.innerHTML = items;
+
+  // click nas opções → seleciona e fecha
+  list.querySelectorAll('.loc-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const val = btn.getAttribute('data-value');
+      window.selectLocality?.(val);   // usa o handler global que já criámos
+    });
+  });
+}
+
+
 // ---------- Estado ----------
 let appointments = [];
 let currentMonday = getMonday(new Date());
@@ -217,7 +245,10 @@ function updateConnBadge(){
 async function load(){
   try{
     showToast('Carregando dados...','info');
-    appointments = await window.apiClient.getAppointments();
+   appointments = window.apiClient?.getAppointments
+  ? await window.apiClient.getAppointments()
+  : [];
+
     appointments.forEach(a => {
       if (a.date) {
         a.date = String(a.date).slice(0, 10); // fica só "YYYY-MM-DD"
@@ -237,7 +268,7 @@ async function load(){
         if (!/^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(v)) localityColors[k] = '#3b82f6';
       }
     }
-    const st=window.apiClient.getConnectionStatus();
+    const st = window.apiClient?.getConnectionStatus?.() || { online: navigator.onLine };
     showToast(st.online?'Dados carregados da cloud!':'Dados carregados localmente (offline)', st.online?'success':'info');
   }catch(e){
     appointments=[]; showToast('Erro ao carregar dados: '+e.message,'error');
@@ -271,23 +302,44 @@ function highlightSearchResults(){
 
 // ---------- Persistência de STATUS (exclusivo) ----------
 async function persistStatus(id, newStatus) {
-  const idx = appointments.findIndex(a => String(a.id) === String(id));
-  if (idx < 0) return;
-  const valid = ['NE','VE','ST']; if(!valid.includes(newStatus)) return;
-  const prev = appointments[idx].status;
-  appointments[idx].status = newStatus; // exclusivo
+  const i = appointments.findIndex(a => String(a.id) === String(id));
+  if (i < 0) return;
+
+  const valid = ['NE','VE','ST'];
+  if (!valid.includes(newStatus)) return;
+
+  const prev = appointments[i].status;
+
+  // Atualização otimista para não “piscar”
+  appointments[i].status = newStatus;
+  renderAll();
+
   try {
-    const payload = { ...appointments[idx], status: newStatus };
-    const res = await window.apiClient.updateAppointment(id, payload);
-    if (res && typeof res === 'object') appointments[idx] = { ...appointments[idx], ...res };
+    const res = await window.apiClient.updateAppointment(id, { ...appointments[i], status: newStatus });
+
+    if (res && typeof res === 'object') {
+      // ✅ Normaliza para o formato que o calendário espera
+      const normalized = {
+        ...appointments[i],
+        ...res,
+        date: res.date ? String(res.date).slice(0, 10) : (appointments[i].date ?? null),
+        address: res.address || res.morada || res.addr || appointments[i].address || null,
+        sortIndex: appointments[i].sortIndex || 1,
+        id: appointments[i].id ?? res.id
+      };
+      appointments[i] = normalized;
+    }
+
     showToast(`Status guardado: ${newStatus}`, 'success');
   } catch (err) {
-    appointments[idx] = { ...appointments[idx], status: prev };
+    // rollback
+    appointments[i].status = prev;
     showToast('Falha ao gravar status: ' + err.message, 'error');
   } finally {
     renderAll();
   }
 }
+
 
 // ---------- Status Listeners ----------
 function attachStatusListeners(){
@@ -744,6 +796,8 @@ async function renderMobileDay(){
 
 // Render global
 function renderAll(){
+  // 🔧 expõe sempre o estado atual para o módulo de impressão
+  window.appointments = appointments;
   try { renderSchedule(); } catch(e){ console.error('Erro renderSchedule:', e); }
   try { renderUnscheduled(); } catch(e){ console.error('Erro renderUnscheduled:', e); }
   try { renderServicesTable(); } catch(e){ console.error('Erro renderServicesTable:', e); }
@@ -755,6 +809,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   try { await load(); } catch(e){ console.error('load() falhou', e); }
   try { buildLocalityOptions?.(); } catch(e){}
   renderAll();
+  document.querySelector('.locality-select')?.addEventListener('click', toggleLocalityDropdown);
+
 
   // Navegação mínima (se existirem botões)
   document.getElementById('todayWeek')?.addEventListener('click', ()=>{ currentMonday = getMonday(new Date()); renderAll(); });
@@ -771,7 +827,165 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('deleteAppointment')?.addEventListener('click', function() {
     if (editingId) deleteAppointment(editingId);
   });
-});
+
+  // === Guardar Agendamento (criar/editar) ===
+(function hookFormSubmit() {
+  const form = document.getElementById('appointmentForm');
+  const saveBtn = document.getElementById('saveAppointment'); // se existir
+  if (!form) return;
+
+  async function collectFormData() {
+    const get = id => document.getElementById(id)?.value?.trim() || '';
+
+    // normaliza data p/ YYYY-MM-DD
+    const rawDate = get('appointmentDate');   // dd/mm/aaaa ou yyyy-mm-dd
+    let date = '';
+    if (rawDate) {
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+        const [d,m,y] = rawDate.split('/');
+        date = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+        date = rawDate;
+      }
+    }
+
+    return {
+      // campos base
+      date,
+      period: get('appointmentPeriod') || '',     // "Manhã" | "Tarde" | ""
+      plate:  get('appointmentPlate').toUpperCase(),
+      car:    get('appointmentCar'),
+      service:get('appointmentService'),
+      locality:get('appointmentLocality'),
+      notes:  get('appointmentNotes'),
+      address:get('appointmentAddress'),
+      phone:  get('appointmentPhone'),
+      extra:  get('appointmentExtra'),
+      status: (document.getElementById('appointmentStatus')?.value || 'NE')
+    };
+  }
+
+  async function onSubmit(e) {
+    e?.preventDefault?.();
+
+    const payload = await collectFormData();
+
+    // defaults mínimos
+    if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
+    if (!payload.service) { showToast('Tipo de serviço é obrigatório', 'error'); return; }
+    if (!payload.locality) { showToast('Localidade é obrigatória', 'error'); return; }
+
+    try {
+      if (editingId) {
+        // UPDATE
+        const updated = await window.apiClient.updateAppointment(editingId, payload);
+        // aplica no array local
+        const idx = appointments.findIndex(a => String(a.id) === String(editingId));
+        if (idx >= 0) appointments[idx] = { ...appointments[idx], ...updated, ...payload };
+        showToast('Agendamento atualizado', 'success');
+      } else {
+        // CREATE
+        const created = await window.apiClient.createAppointment(payload);
+       
+       // Refaça o array e redesenha já
+appointments = await window.apiClient.getAppointments();
+
+// 🔧 NORMALIZAÇÃO (igual ao load)
+appointments = appointments.map(a => ({
+  ...a,
+  date: a.date ? String(a.date).slice(0, 10) : null,
+  address: a.address || a.morada || a.addr || null,
+  sortIndex: a.sortIndex || 1,
+  id: a.id ?? (Date.now() + Math.random())
+}));
+
+renderAll();
+
+// (opcional) fechar modal
+cancelEdit?.();
+
+// ⛔️ APAGAR/COMENTAR tudo o que estava aqui:
+// // 👉 Mete já no array em memória e força re-render
+// const id = created?.id ?? (Date.now() + Math.random());
+// const newItem = { ...payload, id, ...normalização... };
+// appointments = [newItem]; // ou qualquer atribuição que substitua a lista
+// renderAll();
+
+        const item = { id: created?.id || (Date.now()+Math.random()), sortIndex: 1, ...payload, ...created };
+        appointments.push(item);
+        showToast('Agendamento criado', 'success');
+      }
+
+      // re-render e fechar modal
+      renderAll();
+      document.getElementById('appointmentModal')?.classList?.remove('show');
+      form.reset();
+      editingId = null;
+
+    } catch (err) {
+      // fallback offline (caso a API falhe)
+      try {
+        if (editingId) {
+          const local = window.apiClient.updateAppointmentOffline(editingId, payload);
+          const idx = appointments.findIndex(a => String(a.id) === String(editingId));
+          if (idx >= 0) appointments[idx] = { ...appointments[idx], ...local };
+        } else {
+          const local = window.apiClient.createAppointmentOffline(payload);
+          appointments.push(local);
+        }
+        renderAll();
+        showToast('Guardado localmente (offline).', 'info');
+        document.getElementById('appointmentModal')?.classList?.remove('show');
+        form.reset();
+        editingId = null;
+      } catch (e2) {
+        showToast('Falha ao guardar: ' + e2.message, 'error');
+      }
+    }
+  }
+
+  // garante que o botão "Guardar" submete o form
+  form.addEventListener('submit', onSubmit);
+  if (saveBtn) saveBtn.addEventListener('click', onSubmit);
+})();
+
+  
+  // --- Novo Serviço (desktop) ---
+  document.getElementById('addServiceBtn')?.addEventListener('click', () => {
+    editingId = null;
+    document.getElementById('appointmentForm').reset();
+    document.getElementById('modalTitle').textContent = 'Novo Agendamento';
+    document.getElementById('deleteAppointment').classList.add('hidden');
+
+    // Reset dropdown da localidade
+    const selectedText = document.getElementById('selectedLocalityText');
+    const selectedDot = document.getElementById('selectedLocalityDot');
+    if (selectedText && selectedDot) {
+      selectedText.textContent = 'Selecione a localidade';
+      selectedDot.style.backgroundColor = '';
+    }
+
+    document.getElementById('appointmentModal').classList.add('show');
+  });
+
+  // --- Novo Serviço (mobile) ---
+  document.getElementById('addServiceMobile')?.addEventListener('click', () => {
+    editingId = null;
+    document.getElementById('appointmentForm').reset();
+    document.getElementById('modalTitle').textContent = 'Novo Agendamento';
+    document.getElementById('deleteAppointment').classList.add('hidden');
+
+    const selectedText = document.getElementById('selectedLocalityText');
+    const selectedDot = document.getElementById('selectedLocalityDot');
+    if (selectedText && selectedDot) {
+      selectedText.textContent = 'Selecione a localidade';
+      selectedDot.style.backgroundColor = '';
+    }
+
+    document.getElementById('appointmentModal').classList.add('show');
+  });
+}); // 👈 FECHO DO DOMContentLoaded
+
 // === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
 (function(){
   if (window.fillPrintFromAppointments) return; // evitar duplicar
@@ -858,8 +1072,93 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         buildTable(titleUnscheduled, '', unscheduled),
       ].join('');
 
-    }catch(e){
-      console.error('fillPrintFromAppointments falhou:', e);
+      }catch(e){
+    console.error('fillPrintFromAppointments falhou:', e);
+  }
+  };         
+})();         
+
+// === Máscara da matrícula ===
+(function initPlateMask(){
+  const el = document.getElementById('appointmentPlate');
+  if (!el) return;
+
+  el.addEventListener('input', (e) => {
+    const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    const parts = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 6)].filter(Boolean);
+    e.target.value = parts.join('-');
+  });
+
+  el.addEventListener('blur', (e) => {
+    const ok = /^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/.test(e.target.value);
+    e.target.setCustomValidity(ok ? '' : 'Use o formato XX-XX-XX');
+  });
+  })();
+
+
+// === Autocomplete de Morada (Google Places) ===
+(function initAddressAutocomplete(){
+  const input = document.getElementById('appointmentAddress');
+  if (!input) return;
+
+  function run() {
+    if (!(window.google && google.maps && google.maps.places)) {
+      console.warn('Google Places API ainda não disponível.');
+      return;
     }
-  };
+
+    // ⚠️ Sem 'types' e sem 'fields' — assim apanha moradas *e* empresas/POIs
+   const ac = new google.maps.places.Autocomplete(input, {
+  // isto é obrigatório na versão atual para poderes ler name/formatted_address
+  fields: ['place_id', 'name', 'formatted_address']
+});
+
+    // Restrição por país (PT). Usa o método suportado.
+    // Em versões recentes aceita string ou array; esta forma é compatível.
+    if (ac.setComponentRestrictions) {
+      ac.setComponentRestrictions({ country: ['pt'] });
+    }
+
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      const txt = [place?.name, place?.formatted_address]
+        .filter(Boolean)
+        .join(' - ');
+      if (txt) input.value = txt;
+    });
+  }
+
+  if (document.readyState === 'complete') run();
+  else window.addEventListener('load', run);
 })();
+
+
+// === Localidade: handlers mínimos (fix undefined) ===
+window.toggleLocalityDropdown = function () {
+  const dd = document.getElementById('localityDropdown');
+  if (!dd) return;
+  // aceita .open ou .show (conforme o teu CSS)
+  dd.classList.toggle('open');
+  dd.classList.toggle('show');
+};
+
+window.selectLocality = function (value) {
+  const field = document.getElementById('appointmentLocality');
+  const txt   = document.getElementById('selectedLocalityText');
+  const dot   = document.getElementById('selectedLocalityDot');
+  if (field) field.value = value || '';
+  if (txt)   txt.textContent = value || 'Selecione a localidade';
+  if (dot)   dot.style.backgroundColor = value ? getLocColor(value) : '';
+  const dd = document.getElementById('localityDropdown');
+  dd?.classList.remove('open'); dd?.classList.remove('show');
+};
+
+// fecha o dropdown ao clicar fora
+document.addEventListener('click', (e) => {
+  const dd = document.getElementById('localityDropdown');
+  if (!dd) return;
+  if (!dd.contains(e.target)) {
+    dd.classList.remove('open'); dd.classList.remove('show');
+  }
+});
+

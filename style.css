@@ -476,3 +476,76 @@ body.printing-now > *:not(#print-container-temp) {
   #print-container-temp .print-section { page-break-after: always; }
   #print-container-temp .print-section:last-child { page-break-after: auto; }
 }
+/* Google Places dropdown acima do modal */
+.pac-container {
+  z-index: 99999 !important;
+}
+/* Localidade: dropdown escondido por defeito */
+#localityDropdown {
+  display: none;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-top: 6px;
+  padding: 6px;
+  max-height: 220px;
+  overflow: auto;
+  box-shadow: 0 8px 20px rgba(0,0,0,.12);
+}
+
+/* Mostrar quando o JS adiciona a classe */
+#localityDropdown.open,
+#localityDropdown.show {
+  display: block;
+}
+
+/* Estilo dos botões/opções */
+#localityDropdown .loc-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  margin: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 9999px;
+  background: #f8fafc;
+  cursor: pointer;
+  user-select: none;
+}
+#localityDropdown .loc-opt:hover {
+  background: #eef2ff;
+}
+#localityDropdown .loc-opt .dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+/* === Modal -> 2 colunas estáveis === */
+#appointmentModal .form-row{
+  display:grid !important;
+  grid-template-columns: repeat(2, minmax(0,1fr)) !important;
+  column-gap:24px !important;
+  row-gap:14px !important;
+  align-items:start !important;
+}
+#appointmentModal .form-group{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:6px !important;
+  width:100% !important;
+}
+#appointmentModal .form-group input,
+#appointmentModal .form-group select,
+#appointmentModal .form-group textarea{
+  width:100% !important;
+  box-sizing:border-box !important;
+}
+
+/* Grupos largos (ocupam a linha toda) */
+#appointmentModal .form-group:has(textarea),
+#appointmentModal .form-group:has(#appointmentAddress),
+#appointmentModal .form-group:has(#appointmentPhone),
+#appointmentModal .form-group:has(#appointmentExtra){
+  grid-column:1 / -1 !important;
+}
+
+
+
