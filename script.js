@@ -1121,15 +1121,24 @@ async function renderMobileDay(){
       .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0))
   );
 
+  // 🔍 DEBUG: Verificar dados carregados
+  console.log('🔍 MOBILE DEBUG - Items do dia:', itemsRaw.length);
+  itemsRaw.forEach(item => {
+    console.log(`🔍 Item ${item.plate}: sortIndex=${item.sortIndex}, km=${item.km}`);
+  });
+
   // Verificar se já existe ordem otimizada (sortIndex > 1 em algum item)
   const hasOptimizedOrder = itemsRaw.some(item => (item.sortIndex || 0) > 1);
+  console.log('🔍 MOBILE DEBUG - Tem ordem otimizada?', hasOptimizedOrder);
   
   let items;
   if (hasOptimizedOrder) {
     // Se já tem ordem otimizada, usar essa ordem (respeitar sortIndex)
+    console.log('✅ MOBILE - Usando ordem otimizada (sortIndex)');
     items = itemsRaw; // Já está ordenado por sortIndex na query acima
   } else {
     // Se não tem ordem otimizada, aplicar ordenação automática
+    console.log('🔄 MOBILE - Aplicando ordenação automática');
     items = await ordenarSeNecessario(itemsRaw);
   }
 
