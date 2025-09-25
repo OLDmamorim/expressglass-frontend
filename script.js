@@ -97,7 +97,9 @@ async function ordenarAgendamentosCadeiaMaisLongePrimeiro(agendamentos, origemIn
     const escolhido = distancias[0];
 
     // colocar no resultado e remover dos 'restantes'
-    resultado.push({ ...escolhido.item, _kmFromPrev: Math.round(escolhido.d / 1000) });
+    const km = Number.isFinite(escolhido.d) ? Math.round(escolhido.d / 1000) : null;
+resultado.push({ ...escolhido.item, _kmFromPrev: km });
+
     const idx = restantes.indexOf(escolhido.item);
     restantes.splice(idx, 1);
 
