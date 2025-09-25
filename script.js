@@ -4,8 +4,8 @@
 // SCRIPT PRINCIPAL
 // ==================
 
-// 🚨 TESTE DE DEPLOY - 25/09/2025 14:00 - DEBUG COMPLETO
-console.log('🔍 VERSÃO DEBUG - 25/09/2025 14:00 - VAMOS DESCOBRIR O PROBLEMA!');
+// 🚨 TESTE DE DEPLOY - 25/09/2025 14:15 - MODAL DO ZERO
+console.log('🚀 VERSÃO MODAL DO ZERO - 25/09/2025 14:15 - CRIAÇÃO TOTAL!');
 
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
@@ -312,66 +312,90 @@ async function saveOptimizedRoutes() {
 
 // ===== FUNÇÕES DO MODAL DE PROGRESSO =====
 function showProgressModal() {
-  const modal = document.getElementById('progressModal');
-  if (modal) {
-    console.log('🔍 DEBUG: Modal encontrado!', modal);
-    console.log('🔍 DEBUG: Modal antes dos estilos:', {
-      display: modal.style.display,
-      position: modal.style.position,
-      zIndex: modal.style.zIndex,
-      visibility: modal.style.visibility
-    });
-    
-    // CSS SUPER AGRESSIVO para garantir que aparece
-    modal.style.display = 'flex';
-    modal.style.position = 'fixed';
-    modal.style.top = '0';
-    modal.style.left = '0';
-    modal.style.width = '100vw';
-    modal.style.height = '100vh';
-    modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
-    modal.style.zIndex = '999999';
-    modal.style.justifyContent = 'center';
-    modal.style.alignItems = 'center';
-    modal.style.margin = '0';
-    modal.style.padding = '0';
-    modal.style.border = 'none';
-    modal.style.outline = 'none';
-    modal.style.transform = 'none';
-    modal.style.opacity = '1';
-    modal.style.visibility = 'visible';
-    modal.classList.add('show');
-    
-    console.log('🔍 DEBUG: Modal depois dos estilos:', {
-      display: modal.style.display,
-      position: modal.style.position,
-      zIndex: modal.style.zIndex,
-      visibility: modal.style.visibility,
-      top: modal.style.top,
-      left: modal.style.left,
-      width: modal.style.width,
-      height: modal.style.height
-    });
-    
-    console.log('🔍 DEBUG: Modal computedStyle:', window.getComputedStyle(modal));
-    console.log('🔍 DEBUG: Modal offsetParent:', modal.offsetParent);
-    console.log('🔍 DEBUG: Modal getBoundingClientRect:', modal.getBoundingClientRect());
-    
-    // Teste final - adicionar conteúdo visível
-    modal.innerHTML = '<div style="background: red; color: white; padding: 50px; font-size: 30px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999999;">🚨 MODAL DE TESTE 🚨</div>';
-    
-    console.log('🚨 Modal de progresso FORÇADO a aparecer!');
-  } else {
-    console.error('❌ Modal de progresso não encontrado!');
+  console.log('🚀 CRIANDO MODAL DO ZERO - ABORDAGEM ALTERNATIVA');
+  
+  // Remover modal existente se houver
+  const existingModal = document.getElementById('progressModal');
+  if (existingModal) {
+    existingModal.remove();
+    console.log('🗑️ Modal antigo removido');
   }
+  
+  // Criar modal completamente novo
+  const modal = document.createElement('div');
+  modal.id = 'progressModal';
+  modal.innerHTML = `
+    <div style="
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      position: relative;
+      z-index: 1000001;
+    ">
+      <h3 style="margin: 0 0 20px 0; color: #1f2937; font-size: 20px;">🗺️ Otimizando Rotas</h3>
+      <div id="progressText" style="margin-bottom: 15px; font-size: 16px; color: #374151;">
+        Iniciando otimização...
+      </div>
+      <div style="background: #e5e7eb; border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 10px;">
+        <div id="progressBar" style="
+          background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+          height: 100%;
+          width: 0%;
+          transition: width 0.3s ease;
+          border-radius: 10px;
+        "></div>
+      </div>
+      <div id="progressPercentage" style="font-size: 14px; color: #6b7280; font-weight: 600;">0%</div>
+      <div id="progressDetails" style="font-size: 12px; color: #9ca3af; margin-top: 10px;">
+        Preparando análise dos serviços...
+      </div>
+    </div>
+  `;
+  
+  // Estilos do modal - SUPER AGRESSIVOS
+  Object.assign(modal.style, {
+    display: 'flex',
+    position: 'fixed',
+    top: '0',
+    left: '0',
+    width: '100vw',
+    height: '100vh',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    zIndex: '1000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: '0',
+    padding: '0',
+    border: 'none',
+    outline: 'none',
+    transform: 'none',
+    opacity: '1',
+    visibility: 'visible',
+    backdropFilter: 'blur(6px)'
+  });
+  
+  // Adicionar ao body
+  document.body.appendChild(modal);
+  
+  console.log('✅ MODAL CRIADO E ADICIONADO AO BODY!');
+  console.log('📍 Modal position:', modal.getBoundingClientRect());
+  console.log('🎯 Modal deve estar visível agora!');
+  
+  // Forçar re-render
+  modal.offsetHeight;
+  
+  return modal;
 }
 
 function hideProgressModal() {
   const modal = document.getElementById('progressModal');
   if (modal) {
-    modal.style.display = 'none';
-    modal.classList.remove('show');
-    console.log('Modal de progresso escondido');
+    modal.remove();
+    console.log('✅ Modal de progresso removido completamente');
   }
 }
 
