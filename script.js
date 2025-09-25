@@ -1297,9 +1297,9 @@ cancelEdit?.();
 
         const unscheduled = list.filter(a => !a.date)
                             .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
-      const today       = list.filter(a => a.date === todayISO)
+      const todayServices = list.filter(a => a.date === todayISO)
                             .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
-      const tomorrow    = list.filter(a => a.date === tomorrowISO)
+      const tomorrowServices = list.filter(a => a.date === tomorrowISO)
                                .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
 
       const dm = d => new Date(d).toLocaleDateString('pt-PT', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
@@ -1308,8 +1308,8 @@ cancelEdit?.();
       const titleUnscheduled = `SERVIÇOS POR AGENDAR`;
 
       cont.innerHTML = [
-        buildTable(titleToday, cap(dm(today)), todayList),
-        buildTable(titleTomorrow, cap(dm(tomorrow)), tomorrowList),
+        buildTable(titleToday, cap(dm(today)), todayServices),
+        buildTable(titleTomorrow, cap(dm(tomorrow)), tomorrowServices),
         buildTable(titleUnscheduled, '', unscheduled),
       ].join('');
 
