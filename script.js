@@ -321,7 +321,22 @@ async function optimizeDayServices(services) {
 async function saveOptimizedRoutes() {
   const optimizedServices = appointments.filter(a => a._optimized);
   
-  console.log(`💾 Guardando ${optimizedServices.length} serviços otimizados...`);
+  console.log(`🔍 DEBUG - Serviços com flag _optimized: ${optimizedServices.length}`);
+  console.log('🔍 DEBUG - Todos os appointments:', appointments.length);
+  
+  // Debug: Mostrar todos os sortIndex atuais
+  appointments.forEach(a => {
+    if (a.date === '2025-09-26') { // Ajustar data conforme necessário
+      console.log(`🔍 DEBUG - ${a.plate}: sortIndex=${a.sortIndex}, _optimized=${a._optimized}`);
+    }
+  });
+  
+  if (optimizedServices.length === 0) {
+    console.log('⚠️ AVISO: Nenhum serviço marcado como _optimized para guardar!');
+    return;
+  }
+  
+  console.log(`💾 Guardando ${optimizedServices.length} serviços otimizados na BASE DE DADOS...`);
   
   for (const service of optimizedServices) {
     try {
@@ -333,27 +348,30 @@ async function saveOptimizedRoutes() {
         km: service.km, // ← IMPORTANTE: Incluir quilómetros recalculados
         sortIndex: service.sortIndex, // ← IMPORTANTE: Incluir nova ordem
         // Incluir todos os outros campos necessários
-        client: service.client,
-        phone: service.phone,
-        car: service.car,
         plate: service.plate,
+        car: service.car,
         service: service.service,
         locality: service.locality,
-        observations: service.observations,
-        status: service.status
+        notes: service.notes,
+        status: service.status,
+        phone: service.phone,
+        extra: service.extra
       };
       
-      console.log(`💾 Guardando serviço ${service.id}: ${service.km}km, ordem ${service.sortIndex}`);
+      console.log(`💾 DEBUG - Guardando serviço ${service.plate}: km=${service.km}, sortIndex=${service.sortIndex}`);
+      console.log(`💾 DEBUG - Dados enviados:`, serviceData);
       
-      await window.apiClient.updateAppointment(service.id, serviceData);
+      const result = await window.apiClient.updateAppointment(service.id, serviceData);
+      console.log(`✅ DEBUG - Resultado da gravação:`, result);
       
     } catch (error) {
       console.error('❌ Erro ao guardar serviço otimizado:', service.id, error);
-      showToast(`Erro ao guardar serviço ${service.client}: ${error.message}`, 'error');
+      showToast(`Erro ao guardar serviço: ${error.message}`, 'error');
+      throw error; // Re-throw para parar o processo se houver erro
     }
   }
   
-  console.log('✅ Todos os serviços otimizados foram guardados na base de dados');
+  console.log('✅ Todos os serviços otimizados foram guardados na BASE DE DADOS');
   
   // Limpar flags temporários
   appointments.forEach(a => delete a._optimized);
@@ -588,6 +606,14 @@ async function load(){
   ? await window.apiClient.getAppointments()
   : [];
 
+    // 🔍 DEBUG: Verificar dados RAW da base de dados
+    console.log('🔍 LOAD DEBUG - Dados RAW da base de dados:');
+    appointments.forEach(a => {
+      if (a.date === '2025-09-26') {
+        console.log(`🔍 RAW - ${a.plate}: sortIndex=${a.sortindex || a.sortIndex}, km=${a.km}`);
+      }
+    });
+
     appointments.forEach(a => {
       if (a.date) {
         a.date = String(a.date).slice(0, 10); // fica só "YYYY-MM-DD"
@@ -595,7 +621,26 @@ async function load(){
     });
 
     // IDs e ordem estáveis
-    appointments.forEach(a=>{ if(!a.id) a.id=Date.now()+Math.random(); if(!a.sortIndex) a.sortIndex=1; });
+    appointments.forEach(a=>{ 
+      if(!a.id) a.id=Date.now()+Math.random(); 
+      
+      // 🔍 DEBUG: Verificar antes e depois
+      const beforeSortIndex = a.sortIndex || a.sortindex;
+      
+      // 🔧 CORREÇÃO: Só definir sortIndex=1 se for null/undefined, não se for 0 ou outro valor
+      if(a.sortIndex === null || a.sortIndex === undefined) {
+        // Verificar se vem como 'sortindex' (minúsculo) da base de dados
+        if(a.sortindex !== null && a.sortindex !== undefined) {
+          a.sortIndex = a.sortindex;
+        } else {
+          a.sortIndex = 1;
+        }
+      }
+      
+      if (a.date === '2025-09-26') {
+        console.log(`🔍 LOAD - ${a.plate}: antes=${beforeSortIndex}, depois=${a.sortIndex}`);
+      }
+    });
     // 🔁 Normalização de morada (compatibilidade com dados antigos)
     appointments = appointments.map(a => ({
       ...a,
@@ -1120,8 +1165,26 @@ async function renderMobileDay(){
       .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0))
   );
 
-  // Ordenação em cadeia (loja -> mais longe -> a partir do último)
-  const items = await ordenarSeNecessario(itemsRaw);
+  // 🔍 DEBUG: Verificar dados carregados
+  console.log('🔍 MOBILE DEBUG - Items do dia:', itemsRaw.length);
+  itemsRaw.forEach(item => {
+    console.log(`🔍 Item ${item.plate}: sortIndex=${item.sortIndex}, km=${item.km}`);
+  });
+
+  // Verificar se já existe ordem otimizada (sortIndex > 1 em algum item)
+  const hasOptimizedOrder = itemsRaw.some(item => (item.sortIndex || 0) > 1);
+  console.log('🔍 MOBILE DEBUG - Tem ordem otimizada?', hasOptimizedOrder);
+  
+  let items;
+  if (hasOptimizedOrder) {
+    // Se já tem ordem otimizada, usar essa ordem (respeitar sortIndex)
+    console.log('✅ MOBILE - Usando ordem otimizada (sortIndex)');
+    items = itemsRaw; // Já está ordenado por sortIndex na query acima
+  } else {
+    // Se não tem ordem otimizada, aplicar ordenação automática
+    console.log('🔄 MOBILE - Aplicando ordenação automática');
+    items = await ordenarSeNecessario(itemsRaw);
+  }
 
   if(items.length === 0){
     list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
