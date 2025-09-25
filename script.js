@@ -4,6 +4,9 @@
 // SCRIPT PRINCIPAL
 // ==================
 
+// 🚨 TESTE DE DEPLOY - 25/09/2025 15:00 - BARRA ABAIXO DO CABEÇALHO
+console.log('📊 VERSÃO BARRA ABAIXO CABEÇALHO - 25/09/2025 15:00 - POSIÇÃO PERFEITA!');
+
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
   SM_BRAGA: "Avenida Robert Smith 59, 4715-249 Braga",
@@ -125,6 +128,293 @@ async function ordenarSeNecessario(lista) {
   return [...ordenados, ...restantes];
 }
 
+// ===== OTIMIZAÇÃO DE ROTAS - ALGORITMO PRINCIPAL =====
+async function calculateOptimalRoutes() {
+  try {
+    // Mostrar modal de progresso
+    showProgressModal();
+    updateProgress(0, 'Iniciando otimização...', 'Preparando análise dos serviços...');
+    
+    // Pequena pausa para mostrar o início
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    updateProgress(10, 'Analisando serviços da semana...', 'Contando serviços com morada...');
+    
+    // Obter semana atual
+    const week = [...Array(6)].map((_, i) => addDays(currentMonday, i));
+    let totalOptimized = 0;
+    let processedDays = 0;
+    
+    // Contar total de dias para otimizar
+    let totalPeriods = 0;
+    for (const dayDate of week) {
+      const dayISO = localISO(dayDate);
+      // Obter serviços do dia que têm morada
+      const dayServices = appointments.filter(a => 
+        a.date === dayISO && 
+        getAddressFromItem(a)
+      );
+      
+      if (dayServices.length >= 2) totalPeriods++;
+    }
+    
+    if (totalPeriods === 0) {
+      updateProgress(50, 'Analisando serviços...', 'Não foram encontrados serviços para otimizar');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      updateProgress(100, 'Análise concluída', 'Não há serviços suficientes para otimizar rotas');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      hideProgressModal();
+      showToast('ℹ️ Não há serviços suficientes para otimizar rotas.', 'info');
+      return;
+    }
+    
+    let processedPeriods = 0;
+    
+    for (const dayDate of week) {
+      const dayISO = localISO(dayDate);
+      const dayName = dayDate.toLocaleDateString('pt-PT', { weekday: 'long' });
+      
+      updateProgress(
+        Math.round((processedDays / 6) * 50), 
+        `Processando ${dayName}...`,
+        `Analisando serviços do dia ${processedDays + 1}/6`
+      );
+      
+      // Obter serviços do dia que têm morada
+      const dayServices = appointments.filter(a => 
+        a.date === dayISO && 
+        getAddressFromItem(a)
+      );
+      
+      if (dayServices.length < 2) {
+        processedDays++;
+        continue;
+      }
+      
+      // Otimizar todos os serviços do dia
+      updateProgress(
+        Math.round(50 + (processedPeriods / totalPeriods) * 40),
+        `Otimizando ${dayName}`,
+        `${dayServices.length} serviços a reorganizar`
+      );
+      await optimizeDayServices(dayServices);
+      totalOptimized += dayServices.length;
+      processedPeriods++;
+      
+      processedDays++;
+    }
+    
+    if (totalOptimized > 0) {
+      updateProgress(95, 'Guardando alterações...', 'Sincronizando com a base de dados...');
+      
+      // Guardar alterações na base de dados
+      await saveOptimizedRoutes();
+      
+      updateProgress(100, 'Concluído!', `${totalOptimized} serviços reorganizados com sucesso`);
+      
+      // Aguardar um pouco para mostrar 100%
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      hideProgressModal();
+      renderAll();
+      showToast(`✅ Rotas otimizadas! ${totalOptimized} serviços reorganizados.`, 'success');
+    } else {
+      updateProgress(100, 'Análise concluída', 'Nenhum serviço foi reorganizado');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      hideProgressModal();
+      showToast('ℹ️ Não há serviços suficientes para otimizar rotas.', 'info');
+    }
+    
+  } catch (error) {
+    console.error('Erro ao calcular rotas:', error);
+    hideProgressModal();
+    showToast('❌ Erro ao calcular rotas: ' + error.message, 'error');
+  }
+}
+
+// Otimizar serviços de um dia específico
+async function optimizeDayServices(services) {
+  if (services.length < 2) return;
+  
+  // 1. Encontrar o serviço mais distante da loja
+  let farthestService = null;
+  let maxDistance = 0;
+  
+  for (const service of services) {
+    const address = getAddressFromItem(service);
+    const distance = await getDistance(basePartidaDoDia, address);
+    if (distance > maxDistance && distance !== Infinity) {
+      maxDistance = distance;
+      farthestService = service;
+    }
+  }
+  
+  if (!farthestService) return;
+  
+  // 2. Criar rota otimizada começando pelo mais distante
+  const optimizedRoute = [farthestService];
+  const remaining = services.filter(s => s.id !== farthestService.id);
+  
+  // 3. Para cada posição seguinte, encontrar o mais próximo do anterior
+  while (remaining.length > 0) {
+    const currentLocation = getAddressFromItem(optimizedRoute[optimizedRoute.length - 1]);
+    let closestService = null;
+    let minDistance = Infinity;
+    
+    for (const service of remaining) {
+      const serviceAddress = getAddressFromItem(service);
+      const distance = await getDistance(currentLocation, serviceAddress);
+      if (distance < minDistance && distance !== Infinity) {
+        minDistance = distance;
+        closestService = service;
+      }
+    }
+    
+    if (closestService) {
+      optimizedRoute.push(closestService);
+      const index = remaining.indexOf(closestService);
+      remaining.splice(index, 1);
+    } else {
+      // Se não conseguir calcular distância, adiciona o restante na ordem original
+      optimizedRoute.push(...remaining);
+      break;
+    }
+  }
+  
+  // 4. Atualizar sortIndex para refletir a nova ordem
+  optimizedRoute.forEach((service, index) => {
+    const appointmentIndex = appointments.findIndex(a => a.id === service.id);
+    if (appointmentIndex >= 0) {
+      appointments[appointmentIndex].sortIndex = index + 1;
+      // Marcar como otimizado para feedback visual
+      appointments[appointmentIndex]._optimized = true;
+    }
+  });
+}
+
+// Guardar rotas otimizadas na base de dados
+async function saveOptimizedRoutes() {
+  const optimizedServices = appointments.filter(a => a._optimized);
+  
+  for (const service of optimizedServices) {
+    try {
+      // Remover flag temporário antes de guardar
+      const { _optimized, ...serviceData } = service;
+      await window.apiClient.updateAppointment(service.id, serviceData);
+    } catch (error) {
+      console.warn('Erro ao guardar serviço otimizado:', service.id, error);
+    }
+  }
+  
+  // Limpar flags temporários
+  appointments.forEach(a => delete a._optimized);
+}
+
+// ===== FUNÇÕES DO MODAL DE PROGRESSO =====
+function showProgressModal() {
+  console.log('📊 CRIANDO BARRA DE PROGRESSO SIMPLES');
+  
+  // Remover barra existente se houver
+  const existing = document.getElementById('progressBar');
+  if (existing) {
+    existing.remove();
+  }
+  
+  // Criar barra de progresso no topo da página
+  const progressContainer = document.createElement('div');
+  progressContainer.id = 'progressBar';
+  progressContainer.innerHTML = `
+    <div style="
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      padding: 15px 20px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 0 0 10px 10px;
+      margin: 0 20px 20px 20px;
+    ">
+      <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+        <div style="font-size: 20px;">🗺️</div>
+        <div>
+          <div id="progressText" style="font-weight: 600; margin-bottom: 5px;">Otimizando Rotas...</div>
+          <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 8px; width: 300px; overflow: hidden;">
+            <div id="progressBarFill" style="
+              background: white;
+              height: 100%;
+              width: 0%;
+              transition: width 0.3s ease;
+              border-radius: 10px;
+            "></div>
+          </div>
+          <div id="progressPercentage" style="font-size: 12px; margin-top: 5px; opacity: 0.9;">0%</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Posicionar abaixo do cabeçalho
+  Object.assign(progressContainer.style, {
+    position: 'fixed',
+    top: '80px', // Abaixo do cabeçalho azul
+    left: '0',
+    right: '0',
+    zIndex: '10000',
+    margin: '0',
+    padding: '0'
+  });
+  
+  // Encontrar o cabeçalho e adicionar a barra logo após
+  const header = document.querySelector('header') || document.querySelector('.header') || document.body;
+  if (header.nextSibling) {
+    header.parentNode.insertBefore(progressContainer, header.nextSibling);
+  } else {
+    header.parentNode.appendChild(progressContainer);
+  }
+  
+  // Ajustar margem do conteúdo principal
+  const mainContent = document.querySelector('main') || document.querySelector('.container') || document.body;
+  if (mainContent) {
+    mainContent.style.marginTop = '20px';
+  }
+  
+  console.log('✅ BARRA DE PROGRESSO CRIADA NO TOPO!');
+  
+  return progressContainer;
+}
+
+function hideProgressModal() {
+  const progressBar = document.getElementById('progressBar');
+  if (progressBar) {
+    progressBar.remove();
+    
+    // Resetar margens
+    const mainContent = document.querySelector('main') || document.querySelector('.container') || document.body;
+    if (mainContent) {
+      mainContent.style.marginTop = '0';
+    }
+    
+    console.log('✅ Barra de progresso removida');
+  }
+}
+
+function updateProgress(percentage, text, details) {
+  const progressBarFill = document.getElementById('progressBarFill');
+  const progressText = document.getElementById('progressText');
+  const progressPercentage = document.getElementById('progressPercentage');
+  
+  if (progressBarFill) {
+    progressBarFill.style.width = percentage + '%';
+  }
+  if (progressText) {
+    progressText.textContent = text || 'Otimizando Rotas...';
+  }
+  if (progressPercentage) {
+    progressPercentage.textContent = percentage + '%';
+  }
+  
+  console.log(`📊 Progresso: ${percentage}% - ${text}`);
+}
+
 // ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
@@ -200,7 +490,7 @@ const rgbToHex=({r,g,b})=>'#'+toHex(clamp(r))+toHex(clamp(g))+toHex(clamp(b));
 const lighten=(rgb,a)=>({ r:rgb.r+(255-rgb.r)*a, g:rgb.g+(255-rgb.g)*a, b:rgb.b+(255-rgb.b)*a });
 const darken=(rgb,a)=>({ r:rgb.r*(1-a), g:rgb.g*(1-a), b:rgb.b*(1-a) });
 function gradFromBase(hex){ const rgb=parseColor(hex)||parseColor('#1e88e5'); return { c1: rgbToHex(lighten(rgb,0.06)), c2: rgbToHex(darken(rgb,0.18)) }; }
-function bucketOf(a){ if(!a.date || !a.period) return 'unscheduled'; return `${a.date}|${a.period}`; }
+function bucketOf(a){ if(!a.date) return 'unscheduled'; return a.date; }
 function getBucketList(bucket){ return appointments.filter(x=>bucketOf(x)===bucket).sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0)); }
 function normalizeBucketOrder(bucket){ appointments.filter(a=>bucketOf(a)===bucket).forEach((x,i)=>x.sortIndex=i+1); }
 
@@ -433,8 +723,8 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   const a = appointments[i];
   const oldBucket = bucketOf(a);
 
-  if(targetBucket === 'unscheduled'){ a.date=null; a.period=null; }
-  else { const [d,p] = targetBucket.split('|'); a.date=d; a.period=p||'Manhã'; }
+  if(targetBucket === 'unscheduled'){ a.date=null; }
+  else { a.date=targetBucket; }
 
   const dest = getBucketList(targetBucket).filter(x=>String(x.id)!==String(a.id));
   dest.splice(Math.min(targetIndex, dest.length), 0, a);
@@ -463,7 +753,6 @@ function editAppointment(id) {
   
   // Preencher formulário
   document.getElementById('appointmentDate').value = appointment.date || '';
-  document.getElementById('appointmentPeriod').value = appointment.period || '';
   document.getElementById('appointmentPlate').value = appointment.plate || '';
   document.getElementById('appointmentCar').value = appointment.car || '';
   document.getElementById('appointmentService').value = appointment.service || '';
@@ -472,6 +761,13 @@ function editAppointment(id) {
   document.getElementById('appointmentAddress').value = appointment.address || '';
   document.getElementById('appointmentPhone').value = appointment.phone || '';
   document.getElementById('appointmentExtra').value = appointment.extra || '';
+  
+  // Preencher campo de quilómetros se existir
+  const kmValue = getKmValue(appointment);
+  const kmField = document.getElementById('appointmentKm');
+  if (kmField) {
+    kmField.value = kmValue || '';
+  }
 
   // Atualizar dropdown de localidade
   if (appointment.locality) {
@@ -516,6 +812,12 @@ function cancelEdit() {
   document.getElementById('modalTitle').textContent = 'Novo Agendamento';
   document.getElementById('deleteAppointment').classList.add('hidden');
   
+  // Limpar campo de quilómetros
+  const kmField = document.getElementById('appointmentKm');
+  if (kmField) {
+    kmField.value = '';
+  }
+  
   const selectedText = document.getElementById('selectedLocalityText');
   const selectedDot = document.getElementById('selectedLocalityDot');
   if (selectedText && selectedDot) {
@@ -543,17 +845,15 @@ function buildKmRow(ag) {
   if (km == null) return '';
   const kmFmt = Math.round(km);
   return `
-    <div class="card-km" data-km-row>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 13l2-6a2 2 0 0 1 2-1h8a2 2 0 0 1 2 1l2 6" />
-        <path d="M5 13h14" />
-        <circle cx="7.5" cy="17" r="1.5" />
-        <circle cx="16.5" cy="17" r="1.5" />
+    <div class="card-km" data-km-row style="display: flex; align-items: center; gap: 6px; margin-top: 8px; color: white; font-size: 14px; font-weight: 600;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink: 0;">
+        <path d="M5 17h2c0 1.1.9 2 2 2s2-.9 2-2h6c0 1.1.9 2 2 2s2-.9 2-2h2v-5l-3-4H5v7z" fill="white"/>
+        <path d="M5 11V6c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2v5" stroke="white" stroke-width="1.5" fill="none"/>
+        <circle cx="9" cy="17" r="1.5" fill="white"/>
+        <circle cx="19" cy="17" r="1.5" fill="white"/>
+        <path d="M6 8h4M6 10h3" stroke="white" stroke-width="1" opacity="0.8"/>
       </svg>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 12h14" />
-        <path d="M13 6l6 6-6 6" />
-      </svg>
+      <span style="font-size: 12px; opacity: 0.9;">→</span>
       <span>${kmFmt} km</span>
     </div>
   `;
@@ -589,27 +889,25 @@ function renderSchedule(){
   const wr=document.getElementById('weekRange');
   if(wr){ wr.textContent = `${week[0].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} - ${week[5].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}`; }
 
-  let thead='<thead><tr><th>Período</th>';
+  let thead='<thead><tr><th>Data</th>';
   for(const d of week){ const h=fmtHeader(d); thead+=`<th><div class="day">${cap(h.day)}</div><div class="date">${h.dm}</div></th>`; }
   thead+='</tr></thead>';
   table.insertAdjacentHTML('beforeend', thead);
 
-  const renderCell=(period,dayDate)=>{
+  const renderCell=(dayDate)=>{
     const iso=localISO(dayDate);
     const items=filterAppointments(
-      appointments.filter(a=>a.date&&a.date===iso&&a.period===period)
-                 .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0))
+      appointments.filter(a=>a.date&&a.date===iso)
+        .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0))
     );
     const blocks = items.map(buildDesktopCard).join('');
-    return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
+    return `<div class="drop-zone" data-drop-bucket="${iso}">${blocks}</div>`;
   };
 
   const tbody=document.createElement('tbody');
-  ['Manhã','Tarde'].forEach(period=>{
-    const row=document.createElement('tr');
-    row.innerHTML=`<th>${period}</th>` + week.map(d=>`<td>${renderCell(period,d)}</td>`).join('');
-    tbody.appendChild(row);
-  });
+  const row=document.createElement('tr');
+  row.innerHTML=`<th>Serviços</th>` + week.map(d=>`<td>${renderCell(d)}</td>`).join('');
+  tbody.appendChild(row);
   table.appendChild(tbody);
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
@@ -618,7 +916,7 @@ function renderSchedule(){
 function renderUnscheduled(){
   const container=document.getElementById('unscheduledList'); if(!container) return;
   const unscheduled=filterAppointments(
-    appointments.filter(a=>!a.date||!a.period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
+    appointments.filter(a=>!a.date).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
   );
   const blocks = unscheduled.map(a=>{
     const base=getLocColor(a.locality);
@@ -651,7 +949,7 @@ function renderUnscheduled(){
 function ensureServicesHeader(){
   const table = document.querySelector('.services-table'); if(!table) return;
   let thead = table.querySelector('thead'); if(!thead){ thead = document.createElement('thead'); table.prepend(thead); }
-  const headers = ['Data','Período','Matrícula','Carro','Serviço','Localidade','Observações','Estado','Dias','Ações'];
+  const headers = ['Data','Matrícula','Carro','Serviço','Localidade','Observações','Estado','Dias','Ações'];
   thead.innerHTML = `<tr>${
     headers.map(h => h==='Ações'
       ? `<th class="no-print actions-col" style="width:100px;text-align:left">Ações</th>`
@@ -676,7 +974,7 @@ function renderServicesTable(){
     const notes = (a.notes||'').replace(/"/g,'&quot;');
     return `<tr>
       <td>${d.toLocaleDateString('pt-PT')}</td>
-      <td>${a.period||''}</td>
+      <td>—</td>
       <td>${a.plate||''}</td>
       <td>${a.car||''}</td>
       <td><span class="badge badge-${a.service}">${a.service||''}</span></td>
@@ -782,15 +1080,9 @@ async function renderMobileDay(){
     return;
   }
 
-  const morning   = items.filter(a=>a.period==='Manhã').map(buildMobileCard).join('');
-  const afternoon = items.filter(a=>a.period==='Tarde').map(buildMobileCard).join('');
-  const others    = items.filter(a=>!a.period).map(buildMobileCard).join('');
+  const allServices = items.map(buildMobileCard).join('');
 
-  list.innerHTML = `
-    ${morning? `<h4 style="margin:4px 0 6px 8px;">Manhã</h4>${morning}`:''}
-    ${afternoon? `<h4 style="margin:12px 0 6px 8px;">Tarde</h4>${afternoon}`:''}
-    ${others? `<h4 style="margin:12px 0 6px 8px;">Sem período</h4>${others}`:''}
-  `;
+  list.innerHTML = allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
 }
 
@@ -821,6 +1113,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
   document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
 
+  // Botão Calcular Rotas
+  document.getElementById('calculateRoutes')?.addEventListener('click', calculateOptimalRoutes);
+
   // Event listeners para edição
   document.getElementById('cancelForm')?.addEventListener('click', cancelEdit);
   document.getElementById('closeModal')?.addEventListener('click', cancelEdit);
@@ -849,10 +1144,34 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       }
     }
 
+    // ===== CÁLCULO AUTOMÁTICO DE QUILÓMETROS =====
+    let calculatedKm = null;
+    const address = get('appointmentAddress');
+    
+    if (address) {
+      try {
+        showToast('Calculando distância...', 'info');
+        const distanceInMeters = await getDistance(basePartidaDoDia, address);
+        if (distanceInMeters !== Infinity && distanceInMeters > 0) {
+          calculatedKm = Math.round(distanceInMeters / 1000); // converter metros para km
+          // Atualizar o campo visual dos quilómetros
+          const kmField = document.getElementById('appointmentKm');
+          if (kmField) {
+            kmField.value = calculatedKm;
+          }
+          showToast(`Distância calculada: ${calculatedKm} km`, 'success');
+        } else {
+          showToast('Não foi possível calcular a distância', 'error');
+        }
+      } catch (error) {
+        console.error('Erro ao calcular distância:', error);
+        showToast('Erro ao calcular distância', 'error');
+      }
+    }
+
     return {
       // campos base
       date,
-      period: get('appointmentPeriod') || '',     // "Manhã" | "Tarde" | ""
       plate:  get('appointmentPlate').toUpperCase(),
       car:    get('appointmentCar'),
       service:get('appointmentService'),
@@ -861,7 +1180,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       address:get('appointmentAddress'),
       phone:  get('appointmentPhone'),
       extra:  get('appointmentExtra'),
-      status: (document.getElementById('appointmentStatus')?.value || 'NE')
+      status: (document.getElementById('appointmentStatus')?.value || 'NE'),
+      // ===== ADICIONAR OS QUILÓMETROS CALCULADOS =====
+      km: calculatedKm
     };
   }
 
@@ -996,22 +1317,14 @@ cancelEdit?.();
     return z.toISOString().slice(0,10);
   }
   function cap(s){ return (s||'').toString().charAt(0).toUpperCase()+ (s||'').toString().slice(1); }
-  function normPeriod(p){
-    if(!p) return '';
-    const t = String(p).toLowerCase();
-    if (t.startsWith('m')) return 'Manhã';
-    if (t.startsWith('t')) return 'Tarde';
-    if (t.startsWith('n')) return 'Noite';
-    if (t==='m') return 'Manhã';
-    if (t==='t') return 'Tarde';
-    if (t==='n') return 'Noite';
-    return p;
-  }
+    function normPeriod(p){
+      return ''; // Sem períodos
+    }
   function row(a){
     const periodo = normPeriod(a.period || a.time || '');
     const outros  = a.address || a.extra || '';
     return `<tr>
-      <td>${periodo||''}</td>
+      <td>—</td>
       <td>${a.plate||''}</td>
       <td>${(a.car||'').toUpperCase()}</td>
       <td>${a.service||''}</td>
@@ -1029,7 +1342,7 @@ cancelEdit?.();
       ${headDate}
       <table class="print-table">
         <thead><tr>
-          <th>Período</th><th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th>
+          <th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th>
         </tr></thead>
         <tbody>${list.map(row).join('')}</tbody>
       </table>
@@ -1052,14 +1365,12 @@ cancelEdit?.();
 
       const list = (Array.isArray(window.appointments)? window.appointments : []).slice();
 
-      const unscheduled = list.filter(a => !a.date || !a.period)
-                              .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0));
-
-      const todayList = list.filter(a => a.date === isoToday)
-                            .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0));
-
-      const tomorrowList = list.filter(a => a.date === isoTomorrow)
-                               .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0));
+        const unscheduled = list.filter(a => !a.date)
+                            .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
+      const todayServices = list.filter(a => a.date === todayISO)
+                            .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
+      const tomorrowServices = list.filter(a => a.date === tomorrowISO)
+                               .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
 
       const dm = d => new Date(d).toLocaleDateString('pt-PT', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
       const titleToday = `SERVIÇOS DE HOJE`;
@@ -1067,8 +1378,8 @@ cancelEdit?.();
       const titleUnscheduled = `SERVIÇOS POR AGENDAR`;
 
       cont.innerHTML = [
-        buildTable(titleToday, cap(dm(today)), todayList),
-        buildTable(titleTomorrow, cap(dm(tomorrow)), tomorrowList),
+        buildTable(titleToday, cap(dm(today)), todayServices),
+        buildTable(titleTomorrow, cap(dm(tomorrow)), tomorrowServices),
         buildTable(titleUnscheduled, '', unscheduled),
       ].join('');
 
@@ -1119,12 +1430,33 @@ cancelEdit?.();
       ac.setComponentRestrictions({ country: ['pt'] });
     }
 
-    ac.addListener('place_changed', () => {
+    ac.addListener('place_changed', async () => {
       const place = ac.getPlace();
       const txt = [place?.name, place?.formatted_address]
         .filter(Boolean)
         .join(' - ');
-      if (txt) input.value = txt;
+      if (txt) {
+        input.value = txt;
+        
+        // Calcular distância automaticamente
+        try {
+          showToast('Calculando distância...', 'info');
+          const distanceInMeters = await getDistance(basePartidaDoDia, txt);
+          if (distanceInMeters !== Infinity && distanceInMeters > 0) {
+            const calculatedKm = Math.round(distanceInMeters / 1000);
+            const kmField = document.getElementById('appointmentKm');
+            if (kmField) {
+              kmField.value = calculatedKm;
+            }
+            showToast(`Distância calculada: ${calculatedKm} km`, 'success');
+          } else {
+            showToast('Não foi possível calcular a distância', 'error');
+          }
+        } catch (error) {
+          console.error('Erro ao calcular distância:', error);
+          showToast('Erro ao calcular distância', 'error');
+        }
+      }
     });
   }
 

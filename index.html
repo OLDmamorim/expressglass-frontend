@@ -5,6 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1"/>
   <title>Portal de Agendamento - Expressglass</title>
+  <!-- 🚨 TESTE DEPLOY 25/09/2025 13:20 -->
   <link rel="stylesheet" href="style.css"/>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
@@ -135,6 +136,7 @@
       </div>
       <div class="week-range" id="weekRange">—</div>
       <div class="nav-right">
+        <button id="calculateRoutes" class="nav-button" title="Otimizar rotas por proximidade">🗺️ Calcular Rotas</button>
         <button id="printPage" class="nav-button">🖨 Imprimir</button>
       </div>
     </div>
@@ -214,14 +216,6 @@
               <label for="appointmentDate">Data</label>
               <input type="date" id="appointmentDate" autocomplete="off"/>
             </div>
-            <div class="form-group">
-              <label for="appointmentPeriod">Período</label>
-              <select id="appointmentPeriod">
-                <option value="">—</option>
-                <option value="Manhã">Manhã</option>
-                <option value="Tarde">Tarde</option>
-              </select>
-            </div>
           </div>
 
           <div class="form-row">
@@ -300,18 +294,29 @@
             <textarea id="appointmentNotes" placeholder="Informações adicionais (não aparece no calendário)" rows="3"></textarea>
           </div>
 
-          <div class="form-group">
+          <div class="form-row">
             <div class="form-group">
               <label for="appointmentAddress">Morada (opcional)</label>
               <input type="text" id="appointmentAddress" placeholder="Rua, nº, localidade..." autocomplete="off" />
+              <small class="form-hint">A distância será calculada automaticamente</small>
             </div>
-<div class="form-group">
-    <label for="appointmentPhone">Contacto (opcional)</label>
-    <input type="tel" id="appointmentPhone" placeholder="Ex: 912 345 678" pattern="[0-9+\s]{9,15}" />
-    <small class="form-hint">Aceita dígitos e +</small>
-  </div>
-            <label for="appointmentExtra">Outros dados (opcional)</label>
-            <textarea id="appointmentExtra" placeholder="Informações adicionais (não aparece no calendário)" rows="2"></textarea>
+            <div class="form-group">
+              <label for="appointmentKm">Distância (km)</label>
+              <input type="number" id="appointmentKm" placeholder="Calculado automaticamente" readonly style="background-color: #f3f4f6;" />
+              <small class="form-hint">Calculado automaticamente com base na morada</small>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentPhone">Contacto (opcional)</label>
+              <input type="tel" id="appointmentPhone" placeholder="Ex: 912 345 678" pattern="[0-9+\s]{9,15}" />
+              <small class="form-hint">Aceita dígitos e +</small>
+            </div>
+            <div class="form-group">
+              <label for="appointmentExtra">Outros dados (opcional)</label>
+              <textarea id="appointmentExtra" placeholder="Informações adicionais (não aparece no calendário)" rows="2"></textarea>
+            </div>
           </div>
 
           <div class="form-actions">
@@ -358,6 +363,29 @@
           <button class="close-btn" onclick="closeStatsModal()">✕</button>
         </div>
         <div id="statsContent" class="stats-content"></div>
+      </div>
+    </div>
+
+    <!-- Modal de progresso de otimização -->
+    <div id="progressModal" class="modal">
+      <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+          <h3>🗺️ Otimizando Rotas</h3>
+        </div>
+        <div class="progress-content" style="padding: 20px;">
+          <div id="progressText" style="margin-bottom: 15px; font-size: 16px; text-align: center;">
+            Analisando serviços...
+          </div>
+          <div class="progress-bar-container" style="background: #e5e7eb; border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 15px;">
+            <div id="progressBar" style="background: linear-gradient(90deg, #3b82f6, #1d4ed8); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 10px;"></div>
+          </div>
+          <div id="progressPercentage" style="text-align: center; font-weight: bold; color: #3b82f6;">
+            0%
+          </div>
+          <div id="progressDetails" style="margin-top: 15px; font-size: 14px; color: #6b7280; text-align: center;">
+            Preparando otimização...
+          </div>
+        </div>
       </div>
     </div>
 
