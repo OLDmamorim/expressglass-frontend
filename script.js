@@ -819,7 +819,7 @@ function renderSchedule(){
   const wr=document.getElementById('weekRange');
   if(wr){ wr.textContent = `${week[0].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} - ${week[5].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}`; }
 
-  let thead='<thead><tr><th>Período</th>';
+  let thead='<thead><tr><th>Data</th>';
   for(const d of week){ const h=fmtHeader(d); thead+=`<th><div class="day">${cap(h.day)}</div><div class="date">${h.dm}</div></th>`; }
   thead+='</tr></thead>';
   table.insertAdjacentHTML('beforeend', thead);
@@ -846,7 +846,7 @@ function renderSchedule(){
 function renderUnscheduled(){
   const container=document.getElementById('unscheduledList'); if(!container) return;
   const unscheduled=filterAppointments(
-    appointments.filter(a=>!a.date||!a.period).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
+    appointments.filter(a=>!a.date).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
   );
   const blocks = unscheduled.map(a=>{
     const base=getLocColor(a.locality);
@@ -879,7 +879,7 @@ function renderUnscheduled(){
 function ensureServicesHeader(){
   const table = document.querySelector('.services-table'); if(!table) return;
   let thead = table.querySelector('thead'); if(!thead){ thead = document.createElement('thead'); table.prepend(thead); }
-  const headers = ['Data','Período','Matrícula','Carro','Serviço','Localidade','Observações','Estado','Dias','Ações'];
+  const headers = ['Data','Matrícula','Carro','Serviço','Localidade','Observações','Estado','Dias','Ações'];
   thead.innerHTML = `<tr>${
     headers.map(h => h==='Ações'
       ? `<th class="no-print actions-col" style="width:100px;text-align:left">Ações</th>`
@@ -904,7 +904,7 @@ function renderServicesTable(){
     const notes = (a.notes||'').replace(/"/g,'&quot;');
     return `<tr>
       <td>${d.toLocaleDateString('pt-PT')}</td>
-      <td>${a.period||''}</td>
+      <td>—</td>
       <td>${a.plate||''}</td>
       <td>${a.car||''}</td>
       <td><span class="badge badge-${a.service}">${a.service||''}</span></td>
@@ -1272,7 +1272,7 @@ cancelEdit?.();
       ${headDate}
       <table class="print-table">
         <thead><tr>
-          <th>Período</th><th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th>
+          <th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th>
         </tr></thead>
         <tbody>${list.map(row).join('')}</tbody>
       </table>
