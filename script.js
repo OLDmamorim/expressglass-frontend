@@ -532,24 +532,23 @@ function cancelEdit() {
 
 // ===== KM helpers =====
 function getKmValue(ag) {
-  // 👉 dá prioridade ao km calculado na cadeia (loja → +longe → …)
-  const v =
+  // dá prioridade ao que calculamos na ordenação de cadeia
+  const raw =
     ag._kmFromPrev ??
-    ag.km ??
-    ag.kms ??
-    ag.kilometers ??
-    ag.kilometros ??
-    ag.quilometros ??
-    ag.kilómetros ??
-    ag.km_total ??
-    ag.distancia;
+    ag.km ?? ag.kms ?? ag.kilometers ?? ag.kilometros ??
+    ag.quilometros ?? ag.kilómetros ?? ag.km_total ?? ag.distancia;
 
-  if (v == null) return null;
-  const n = String(v).match(/[\d,.]+/);
-  if (!n) return null;
-  const parsed = parseFloat(n[0].replace(',', '.'));
-  return Number.isFinite(parsed) ? parsed : null;
+  if (raw == null) return null;
+
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+
+  const m = String(raw).match(/[\d,.]+/);
+  if (!m) return null;
+
+  const n = parseFloat(m[0].replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
 }
+Se quiseres, dá também uma lixadazinha no
 
 
 function buildKmRow(ag) {
