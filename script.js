@@ -613,7 +613,11 @@ async function load(){
     });
 
     // IDs e ordem estáveis
-    appointments.forEach(a=>{ if(!a.id) a.id=Date.now()+Math.random(); if(!a.sortIndex) a.sortIndex=1; });
+    appointments.forEach(a=>{ 
+      if(!a.id) a.id=Date.now()+Math.random(); 
+      // 🔧 CORREÇÃO: Só definir sortIndex=1 se for null/undefined, não se for 0 ou outro valor
+      if(a.sortIndex === null || a.sortIndex === undefined) a.sortIndex=1; 
+    });
     // 🔁 Normalização de morada (compatibilidade com dados antigos)
     appointments = appointments.map(a => ({
       ...a,
