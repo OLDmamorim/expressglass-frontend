@@ -556,17 +556,9 @@ function buildKmRow(ag) {
   if (km == null) return '';
   const kmFmt = Math.round(km);
   return `
-    <div class="card-km" data-km-row>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 13l2-6a2 2 0 0 1 2-1h8a2 2 0 0 1 2 1l2 6" />
-        <path d="M5 13h14" />
-        <circle cx="7.5" cy="17" r="1.5" />
-        <circle cx="16.5" cy="17" r="1.5" />
-      </svg>
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M5 12h14" />
-        <path d="M13 6l6 6-6 6" />
-      </svg>
+    <div class="card-km" data-km-row style="display: flex; align-items: center; gap: 4px; margin-top: 8px; color: white; font-size: 14px; font-weight: 600;">
+      <span style="font-size: 16px;">🚗</span>
+      <span style="font-size: 12px;">➤</span>
       <span>${kmFmt} km</span>
     </div>
   `;
