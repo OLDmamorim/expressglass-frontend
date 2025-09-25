@@ -1120,8 +1120,17 @@ async function renderMobileDay(){
       .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0))
   );
 
-  // Ordenação em cadeia (loja -> mais longe -> a partir do último)
-  const items = await ordenarSeNecessario(itemsRaw);
+  // Verificar se já existe ordem otimizada (sortIndex > 1 em algum item)
+  const hasOptimizedOrder = itemsRaw.some(item => (item.sortIndex || 0) > 1);
+  
+  let items;
+  if (hasOptimizedOrder) {
+    // Se já tem ordem otimizada, usar essa ordem (respeitar sortIndex)
+    items = itemsRaw; // Já está ordenado por sortIndex na query acima
+  } else {
+    // Se não tem ordem otimizada, aplicar ordenação automática
+    items = await ordenarSeNecessario(itemsRaw);
+  }
 
   if(items.length === 0){
     list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
