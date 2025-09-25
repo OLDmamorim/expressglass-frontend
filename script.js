@@ -311,14 +311,22 @@ async function saveOptimizedRoutes() {
 function showProgressModal() {
   const modal = document.getElementById('progressModal');
   if (modal) {
+    // Garantir que o modal aparece sempre, mesmo com outros modais abertos
+    modal.style.display = 'flex';
+    modal.style.zIndex = '9999';
     modal.classList.add('show');
+    console.log('Modal de progresso mostrado');
+  } else {
+    console.error('Modal de progresso não encontrado!');
   }
 }
 
 function hideProgressModal() {
   const modal = document.getElementById('progressModal');
   if (modal) {
+    modal.style.display = 'none';
     modal.classList.remove('show');
+    console.log('Modal de progresso escondido');
   }
 }
 
