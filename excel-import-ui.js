@@ -197,7 +197,34 @@ function autoDetectColumns() {
 
 // Ir para passo 3 (pré-visualização)
 async function goToStep3() {
-  // Validar mapeamento obrigatório
+  // 🎯 SE TEMPLATE DETECTADO, SALTAR VALIDAÇÃO DOS SELECTS HTML
+  if (detectedTemplate && detectedTemplate.confidence >= 0.90) {
+    console.log('🎯 Template detectado - saltando validação de selects HTML');
+    
+    // Mapeamento já foi definido automaticamente, prosseguir diretamente
+    showLoading('Processando dados...', 'A processar com template personalizado...');
+    
+    try {
+      // Processar dados com template personalizado
+      const result = await window.excelImporter.processData();
+      processedData = result;
+      
+      // Mostrar resultados
+      showValidationResults(result);
+      
+      currentStep = 3;
+      hideLoading();
+      showStep(3);
+      
+    } catch (error) {
+      hideLoading();
+      showToast(`Erro ao processar dados: ${error.message}`, 'error');
+    }
+    
+    return;
+  }
+  
+  // VALIDAÇÃO NORMAL PARA MAPEAMENTO MANUAL
   const requiredMappings = ['mapPlate', 'mapCar', 'mapService', 'mapLocality'];
   const missingMappings = [];
   
