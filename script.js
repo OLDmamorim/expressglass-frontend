@@ -302,23 +302,44 @@ function highlightSearchResults(){
 
 // ---------- Persistência de STATUS (exclusivo) ----------
 async function persistStatus(id, newStatus) {
-  const idx = appointments.findIndex(a => String(a.id) === String(id));
-  if (idx < 0) return;
-  const valid = ['NE','VE','ST']; if(!valid.includes(newStatus)) return;
-  const prev = appointments[idx].status;
-  appointments[idx].status = newStatus; // exclusivo
+  const i = appointments.findIndex(a => String(a.id) === String(id));
+  if (i < 0) return;
+
+  const valid = ['NE','VE','ST'];
+  if (!valid.includes(newStatus)) return;
+
+  const prev = appointments[i].status;
+
+  // Atualização otimista para não “piscar”
+  appointments[i].status = newStatus;
+  renderAll();
+
   try {
-    const payload = { ...appointments[idx], status: newStatus };
-    const res = await window.apiClient.updateAppointment(id, payload);
-    if (res && typeof res === 'object') appointments[idx] = { ...appointments[idx], ...res };
+    const res = await window.apiClient.updateAppointment(id, { ...appointments[i], status: newStatus });
+
+    if (res && typeof res === 'object') {
+      // ✅ Normaliza para o formato que o calendário espera
+      const normalized = {
+        ...appointments[i],
+        ...res,
+        date: res.date ? String(res.date).slice(0, 10) : (appointments[i].date ?? null),
+        address: res.address || res.morada || res.addr || appointments[i].address || null,
+        sortIndex: appointments[i].sortIndex || 1,
+        id: appointments[i].id ?? res.id
+      };
+      appointments[i] = normalized;
+    }
+
     showToast(`Status guardado: ${newStatus}`, 'success');
   } catch (err) {
-    appointments[idx] = { ...appointments[idx], status: prev };
+    // rollback
+    appointments[i].status = prev;
     showToast('Falha ao gravar status: ' + err.message, 'error');
   } finally {
     renderAll();
   }
 }
+
 
 // ---------- Status Listeners ----------
 function attachStatusListeners(){
