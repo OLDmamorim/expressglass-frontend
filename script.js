@@ -130,7 +130,12 @@ async function calculateOptimalRoutes() {
   try {
     // Mostrar modal de progresso
     showProgressModal();
-    updateProgress(0, 'Analisando serviços da semana...', 'Contando serviços com morada...');
+    updateProgress(0, 'Iniciando otimização...', 'Preparando análise dos serviços...');
+    
+    // Pequena pausa para mostrar o início
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    updateProgress(10, 'Analisando serviços da semana...', 'Contando serviços com morada...');
     
     // Obter semana atual
     const week = [...Array(6)].map((_, i) => addDays(currentMonday, i));
@@ -155,6 +160,10 @@ async function calculateOptimalRoutes() {
     }
     
     if (totalPeriods === 0) {
+      updateProgress(50, 'Analisando serviços...', 'Não foram encontrados serviços para otimizar');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      updateProgress(100, 'Análise concluída', 'Não há serviços suficientes para otimizar rotas');
+      await new Promise(resolve => setTimeout(resolve, 1500));
       hideProgressModal();
       showToast('ℹ️ Não há serviços suficientes para otimizar rotas.', 'info');
       return;
@@ -229,6 +238,8 @@ async function calculateOptimalRoutes() {
       renderAll();
       showToast(`✅ Rotas otimizadas! ${totalOptimized} serviços reorganizados.`, 'success');
     } else {
+      updateProgress(100, 'Análise concluída', 'Nenhum serviço foi reorganizado');
+      await new Promise(resolve => setTimeout(resolve, 1500));
       hideProgressModal();
       showToast('ℹ️ Não há serviços suficientes para otimizar rotas.', 'info');
     }
