@@ -321,7 +321,7 @@ async function optimizeDayServices(services) {
 async function saveOptimizedRoutes() {
   const optimizedServices = appointments.filter(a => a._optimized);
   
-  console.log(`💾 Guardando ${optimizedServices.length} serviços otimizados...`);
+  console.log(`💾 Guardando ${optimizedServices.length} serviços otimizados na BASE DE DADOS...`);
   
   for (const service of optimizedServices) {
     try {
@@ -333,14 +333,14 @@ async function saveOptimizedRoutes() {
         km: service.km, // ← IMPORTANTE: Incluir quilómetros recalculados
         sortIndex: service.sortIndex, // ← IMPORTANTE: Incluir nova ordem
         // Incluir todos os outros campos necessários
-        client: service.client,
-        phone: service.phone,
-        car: service.car,
         plate: service.plate,
+        car: service.car,
         service: service.service,
         locality: service.locality,
-        observations: service.observations,
-        status: service.status
+        notes: service.notes,
+        status: service.status,
+        phone: service.phone,
+        extra: service.extra
       };
       
       console.log(`💾 Guardando serviço ${service.id}: ${service.km}km, ordem ${service.sortIndex}`);
@@ -349,11 +349,12 @@ async function saveOptimizedRoutes() {
       
     } catch (error) {
       console.error('❌ Erro ao guardar serviço otimizado:', service.id, error);
-      showToast(`Erro ao guardar serviço ${service.client}: ${error.message}`, 'error');
+      showToast(`Erro ao guardar serviço: ${error.message}`, 'error');
+      throw error; // Re-throw para parar o processo se houver erro
     }
   }
   
-  console.log('✅ Todos os serviços otimizados foram guardados na base de dados');
+  console.log('✅ Todos os serviços otimizados foram guardados na BASE DE DADOS');
   
   // Limpar flags temporários
   appointments.forEach(a => delete a._optimized);

@@ -72,31 +72,26 @@ class ApiClient {
   
   async getAppointments() {
     try {
-      if (!this.isOnline) {
-        throw new Error('Sem conexão - usando dados locais');
-      }
+      console.log('🔄 Carregando agendamentos da base de dados...');
       
       const response = await this.makeRequest('/appointments');
       
       if (response.success) {
-        // Guardar no localStorage como backup
-        this.saveToLocalStorage(response.data);
+        console.log('✅ Agendamentos carregados da base de dados:', response.data.length);
         return response.data;
       } else {
         throw new Error(response.error);
       }
       
     } catch (error) {
-      console.warn('📱 Fallback para localStorage:', error.message);
-      return this.getFromLocalStorage();
+      console.error('❌ ERRO: Não foi possível carregar da base de dados:', error.message);
+      throw new Error(`Falha na conexão com a base de dados: ${error.message}`);
     }
   }
   
   async createAppointment(appointmentData) {
     try {
-      if (!this.isOnline) {
-        throw new Error('Sem conexão - guardando localmente');
-      }
+      console.log('🔄 Criando agendamento na base de dados...');
       
       const response = await this.makeRequest('/appointments', {
         method: 'POST',
@@ -104,24 +99,21 @@ class ApiClient {
       });
       
       if (response.success) {
-        // Atualizar localStorage
-        const appointments = await this.getAppointments();
+        console.log('✅ Agendamento criado na base de dados:', response.data.id);
         return response.data;
       } else {
         throw new Error(response.error);
       }
       
     } catch (error) {
-      console.warn('📱 Fallback para localStorage:', error.message);
-      return this.createAppointmentOffline(appointmentData);
+      console.error('❌ ERRO: Não foi possível criar na base de dados:', error.message);
+      throw new Error(`Falha ao criar agendamento: ${error.message}`);
     }
   }
   
   async updateAppointment(id, appointmentData) {
     try {
-      if (!this.isOnline) {
-        throw new Error('Sem conexão - atualizando localmente');
-      }
+      console.log('🔄 Atualizando agendamento na base de dados:', id);
       
       const response = await this.makeRequest(`/appointments/${id}`, {
         method: 'PUT',
@@ -129,40 +121,36 @@ class ApiClient {
       });
       
       if (response.success) {
-        // Atualizar localStorage
-        const appointments = await this.getAppointments();
+        console.log('✅ Agendamento atualizado na base de dados:', id);
         return response.data;
       } else {
         throw new Error(response.error);
       }
       
     } catch (error) {
-      console.warn('📱 Fallback para localStorage:', error.message);
-      return this.updateAppointmentOffline(id, appointmentData);
+      console.error('❌ ERRO: Não foi possível atualizar na base de dados:', error.message);
+      throw new Error(`Falha ao atualizar agendamento: ${error.message}`);
     }
   }
   
   async deleteAppointment(id) {
     try {
-      if (!this.isOnline) {
-        throw new Error('Sem conexão - eliminando localmente');
-      }
+      console.log('🔄 Eliminando agendamento da base de dados:', id);
       
       const response = await this.makeRequest(`/appointments/${id}`, {
         method: 'DELETE'
       });
       
       if (response.success) {
-        // Atualizar localStorage
-        const appointments = await this.getAppointments();
+        console.log('✅ Agendamento eliminado da base de dados:', id);
         return true;
       } else {
         throw new Error(response.error);
       }
       
     } catch (error) {
-      console.warn('📱 Fallback para localStorage:', error.message);
-      return this.deleteAppointmentOffline(id);
+      console.error('❌ ERRO: Não foi possível eliminar da base de dados:', error.message);
+      throw new Error(`Falha ao eliminar agendamento: ${error.message}`);
     }
   }
   
