@@ -4,8 +4,8 @@
 // SCRIPT PRINCIPAL
 // ==================
 
-// 🚨 TESTE DE DEPLOY - 25/09/2025 15:15 - KM RECALCULADOS NA ROTA
-console.log('🗺️ VERSÃO KM CORRIGIDOS - 25/09/2025 15:15 - QUILÓMETROS ENTRE PONTOS!');
+// 🚨 TESTE DE DEPLOY - 25/09/2025 15:30 - PERSISTÊNCIA CORRIGIDA
+console.log('💾 VERSÃO PERSISTÊNCIA CORRIGIDA - 25/09/2025 15:30 - KM GUARDADOS NA BD!');
 
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
@@ -321,15 +321,39 @@ async function optimizeDayServices(services) {
 async function saveOptimizedRoutes() {
   const optimizedServices = appointments.filter(a => a._optimized);
   
+  console.log(`💾 Guardando ${optimizedServices.length} serviços otimizados...`);
+  
   for (const service of optimizedServices) {
     try {
-      // Remover flag temporário antes de guardar
-      const { _optimized, ...serviceData } = service;
+      // Preparar dados para guardar (incluindo km e sortIndex)
+      const serviceData = {
+        id: service.id,
+        date: service.date,
+        address: service.address,
+        km: service.km, // ← IMPORTANTE: Incluir quilómetros recalculados
+        sortIndex: service.sortIndex, // ← IMPORTANTE: Incluir nova ordem
+        // Incluir todos os outros campos necessários
+        client: service.client,
+        phone: service.phone,
+        car: service.car,
+        plate: service.plate,
+        service: service.service,
+        locality: service.locality,
+        observations: service.observations,
+        status: service.status
+      };
+      
+      console.log(`💾 Guardando serviço ${service.id}: ${service.km}km, ordem ${service.sortIndex}`);
+      
       await window.apiClient.updateAppointment(service.id, serviceData);
+      
     } catch (error) {
-      console.warn('Erro ao guardar serviço otimizado:', service.id, error);
+      console.error('❌ Erro ao guardar serviço otimizado:', service.id, error);
+      showToast(`Erro ao guardar serviço ${service.client}: ${error.message}`, 'error');
     }
   }
+  
+  console.log('✅ Todos os serviços otimizados foram guardados na base de dados');
   
   // Limpar flags temporários
   appointments.forEach(a => delete a._optimized);
