@@ -4,8 +4,8 @@
 // SCRIPT PRINCIPAL
 // ==================
 
-// 🚨 TESTE DE DEPLOY - 25/09/2025 13:45 - CSS SUPER AGRESSIVO
-console.log('🚨 VERSÃO SUPER AGRESSIVA - 25/09/2025 13:45 - MODAL VAI APARECER À FORÇA!');
+// 🚨 TESTE DE DEPLOY - 25/09/2025 14:00 - DEBUG COMPLETO
+console.log('🔍 VERSÃO DEBUG - 25/09/2025 14:00 - VAMOS DESCOBRIR O PROBLEMA!');
 
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
@@ -314,6 +314,14 @@ async function saveOptimizedRoutes() {
 function showProgressModal() {
   const modal = document.getElementById('progressModal');
   if (modal) {
+    console.log('🔍 DEBUG: Modal encontrado!', modal);
+    console.log('🔍 DEBUG: Modal antes dos estilos:', {
+      display: modal.style.display,
+      position: modal.style.position,
+      zIndex: modal.style.zIndex,
+      visibility: modal.style.visibility
+    });
+    
     // CSS SUPER AGRESSIVO para garantir que aparece
     modal.style.display = 'flex';
     modal.style.position = 'fixed';
@@ -333,6 +341,25 @@ function showProgressModal() {
     modal.style.opacity = '1';
     modal.style.visibility = 'visible';
     modal.classList.add('show');
+    
+    console.log('🔍 DEBUG: Modal depois dos estilos:', {
+      display: modal.style.display,
+      position: modal.style.position,
+      zIndex: modal.style.zIndex,
+      visibility: modal.style.visibility,
+      top: modal.style.top,
+      left: modal.style.left,
+      width: modal.style.width,
+      height: modal.style.height
+    });
+    
+    console.log('🔍 DEBUG: Modal computedStyle:', window.getComputedStyle(modal));
+    console.log('🔍 DEBUG: Modal offsetParent:', modal.offsetParent);
+    console.log('🔍 DEBUG: Modal getBoundingClientRect:', modal.getBoundingClientRect());
+    
+    // Teste final - adicionar conteúdo visível
+    modal.innerHTML = '<div style="background: red; color: white; padding: 50px; font-size: 30px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999999;">🚨 MODAL DE TESTE 🚨</div>';
+    
     console.log('🚨 Modal de progresso FORÇADO a aparecer!');
   } else {
     console.error('❌ Modal de progresso não encontrado!');
