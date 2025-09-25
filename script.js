@@ -472,6 +472,13 @@ function editAppointment(id) {
   document.getElementById('appointmentAddress').value = appointment.address || '';
   document.getElementById('appointmentPhone').value = appointment.phone || '';
   document.getElementById('appointmentExtra').value = appointment.extra || '';
+  
+  // Preencher campo de quilómetros se existir
+  const kmValue = getKmValue(appointment);
+  const kmField = document.getElementById('appointmentKm');
+  if (kmField) {
+    kmField.value = kmValue || '';
+  }
 
   // Atualizar dropdown de localidade
   if (appointment.locality) {
@@ -515,6 +522,12 @@ function cancelEdit() {
   document.getElementById('appointmentForm').reset();
   document.getElementById('modalTitle').textContent = 'Novo Agendamento';
   document.getElementById('deleteAppointment').classList.add('hidden');
+  
+  // Limpar campo de quilómetros
+  const kmField = document.getElementById('appointmentKm');
+  if (kmField) {
+    kmField.value = '';
+  }
   
   const selectedText = document.getElementById('selectedLocalityText');
   const selectedDot = document.getElementById('selectedLocalityDot');
@@ -849,6 +862,31 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       }
     }
 
+    // ===== CÁLCULO AUTOMÁTICO DE QUILÓMETROS =====
+    let calculatedKm = null;
+    const address = get('appointmentAddress');
+    
+    if (address) {
+      try {
+        showToast('Calculando distância...', 'info');
+        const distanceInMeters = await getDistance(basePartidaDoDia, address);
+        if (distanceInMeters !== Infinity && distanceInMeters > 0) {
+          calculatedKm = Math.round(distanceInMeters / 1000); // converter metros para km
+          // Atualizar o campo visual dos quilómetros
+          const kmField = document.getElementById('appointmentKm');
+          if (kmField) {
+            kmField.value = calculatedKm;
+          }
+          showToast(`Distância calculada: ${calculatedKm} km`, 'success');
+        } else {
+          showToast('Não foi possível calcular a distância', 'error');
+        }
+      } catch (error) {
+        console.error('Erro ao calcular distância:', error);
+        showToast('Erro ao calcular distância', 'error');
+      }
+    }
+
     return {
       // campos base
       date,
@@ -861,7 +899,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       address:get('appointmentAddress'),
       phone:  get('appointmentPhone'),
       extra:  get('appointmentExtra'),
-      status: (document.getElementById('appointmentStatus')?.value || 'NE')
+      status: (document.getElementById('appointmentStatus')?.value || 'NE'),
+      // ===== ADICIONAR OS QUILÓMETROS CALCULADOS =====
+      km: calculatedKm
     };
   }
 
@@ -1119,12 +1159,33 @@ cancelEdit?.();
       ac.setComponentRestrictions({ country: ['pt'] });
     }
 
-    ac.addListener('place_changed', () => {
+    ac.addListener('place_changed', async () => {
       const place = ac.getPlace();
       const txt = [place?.name, place?.formatted_address]
         .filter(Boolean)
         .join(' - ');
-      if (txt) input.value = txt;
+      if (txt) {
+        input.value = txt;
+        
+        // Calcular distância automaticamente
+        try {
+          showToast('Calculando distância...', 'info');
+          const distanceInMeters = await getDistance(basePartidaDoDia, txt);
+          if (distanceInMeters !== Infinity && distanceInMeters > 0) {
+            const calculatedKm = Math.round(distanceInMeters / 1000);
+            const kmField = document.getElementById('appointmentKm');
+            if (kmField) {
+              kmField.value = calculatedKm;
+            }
+            showToast(`Distância calculada: ${calculatedKm} km`, 'success');
+          } else {
+            showToast('Não foi possível calcular a distância', 'error');
+          }
+        } catch (error) {
+          console.error('Erro ao calcular distância:', error);
+          showToast('Erro ao calcular distância', 'error');
+        }
+      }
     });
   }
 

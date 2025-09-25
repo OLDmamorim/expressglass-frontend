@@ -300,18 +300,29 @@
             <textarea id="appointmentNotes" placeholder="Informações adicionais (não aparece no calendário)" rows="3"></textarea>
           </div>
 
-          <div class="form-group">
+          <div class="form-row">
             <div class="form-group">
               <label for="appointmentAddress">Morada (opcional)</label>
               <input type="text" id="appointmentAddress" placeholder="Rua, nº, localidade..." autocomplete="off" />
+              <small class="form-hint">A distância será calculada automaticamente</small>
             </div>
-<div class="form-group">
-    <label for="appointmentPhone">Contacto (opcional)</label>
-    <input type="tel" id="appointmentPhone" placeholder="Ex: 912 345 678" pattern="[0-9+\s]{9,15}" />
-    <small class="form-hint">Aceita dígitos e +</small>
-  </div>
-            <label for="appointmentExtra">Outros dados (opcional)</label>
-            <textarea id="appointmentExtra" placeholder="Informações adicionais (não aparece no calendário)" rows="2"></textarea>
+            <div class="form-group">
+              <label for="appointmentKm">Distância (km)</label>
+              <input type="number" id="appointmentKm" placeholder="Calculado automaticamente" readonly style="background-color: #f3f4f6;" />
+              <small class="form-hint">Calculado automaticamente com base na morada</small>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentPhone">Contacto (opcional)</label>
+              <input type="tel" id="appointmentPhone" placeholder="Ex: 912 345 678" pattern="[0-9+\s]{9,15}" />
+              <small class="form-hint">Aceita dígitos e +</small>
+            </div>
+            <div class="form-group">
+              <label for="appointmentExtra">Outros dados (opcional)</label>
+              <textarea id="appointmentExtra" placeholder="Informações adicionais (não aparece no calendário)" rows="2"></textarea>
+            </div>
           </div>
 
           <div class="form-actions">
