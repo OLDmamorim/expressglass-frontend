@@ -125,6 +125,136 @@ async function ordenarSeNecessario(lista) {
   return [...ordenados, ...restantes];
 }
 
+// ===== OTIMIZAÇÃO DE ROTAS - ALGORITMO PRINCIPAL =====
+async function calculateOptimalRoutes() {
+  try {
+    showToast('🗺️ Calculando rotas otimizadas...', 'info');
+    
+    // Obter semana atual
+    const week = [...Array(6)].map((_, i) => addDays(currentMonday, i));
+    let totalOptimized = 0;
+    
+    for (const dayDate of week) {
+      const dayISO = localISO(dayDate);
+      
+      // Obter serviços do dia que têm morada
+      const dayServices = appointments.filter(a => 
+        a.date === dayISO && 
+        getAddressFromItem(a) && 
+        a.period // só serviços agendados (com período)
+      );
+      
+      if (dayServices.length < 2) continue; // Precisa de pelo menos 2 serviços
+      
+      // Agrupar por período
+      const morningServices = dayServices.filter(a => a.period === 'Manhã');
+      const afternoonServices = dayServices.filter(a => a.period === 'Tarde');
+      
+      // Otimizar cada período separadamente
+      if (morningServices.length >= 2) {
+        await optimizePeriodServices(morningServices, 'Manhã');
+        totalOptimized += morningServices.length;
+      }
+      
+      if (afternoonServices.length >= 2) {
+        await optimizePeriodServices(afternoonServices, 'Tarde');
+        totalOptimized += afternoonServices.length;
+      }
+    }
+    
+    if (totalOptimized > 0) {
+      // Guardar alterações na base de dados
+      await saveOptimizedRoutes();
+      renderAll();
+      showToast(`✅ Rotas otimizadas! ${totalOptimized} serviços reorganizados.`, 'success');
+    } else {
+      showToast('ℹ️ Não há serviços suficientes para otimizar rotas.', 'info');
+    }
+    
+  } catch (error) {
+    console.error('Erro ao calcular rotas:', error);
+    showToast('❌ Erro ao calcular rotas: ' + error.message, 'error');
+  }
+}
+
+// Otimizar serviços de um período específico
+async function optimizePeriodServices(services, period) {
+  if (services.length < 2) return;
+  
+  // 1. Encontrar o serviço mais distante da loja
+  let farthestService = null;
+  let maxDistance = 0;
+  
+  for (const service of services) {
+    const address = getAddressFromItem(service);
+    const distance = await getDistance(basePartidaDoDia, address);
+    if (distance > maxDistance && distance !== Infinity) {
+      maxDistance = distance;
+      farthestService = service;
+    }
+  }
+  
+  if (!farthestService) return;
+  
+  // 2. Criar rota otimizada começando pelo mais distante
+  const optimizedRoute = [farthestService];
+  const remaining = services.filter(s => s.id !== farthestService.id);
+  
+  // 3. Para cada posição seguinte, encontrar o mais próximo do anterior
+  while (remaining.length > 0) {
+    const currentLocation = getAddressFromItem(optimizedRoute[optimizedRoute.length - 1]);
+    let closestService = null;
+    let minDistance = Infinity;
+    
+    for (const service of remaining) {
+      const serviceAddress = getAddressFromItem(service);
+      const distance = await getDistance(currentLocation, serviceAddress);
+      if (distance < minDistance && distance !== Infinity) {
+        minDistance = distance;
+        closestService = service;
+      }
+    }
+    
+    if (closestService) {
+      optimizedRoute.push(closestService);
+      const index = remaining.indexOf(closestService);
+      remaining.splice(index, 1);
+    } else {
+      // Se não conseguir calcular distância, adiciona o restante na ordem original
+      optimizedRoute.push(...remaining);
+      break;
+    }
+  }
+  
+  // 4. Atualizar sortIndex para refletir a nova ordem
+  optimizedRoute.forEach((service, index) => {
+    const appointmentIndex = appointments.findIndex(a => a.id === service.id);
+    if (appointmentIndex >= 0) {
+      appointments[appointmentIndex].sortIndex = index + 1;
+      // Marcar como otimizado para feedback visual
+      appointments[appointmentIndex]._optimized = true;
+    }
+  });
+}
+
+// Guardar rotas otimizadas na base de dados
+async function saveOptimizedRoutes() {
+  const optimizedServices = appointments.filter(a => a._optimized);
+  
+  for (const service of optimizedServices) {
+    try {
+      // Remover flag temporário antes de guardar
+      const { _optimized, ...serviceData } = service;
+      await window.apiClient.updateAppointment(service.id, serviceData);
+    } catch (error) {
+      console.warn('Erro ao guardar serviço otimizado:', service.id, error);
+    }
+  }
+  
+  // Limpar flags temporários
+  appointments.forEach(a => delete a._optimized);
+}
+
 // ---------- Configurações e dados ----------
 const localityColors = {
   'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
@@ -831,6 +961,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('prevDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, -1); renderMobileDay(); });
   document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
   document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
+
+  // Botão Calcular Rotas
+  document.getElementById('calculateRoutes')?.addEventListener('click', calculateOptimalRoutes);
 
   // Event listeners para edição
   document.getElementById('cancelForm')?.addEventListener('click', cancelEdit);
