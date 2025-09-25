@@ -1370,16 +1370,15 @@ cancelEdit?.();
       return ''; // Sem períodos
     }
   function row(a){
-    const periodo = normPeriod(a.period || a.time || '');
-    const outros  = a.address || a.extra || '';
+    const dataFormatada = a.date ? new Date(a.date).toLocaleDateString('pt-PT') : '—';
     return `<tr>
+      <td>${dataFormatada}</td>
       <td>${a.plate||''}</td>
       <td>${(a.car||'').toUpperCase()}</td>
       <td>${a.service||''}</td>
       <td>${a.locality||''}</td>
+      <td>${a.notes || a.observations || ''}</td>
       <td>${a.status||''}</td>
-      <td>${a.notes || a.extra || ''}</td>
-      <td>${outros}</td>
     </tr>`;
   }
   function buildTable(title, dateLabel, list){
@@ -1390,7 +1389,7 @@ cancelEdit?.();
       ${headDate}
       <table class="print-table">
         <thead><tr>
-          <th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th>
+          <th>Data</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Observações</th><th>Estado</th>
         </tr></thead>
         <tbody>${list.map(row).join('')}</tbody>
       </table>
