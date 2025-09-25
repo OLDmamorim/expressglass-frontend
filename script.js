@@ -420,7 +420,7 @@ const rgbToHex=({r,g,b})=>'#'+toHex(clamp(r))+toHex(clamp(g))+toHex(clamp(b));
 const lighten=(rgb,a)=>({ r:rgb.r+(255-rgb.r)*a, g:rgb.g+(255-rgb.g)*a, b:rgb.b+(255-rgb.b)*a });
 const darken=(rgb,a)=>({ r:rgb.r*(1-a), g:rgb.g*(1-a), b:rgb.b*(1-a) });
 function gradFromBase(hex){ const rgb=parseColor(hex)||parseColor('#1e88e5'); return { c1: rgbToHex(lighten(rgb,0.06)), c2: rgbToHex(darken(rgb,0.18)) }; }
-function bucketOf(a){ if(!a.date || !a.period) return 'unscheduled'; return `${a.date}|${a.period}`; }
+function bucketOf(a){ if(!a.date) return 'unscheduled'; return a.date; }
 function getBucketList(bucket){ return appointments.filter(x=>bucketOf(x)===bucket).sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0)); }
 function normalizeBucketOrder(bucket){ appointments.filter(a=>bucketOf(a)===bucket).forEach((x,i)=>x.sortIndex=i+1); }
 
@@ -653,8 +653,8 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   const a = appointments[i];
   const oldBucket = bucketOf(a);
 
-  if(targetBucket === 'unscheduled'){ a.date=null; a.period=null; }
-  else { const [d,p] = targetBucket.split('|'); a.date=d; a.period=p||'Manhã'; }
+  if(targetBucket === 'unscheduled'){ a.date=null; }
+  else { a.date=targetBucket; }
 
   const dest = getBucketList(targetBucket).filter(x=>String(x.id)!==String(a.id));
   dest.splice(Math.min(targetIndex, dest.length), 0, a);
@@ -824,22 +824,20 @@ function renderSchedule(){
   thead+='</tr></thead>';
   table.insertAdjacentHTML('beforeend', thead);
 
-  const renderCell=(period,dayDate)=>{
+  const renderCell=(dayDate)=>{
     const iso=localISO(dayDate);
     const items=filterAppointments(
-      appointments.filter(a=>a.date&&a.date===iso&&a.period===period)
-                 .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0))
+      appointments.filter(a=>a.date&&a.date===iso)
+        .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0))
     );
     const blocks = items.map(buildDesktopCard).join('');
-    return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
+    return `<div class="drop-zone" data-drop-bucket="${iso}">${blocks}</div>`;
   };
 
   const tbody=document.createElement('tbody');
-  ['Manhã','Tarde'].forEach(period=>{
-    const row=document.createElement('tr');
-    row.innerHTML=`<th>${period}</th>` + week.map(d=>`<td>${renderCell(period,d)}</td>`).join('');
-    tbody.appendChild(row);
-  });
+  const row=document.createElement('tr');
+  row.innerHTML=`<th>Serviços</th>` + week.map(d=>`<td>${renderCell(d)}</td>`).join('');
+  tbody.appendChild(row);
   table.appendChild(tbody);
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
@@ -1012,15 +1010,9 @@ async function renderMobileDay(){
     return;
   }
 
-  const morning   = items.filter(a=>a.period==='Manhã').map(buildMobileCard).join('');
-  const afternoon = items.filter(a=>a.period==='Tarde').map(buildMobileCard).join('');
-  const others    = items.filter(a=>!a.period).map(buildMobileCard).join('');
+  const allServices = items.map(buildMobileCard).join('');
 
-  list.innerHTML = `
-    ${morning? `<h4 style="margin:4px 0 6px 8px;">Manhã</h4>${morning}`:''}
-    ${afternoon? `<h4 style="margin:12px 0 6px 8px;">Tarde</h4>${afternoon}`:''}
-    ${others? `<h4 style="margin:12px 0 6px 8px;">Sem período</h4>${others}`:''}
-  `;
+  list.innerHTML = allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
 }
 
@@ -1255,22 +1247,14 @@ cancelEdit?.();
     return z.toISOString().slice(0,10);
   }
   function cap(s){ return (s||'').toString().charAt(0).toUpperCase()+ (s||'').toString().slice(1); }
-  function normPeriod(p){
-    if(!p) return '';
-    const t = String(p).toLowerCase();
-    if (t.startsWith('m')) return 'Manhã';
-    if (t.startsWith('t')) return 'Tarde';
-    if (t.startsWith('n')) return 'Noite';
-    if (t==='m') return 'Manhã';
-    if (t==='t') return 'Tarde';
-    if (t==='n') return 'Noite';
-    return p;
-  }
+    function normPeriod(p){
+      return ''; // Sem períodos
+    }
   function row(a){
     const periodo = normPeriod(a.period || a.time || '');
     const outros  = a.address || a.extra || '';
     return `<tr>
-      <td>${periodo||''}</td>
+      <td>—</td>
       <td>${a.plate||''}</td>
       <td>${(a.car||'').toUpperCase()}</td>
       <td>${a.service||''}</td>
@@ -1311,14 +1295,12 @@ cancelEdit?.();
 
       const list = (Array.isArray(window.appointments)? window.appointments : []).slice();
 
-      const unscheduled = list.filter(a => !a.date || !a.period)
-                              .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0));
-
-      const todayList = list.filter(a => a.date === isoToday)
-                            .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0));
-
-      const tomorrowList = list.filter(a => a.date === isoTomorrow)
-                               .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0));
+        const unscheduled = list.filter(a => !a.date)
+                            .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
+      const today       = list.filter(a => a.date === todayISO)
+                            .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
+      const tomorrow    = list.filter(a => a.date === tomorrowISO)
+                               .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
 
       const dm = d => new Date(d).toLocaleDateString('pt-PT', { weekday:'long', day:'2-digit', month:'2-digit', year:'numeric' });
       const titleToday = `SERVIÇOS DE HOJE`;
