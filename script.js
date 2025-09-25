@@ -97,9 +97,7 @@ async function ordenarAgendamentosCadeiaMaisLongePrimeiro(agendamentos, origemIn
     const escolhido = distancias[0];
 
     // colocar no resultado e remover dos 'restantes'
-    const km = Number.isFinite(escolhido.d) ? Math.round(escolhido.d / 1000) : null;
-resultado.push({ ...escolhido.item, _kmFromPrev: km });
-
+    resultado.push({ ...escolhido.item, _kmFromPrev: Math.round(escolhido.d / 1000) });
     const idx = restantes.indexOf(escolhido.item);
     restantes.splice(idx, 1);
 
@@ -532,24 +530,13 @@ function cancelEdit() {
 
 // ===== KM helpers =====
 function getKmValue(ag) {
-  // dá prioridade ao que calculamos na ordenação de cadeia
-  const raw =
-    ag._kmFromPrev ??
-    ag.km ?? ag.kms ?? ag.kilometers ?? ag.kilometros ??
-    ag.quilometros ?? ag.kilómetros ?? ag.km_total ?? ag.distancia;
-
-  if (raw == null) return null;
-
-  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
-
-  const m = String(raw).match(/[\d,.]+/);
-  if (!m) return null;
-
-  const n = parseFloat(m[0].replace(',', '.'));
-  return Number.isFinite(n) ? n : null;
+  const v = ag.km ?? ag.kms ?? ag.kilometers ?? ag.kilometros ?? ag.quilometros ?? ag.kilómetros ?? ag.km_total ?? ag.distancia;
+  if (v == null) return null;
+  const n = String(v).match(/[\d,.]+/);
+  if (!n) return null;
+  const parsed = parseFloat(n[0].replace(',', '.'));
+  return Number.isFinite(parsed) ? parsed : null;
 }
-Se quiseres, dá também uma lixadazinha no
-
 
 function buildKmRow(ag) {
   const km = getKmValue(ag);
