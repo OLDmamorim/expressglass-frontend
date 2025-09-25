@@ -188,51 +188,77 @@ class ProcessadorPersonalizado {
 
 // ===== INTEGRAÇÃO COM SISTEMA =====
 
-// Adicionar template ao sistema quando carregado
-document.addEventListener('DOMContentLoaded', function() {
-  // Aguardar carregamento do sistema de templates
-  setTimeout(() => {
-    if (window.templateManager) {
-      // Adicionar template personalizado
-      window.templateManager.systemTemplates.push(templatePersonalizado);
-      console.log('✅ Template personalizado adicionado ao sistema');
-    }
-    
-    // Criar instância do processador
-    window.processadorPersonalizado = new ProcessadorPersonalizado();
-    console.log('✅ Processador personalizado inicializado');
-    
-  }, 1000);
-});
+// ===== INICIALIZAÇÃO IMEDIATA =====
 
-// Sobrescrever detecção para priorizar template personalizado
-if (typeof window !== 'undefined') {
-  window.addEventListener('load', function() {
-    if (window.templateManager) {
-      const originalDetectTemplate = window.templateManager.detectTemplate;
+// Função para configurar detecção personalizada
+function configurarDeteccaoPersonalizada() {
+  if (window.templateManager) {
+    // Adicionar template personalizado
+    window.templateManager.systemTemplates.push(templatePersonalizado);
+    console.log('✅ Template personalizado adicionado ao sistema');
+    
+    // Sobrescrever detecção para priorizar template personalizado
+    const originalDetectTemplate = window.templateManager.detectTemplate;
+    
+    window.templateManager.detectTemplate = function(headers) {
+      console.log('🔍 Verificando cabeçalhos:', headers);
       
-      window.templateManager.detectTemplate = function(headers) {
-        // Verificar se é o formato específico (presença de colunas I, L, M, N, K)
-        const headerStr = headers.join('|').toLowerCase();
-        
-        // Procurar por padrões específicos do ficheiro
-        const temCamposEspecificos = [
-          'matricula', 'marca', 'modelo', 'ref', 'segurado'
-        ].filter(campo => headerStr.includes(campo)).length >= 3;
-        
-        if (temCamposEspecificos) {
-          console.log('🎯 Ficheiro com formato personalizado detectado!');
-          return {
-            template: this.getTemplate('expressglass_personalizado'),
-            confidence: 0.98,
-            mapping: templatePersonalizado.mapping
-          };
-        }
-        
-        // Senão, usar detecção normal
-        return originalDetectTemplate.call(this, headers);
-      };
-    }
+      // Verificar se é o formato específico do ficheiro Expressglass
+      const headerStr = headers.join('|').toLowerCase().replace(/\s+/g, '');
+      
+      // Critérios específicos baseados no ficheiro real
+      const criteriosEspecificos = [
+        'matricula',    // Coluna I
+        'marca',        // Coluna L  
+        'modelo',       // Coluna M
+        'ref',          // Coluna N (observações)
+        'segurado',     // Coluna K (outros dados)
+        'bostamp',      // Campo único Expressglass
+        'dataobra',     // Campo único Expressglass
+        'dataservico'   // Campo único Expressglass
+      ];
+      
+      const correspondencias = criteriosEspecificos.filter(criterio => 
+        headerStr.includes(criterio)
+      );
+      
+      console.log('🔍 Correspondências encontradas:', correspondencias);
+      
+      // Se encontrar 4+ campos específicos, é o formato personalizado
+      if (correspondencias.length >= 4) {
+        console.log('🎯 Ficheiro Expressglass personalizado detectado!');
+        return {
+          template: this.getTemplate('expressglass_personalizado'),
+          confidence: 0.98,
+          mapping: templatePersonalizado.mapping
+        };
+      }
+      
+      // Senão, usar detecção normal
+      return originalDetectTemplate ? originalDetectTemplate.call(this, headers) : null;
+    };
+    
+    console.log('✅ Detecção personalizada configurada');
+  }
+  
+  // Criar instância do processador
+  window.processadorPersonalizado = new ProcessadorPersonalizado();
+  console.log('✅ Processador personalizado inicializado');
+}
+
+// Tentar configurar imediatamente
+if (typeof window !== 'undefined') {
+  // Tentar configurar agora
+  configurarDeteccaoPersonalizada();
+  
+  // Tentar novamente quando DOM carregar
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(configurarDeteccaoPersonalizada, 500);
+  });
+  
+  // Tentar novamente quando página carregar completamente
+  window.addEventListener('load', function() {
+    setTimeout(configurarDeteccaoPersonalizada, 1000);
   });
 }
 

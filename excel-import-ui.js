@@ -107,13 +107,26 @@ async function handleFileSelect(file) {
   }
 }
 
-// Ir para passo 2 (mapeamento)
+// Ir para passo 2 (mapeamento) ou saltar se template detectado
 function goToStep2() {
   if (!uploadedFile) {
     showToast('Por favor carregue um ficheiro primeiro', 'error');
     return;
   }
   
+  // 🎯 VERIFICAR SE TEMPLATE FOI DETECTADO COM ALTA CONFIANÇA
+  if (detectedTemplate && detectedTemplate.confidence >= 0.90) {
+    console.log('🎯 Template detectado com alta confiança - saltando mapeamento manual');
+    
+    // Aplicar mapeamento automaticamente
+    window.excelImporter.setMapping(detectedTemplate.mapping);
+    
+    // Saltar para passo 3 (pré-visualização)
+    goToStep3();
+    return;
+  }
+  
+  // Ir para mapeamento manual se não há template ou confiança baixa
   currentStep = 2;
   showStep(2);
   
@@ -123,7 +136,7 @@ function goToStep2() {
   // Carregar lista de templates
   loadTemplateSelect();
   
-  // Mostrar template detectado se existir
+  // Mostrar template detectado se existir (mas com baixa confiança)
   if (detectedTemplate) {
     showDetectedTemplate(detectedTemplate);
   } else {
