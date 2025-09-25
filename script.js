@@ -796,6 +796,8 @@ async function renderMobileDay(){
 
 // Render global
 function renderAll(){
+  // 🔧 expõe sempre o estado atual para o módulo de impressão
+  window.appointments = appointments;
   try { renderSchedule(); } catch(e){ console.error('Erro renderSchedule:', e); }
   try { renderUnscheduled(); } catch(e){ console.error('Erro renderUnscheduled:', e); }
   try { renderServicesTable(); } catch(e){ console.error('Erro renderServicesTable:', e); }
