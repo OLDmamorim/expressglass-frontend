@@ -4,8 +4,8 @@
 // SCRIPT PRINCIPAL
 // ==================
 
-// 🚨 TESTE DE DEPLOY - 25/09/2025 14:15 - MODAL DO ZERO
-console.log('🚀 VERSÃO MODAL DO ZERO - 25/09/2025 14:15 - CRIAÇÃO TOTAL!');
+// 🚨 TESTE DE DEPLOY - 25/09/2025 14:30 - DIMENSÕES ABSOLUTAS
+console.log('📐 VERSÃO DIMENSÕES ABSOLUTAS - 25/09/2025 14:30 - SEM VIEWPORT UNITS!');
 
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
@@ -356,27 +356,36 @@ function showProgressModal() {
     </div>
   `;
   
-  // Estilos do modal - SUPER AGRESSIVOS
+  // Estilos do modal - DIMENSÕES ABSOLUTAS
   Object.assign(modal.style, {
-    display: 'flex',
+    display: 'block',
     position: 'fixed',
-    top: '0',
-    left: '0',
-    width: '100vw',
-    height: '100vh',
+    top: '0px',
+    left: '0px',
+    width: window.innerWidth + 'px',
+    height: window.innerHeight + 'px',
     backgroundColor: 'rgba(0,0,0,0.8)',
     zIndex: '1000000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: '0',
-    padding: '0',
+    margin: '0px',
+    padding: '0px',
     border: 'none',
     outline: 'none',
     transform: 'none',
     opacity: '1',
-    visibility: 'visible',
-    backdropFilter: 'blur(6px)'
+    visibility: 'visible'
   });
+  
+  // Posicionar conteúdo no centro manualmente
+  const content = modal.firstElementChild;
+  if (content) {
+    Object.assign(content.style, {
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      zIndex: '1000001'
+    });
+  }
   
   // Adicionar ao body
   document.body.appendChild(modal);
