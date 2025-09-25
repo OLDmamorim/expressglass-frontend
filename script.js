@@ -864,10 +864,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
         // CREATE
         const created = await window.apiClient.createAppointment(payload);
        
-        // CREATE
-const created = await window.apiClient.createAppointment(payload);
-
-// Refaça o array e redesenha já
+       // Refaça o array e redesenha já
 appointments = await window.apiClient.getAppointments();
 
 // 🔧 NORMALIZAÇÃO (igual ao load)
