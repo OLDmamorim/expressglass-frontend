@@ -4,8 +4,8 @@
 // SCRIPT PRINCIPAL
 // ==================
 
-// 🚨 TESTE DE DEPLOY - 25/09/2025 15:00 - BARRA ABAIXO DO CABEÇALHO
-console.log('📊 VERSÃO BARRA ABAIXO CABEÇALHO - 25/09/2025 15:00 - POSIÇÃO PERFEITA!');
+// 🚨 TESTE DE DEPLOY - 25/09/2025 15:15 - KM RECALCULADOS NA ROTA
+console.log('🗺️ VERSÃO KM CORRIGIDOS - 25/09/2025 15:15 - QUILÓMETROS ENTRE PONTOS!');
 
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
@@ -281,15 +281,40 @@ async function optimizeDayServices(services) {
     }
   }
   
-  // 4. Atualizar sortIndex para refletir a nova ordem
-  optimizedRoute.forEach((service, index) => {
+  // 4. Recalcular quilómetros entre pontos da rota otimizada
+  for (let i = 0; i < optimizedRoute.length; i++) {
+    const service = optimizedRoute[i];
     const appointmentIndex = appointments.findIndex(a => a.id === service.id);
+    
     if (appointmentIndex >= 0) {
-      appointments[appointmentIndex].sortIndex = index + 1;
+      // Atualizar sortIndex
+      appointments[appointmentIndex].sortIndex = i + 1;
+      
+      // Calcular quilómetros do ponto anterior para este
+      let newKm = 0;
+      if (i === 0) {
+        // Primeiro serviço: distância da loja
+        const serviceAddress = getAddressFromItem(service);
+        const distanceFromBase = await getDistance(basePartidaDoDia, serviceAddress);
+        newKm = distanceFromBase !== Infinity ? Math.round(distanceFromBase / 1000) : 0;
+      } else {
+        // Serviços seguintes: distância do serviço anterior
+        const previousService = optimizedRoute[i - 1];
+        const previousAddress = getAddressFromItem(previousService);
+        const currentAddress = getAddressFromItem(service);
+        const distanceFromPrevious = await getDistance(previousAddress, currentAddress);
+        newKm = distanceFromPrevious !== Infinity ? Math.round(distanceFromPrevious / 1000) : 0;
+      }
+      
+      // Atualizar quilómetros no appointment
+      appointments[appointmentIndex].km = newKm;
+      
       // Marcar como otimizado para feedback visual
       appointments[appointmentIndex]._optimized = true;
+      
+      console.log(`🗺️ Serviço ${i + 1}: ${newKm}km ${i === 0 ? 'da loja' : 'do anterior'}`);
     }
-  });
+  }
 }
 
 // Guardar rotas otimizadas na base de dados
