@@ -128,23 +128,61 @@ async function ordenarSeNecessario(lista) {
 // ===== OTIMIZAÇÃO DE ROTAS - ALGORITMO PRINCIPAL =====
 async function calculateOptimalRoutes() {
   try {
-    showToast('🗺️ Calculando rotas otimizadas...', 'info');
+    // Mostrar modal de progresso
+    showProgressModal();
+    updateProgress(0, 'Analisando serviços da semana...', 'Contando serviços com morada...');
     
     // Obter semana atual
     const week = [...Array(6)].map((_, i) => addDays(currentMonday, i));
     let totalOptimized = 0;
+    let processedDays = 0;
+    
+    // Contar total de períodos para otimizar
+    let totalPeriods = 0;
+    for (const dayDate of week) {
+      const dayISO = localISO(dayDate);
+      const dayServices = appointments.filter(a => 
+        a.date === dayISO && 
+        getAddressFromItem(a) && 
+        a.period
+      );
+      
+      const morningServices = dayServices.filter(a => a.period === 'Manhã');
+      const afternoonServices = dayServices.filter(a => a.period === 'Tarde');
+      
+      if (morningServices.length >= 2) totalPeriods++;
+      if (afternoonServices.length >= 2) totalPeriods++;
+    }
+    
+    if (totalPeriods === 0) {
+      hideProgressModal();
+      showToast('ℹ️ Não há serviços suficientes para otimizar rotas.', 'info');
+      return;
+    }
+    
+    let processedPeriods = 0;
     
     for (const dayDate of week) {
       const dayISO = localISO(dayDate);
+      const dayName = dayDate.toLocaleDateString('pt-PT', { weekday: 'long' });
+      
+      updateProgress(
+        Math.round((processedDays / 6) * 50), 
+        `Processando ${dayName}...`,
+        `Analisando serviços do dia ${processedDays + 1}/6`
+      );
       
       // Obter serviços do dia que têm morada
       const dayServices = appointments.filter(a => 
         a.date === dayISO && 
         getAddressFromItem(a) && 
-        a.period // só serviços agendados (com período)
+        a.period
       );
       
-      if (dayServices.length < 2) continue; // Precisa de pelo menos 2 serviços
+      if (dayServices.length < 2) {
+        processedDays++;
+        continue;
+      }
       
       // Agrupar por período
       const morningServices = dayServices.filter(a => a.period === 'Manhã');
@@ -152,27 +190,52 @@ async function calculateOptimalRoutes() {
       
       // Otimizar cada período separadamente
       if (morningServices.length >= 2) {
+        updateProgress(
+          Math.round(50 + (processedPeriods / totalPeriods) * 40),
+          `Otimizando ${dayName} - Manhã`,
+          `${morningServices.length} serviços a reorganizar`
+        );
         await optimizePeriodServices(morningServices, 'Manhã');
         totalOptimized += morningServices.length;
+        processedPeriods++;
       }
       
       if (afternoonServices.length >= 2) {
+        updateProgress(
+          Math.round(50 + (processedPeriods / totalPeriods) * 40),
+          `Otimizando ${dayName} - Tarde`,
+          `${afternoonServices.length} serviços a reorganizar`
+        );
         await optimizePeriodServices(afternoonServices, 'Tarde');
         totalOptimized += afternoonServices.length;
+        processedPeriods++;
       }
+      
+      processedDays++;
     }
     
     if (totalOptimized > 0) {
+      updateProgress(95, 'Guardando alterações...', 'Sincronizando com a base de dados...');
+      
       // Guardar alterações na base de dados
       await saveOptimizedRoutes();
+      
+      updateProgress(100, 'Concluído!', `${totalOptimized} serviços reorganizados com sucesso`);
+      
+      // Aguardar um pouco para mostrar 100%
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      hideProgressModal();
       renderAll();
       showToast(`✅ Rotas otimizadas! ${totalOptimized} serviços reorganizados.`, 'success');
     } else {
+      hideProgressModal();
       showToast('ℹ️ Não há serviços suficientes para otimizar rotas.', 'info');
     }
     
   } catch (error) {
     console.error('Erro ao calcular rotas:', error);
+    hideProgressModal();
     showToast('❌ Erro ao calcular rotas: ' + error.message, 'error');
   }
 }
@@ -253,6 +316,44 @@ async function saveOptimizedRoutes() {
   
   // Limpar flags temporários
   appointments.forEach(a => delete a._optimized);
+}
+
+// ===== FUNÇÕES DO MODAL DE PROGRESSO =====
+function showProgressModal() {
+  const modal = document.getElementById('progressModal');
+  if (modal) {
+    modal.classList.add('show');
+  }
+}
+
+function hideProgressModal() {
+  const modal = document.getElementById('progressModal');
+  if (modal) {
+    modal.classList.remove('show');
+  }
+}
+
+function updateProgress(percentage, text, details) {
+  const progressBar = document.getElementById('progressBar');
+  const progressText = document.getElementById('progressText');
+  const progressPercentage = document.getElementById('progressPercentage');
+  const progressDetails = document.getElementById('progressDetails');
+  
+  if (progressBar) {
+    progressBar.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+  }
+  
+  if (progressText) {
+    progressText.textContent = text || 'Processando...';
+  }
+  
+  if (progressPercentage) {
+    progressPercentage.textContent = `${Math.round(percentage)}%`;
+  }
+  
+  if (progressDetails) {
+    progressDetails.textContent = details || '';
+  }
 }
 
 // ---------- Configurações e dados ----------

@@ -373,6 +373,29 @@
       </div>
     </div>
 
+    <!-- Modal de progresso de otimização -->
+    <div id="progressModal" class="modal">
+      <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+          <h3>🗺️ Otimizando Rotas</h3>
+        </div>
+        <div class="progress-content" style="padding: 20px;">
+          <div id="progressText" style="margin-bottom: 15px; font-size: 16px; text-align: center;">
+            Analisando serviços...
+          </div>
+          <div class="progress-bar-container" style="background: #e5e7eb; border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 15px;">
+            <div id="progressBar" style="background: linear-gradient(90deg, #3b82f6, #1d4ed8); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 10px;"></div>
+          </div>
+          <div id="progressPercentage" style="text-align: center; font-weight: bold; color: #3b82f6;">
+            0%
+          </div>
+          <div id="progressDetails" style="margin-top: 15px; font-size: 14px; color: #6b7280; text-align: center;">
+            Preparando otimização...
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Toast notifications -->
     <div id="toastContainer" class="toast-container"></div>
 
