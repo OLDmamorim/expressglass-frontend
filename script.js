@@ -556,9 +556,15 @@ function buildKmRow(ag) {
   if (km == null) return '';
   const kmFmt = Math.round(km);
   return `
-    <div class="card-km" data-km-row style="display: flex; align-items: center; gap: 4px; margin-top: 8px; color: white; font-size: 14px; font-weight: 600;">
-      <span style="font-size: 16px;">🚗</span>
-      <span style="font-size: 12px;">➤</span>
+    <div class="card-km" data-km-row style="display: flex; align-items: center; gap: 6px; margin-top: 8px; color: white; font-size: 14px; font-weight: 600;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex-shrink: 0;">
+        <path d="M5 17h2c0 1.1.9 2 2 2s2-.9 2-2h6c0 1.1.9 2 2 2s2-.9 2-2h2v-5l-3-4H5v7z" fill="white"/>
+        <path d="M5 11V6c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2v5" stroke="white" stroke-width="1.5" fill="none"/>
+        <circle cx="9" cy="17" r="1.5" fill="white"/>
+        <circle cx="19" cy="17" r="1.5" fill="white"/>
+        <path d="M6 8h4M6 10h3" stroke="white" stroke-width="1" opacity="0.8"/>
+      </svg>
+      <span style="font-size: 12px; opacity: 0.9;">→</span>
       <span>${kmFmt} km</span>
     </div>
   `;
