@@ -151,6 +151,7 @@
       <h3>SERVIÇOS POR AGENDAR</h3>
       <div class="unscheduled-actions">
         <button id="addServiceBtn" class="action-btn primary">+ Novo Serviço</button>
+        <button id="importExcelBtn" class="action-btn secondary">📊 Importar Excel</button>
         <select id="filterStatus" class="filter-select">
           <option value="">Todos os estados</option>
           <option value="NE">N/E - Não Executado</option>
@@ -461,9 +462,19 @@
 
   </div>
 
-  <!-- Apenas os 2 scripts principais para evitar conflitos -->
+  <!-- Scripts principais -->
   <script src="api.js"></script>
   <script src="script.js?v=smbraga_2025-09-21_01"></script>
+  
+  <!-- Biblioteca SheetJS para leitura de Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  
+  <!-- Sistema de Importação Excel -->
+  <script src="excel-templates.js"></script>
+  <script src="template-personalizado.js"></script>
+  <script src="template-expressglass-completo.js"></script>
+  <script src="excel-import.js"></script>
+  <script src="excel-import-ui.js"></script>
 
   <!-- >>>>>> SCRIPT DE IMPRESSÃO (garantir preenchimento antes de imprimir) <<<<<< -->
   <script>
@@ -479,3 +490,445 @@
   </script>
 </body>
 </html>
+<!-- MODAL DE IMPORTAÇÃO EXCEL -->
+<div id="excelImportModal" class="modal" style="display: none;">
+  <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-header">
+      <h2>📊 Importar Serviços do Excel</h2>
+      <button class="close-btn" onclick="closeExcelImportModal()">&times;</button>
+    </div>
+    
+    <div class="modal-body">
+      <!-- PASSO 1: UPLOAD DO FICHEIRO -->
+      <div id="step1" class="import-step">
+        <h3>1️⃣ Carregar Ficheiro Excel</h3>
+        
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-content">
+            <div class="upload-icon">📁</div>
+            <p><strong>Arraste o ficheiro Excel aqui</strong></p>
+            <p>ou</p>
+            <button type="button" class="btn btn-primary" onclick="document.getElementById('excelFile').click()">
+              Escolher Ficheiro
+            </button>
+            <input type="file" id="excelFile" accept=".xlsx,.xls" style="display: none;">
+          </div>
+        </div>
+        
+        <div class="template-download">
+          <p>📋 Não tem um ficheiro? <button type="button" class="btn-link" onclick="downloadTemplate()">Descarregar Template</button></p>
+        </div>
+        
+        <div id="fileInfo" style="display: none;">
+          <div class="file-info">
+            <h4>✅ Ficheiro Carregado</h4>
+            <p><strong>Nome:</strong> <span id="fileName"></span></p>
+            <p><strong>Linhas:</strong> <span id="rowCount"></span></p>
+            <p><strong>Colunas:</strong> <span id="columnCount"></span></p>
+          </div>
+          
+          <button type="button" class="btn btn-primary" onclick="goToStep2()">
+            Continuar para Mapeamento →
+          </button>
+        </div>
+      </div>
+      
+      <!-- PASSO 2: MAPEAMENTO DE COLUNAS -->
+      <div id="step2" class="import-step" style="display: none;">
+        <h3>2️⃣ Mapear Colunas</h3>
+        <p>Associe as colunas do Excel aos campos do sistema:</p>
+        
+        <div class="mapping-grid">
+          <div class="mapping-row">
+            <label>Matrícula *</label>
+            <select id="mapPlate" class="mapping-select">
+              <option value="">-- Selecionar Coluna --</option>
+            </select>
+          </div>
+          
+          <div class="mapping-row">
+            <label>Modelo do Carro *</label>
+            <select id="mapCar" class="mapping-select">
+              <option value="">-- Selecionar Coluna --</option>
+            </select>
+          </div>
+          
+          <div class="mapping-row">
+            <label>Tipo de Serviço *</label>
+            <select id="mapService" class="mapping-select">
+              <option value="">-- Selecionar Coluna --</option>
+            </select>
+          </div>
+          
+          <div class="mapping-row">
+            <label>Localidade *</label>
+            <select id="mapLocality" class="mapping-select">
+              <option value="">-- Selecionar Coluna --</option>
+            </select>
+          </div>
+          
+          <div class="mapping-row">
+            <label>Observações</label>
+            <select id="mapNotes" class="mapping-select">
+              <option value="">-- Selecionar Coluna --</option>
+            </select>
+          </div>
+          
+          <div class="mapping-row">
+            <label>Morada</label>
+            <select id="mapAddress" class="mapping-select">
+              <option value="">-- Selecionar Coluna --</option>
+            </select>
+          </div>
+          
+          <div class="mapping-row">
+            <label>Contacto</label>
+            <select id="mapPhone" class="mapping-select">
+              <option value="">-- Selecionar Coluna --</option>
+            </select>
+          </div>
+          
+          <div class="mapping-row">
+            <label>Outros Dados</label>
+            <select id="mapExtra" class="mapping-select">
+              <option value="">-- Selecionar Coluna --</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="step-actions">
+          <button type="button" class="btn btn-secondary" onclick="goToStep1()">
+            ← Voltar
+          </button>
+          <button type="button" class="btn btn-primary" onclick="goToStep3()">
+            Pré-visualizar Dados →
+          </button>
+        </div>
+      </div>
+      
+      <!-- PASSO 3: PRÉ-VISUALIZAÇÃO -->
+      <div id="step3" class="import-step" style="display: none;">
+        <h3>3️⃣ Pré-visualização dos Dados</h3>
+        
+        <div id="validationSummary" class="validation-summary">
+          <div class="summary-stats">
+            <div class="stat-item success">
+              <span class="stat-number" id="validCount">0</span>
+              <span class="stat-label">Válidos</span>
+            </div>
+            <div class="stat-item error">
+              <span class="stat-number" id="errorCount">0</span>
+              <span class="stat-label">Erros</span>
+            </div>
+          </div>
+        </div>
+        
+        <div id="errorsList" style="display: none;">
+          <h4>❌ Erros Encontrados</h4>
+          <div class="errors-container" id="errorsContainer"></div>
+        </div>
+        
+        <div id="previewTable">
+          <h4>✅ Dados Válidos (Primeiros 10)</h4>
+          <div class="table-container">
+            <table class="preview-table">
+              <thead id="previewHeaders"></thead>
+              <tbody id="previewBody"></tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div class="step-actions">
+          <button type="button" class="btn btn-secondary" onclick="goToStep2()">
+            ← Voltar
+          </button>
+          <button type="button" class="btn btn-success" onclick="importData()" id="importBtn">
+            📥 Importar Dados
+          </button>
+        </div>
+      </div>
+      
+      <!-- PASSO 4: RESULTADO DA IMPORTAÇÃO -->
+      <div id="step4" class="import-step" style="display: none;">
+        <h3>4️⃣ Resultado da Importação</h3>
+        
+        <div id="importResults" class="import-results">
+          <div class="result-summary">
+            <div class="result-item success">
+              <span class="result-number" id="successCount">0</span>
+              <span class="result-label">Importados</span>
+            </div>
+            <div class="result-item error">
+              <span class="result-number" id="failCount">0</span>
+              <span class="result-label">Falharam</span>
+            </div>
+          </div>
+          
+          <div id="importDetails" class="import-details"></div>
+        </div>
+        
+        <div class="step-actions">
+          <button type="button" class="btn btn-primary" onclick="finishImport()">
+            ✅ Concluir
+          </button>
+          <button type="button" class="btn btn-secondary" onclick="startNewImport()">
+            🔄 Nova Importação
+          </button>
+        </div>
+      </div>
+      
+      <!-- LOADING -->
+      <div id="loadingStep" class="import-step loading-step" style="display: none;">
+        <div class="loading-content">
+          <div class="spinner"></div>
+          <h3 id="loadingText">Processando...</h3>
+          <p id="loadingSubtext">Por favor aguarde...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ESTILOS DO MODAL DE IMPORTAÇÃO */
+.import-step {
+  padding: 20px 0;
+}
+
+.upload-area {
+  border: 2px dashed #ccc;
+  border-radius: 10px;
+  padding: 40px;
+  text-align: center;
+  margin: 20px 0;
+  transition: border-color 0.3s;
+}
+
+.upload-area.dragover {
+  border-color: #007bff;
+  background-color: #f8f9fa;
+}
+
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.upload-icon {
+  font-size: 48px;
+  margin-bottom: 10px;
+}
+
+.file-info {
+  background: #e8f5e8;
+  border: 1px solid #28a745;
+  border-radius: 5px;
+  padding: 15px;
+  margin: 15px 0;
+}
+
+.template-download {
+  text-align: center;
+  margin: 15px 0;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #007bff;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.mapping-grid {
+  display: grid;
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.mapping-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  align-items: center;
+  gap: 15px;
+}
+
+.mapping-row label {
+  font-weight: bold;
+}
+
+.mapping-select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.validation-summary {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.summary-stats {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  display: block;
+  font-size: 32px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.stat-item.success .stat-number {
+  color: #28a745;
+}
+
+.stat-item.error .stat-number {
+  color: #dc3545;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #666;
+}
+
+.errors-container {
+  max-height: 200px;
+  overflow-y: auto;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  padding: 15px;
+}
+
+.error-item {
+  margin-bottom: 10px;
+  padding: 8px;
+  background: #f8d7da;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 15px 0;
+}
+
+.preview-table th,
+.preview-table td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.preview-table th {
+  background: #f8f9fa;
+  font-weight: bold;
+}
+
+.table-container {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.step-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.import-results {
+  text-align: center;
+}
+
+.result-summary {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin: 30px 0;
+}
+
+.result-item {
+  text-align: center;
+}
+
+.result-number {
+  display: block;
+  font-size: 48px;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.result-item.success .result-number {
+  color: #28a745;
+}
+
+.result-item.error .result-number {
+  color: #dc3545;
+}
+
+.result-label {
+  font-size: 16px;
+  color: #666;
+}
+
+.import-details {
+  max-height: 300px;
+  overflow-y: auto;
+  text-align: left;
+  margin: 20px 0;
+}
+
+.loading-step {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+#loadingText {
+  margin: 0;
+  color: #007bff;
+}
+
+#loadingSubtext {
+  margin: 0;
+  color: #666;
+}
+</style>

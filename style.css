@@ -163,6 +163,19 @@ table.schedule td:first-child{border-left:none}
 .unscheduled-list{ display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; }
 .unscheduled-list .desk-card{ width:260px; min-width:260px; margin-bottom:12px; }
 .unscheduled-actions{ display:flex; gap:8px; margin-top:8px; }
+.action-btn { 
+  padding: 10px 16px; 
+  border: none; 
+  border-radius: 6px; 
+  cursor: pointer; 
+  font-weight: 600; 
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+.action-btn.primary { background: #3b82f6; color: #fff; }
+.action-btn.primary:hover { background: #2563eb; transform: translateY(-1px); }
+.action-btn.secondary { background: #6b7280; color: #fff; }
+.action-btn.secondary:hover { background: #4b5563; transform: translateY(-1px); }
 
 /* =========================
    TABELA “SERVIÇOS A REALIZAR”

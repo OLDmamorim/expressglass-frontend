@@ -1416,6 +1416,11 @@ cancelEdit?.();
 
     document.getElementById('appointmentModal').classList.add('show');
   });
+
+  // --- Importar Excel ---
+  document.getElementById('importExcelBtn')?.addEventListener('click', () => {
+    openExcelImportModal();
+  });
 }); // 👈 FECHO DO DOMContentLoaded
 
 // === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
