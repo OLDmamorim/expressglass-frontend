@@ -321,6 +321,21 @@ async function optimizeDayServices(services) {
 async function saveOptimizedRoutes() {
   const optimizedServices = appointments.filter(a => a._optimized);
   
+  console.log(`🔍 DEBUG - Serviços com flag _optimized: ${optimizedServices.length}`);
+  console.log('🔍 DEBUG - Todos os appointments:', appointments.length);
+  
+  // Debug: Mostrar todos os sortIndex atuais
+  appointments.forEach(a => {
+    if (a.date === '2025-09-26') { // Ajustar data conforme necessário
+      console.log(`🔍 DEBUG - ${a.plate}: sortIndex=${a.sortIndex}, _optimized=${a._optimized}`);
+    }
+  });
+  
+  if (optimizedServices.length === 0) {
+    console.log('⚠️ AVISO: Nenhum serviço marcado como _optimized para guardar!');
+    return;
+  }
+  
   console.log(`💾 Guardando ${optimizedServices.length} serviços otimizados na BASE DE DADOS...`);
   
   for (const service of optimizedServices) {
@@ -343,9 +358,11 @@ async function saveOptimizedRoutes() {
         extra: service.extra
       };
       
-      console.log(`💾 Guardando serviço ${service.id}: ${service.km}km, ordem ${service.sortIndex}`);
+      console.log(`💾 DEBUG - Guardando serviço ${service.plate}: km=${service.km}, sortIndex=${service.sortIndex}`);
+      console.log(`💾 DEBUG - Dados enviados:`, serviceData);
       
-      await window.apiClient.updateAppointment(service.id, serviceData);
+      const result = await window.apiClient.updateAppointment(service.id, serviceData);
+      console.log(`✅ DEBUG - Resultado da gravação:`, result);
       
     } catch (error) {
       console.error('❌ Erro ao guardar serviço otimizado:', service.id, error);
