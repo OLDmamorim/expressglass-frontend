@@ -4,8 +4,8 @@
 // SCRIPT PRINCIPAL
 // ==================
 
-// 🚨 TESTE DE DEPLOY - 25/09/2025 14:30 - DIMENSÕES ABSOLUTAS
-console.log('📐 VERSÃO DIMENSÕES ABSOLUTAS - 25/09/2025 14:30 - SEM VIEWPORT UNITS!');
+// 🚨 TESTE DE DEPLOY - 25/09/2025 14:45 - BARRA DE PROGRESSO
+console.log('📊 VERSÃO BARRA DE PROGRESSO - 25/09/2025 14:45 - SIMPLES E FUNCIONAL!');
 
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
@@ -312,123 +312,93 @@ async function saveOptimizedRoutes() {
 
 // ===== FUNÇÕES DO MODAL DE PROGRESSO =====
 function showProgressModal() {
-  console.log('🚀 CRIANDO MODAL DO ZERO - ABORDAGEM ALTERNATIVA');
+  console.log('📊 CRIANDO BARRA DE PROGRESSO SIMPLES');
   
-  // Remover modal existente se houver
-  const existingModal = document.getElementById('progressModal');
-  if (existingModal) {
-    existingModal.remove();
-    console.log('🗑️ Modal antigo removido');
+  // Remover barra existente se houver
+  const existing = document.getElementById('progressBar');
+  if (existing) {
+    existing.remove();
   }
   
-  // Criar modal completamente novo
-  const modal = document.createElement('div');
-  modal.id = 'progressModal';
-  modal.innerHTML = `
+  // Criar barra de progresso no topo da página
+  const progressContainer = document.createElement('div');
+  progressContainer.id = 'progressBar';
+  progressContainer.innerHTML = `
     <div style="
-      background: white;
-      border-radius: 12px;
-      padding: 30px;
-      max-width: 500px;
-      width: 90%;
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      padding: 15px 20px;
       text-align: center;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-      position: relative;
-      z-index: 1000001;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-radius: 0 0 10px 10px;
+      margin: 0 20px 20px 20px;
     ">
-      <h3 style="margin: 0 0 20px 0; color: #1f2937; font-size: 20px;">🗺️ Otimizando Rotas</h3>
-      <div id="progressText" style="margin-bottom: 15px; font-size: 16px; color: #374151;">
-        Iniciando otimização...
-      </div>
-      <div style="background: #e5e7eb; border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 10px;">
-        <div id="progressBar" style="
-          background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-          height: 100%;
-          width: 0%;
-          transition: width 0.3s ease;
-          border-radius: 10px;
-        "></div>
-      </div>
-      <div id="progressPercentage" style="font-size: 14px; color: #6b7280; font-weight: 600;">0%</div>
-      <div id="progressDetails" style="font-size: 12px; color: #9ca3af; margin-top: 10px;">
-        Preparando análise dos serviços...
+      <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+        <div style="font-size: 20px;">🗺️</div>
+        <div>
+          <div id="progressText" style="font-weight: 600; margin-bottom: 5px;">Otimizando Rotas...</div>
+          <div style="background: rgba(255,255,255,0.2); border-radius: 10px; height: 8px; width: 300px; overflow: hidden;">
+            <div id="progressBarFill" style="
+              background: white;
+              height: 100%;
+              width: 0%;
+              transition: width 0.3s ease;
+              border-radius: 10px;
+            "></div>
+          </div>
+          <div id="progressPercentage" style="font-size: 12px; margin-top: 5px; opacity: 0.9;">0%</div>
+        </div>
       </div>
     </div>
   `;
   
-  // Estilos do modal - DIMENSÕES ABSOLUTAS
-  Object.assign(modal.style, {
-    display: 'block',
+  // Posicionar no topo da página
+  Object.assign(progressContainer.style, {
     position: 'fixed',
-    top: '0px',
-    left: '0px',
-    width: window.innerWidth + 'px',
-    height: window.innerHeight + 'px',
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    zIndex: '1000000',
-    margin: '0px',
-    padding: '0px',
-    border: 'none',
-    outline: 'none',
-    transform: 'none',
-    opacity: '1',
-    visibility: 'visible'
+    top: '0',
+    left: '0',
+    right: '0',
+    zIndex: '10000',
+    margin: '0',
+    padding: '0'
   });
   
-  // Posicionar conteúdo no centro manualmente
-  const content = modal.firstElementChild;
-  if (content) {
-    Object.assign(content.style, {
-      position: 'absolute',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      zIndex: '1000001'
-    });
-  }
+  // Adicionar ao início do body
+  document.body.insertBefore(progressContainer, document.body.firstChild);
   
-  // Adicionar ao body
-  document.body.appendChild(modal);
+  // Ajustar o body para não ficar por baixo
+  document.body.style.paddingTop = '80px';
   
-  console.log('✅ MODAL CRIADO E ADICIONADO AO BODY!');
-  console.log('📍 Modal position:', modal.getBoundingClientRect());
-  console.log('🎯 Modal deve estar visível agora!');
+  console.log('✅ BARRA DE PROGRESSO CRIADA NO TOPO!');
   
-  // Forçar re-render
-  modal.offsetHeight;
-  
-  return modal;
+  return progressContainer;
 }
 
 function hideProgressModal() {
-  const modal = document.getElementById('progressModal');
-  if (modal) {
-    modal.remove();
-    console.log('✅ Modal de progresso removido completamente');
+  const progressBar = document.getElementById('progressBar');
+  if (progressBar) {
+    progressBar.remove();
+    document.body.style.paddingTop = '0';
+    console.log('✅ Barra de progresso removida');
   }
 }
 
 function updateProgress(percentage, text, details) {
-  const progressBar = document.getElementById('progressBar');
+  const progressBarFill = document.getElementById('progressBarFill');
   const progressText = document.getElementById('progressText');
   const progressPercentage = document.getElementById('progressPercentage');
-  const progressDetails = document.getElementById('progressDetails');
   
-  if (progressBar) {
-    progressBar.style.width = `${Math.min(100, Math.max(0, percentage))}%`;
+  if (progressBarFill) {
+    progressBarFill.style.width = percentage + '%';
   }
-  
   if (progressText) {
-    progressText.textContent = text || 'Processando...';
+    progressText.textContent = text || 'Otimizando Rotas...';
   }
-  
   if (progressPercentage) {
-    progressPercentage.textContent = `${Math.round(percentage)}%`;
+    progressPercentage.textContent = percentage + '%';
   }
   
-  if (progressDetails) {
-    progressDetails.textContent = details || '';
-  }
+  console.log(`📊 Progresso: ${percentage}% - ${text}`);
 }
 
 // ---------- Configurações e dados ----------
