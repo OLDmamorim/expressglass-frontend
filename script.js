@@ -4,8 +4,8 @@
 // SCRIPT PRINCIPAL
 // ==================
 
-// 🚨 TESTE DE DEPLOY - 25/09/2025 13:20
-console.log('🚨 VERSÃO NOVA CARREGADA - 25/09/2025 13:20 - MODAL DEVE FUNCIONAR!');
+// 🚨 TESTE DE DEPLOY - 25/09/2025 13:45 - CSS SUPER AGRESSIVO
+console.log('🚨 VERSÃO SUPER AGRESSIVA - 25/09/2025 13:45 - MODAL VAI APARECER À FORÇA!');
 
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
 const BASES_PARTIDA = {
@@ -314,13 +314,28 @@ async function saveOptimizedRoutes() {
 function showProgressModal() {
   const modal = document.getElementById('progressModal');
   if (modal) {
-    // Garantir que o modal aparece sempre, mesmo com outros modais abertos
+    // CSS SUPER AGRESSIVO para garantir que aparece
     modal.style.display = 'flex';
-    modal.style.zIndex = '9999';
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100vw';
+    modal.style.height = '100vh';
+    modal.style.backgroundColor = 'rgba(0,0,0,0.8)';
+    modal.style.zIndex = '999999';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+    modal.style.margin = '0';
+    modal.style.padding = '0';
+    modal.style.border = 'none';
+    modal.style.outline = 'none';
+    modal.style.transform = 'none';
+    modal.style.opacity = '1';
+    modal.style.visibility = 'visible';
     modal.classList.add('show');
-    console.log('Modal de progresso mostrado');
+    console.log('🚨 Modal de progresso FORÇADO a aparecer!');
   } else {
-    console.error('Modal de progresso não encontrado!');
+    console.error('❌ Modal de progresso não encontrado!');
   }
 }
 
