@@ -15,12 +15,12 @@ const templatePersonalizado = {
   mapping: {
     plate: 8,        // Coluna I (Matricula)
     car: '11,12',    // Coluna L + Coluna M (Marca + Modelo)
-    service: null,   // NÃO IMPORTAR - Operador define
-    locality: null,  // NÃO IMPORTAR - Operador define
-    notes: 13,       // Coluna N (Observações)
-    address: null,   // NÃO IMPORTAR - Operador define
-    phone: null,     // NÃO IMPORTAR - Operador define
-    extra: 10        // Coluna K (Outros dados)
+    service: null,   // Será preenchido pelo operador
+    locality: null,  // Será preenchido pelo operador
+    notes: 13,       // Coluna N (Ref - assumindo que é a coluna N)
+    address: null,   // Será preenchido pelo operador
+    phone: null,     // Será preenchido pelo operador
+    extra: 10        // Coluna K (Segurado)
   }
 };
 
@@ -134,11 +134,11 @@ class ProcessadorPersonalizado {
     const servico = {
       plate: this.formatarMatricula(matricula),
       car: carro,
-      service: '', // VAZIO - Operador deve definir
-      locality: '', // VAZIO - Operador deve definir
+      service: 'PB', // Valor padrão - será alterado pelo operador
+      locality: 'Braga', // Valor padrão - será alterado pelo operador
       notes: observacoes,
-      address: '', // VAZIO - Operador deve definir
-      phone: '', // VAZIO - Operador deve definir
+      address: '', // Vazio - será preenchido pelo operador
+      phone: '', // Vazio - será preenchido pelo operador
       extra: outrosDados,
       
       // Campos padrão do sistema

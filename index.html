@@ -164,10 +164,14 @@
           <option value="VE">V/E - Vidro Encomendado</option>
           <option value="ST">ST - Serviço Terminado</option>
         </select>
+        <button id="toggleViewBtn" class="action-btn secondary">📋 Vista Tabela</button>
       </div>
       
-      <!-- Vista em tabela (única vista) -->
-      <div id="unscheduledTable" class="unscheduled-table-container">
+      <!-- Vista em cartões (padrão) -->
+      <div id="unscheduledList" class="unscheduled-list" data-drop-bucket="unscheduled"></div>
+      
+      <!-- Vista em tabela -->
+      <div id="unscheduledTable" class="unscheduled-table-container" style="display: none;">
         <table class="unscheduled-table">
           <thead>
             <tr>
@@ -497,7 +501,7 @@
   <script src="template-personalizado.js"></script>
   <script src="template-expressglass-completo.js"></script>
   <script src="excel-import.js"></script>
-
+  <script src="excel-import-ui.js"></script>
 
   <!-- >>>>>> SCRIPT DE IMPRESSÃO (garantir preenchimento antes de imprimir) <<<<<< -->
   <script>

@@ -1006,35 +1006,65 @@ function renderSchedule(){
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
-// ---------- Render PENDENTES (APENAS TABELA) ----------
+// ---------- Render PENDENTES ----------
 function renderUnscheduled(){
+  const container=document.getElementById('unscheduledList'); if(!container) return;
   const tableBody=document.getElementById('unscheduledTableBody');
-  if (!tableBody) return;
   
   const unscheduled=filterAppointments(
     appointments.filter(a=>!a.date).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
   );
   
-  // Renderizar APENAS vista em tabela
-  tableBody.innerHTML = unscheduled.map(a=>{
-    const serviceDisplay = a.service ? `<span class="service-badge service-${a.service}">${a.service}</span>` : '<span class="service-empty">-</span>';
-    const localityDisplay = a.locality || '<span class="locality-empty">-</span>';
-    const statusDisplay = `<span class="status-badge status-${a.status}">${a.status}</span>`;
-    const notes = (a.notes||'').replace(/"/g,'&quot;');
-    
-    return `<tr>
-      <td>${a.plate||''}</td>
-      <td>${a.car||''}</td>
-      <td>${serviceDisplay}</td>
-      <td>${localityDisplay}</td>
-      <td title="${notes}">${notes}</td>
-      <td>${statusDisplay}</td>
-      <td>
-        <button onclick="editAppointment('${a.id}')" class="action-btn small">✏️</button>
-        <button onclick="deleteAppointment('${a.id}')" class="action-btn small danger">🗑️</button>
-      </td>
-    </tr>`;
+  // Renderizar vista em cartões
+  const blocks = unscheduled.map(a=>{
+    const base=getLocColor(a.locality);
+    const g=gradFromBase(base);
+    const bar=statusBarColors[a.status]||'#999';
+    const title=`${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
+    const sub=[a.locality,a.notes].filter(Boolean).join(' | ');
+    return `
+      <div class="appointment desk-card unscheduled" data-id="${a.id}" draggable="true"
+           data-locality="${a.locality||''}" data-loccolor="${base}" data-plate="${a.plate||''}"
+           style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
+        <div class="dc-title">${title}</div>
+        <div class="dc-sub">${sub}</div>
+        <div class="appt-status dc-status">
+          <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
+          <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
+          <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
+        </div>
+        <div class="unscheduled-actions">
+          <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar">✏️</button>
+          <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar">🗑️</button>
+        </div>
+      </div>`;
   }).join('');
+  container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled">${blocks}</div>`;
+  
+  // Renderizar vista em tabela
+  if (tableBody) {
+    const rows = unscheduled.map(a => {
+      const serviceBadge = a.service ? `<span class="service-badge ${a.service}">${a.service}</span>` : '';
+      const statusBadge = a.status ? `<span class="status-badge ${a.status}">${a.status}</span>` : '';
+      
+      return `
+        <tr data-id="${a.id}" data-plate="${a.plate||''}" data-locality="${a.locality||''}">
+          <td class="plate-cell">${a.plate || ''}</td>
+          <td>${a.car || ''}</td>
+          <td>${serviceBadge}</td>
+          <td>${a.locality || ''}</td>
+          <td>${a.notes || ''}</td>
+          <td>${statusBadge}</td>
+          <td class="actions-cell">
+            <button class="action-btn-small edit" onclick="editAppointment('${a.id}')" title="Editar">✏️</button>
+            <button class="action-btn-small delete" onclick="deleteAppointment('${a.id}')" title="Eliminar">🗑️</button>
+          </td>
+        </tr>`;
+    }).join('');
+    tableBody.innerHTML = rows;
+  }
+  
+  enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
 // ---------- Header da tabela ----------
@@ -1395,12 +1425,6 @@ cancelEdit?.();
       selectedDot.style.backgroundColor = '';
     }
 
-    // Limpar notificação de matrícula existente
-    hidePlateExistsNotification();
-
-    // Configurar verificação de matrícula existente
-    setupPlateVerification();
-
     document.getElementById('appointmentModal').classList.add('show');
   });
 
@@ -1417,12 +1441,6 @@ cancelEdit?.();
       selectedText.textContent = 'Selecione a localidade';
       selectedDot.style.backgroundColor = '';
     }
-
-    // Limpar notificação de matrícula existente
-    hidePlateExistsNotification();
-
-    // Configurar verificação de matrícula existente
-    setupPlateVerification();
 
     document.getElementById('appointmentModal').classList.add('show');
   });
@@ -1667,8 +1685,30 @@ function filterServicesByPlate(searchTerm) {
   });
 }
 
-// REMOVIDO: Vista de cartões - Manter apenas vista de tabela
-// A vista de cartões foi removida conforme solicitado pelo utilizador
+// Alternar entre vista cartões e tabela
+function toggleUnscheduledView() {
+  const cardView = document.getElementById('unscheduledList');
+  const tableView = document.getElementById('unscheduledTable');
+  const toggleBtn = document.getElementById('toggleViewBtn');
+  
+  if (!cardView || !tableView || !toggleBtn) return;
+  
+  const isTableVisible = tableView.style.display !== 'none';
+  
+  if (isTableVisible) {
+    // Mudar para vista cartões
+    tableView.style.display = 'none';
+    cardView.style.display = '';
+    toggleBtn.textContent = '📋 Vista Tabela';
+    toggleBtn.classList.remove('active');
+  } else {
+    // Mudar para vista tabela
+    cardView.style.display = 'none';
+    tableView.style.display = '';
+    toggleBtn.textContent = '🎴 Vista Cartões';
+    toggleBtn.classList.add('active');
+  }
+}
 
 // Inicializar funcionalidades quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', function() {
@@ -1689,710 +1729,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // REMOVIDO: Event listener para botão de alternar vista
-  // Vista de cartões foi removida - apenas tabela
+  // Event listener para botão de alternar vista
+  const toggleBtn = document.getElementById('toggleViewBtn');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', toggleUnscheduledView);
+  }
 });
-
-
-// ===== FUNÇÃO PARA VERIFICAR MATRÍCULA EXISTENTE =====
-function setupPlateVerification() {
-  const plateInput = document.getElementById('appointmentPlate');
-  if (!plateInput) return;
-
-  // Remover listeners anteriores para evitar duplicação
-  const newPlateInput = plateInput.cloneNode(true);
-  plateInput.parentNode.replaceChild(newPlateInput, plateInput);
-
-  // Adicionar listener para verificação em tempo real
-  newPlateInput.addEventListener('input', function(e) {
-    let value = e.target.value.toUpperCase();
-    
-    // Formatação automática XX-XX-XX
-    value = value.replace(/[^A-Z0-9]/g, '');
-    if (value.length > 2 && value.length <= 4) {
-      value = value.slice(0, 2) + '-' + value.slice(2);
-    } else if (value.length > 4) {
-      value = value.slice(0, 2) + '-' + value.slice(2, 4) + '-' + value.slice(4, 6);
-    }
-    
-    e.target.value = value;
-    
-    // Verificar se matrícula existe quando tiver formato completo
-    if (value.length === 8 && value.match(/^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/)) {
-      checkExistingPlate(value);
-    }
-  });
-
-  // Verificar também quando o campo perde o foco
-  newPlateInput.addEventListener('blur', function(e) {
-    const value = e.target.value;
-    if (value.length === 8 && value.match(/^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/)) {
-      checkExistingPlate(value);
-    }
-  });
-}
-
-// ===== VERIFICAR SE MATRÍCULA JÁ EXISTE =====
-function checkExistingPlate(plate) {
-  console.log(`🔍 Verificando matrícula: ${plate}`);
-  
-  // Normalizar matrícula para comparação (remover hífens)
-  const normalizedPlate = plate.replace(/-/g, '');
-  
-  // Procurar nos serviços por agendar (sem data)
-  const existingService = appointments.find(appointment => {
-    if (appointment.date) return false; // Ignorar serviços já agendados
-    
-    const existingPlateNormalized = (appointment.plate || '').replace(/-/g, '');
-    return existingPlateNormalized === normalizedPlate;
-  });
-  
-  if (existingService) {
-    console.log(`✅ Matrícula encontrada! Carregando dados existentes...`, existingService);
-    
-    // Mostrar notificação ao utilizador
-    showPlateExistsNotification(plate);
-    
-    // Carregar dados da ficha existente
-    loadExistingServiceData(existingService);
-  } else {
-    console.log(`ℹ️ Matrícula ${plate} não encontrada. Novo serviço.`);
-    
-    // Limpar notificação se existir
-    hidePlateExistsNotification();
-  }
-}
-
-// ===== MOSTRAR NOTIFICAÇÃO DE MATRÍCULA EXISTENTE =====
-function showPlateExistsNotification(plate) {
-  // Remover notificação anterior se existir
-  hidePlateExistsNotification();
-  
-  const plateInput = document.getElementById('appointmentPlate');
-  if (!plateInput) return;
-  
-  // Criar elemento de notificação
-  const notification = document.createElement('div');
-  notification.id = 'plateExistsNotification';
-  notification.className = 'plate-exists-notification';
-  notification.innerHTML = `
-    <div class="notification-content">
-      <span class="notification-icon">ℹ️</span>
-      <span class="notification-text">Matrícula <strong>${plate}</strong> já existe. Carregando dados existentes...</span>
-    </div>
-  `;
-  
-  // Inserir após o campo de matrícula
-  plateInput.parentNode.insertBefore(notification, plateInput.nextSibling);
-  
-  // Adicionar estilo se não existir
-  if (!document.getElementById('plateNotificationStyles')) {
-    const style = document.createElement('style');
-    style.id = 'plateNotificationStyles';
-    style.textContent = `
-      .plate-exists-notification {
-        background: #e3f2fd;
-        border: 1px solid #2196f3;
-        border-radius: 4px;
-        padding: 8px 12px;
-        margin-top: 5px;
-        font-size: 14px;
-        color: #1976d2;
-        animation: slideDown 0.3s ease-out;
-      }
-      
-      .notification-content {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      
-      .notification-icon {
-        font-size: 16px;
-      }
-      
-      @keyframes slideDown {
-        from {
-          opacity: 0;
-          transform: translateY(-10px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-    `;
-    document.head.appendChild(style);
-  }
-}
-
-// ===== ESCONDER NOTIFICAÇÃO =====
-function hidePlateExistsNotification() {
-  const notification = document.getElementById('plateExistsNotification');
-  if (notification) {
-    notification.remove();
-  }
-}
-
-// ===== CARREGAR DADOS DO SERVIÇO EXISTENTE =====
-function loadExistingServiceData(service) {
-  console.log(`📋 Carregando dados do serviço:`, service);
-  
-  // Definir que estamos editando este serviço
-  editingId = service.id;
-  
-  // Alterar título do modal
-  const modalTitle = document.getElementById('modalTitle');
-  if (modalTitle) {
-    modalTitle.textContent = 'Editar Agendamento Existente';
-  }
-  
-  // Mostrar botão de eliminar
-  const deleteBtn = document.getElementById('deleteAppointment');
-  if (deleteBtn) {
-    deleteBtn.classList.remove('hidden');
-  }
-  
-  // Preencher campos do formulário
-  const fields = {
-    'appointmentDate': service.date || '',
-    'appointmentPlate': service.plate || '',
-    'appointmentCar': service.car || '',
-    'appointmentLocality': service.locality || '',
-    'appointmentService': service.service || '',
-    'appointmentStatus': service.status || 'NE',
-    'appointmentNotes': service.notes || '',
-    'appointmentAddress': service.address || '',
-    'appointmentPhone': service.phone || '',
-    'appointmentKm': service.km || '',
-    'appointmentExtra': service.extra || ''
-  };
-  
-  // Preencher cada campo
-  Object.entries(fields).forEach(([fieldId, value]) => {
-    const field = document.getElementById(fieldId);
-    if (field) {
-      field.value = value;
-      
-      // Disparar evento change para atualizar dropdowns customizados
-      if (field.tagName === 'SELECT') {
-        field.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    }
-  });
-  
-  console.log(`✅ Dados carregados com sucesso para edição`);
-}
-
-
-// ========== FUNÇÕES DE IMPORTAÇÃO EXCEL ==========
-
-// Abrir modal de importação Excel
-function openExcelImportModal() {
-  const modal = document.getElementById('excelImportModal');
-  if (modal) {
-    modal.style.display = 'flex';
-    resetImportModal();
-  } else {
-    console.error('Modal de importação Excel não encontrado');
-  }
-}
-
-// Fechar modal de importação Excel
-function closeExcelImportModal() {
-  const modal = document.getElementById('excelImportModal');
-  if (modal) {
-    modal.style.display = 'none';
-    resetImportModal();
-  }
-}
-
-// Reset do modal de importação
-function resetImportModal() {
-  // Reset de variáveis globais se existirem
-  if (typeof currentStep !== 'undefined') currentStep = 1;
-  if (typeof uploadedFile !== 'undefined') uploadedFile = null;
-  if (typeof processedData !== 'undefined') processedData = null;
-  if (typeof detectedTemplate !== 'undefined') detectedTemplate = null;
-  
-  // Reset de elementos do modal se existirem
-  const fileInput = document.getElementById('excelFileInput');
-  if (fileInput) fileInput.value = '';
-  
-  const preview = document.getElementById('dataPreview');
-  if (preview) preview.innerHTML = '';
-  
-  const steps = document.querySelectorAll('.import-step');
-  steps.forEach((step, index) => {
-    step.style.display = index === 0 ? 'block' : 'none';
-  });
-}
-
-
-// ========== EVENT LISTENERS PARA IMPORTAÇÃO EXCEL ==========
-
-// Inicializar event listeners quando o DOM estiver carregado
-document.addEventListener('DOMContentLoaded', function() {
-  setupExcelImportListeners();
-});
-
-// Configurar event listeners para importação Excel
-function setupExcelImportListeners() {
-  // Event listener para o input de ficheiro
-  const fileInput = document.getElementById('excelFile');
-  if (fileInput) {
-    fileInput.addEventListener('change', handleFileSelect);
-  }
-  
-  // Event listener para drag & drop
-  const uploadArea = document.getElementById('uploadArea');
-  if (uploadArea) {
-    uploadArea.addEventListener('dragover', handleDragOver);
-    uploadArea.addEventListener('dragleave', handleDragLeave);
-    uploadArea.addEventListener('drop', handleFileDrop);
-  }
-}
-
-// Variáveis globais para importação
-let currentExcelImporter = null;
-let currentStep = 1;
-let uploadedFile = null;
-let processedData = null;
-let detectedTemplate = null;
-
-// Manipular seleção de ficheiro
-async function handleFileSelect(event) {
-  const file = event.target.files[0];
-  if (file) {
-    await processExcelFile(file);
-  }
-}
-
-// Manipular drag over
-function handleDragOver(event) {
-  event.preventDefault();
-  event.currentTarget.classList.add('dragover');
-}
-
-// Manipular drag leave
-function handleDragLeave(event) {
-  event.currentTarget.classList.remove('dragover');
-}
-
-// Manipular drop de ficheiro
-async function handleFileDrop(event) {
-  event.preventDefault();
-  event.currentTarget.classList.remove('dragover');
-  
-  const files = event.dataTransfer.files;
-  if (files.length > 0) {
-    const file = files[0];
-    if (file.type.includes('sheet') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-      await processExcelFile(file);
-    } else {
-      alert('Por favor selecione um ficheiro Excel (.xlsx ou .xls)');
-    }
-  }
-}
-
-// Processar ficheiro Excel
-async function processExcelFile(file) {
-  try {
-    showLoadingStep('Carregando ficheiro...', 'Analisando dados do Excel...');
-    
-    // Criar instância do importador se não existir
-    if (!currentExcelImporter) {
-      currentExcelImporter = new ExcelImporter();
-    }
-    
-    // Carregar ficheiro
-    await currentExcelImporter.loadFile(file);
-    
-    uploadedFile = file;
-    
-    // Mostrar informações do ficheiro
-    showFileInfo(file, currentExcelImporter.data.length, currentExcelImporter.headers.length);
-    
-    // Tentar detectar template automaticamente
-    if (typeof detectTemplate === 'function') {
-      detectedTemplate = detectTemplate(currentExcelImporter.headers, currentExcelImporter.data);
-      if (detectedTemplate && detectedTemplate.confidence > 0.7) {
-        showDetectedTemplate(detectedTemplate);
-      }
-    }
-    
-    hideLoadingStep();
-    
-  } catch (error) {
-    console.error('Erro ao processar ficheiro:', error);
-    hideLoadingStep();
-    alert('Erro ao processar ficheiro Excel. Verifique se o ficheiro está correto.');
-  }
-}
-
-// Mostrar informações do ficheiro carregado
-function showFileInfo(file, rowCount, columnCount) {
-  const fileInfo = document.getElementById('fileInfo');
-  const fileName = document.getElementById('fileName');
-  const rowCountEl = document.getElementById('rowCount');
-  const columnCountEl = document.getElementById('columnCount');
-  
-  if (fileName) fileName.textContent = file.name;
-  if (rowCountEl) rowCountEl.textContent = rowCount;
-  if (columnCountEl) columnCountEl.textContent = columnCount;
-  
-  if (fileInfo) fileInfo.style.display = 'block';
-}
-
-// Mostrar template detectado
-function showDetectedTemplate(template) {
-  const alert = document.getElementById('detectedTemplateAlert');
-  const name = document.getElementById('detectedTemplateName');
-  const confidence = document.getElementById('detectedTemplateConfidence');
-  
-  if (name) name.textContent = `Template: ${template.name}`;
-  if (confidence) confidence.textContent = `Confiança: ${Math.round(template.confidence * 100)}%`;
-  if (alert) alert.style.display = 'block';
-}
-
-// Mostrar passo de loading
-function showLoadingStep(title, subtitle) {
-  const loadingStep = document.getElementById('loadingStep');
-  const loadingText = document.getElementById('loadingText');
-  const loadingSubtext = document.getElementById('loadingSubtext');
-  
-  if (loadingText) loadingText.textContent = title;
-  if (loadingSubtext) loadingSubtext.textContent = subtitle;
-  
-  // Esconder outros passos
-  document.querySelectorAll('.import-step').forEach(step => {
-    step.style.display = 'none';
-  });
-  
-  if (loadingStep) loadingStep.style.display = 'block';
-}
-
-// Esconder passo de loading
-function hideLoadingStep() {
-  const loadingStep = document.getElementById('loadingStep');
-  if (loadingStep) loadingStep.style.display = 'none';
-  
-  // Mostrar passo 1
-  const step1 = document.getElementById('step1');
-  if (step1) step1.style.display = 'block';
-}
-
-// Ir para passo 2 (mapeamento)
-function goToStep2() {
-  if (!currentExcelImporter || !uploadedFile) {
-    alert('Por favor carregue um ficheiro primeiro.');
-    return;
-  }
-  
-  // Esconder passo 1
-  const step1 = document.getElementById('step1');
-  if (step1) step1.style.display = 'none';
-  
-  // Mostrar passo 2
-  const step2 = document.getElementById('step2');
-  if (step2) step2.style.display = 'block';
-  
-  // Preencher opções de mapeamento
-  populateMappingOptions();
-  
-  currentStep = 2;
-}
-
-// Preencher opções de mapeamento
-function populateMappingOptions() {
-  const selects = document.querySelectorAll('.mapping-select');
-  const headers = currentExcelImporter.headers;
-  
-  selects.forEach(select => {
-    // Limpar opções existentes (exceto a primeira)
-    while (select.children.length > 1) {
-      select.removeChild(select.lastChild);
-    }
-    
-    // Adicionar headers como opções
-    headers.forEach((header, index) => {
-      const option = document.createElement('option');
-      option.value = index;
-      option.textContent = `${String.fromCharCode(65 + index)} - ${header}`;
-      select.appendChild(option);
-    });
-  });
-}
-
-// Voltar para passo 1
-function goToStep1() {
-  const step2 = document.getElementById('step2');
-  if (step2) step2.style.display = 'none';
-  
-  const step1 = document.getElementById('step1');
-  if (step1) step1.style.display = 'block';
-  
-  currentStep = 1;
-}
-
-// Ir para passo 3 (pré-visualização)
-function goToStep3() {
-  // Validar mapeamento
-  const mapping = getCurrentMapping();
-  if (!mapping.plate) {
-    alert('Por favor selecione a coluna da Matrícula.');
-    return;
-  }
-  if (!mapping.car) {
-    alert('Por favor selecione a coluna do Modelo do Carro.');
-    return;
-  }
-  
-  // Aplicar mapeamento
-  currentExcelImporter.setMapping(mapping);
-  
-  // Processar dados
-  const result = currentExcelImporter.processData();
-  processedData = result;
-  
-  // Mostrar pré-visualização
-  showPreview(result);
-  
-  // Esconder passo 2
-  const step2 = document.getElementById('step2');
-  if (step2) step2.style.display = 'none';
-  
-  // Mostrar passo 3
-  const step3 = document.getElementById('step3');
-  if (step3) step3.style.display = 'block';
-  
-  currentStep = 3;
-}
-
-// Obter mapeamento atual
-function getCurrentMapping() {
-  return {
-    plate: document.getElementById('mapPlate')?.value || '',
-    car: document.getElementById('mapCar')?.value || '',
-    service: document.getElementById('mapService')?.value || '',
-    locality: document.getElementById('mapLocality')?.value || '',
-    notes: document.getElementById('mapNotes')?.value || '',
-    address: document.getElementById('mapAddress')?.value || '',
-    phone: document.getElementById('mapPhone')?.value || '',
-    extra: document.getElementById('mapExtra')?.value || ''
-  };
-}
-
-// Mostrar pré-visualização
-function showPreview(result) {
-  // Atualizar estatísticas
-  const validCount = document.getElementById('validCount');
-  const errorCount = document.getElementById('errorCount');
-  
-  if (validCount) validCount.textContent = result.valid.length;
-  if (errorCount) errorCount.textContent = result.errors.length;
-  
-  // Mostrar erros se existirem
-  if (result.errors.length > 0) {
-    showErrors(result.errors);
-  }
-  
-  // Mostrar tabela de pré-visualização
-  showPreviewTable(result.valid.slice(0, 10)); // Primeiros 10
-}
-
-// Mostrar erros
-function showErrors(errors) {
-  const errorsList = document.getElementById('errorsList');
-  const errorsContainer = document.getElementById('errorsContainer');
-  
-  if (errorsContainer) {
-    errorsContainer.innerHTML = '';
-    errors.forEach(error => {
-      const errorDiv = document.createElement('div');
-      errorDiv.className = 'error-item';
-      errorDiv.textContent = `Linha ${error.row}: ${error.message}`;
-      errorsContainer.appendChild(errorDiv);
-    });
-  }
-  
-  if (errorsList) errorsList.style.display = errors.length > 0 ? 'block' : 'none';
-}
-
-// Mostrar tabela de pré-visualização
-function showPreviewTable(data) {
-  const headers = document.getElementById('previewHeaders');
-  const body = document.getElementById('previewBody');
-  
-  if (!headers || !body || data.length === 0) return;
-  
-  // Limpar tabela
-  headers.innerHTML = '';
-  body.innerHTML = '';
-  
-  // Criar cabeçalhos
-  const headerRow = document.createElement('tr');
-  ['Matrícula', 'Carro', 'Serviço', 'Localidade', 'Observações'].forEach(header => {
-    const th = document.createElement('th');
-    th.textContent = header;
-    headerRow.appendChild(th);
-  });
-  headers.appendChild(headerRow);
-  
-  // Criar linhas de dados
-  data.forEach(item => {
-    const row = document.createElement('tr');
-    [
-      item.plate || '',
-      item.car || '',
-      item.service || '',
-      item.locality || '',
-      item.notes || ''
-    ].forEach(value => {
-      const td = document.createElement('td');
-      td.textContent = value;
-      row.appendChild(td);
-    });
-    body.appendChild(row);
-  });
-}
-
-// Voltar para passo 2
-function goToStep2() {
-  const step3 = document.getElementById('step3');
-  if (step3) step3.style.display = 'none';
-  
-  const step2 = document.getElementById('step2');
-  if (step2) step2.style.display = 'block';
-  
-  currentStep = 2;
-}
-
-// Importar dados
-async function importData() {
-  if (!processedData || processedData.valid.length === 0) {
-    alert('Não há dados válidos para importar.');
-    return;
-  }
-  
-  showLoadingStep('Importando dados...', 'Criando serviços na base de dados...');
-  
-  try {
-    let successCount = 0;
-    let failCount = 0;
-    const details = [];
-    
-    for (const item of processedData.valid) {
-      try {
-        // Criar serviço usando a API existente
-        const serviceData = {
-          plate: item.plate,
-          car: item.car,
-          service: item.service || '',
-          locality: item.locality || '',
-          notes: item.notes || '',
-          address: item.address || '',
-          phone: item.phone || '',
-          extra: item.extra || '',
-          status: 'N/E'
-        };
-        
-        // Usar a função createAppointment se existir
-        if (typeof createAppointment === 'function') {
-          await createAppointment(serviceData);
-        } else {
-          // Fallback para API direta
-          const response = await fetch('/.netlify/functions/appointments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(serviceData)
-          });
-          
-          if (!response.ok) throw new Error('Erro na API');
-        }
-        
-        successCount++;
-        details.push(`✅ ${item.plate} - ${item.car}`);
-        
-      } catch (error) {
-        failCount++;
-        details.push(`❌ ${item.plate} - Erro: ${error.message}`);
-      }
-    }
-    
-    // Mostrar resultados
-    showImportResults(successCount, failCount, details);
-    
-  } catch (error) {
-    console.error('Erro na importação:', error);
-    hideLoadingStep();
-    alert('Erro durante a importação. Tente novamente.');
-  }
-}
-
-// Mostrar resultados da importação
-function showImportResults(successCount, failCount, details) {
-  hideLoadingStep();
-  
-  // Atualizar contadores
-  const successEl = document.getElementById('successCount');
-  const failEl = document.getElementById('failCount');
-  
-  if (successEl) successEl.textContent = successCount;
-  if (failEl) failEl.textContent = failCount;
-  
-  // Mostrar detalhes
-  const detailsEl = document.getElementById('importDetails');
-  if (detailsEl) {
-    detailsEl.innerHTML = details.map(detail => `<div>${detail}</div>`).join('');
-  }
-  
-  // Esconder passo 3
-  const step3 = document.getElementById('step3');
-  if (step3) step3.style.display = 'none';
-  
-  // Mostrar passo 4
-  const step4 = document.getElementById('step4');
-  if (step4) step4.style.display = 'block';
-  
-  currentStep = 4;
-}
-
-// Finalizar importação
-function finishImport() {
-  closeExcelImportModal();
-  
-  // Recarregar dados se a função existir
-  if (typeof loadAppointments === 'function') {
-    loadAppointments();
-  } else {
-    // Recarregar página como fallback
-    window.location.reload();
-  }
-}
-
-// Nova importação
-function startNewImport() {
-  // Reset de variáveis
-  currentExcelImporter = null;
-  currentStep = 1;
-  uploadedFile = null;
-  processedData = null;
-  detectedTemplate = null;
-  
-  // Esconder passo 4
-  const step4 = document.getElementById('step4');
-  if (step4) step4.style.display = 'none';
-  
-  // Mostrar passo 1
-  const step1 = document.getElementById('step1');
-  if (step1) step1.style.display = 'block';
-  
-  // Limpar input de ficheiro
-  const fileInput = document.getElementById('excelFile');
-  if (fileInput) fileInput.value = '';
-  
-  // Esconder info do ficheiro
-  const fileInfo = document.getElementById('fileInfo');
-  if (fileInfo) fileInfo.style.display = 'none';
-}
