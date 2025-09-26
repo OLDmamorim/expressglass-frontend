@@ -34,14 +34,32 @@ class ProcessadorPersonalizado {
   // Verificar se matrícula já existe na base de dados
   async matriculaJaExiste(matricula) {
     try {
+      console.log(`🔍 Verificando se matrícula ${matricula} já existe...`);
+      
       // Carregar agendamentos existentes
       const response = await fetch('/.netlify/functions/appointments');
       if (!response.ok) {
-        console.warn('Não foi possível verificar agendamentos existentes');
+        console.warn('Não foi possível verificar agendamentos existentes - permitindo importação');
         return false; // Em caso de erro, permitir importação
       }
       
-      const appointments = await response.json();
+      const responseData = await response.json();
+      console.log('📊 Resposta da API:', responseData);
+      
+      // Verificar se a resposta é um array ou tem propriedade data
+      let appointments = [];
+      if (Array.isArray(responseData)) {
+        appointments = responseData;
+      } else if (responseData && Array.isArray(responseData.data)) {
+        appointments = responseData.data;
+      } else if (responseData && Array.isArray(responseData.appointments)) {
+        appointments = responseData.appointments;
+      } else {
+        console.warn('Formato de resposta inesperado da API - permitindo importação');
+        return false;
+      }
+      
+      console.log(`📋 ${appointments.length} agendamentos carregados para verificação`);
       
       // Normalizar matrícula para comparação
       const matriculaNormalizada = this.normalizarMatricula(matricula);
@@ -53,6 +71,8 @@ class ProcessadorPersonalizado {
       
       if (existe) {
         console.log(`🚫 Matrícula ${matricula} já existe na base de dados - linha ignorada`);
+      } else {
+        console.log(`✅ Matrícula ${matricula} não existe - pode importar`);
       }
       
       return existe;
