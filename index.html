@@ -148,7 +148,13 @@
 
     <!-- Serviços por agendar (desktop) -->
     <section class="unscheduled-container">
-      <h3>SERVIÇOS POR AGENDAR</h3>
+      <div class="unscheduled-header">
+        <h3>SERVIÇOS POR AGENDAR</h3>
+        <div class="search-container">
+          <input type="text" id="searchPlate" class="search-input" placeholder="Procurar matrícula (XX-XX-XX)" maxlength="8">
+          <span class="search-icon">🔍</span>
+        </div>
+      </div>
       <div class="unscheduled-actions">
         <button id="addServiceBtn" class="action-btn primary">+ Novo Serviço</button>
         <button id="importExcelBtn" class="action-btn secondary">📊 Importar Excel</button>
@@ -158,8 +164,29 @@
           <option value="VE">V/E - Vidro Encomendado</option>
           <option value="ST">ST - Serviço Terminado</option>
         </select>
+        <button id="toggleViewBtn" class="action-btn secondary">📋 Vista Tabela</button>
       </div>
+      
+      <!-- Vista em cartões (padrão) -->
       <div id="unscheduledList" class="unscheduled-list" data-drop-bucket="unscheduled"></div>
+      
+      <!-- Vista em tabela -->
+      <div id="unscheduledTable" class="unscheduled-table-container" style="display: none;">
+        <table class="unscheduled-table">
+          <thead>
+            <tr>
+              <th>Matrícula</th>
+              <th>Carro</th>
+              <th>Serviço</th>
+              <th>Localidade</th>
+              <th>Observações</th>
+              <th>Estado</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="unscheduledTableBody"></tbody>
+        </table>
+      </div>
     </section>
 
     <!-- Vista diária (mobile) -->

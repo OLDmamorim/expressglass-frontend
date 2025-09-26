@@ -1009,9 +1009,13 @@ function renderSchedule(){
 // ---------- Render PENDENTES ----------
 function renderUnscheduled(){
   const container=document.getElementById('unscheduledList'); if(!container) return;
+  const tableBody=document.getElementById('unscheduledTableBody');
+  
   const unscheduled=filterAppointments(
     appointments.filter(a=>!a.date).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
   );
+  
+  // Renderizar vista em cartões
   const blocks = unscheduled.map(a=>{
     const base=getLocColor(a.locality);
     const g=gradFromBase(base);
@@ -1020,7 +1024,7 @@ function renderUnscheduled(){
     const sub=[a.locality,a.notes].filter(Boolean).join(' | ');
     return `
       <div class="appointment desk-card unscheduled" data-id="${a.id}" draggable="true"
-           data-locality="${a.locality||''}" data-loccolor="${base}"
+           data-locality="${a.locality||''}" data-loccolor="${base}" data-plate="${a.plate||''}"
            style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
         <div class="dc-title">${title}</div>
         <div class="dc-sub">${sub}</div>
@@ -1036,6 +1040,30 @@ function renderUnscheduled(){
       </div>`;
   }).join('');
   container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled">${blocks}</div>`;
+  
+  // Renderizar vista em tabela
+  if (tableBody) {
+    const rows = unscheduled.map(a => {
+      const serviceBadge = a.service ? `<span class="service-badge ${a.service}">${a.service}</span>` : '';
+      const statusBadge = a.status ? `<span class="status-badge ${a.status}">${a.status}</span>` : '';
+      
+      return `
+        <tr data-id="${a.id}" data-plate="${a.plate||''}" data-locality="${a.locality||''}">
+          <td class="plate-cell">${a.plate || ''}</td>
+          <td>${a.car || ''}</td>
+          <td>${serviceBadge}</td>
+          <td>${a.locality || ''}</td>
+          <td>${a.notes || ''}</td>
+          <td>${statusBadge}</td>
+          <td class="actions-cell">
+            <button class="action-btn-small edit" onclick="editAppointment('${a.id}')" title="Editar">✏️</button>
+            <button class="action-btn-small delete" onclick="deleteAppointment('${a.id}')" title="Eliminar">🗑️</button>
+          </td>
+        </tr>`;
+    }).join('');
+    tableBody.innerHTML = rows;
+  }
+  
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
@@ -1608,3 +1636,102 @@ document.addEventListener('click', (e) => {
   }
 });
 
+
+// ========== FUNCIONALIDADES DE PROCURA E VISTA TABELA ==========
+
+// Formatação automática da matrícula na caixa de procura
+function formatPlateInput(input) {
+  let value = input.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (value.length > 6) value = value.substring(0, 6);
+  
+  if (value.length >= 2) {
+    value = value.substring(0, 2) + '-' + value.substring(2);
+  }
+  if (value.length >= 6) {
+    value = value.substring(0, 5) + '-' + value.substring(5);
+  }
+  
+  input.value = value;
+}
+
+// Filtrar serviços por matrícula
+function filterServicesByPlate(searchTerm) {
+  const normalizedSearch = searchTerm.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  
+  // Filtrar cartões
+  const cards = document.querySelectorAll('.unscheduled .desk-card');
+  cards.forEach(card => {
+    const plate = card.getAttribute('data-plate') || '';
+    const normalizedPlate = plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    
+    if (normalizedSearch === '' || normalizedPlate.includes(normalizedSearch)) {
+      card.style.display = '';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+  
+  // Filtrar linhas da tabela
+  const rows = document.querySelectorAll('#unscheduledTableBody tr');
+  rows.forEach(row => {
+    const plate = row.getAttribute('data-plate') || '';
+    const normalizedPlate = plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    
+    if (normalizedSearch === '' || normalizedPlate.includes(normalizedSearch)) {
+      row.classList.remove('filtered-out');
+    } else {
+      row.classList.add('filtered-out');
+    }
+  });
+}
+
+// Alternar entre vista cartões e tabela
+function toggleUnscheduledView() {
+  const cardView = document.getElementById('unscheduledList');
+  const tableView = document.getElementById('unscheduledTable');
+  const toggleBtn = document.getElementById('toggleViewBtn');
+  
+  if (!cardView || !tableView || !toggleBtn) return;
+  
+  const isTableVisible = tableView.style.display !== 'none';
+  
+  if (isTableVisible) {
+    // Mudar para vista cartões
+    tableView.style.display = 'none';
+    cardView.style.display = '';
+    toggleBtn.textContent = '📋 Vista Tabela';
+    toggleBtn.classList.remove('active');
+  } else {
+    // Mudar para vista tabela
+    cardView.style.display = 'none';
+    tableView.style.display = '';
+    toggleBtn.textContent = '🎴 Vista Cartões';
+    toggleBtn.classList.add('active');
+  }
+}
+
+// Inicializar funcionalidades quando DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+  // Event listener para caixa de procura
+  const searchInput = document.getElementById('searchPlate');
+  if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+      formatPlateInput(e.target);
+      filterServicesByPlate(e.target.value);
+    });
+    
+    searchInput.addEventListener('keydown', function(e) {
+      // Permitir apenas letras, números e teclas de controle
+      const allowedKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+      if (!allowedKeys.includes(e.key) && !/^[A-Za-z0-9]$/.test(e.key)) {
+        e.preventDefault();
+      }
+    });
+  }
+  
+  // Event listener para botão de alternar vista
+  const toggleBtn = document.getElementById('toggleViewBtn');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', toggleUnscheduledView);
+  }
+});
