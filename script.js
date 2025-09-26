@@ -1006,63 +1006,36 @@ function renderSchedule(){
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
-// ---------- Render PENDENTES ----------
+// ---------- Render PENDENTES (APENAS TABELA) ----------
 function renderUnscheduled(){
-  const container=document.getElementById('unscheduledList'); if(!container) return;
   const tableBody=document.getElementById('unscheduledTableBody');
+  if (!tableBody) return;
   
   const unscheduled=filterAppointments(
     appointments.filter(a=>!a.date).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
   );
   
-  // Renderizar vista em cartões
-  const blocks = unscheduled.map(a=>{
-    const base=getLocColor(a.locality);
-    const g=gradFromBase(base);
-    const bar=statusBarColors[a.status]||'#999';
-    const title=`${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
-    const sub=[a.locality,a.notes].filter(Boolean).join(' | ');
-    return `
-      <div class="appointment desk-card unscheduled" data-id="${a.id}" draggable="true"
-           data-locality="${a.locality||''}" data-loccolor="${base}" data-plate="${a.plate||''}"
-           style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
-        <div class="dc-title">${title}</div>
-        <div class="dc-sub">${sub}</div>
-        <div class="appt-status dc-status">
-          <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
-          <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
-          <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
-        </div>
-        <div class="unscheduled-actions">
-          <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar">✏️</button>
-          <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar">🗑️</button>
-        </div>
-      </div>`;
+  // Renderizar APENAS vista em tabela
+  tableBody.innerHTML = unscheduled.map(a=>{
+    const serviceDisplay = a.service ? `<span class="service-badge service-${a.service}">${a.service}</span>` : '<span class="service-empty">-</span>';
+    const localityDisplay = a.locality || '<span class="locality-empty">-</span>';
+    const statusDisplay = `<span class="status-badge status-${a.status}">${a.status}</span>`;
+    const notes = (a.notes||'').replace(/"/g,'&quot;');
+    
+    return `<tr>
+      <td>${a.plate||''}</td>
+      <td>${a.car||''}</td>
+      <td>${serviceDisplay}</td>
+      <td>${localityDisplay}</td>
+      <td title="${notes}">${notes}</td>
+      <td>${statusDisplay}</td>
+      <td>
+        <button onclick="editAppointment('${a.id}')" class="action-btn small">✏️</button>
+        <button onclick="deleteAppointment('${a.id}')" class="action-btn small danger">🗑️</button>
+      </td>
+    </tr>`;
   }).join('');
-  container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled">${blocks}</div>`;
-  
-  // Renderizar vista em tabela
-  if (tableBody) {
-    const rows = unscheduled.map(a => {
-      const serviceBadge = a.service ? `<span class="service-badge ${a.service}">${a.service}</span>` : '';
-      const statusBadge = a.status ? `<span class="status-badge ${a.status}">${a.status}</span>` : '';
-      
-      return `
-        <tr data-id="${a.id}" data-plate="${a.plate||''}" data-locality="${a.locality||''}">
-          <td class="plate-cell">${a.plate || ''}</td>
-          <td>${a.car || ''}</td>
-          <td>${serviceBadge}</td>
-          <td>${a.locality || ''}</td>
-          <td>${a.notes || ''}</td>
-          <td>${statusBadge}</td>
-          <td class="actions-cell">
-            <button class="action-btn-small edit" onclick="editAppointment('${a.id}')" title="Editar">✏️</button>
-            <button class="action-btn-small delete" onclick="deleteAppointment('${a.id}')" title="Eliminar">🗑️</button>
-          </td>
-        </tr>`;
-    }).join('');
-    tableBody.innerHTML = rows;
-  }
+}
   
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
@@ -1685,30 +1658,8 @@ function filterServicesByPlate(searchTerm) {
   });
 }
 
-// Alternar entre vista cartões e tabela
-function toggleUnscheduledView() {
-  const cardView = document.getElementById('unscheduledList');
-  const tableView = document.getElementById('unscheduledTable');
-  const toggleBtn = document.getElementById('toggleViewBtn');
-  
-  if (!cardView || !tableView || !toggleBtn) return;
-  
-  const isTableVisible = tableView.style.display !== 'none';
-  
-  if (isTableVisible) {
-    // Mudar para vista cartões
-    tableView.style.display = 'none';
-    cardView.style.display = '';
-    toggleBtn.textContent = '📋 Vista Tabela';
-    toggleBtn.classList.remove('active');
-  } else {
-    // Mudar para vista tabela
-    cardView.style.display = 'none';
-    tableView.style.display = '';
-    toggleBtn.textContent = '🎴 Vista Cartões';
-    toggleBtn.classList.add('active');
-  }
-}
+// REMOVIDO: Vista de cartões - Manter apenas vista de tabela
+// A vista de cartões foi removida conforme solicitado pelo utilizador
 
 // Inicializar funcionalidades quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', function() {
@@ -1729,9 +1680,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Event listener para botão de alternar vista
-  const toggleBtn = document.getElementById('toggleViewBtn');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', toggleUnscheduledView);
-  }
+  // REMOVIDO: Event listener para botão de alternar vista
+  // Vista de cartões foi removida - apenas tabela
 });
