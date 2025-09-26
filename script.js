@@ -1927,3 +1927,472 @@ function resetImportModal() {
     step.style.display = index === 0 ? 'block' : 'none';
   });
 }
+
+
+// ========== EVENT LISTENERS PARA IMPORTAÇÃO EXCEL ==========
+
+// Inicializar event listeners quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', function() {
+  setupExcelImportListeners();
+});
+
+// Configurar event listeners para importação Excel
+function setupExcelImportListeners() {
+  // Event listener para o input de ficheiro
+  const fileInput = document.getElementById('excelFile');
+  if (fileInput) {
+    fileInput.addEventListener('change', handleFileSelect);
+  }
+  
+  // Event listener para drag & drop
+  const uploadArea = document.getElementById('uploadArea');
+  if (uploadArea) {
+    uploadArea.addEventListener('dragover', handleDragOver);
+    uploadArea.addEventListener('dragleave', handleDragLeave);
+    uploadArea.addEventListener('drop', handleFileDrop);
+  }
+}
+
+// Variáveis globais para importação
+let currentExcelImporter = null;
+let currentStep = 1;
+let uploadedFile = null;
+let processedData = null;
+let detectedTemplate = null;
+
+// Manipular seleção de ficheiro
+async function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (file) {
+    await processExcelFile(file);
+  }
+}
+
+// Manipular drag over
+function handleDragOver(event) {
+  event.preventDefault();
+  event.currentTarget.classList.add('dragover');
+}
+
+// Manipular drag leave
+function handleDragLeave(event) {
+  event.currentTarget.classList.remove('dragover');
+}
+
+// Manipular drop de ficheiro
+async function handleFileDrop(event) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('dragover');
+  
+  const files = event.dataTransfer.files;
+  if (files.length > 0) {
+    const file = files[0];
+    if (file.type.includes('sheet') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      await processExcelFile(file);
+    } else {
+      alert('Por favor selecione um ficheiro Excel (.xlsx ou .xls)');
+    }
+  }
+}
+
+// Processar ficheiro Excel
+async function processExcelFile(file) {
+  try {
+    showLoadingStep('Carregando ficheiro...', 'Analisando dados do Excel...');
+    
+    // Criar instância do importador se não existir
+    if (!currentExcelImporter) {
+      currentExcelImporter = new ExcelImporter();
+    }
+    
+    // Carregar ficheiro
+    await currentExcelImporter.loadFile(file);
+    
+    uploadedFile = file;
+    
+    // Mostrar informações do ficheiro
+    showFileInfo(file, currentExcelImporter.data.length, currentExcelImporter.headers.length);
+    
+    // Tentar detectar template automaticamente
+    if (typeof detectTemplate === 'function') {
+      detectedTemplate = detectTemplate(currentExcelImporter.headers, currentExcelImporter.data);
+      if (detectedTemplate && detectedTemplate.confidence > 0.7) {
+        showDetectedTemplate(detectedTemplate);
+      }
+    }
+    
+    hideLoadingStep();
+    
+  } catch (error) {
+    console.error('Erro ao processar ficheiro:', error);
+    hideLoadingStep();
+    alert('Erro ao processar ficheiro Excel. Verifique se o ficheiro está correto.');
+  }
+}
+
+// Mostrar informações do ficheiro carregado
+function showFileInfo(file, rowCount, columnCount) {
+  const fileInfo = document.getElementById('fileInfo');
+  const fileName = document.getElementById('fileName');
+  const rowCountEl = document.getElementById('rowCount');
+  const columnCountEl = document.getElementById('columnCount');
+  
+  if (fileName) fileName.textContent = file.name;
+  if (rowCountEl) rowCountEl.textContent = rowCount;
+  if (columnCountEl) columnCountEl.textContent = columnCount;
+  
+  if (fileInfo) fileInfo.style.display = 'block';
+}
+
+// Mostrar template detectado
+function showDetectedTemplate(template) {
+  const alert = document.getElementById('detectedTemplateAlert');
+  const name = document.getElementById('detectedTemplateName');
+  const confidence = document.getElementById('detectedTemplateConfidence');
+  
+  if (name) name.textContent = `Template: ${template.name}`;
+  if (confidence) confidence.textContent = `Confiança: ${Math.round(template.confidence * 100)}%`;
+  if (alert) alert.style.display = 'block';
+}
+
+// Mostrar passo de loading
+function showLoadingStep(title, subtitle) {
+  const loadingStep = document.getElementById('loadingStep');
+  const loadingText = document.getElementById('loadingText');
+  const loadingSubtext = document.getElementById('loadingSubtext');
+  
+  if (loadingText) loadingText.textContent = title;
+  if (loadingSubtext) loadingSubtext.textContent = subtitle;
+  
+  // Esconder outros passos
+  document.querySelectorAll('.import-step').forEach(step => {
+    step.style.display = 'none';
+  });
+  
+  if (loadingStep) loadingStep.style.display = 'block';
+}
+
+// Esconder passo de loading
+function hideLoadingStep() {
+  const loadingStep = document.getElementById('loadingStep');
+  if (loadingStep) loadingStep.style.display = 'none';
+  
+  // Mostrar passo 1
+  const step1 = document.getElementById('step1');
+  if (step1) step1.style.display = 'block';
+}
+
+// Ir para passo 2 (mapeamento)
+function goToStep2() {
+  if (!currentExcelImporter || !uploadedFile) {
+    alert('Por favor carregue um ficheiro primeiro.');
+    return;
+  }
+  
+  // Esconder passo 1
+  const step1 = document.getElementById('step1');
+  if (step1) step1.style.display = 'none';
+  
+  // Mostrar passo 2
+  const step2 = document.getElementById('step2');
+  if (step2) step2.style.display = 'block';
+  
+  // Preencher opções de mapeamento
+  populateMappingOptions();
+  
+  currentStep = 2;
+}
+
+// Preencher opções de mapeamento
+function populateMappingOptions() {
+  const selects = document.querySelectorAll('.mapping-select');
+  const headers = currentExcelImporter.headers;
+  
+  selects.forEach(select => {
+    // Limpar opções existentes (exceto a primeira)
+    while (select.children.length > 1) {
+      select.removeChild(select.lastChild);
+    }
+    
+    // Adicionar headers como opções
+    headers.forEach((header, index) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = `${String.fromCharCode(65 + index)} - ${header}`;
+      select.appendChild(option);
+    });
+  });
+}
+
+// Voltar para passo 1
+function goToStep1() {
+  const step2 = document.getElementById('step2');
+  if (step2) step2.style.display = 'none';
+  
+  const step1 = document.getElementById('step1');
+  if (step1) step1.style.display = 'block';
+  
+  currentStep = 1;
+}
+
+// Ir para passo 3 (pré-visualização)
+function goToStep3() {
+  // Validar mapeamento
+  const mapping = getCurrentMapping();
+  if (!mapping.plate) {
+    alert('Por favor selecione a coluna da Matrícula.');
+    return;
+  }
+  if (!mapping.car) {
+    alert('Por favor selecione a coluna do Modelo do Carro.');
+    return;
+  }
+  
+  // Aplicar mapeamento
+  currentExcelImporter.setMapping(mapping);
+  
+  // Processar dados
+  const result = currentExcelImporter.processData();
+  processedData = result;
+  
+  // Mostrar pré-visualização
+  showPreview(result);
+  
+  // Esconder passo 2
+  const step2 = document.getElementById('step2');
+  if (step2) step2.style.display = 'none';
+  
+  // Mostrar passo 3
+  const step3 = document.getElementById('step3');
+  if (step3) step3.style.display = 'block';
+  
+  currentStep = 3;
+}
+
+// Obter mapeamento atual
+function getCurrentMapping() {
+  return {
+    plate: document.getElementById('mapPlate')?.value || '',
+    car: document.getElementById('mapCar')?.value || '',
+    service: document.getElementById('mapService')?.value || '',
+    locality: document.getElementById('mapLocality')?.value || '',
+    notes: document.getElementById('mapNotes')?.value || '',
+    address: document.getElementById('mapAddress')?.value || '',
+    phone: document.getElementById('mapPhone')?.value || '',
+    extra: document.getElementById('mapExtra')?.value || ''
+  };
+}
+
+// Mostrar pré-visualização
+function showPreview(result) {
+  // Atualizar estatísticas
+  const validCount = document.getElementById('validCount');
+  const errorCount = document.getElementById('errorCount');
+  
+  if (validCount) validCount.textContent = result.valid.length;
+  if (errorCount) errorCount.textContent = result.errors.length;
+  
+  // Mostrar erros se existirem
+  if (result.errors.length > 0) {
+    showErrors(result.errors);
+  }
+  
+  // Mostrar tabela de pré-visualização
+  showPreviewTable(result.valid.slice(0, 10)); // Primeiros 10
+}
+
+// Mostrar erros
+function showErrors(errors) {
+  const errorsList = document.getElementById('errorsList');
+  const errorsContainer = document.getElementById('errorsContainer');
+  
+  if (errorsContainer) {
+    errorsContainer.innerHTML = '';
+    errors.forEach(error => {
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error-item';
+      errorDiv.textContent = `Linha ${error.row}: ${error.message}`;
+      errorsContainer.appendChild(errorDiv);
+    });
+  }
+  
+  if (errorsList) errorsList.style.display = errors.length > 0 ? 'block' : 'none';
+}
+
+// Mostrar tabela de pré-visualização
+function showPreviewTable(data) {
+  const headers = document.getElementById('previewHeaders');
+  const body = document.getElementById('previewBody');
+  
+  if (!headers || !body || data.length === 0) return;
+  
+  // Limpar tabela
+  headers.innerHTML = '';
+  body.innerHTML = '';
+  
+  // Criar cabeçalhos
+  const headerRow = document.createElement('tr');
+  ['Matrícula', 'Carro', 'Serviço', 'Localidade', 'Observações'].forEach(header => {
+    const th = document.createElement('th');
+    th.textContent = header;
+    headerRow.appendChild(th);
+  });
+  headers.appendChild(headerRow);
+  
+  // Criar linhas de dados
+  data.forEach(item => {
+    const row = document.createElement('tr');
+    [
+      item.plate || '',
+      item.car || '',
+      item.service || '',
+      item.locality || '',
+      item.notes || ''
+    ].forEach(value => {
+      const td = document.createElement('td');
+      td.textContent = value;
+      row.appendChild(td);
+    });
+    body.appendChild(row);
+  });
+}
+
+// Voltar para passo 2
+function goToStep2() {
+  const step3 = document.getElementById('step3');
+  if (step3) step3.style.display = 'none';
+  
+  const step2 = document.getElementById('step2');
+  if (step2) step2.style.display = 'block';
+  
+  currentStep = 2;
+}
+
+// Importar dados
+async function importData() {
+  if (!processedData || processedData.valid.length === 0) {
+    alert('Não há dados válidos para importar.');
+    return;
+  }
+  
+  showLoadingStep('Importando dados...', 'Criando serviços na base de dados...');
+  
+  try {
+    let successCount = 0;
+    let failCount = 0;
+    const details = [];
+    
+    for (const item of processedData.valid) {
+      try {
+        // Criar serviço usando a API existente
+        const serviceData = {
+          plate: item.plate,
+          car: item.car,
+          service: item.service || '',
+          locality: item.locality || '',
+          notes: item.notes || '',
+          address: item.address || '',
+          phone: item.phone || '',
+          extra: item.extra || '',
+          status: 'N/E'
+        };
+        
+        // Usar a função createAppointment se existir
+        if (typeof createAppointment === 'function') {
+          await createAppointment(serviceData);
+        } else {
+          // Fallback para API direta
+          const response = await fetch('/.netlify/functions/appointments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(serviceData)
+          });
+          
+          if (!response.ok) throw new Error('Erro na API');
+        }
+        
+        successCount++;
+        details.push(`✅ ${item.plate} - ${item.car}`);
+        
+      } catch (error) {
+        failCount++;
+        details.push(`❌ ${item.plate} - Erro: ${error.message}`);
+      }
+    }
+    
+    // Mostrar resultados
+    showImportResults(successCount, failCount, details);
+    
+  } catch (error) {
+    console.error('Erro na importação:', error);
+    hideLoadingStep();
+    alert('Erro durante a importação. Tente novamente.');
+  }
+}
+
+// Mostrar resultados da importação
+function showImportResults(successCount, failCount, details) {
+  hideLoadingStep();
+  
+  // Atualizar contadores
+  const successEl = document.getElementById('successCount');
+  const failEl = document.getElementById('failCount');
+  
+  if (successEl) successEl.textContent = successCount;
+  if (failEl) failEl.textContent = failCount;
+  
+  // Mostrar detalhes
+  const detailsEl = document.getElementById('importDetails');
+  if (detailsEl) {
+    detailsEl.innerHTML = details.map(detail => `<div>${detail}</div>`).join('');
+  }
+  
+  // Esconder passo 3
+  const step3 = document.getElementById('step3');
+  if (step3) step3.style.display = 'none';
+  
+  // Mostrar passo 4
+  const step4 = document.getElementById('step4');
+  if (step4) step4.style.display = 'block';
+  
+  currentStep = 4;
+}
+
+// Finalizar importação
+function finishImport() {
+  closeExcelImportModal();
+  
+  // Recarregar dados se a função existir
+  if (typeof loadAppointments === 'function') {
+    loadAppointments();
+  } else {
+    // Recarregar página como fallback
+    window.location.reload();
+  }
+}
+
+// Nova importação
+function startNewImport() {
+  // Reset de variáveis
+  currentExcelImporter = null;
+  currentStep = 1;
+  uploadedFile = null;
+  processedData = null;
+  detectedTemplate = null;
+  
+  // Esconder passo 4
+  const step4 = document.getElementById('step4');
+  if (step4) step4.style.display = 'none';
+  
+  // Mostrar passo 1
+  const step1 = document.getElementById('step1');
+  if (step1) step1.style.display = 'block';
+  
+  // Limpar input de ficheiro
+  const fileInput = document.getElementById('excelFile');
+  if (fileInput) fileInput.value = '';
+  
+  // Esconder info do ficheiro
+  const fileInfo = document.getElementById('fileInfo');
+  if (fileInfo) fileInfo.style.display = 'none';
+}
