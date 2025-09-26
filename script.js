@@ -1036,9 +1036,6 @@ function renderUnscheduled(){
     </tr>`;
   }).join('');
 }
-  
-  enableDragDrop(); attachStatusListeners(); highlightSearchResults();
-}
 
 // ---------- Header da tabela ----------
 function ensureServicesHeader(){
