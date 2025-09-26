@@ -1883,3 +1883,47 @@ function loadExistingServiceData(service) {
   
   console.log(`✅ Dados carregados com sucesso para edição`);
 }
+
+
+// ========== FUNÇÕES DE IMPORTAÇÃO EXCEL ==========
+
+// Abrir modal de importação Excel
+function openExcelImportModal() {
+  const modal = document.getElementById('excelImportModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    resetImportModal();
+  } else {
+    console.error('Modal de importação Excel não encontrado');
+  }
+}
+
+// Fechar modal de importação Excel
+function closeExcelImportModal() {
+  const modal = document.getElementById('excelImportModal');
+  if (modal) {
+    modal.style.display = 'none';
+    resetImportModal();
+  }
+}
+
+// Reset do modal de importação
+function resetImportModal() {
+  // Reset de variáveis globais se existirem
+  if (typeof currentStep !== 'undefined') currentStep = 1;
+  if (typeof uploadedFile !== 'undefined') uploadedFile = null;
+  if (typeof processedData !== 'undefined') processedData = null;
+  if (typeof detectedTemplate !== 'undefined') detectedTemplate = null;
+  
+  // Reset de elementos do modal se existirem
+  const fileInput = document.getElementById('excelFileInput');
+  if (fileInput) fileInput.value = '';
+  
+  const preview = document.getElementById('dataPreview');
+  if (preview) preview.innerHTML = '';
+  
+  const steps = document.querySelectorAll('.import-step');
+  steps.forEach((step, index) => {
+    step.style.display = index === 0 ? 'block' : 'none';
+  });
+}
