@@ -1008,34 +1008,35 @@ function renderSchedule(){
 
 // ---------- Render PENDENTES ----------
 function renderUnscheduled(){
-  const container=document.getElementById('unscheduledList'); if(!container) return;
+  const tableBody=document.getElementById('unscheduledTableBody');
+  if (!tableBody) return;
+  
   const unscheduled=filterAppointments(
     appointments.filter(a=>!a.date).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
   );
-  const blocks = unscheduled.map(a=>{
-    const base=getLocColor(a.locality);
-    const g=gradFromBase(base);
-    const bar=statusBarColors[a.status]||'#999';
-    const title=`${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
-    const sub=[a.locality,a.notes].filter(Boolean).join(' | ');
-    return `
-      <div class="appointment desk-card unscheduled" data-id="${a.id}" draggable="true"
-           data-locality="${a.locality||''}" data-loccolor="${base}"
-           style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
-        <div class="dc-title">${title}</div>
-        <div class="dc-sub">${sub}</div>
-        <div class="appt-status dc-status">
-          <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
-          <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
-          <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
-        </div>
-        <div class="unscheduled-actions">
-          <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar">✏️</button>
-          <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar">🗑️</button>
-        </div>
-      </div>`;
-  }).join('');
-  container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled">${blocks}</div>`;
+  
+  // Vista em cartões removida - apenas vista em tabela disponível
+  
+  // Renderizar vista em tabela
+  if (tableBody) {
+    const rows = unscheduled.map(a => {
+      const statusBadge = a.status ? `<span class="status-badge ${a.status}">${a.status}</span>` : '';
+      
+      return `
+        <tr data-id="${a.id}" data-plate="${a.plate||''}" data-locality="${a.locality||''}">
+          <td class="plate-cell">${a.plate || ''}</td>
+          <td>${a.car || ''}</td>
+          <td>${a.notes || ''}</td>
+          <td>${statusBadge}</td>
+          <td class="actions-cell">
+            <button class="action-btn-small edit" onclick="editAppointment('${a.id}')" title="Editar">✏️</button>
+            <button class="action-btn-small delete" onclick="deleteAppointment('${a.id}')" title="Eliminar">🗑️</button>
+          </td>
+        </tr>`;
+    }).join('');
+    tableBody.innerHTML = rows;
+  }
+  
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 
@@ -1416,6 +1417,11 @@ cancelEdit?.();
 
     document.getElementById('appointmentModal').classList.add('show');
   });
+
+  // --- Importar Excel ---
+  document.getElementById('importExcelBtn')?.addEventListener('click', () => {
+    openExcelImportModal();
+  });
 }); // 👈 FECHO DO DOMContentLoaded
 
 // === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
@@ -1603,3 +1609,62 @@ document.addEventListener('click', (e) => {
   }
 });
 
+
+// ========== FUNCIONALIDADES DE PROCURA E VISTA TABELA ==========
+
+// Formatação automática da matrícula na caixa de procura
+function formatPlateInput(input) {
+  let value = input.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (value.length > 6) value = value.substring(0, 6);
+  
+  if (value.length >= 2) {
+    value = value.substring(0, 2) + '-' + value.substring(2);
+  }
+  if (value.length >= 6) {
+    value = value.substring(0, 5) + '-' + value.substring(5);
+  }
+  
+  input.value = value;
+}
+
+// Filtrar serviços por matrícula
+function filterServicesByPlate(searchTerm) {
+  const normalizedSearch = searchTerm.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  
+  // Filtrar linhas da tabela
+  const rows = document.querySelectorAll('#unscheduledTableBody tr');
+  rows.forEach(row => {
+    const plate = row.getAttribute('data-plate') || '';
+    const normalizedPlate = plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    
+    if (normalizedSearch === '' || normalizedPlate.includes(normalizedSearch)) {
+      row.classList.remove('filtered-out');
+    } else {
+      row.classList.add('filtered-out');
+    }
+  });
+}
+
+// Vista em tabela é agora a única vista disponível
+
+// Inicializar funcionalidades quando DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+  // Event listener para caixa de procura
+  const searchInput = document.getElementById('searchPlate');
+  if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+      formatPlateInput(e.target);
+      filterServicesByPlate(e.target.value);
+    });
+    
+    searchInput.addEventListener('keydown', function(e) {
+      // Permitir apenas letras, números e teclas de controle
+      const allowedKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'];
+      if (!allowedKeys.includes(e.key) && !/^[A-Za-z0-9]$/.test(e.key)) {
+        e.preventDefault();
+      }
+    });
+  }
+  
+  // Vista em tabela é agora a única vista disponível
+});
