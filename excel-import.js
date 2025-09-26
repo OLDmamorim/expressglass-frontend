@@ -240,28 +240,12 @@ class ExcelImporter {
       throw new Error('Modelo do carro é obrigatório');
     }
     
-    if (!service.service || service.service === '') {
-      throw new Error('Tipo de serviço é obrigatório');
-    }
-    
-    if (!service.locality || service.locality === '') {
-      throw new Error('Localidade é obrigatória');
-    }
-    
     // Normalizar matrícula (formato XX-XX-XX)
     service.plate = this.normalizeplate(service.plate);
     
-    // Normalizar tipo de serviço
-    service.service = this.normalizeServiceType(service.service);
-    if (!service.service) {
-      throw new Error(`Tipo de serviço inválido: ${row[this.mapping.service]}`);
-    }
-    
-    // Normalizar localidade
-    service.locality = this.normalizeLocality(service.locality);
-    if (!service.locality) {
-      throw new Error(`Localidade inválida: ${row[this.mapping.locality]}`);
-    }
+    // Definir valores padrão para campos que serão preenchidos pelo operador
+    service.service = service.service ? this.normalizeServiceType(service.service) : 'PB';
+    service.locality = service.locality ? this.normalizeLocality(service.locality) : 'Braga';
     
     // Campos opcionais
     service.notes = service.notes || '';

@@ -1008,51 +1008,24 @@ function renderSchedule(){
 
 // ---------- Render PENDENTES ----------
 function renderUnscheduled(){
-  const container=document.getElementById('unscheduledList'); if(!container) return;
   const tableBody=document.getElementById('unscheduledTableBody');
+  if (!tableBody) return;
   
   const unscheduled=filterAppointments(
     appointments.filter(a=>!a.date).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
   );
   
-  // Renderizar vista em cartões
-  const blocks = unscheduled.map(a=>{
-    const base=getLocColor(a.locality);
-    const g=gradFromBase(base);
-    const bar=statusBarColors[a.status]||'#999';
-    const title=`${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
-    const sub=[a.locality,a.notes].filter(Boolean).join(' | ');
-    return `
-      <div class="appointment desk-card unscheduled" data-id="${a.id}" draggable="true"
-           data-locality="${a.locality||''}" data-loccolor="${base}" data-plate="${a.plate||''}"
-           style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
-        <div class="dc-title">${title}</div>
-        <div class="dc-sub">${sub}</div>
-        <div class="appt-status dc-status">
-          <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
-          <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
-          <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
-        </div>
-        <div class="unscheduled-actions">
-          <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar">✏️</button>
-          <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar">🗑️</button>
-        </div>
-      </div>`;
-  }).join('');
-  container.innerHTML=`<div class="drop-zone" data-drop-bucket="unscheduled">${blocks}</div>`;
+  // Vista em cartões removida - apenas vista em tabela disponível
   
   // Renderizar vista em tabela
   if (tableBody) {
     const rows = unscheduled.map(a => {
-      const serviceBadge = a.service ? `<span class="service-badge ${a.service}">${a.service}</span>` : '';
       const statusBadge = a.status ? `<span class="status-badge ${a.status}">${a.status}</span>` : '';
       
       return `
         <tr data-id="${a.id}" data-plate="${a.plate||''}" data-locality="${a.locality||''}">
           <td class="plate-cell">${a.plate || ''}</td>
           <td>${a.car || ''}</td>
-          <td>${serviceBadge}</td>
-          <td>${a.locality || ''}</td>
           <td>${a.notes || ''}</td>
           <td>${statusBadge}</td>
           <td class="actions-cell">
@@ -1658,19 +1631,6 @@ function formatPlateInput(input) {
 function filterServicesByPlate(searchTerm) {
   const normalizedSearch = searchTerm.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
   
-  // Filtrar cartões
-  const cards = document.querySelectorAll('.unscheduled .desk-card');
-  cards.forEach(card => {
-    const plate = card.getAttribute('data-plate') || '';
-    const normalizedPlate = plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    
-    if (normalizedSearch === '' || normalizedPlate.includes(normalizedSearch)) {
-      card.style.display = '';
-    } else {
-      card.style.display = 'none';
-    }
-  });
-  
   // Filtrar linhas da tabela
   const rows = document.querySelectorAll('#unscheduledTableBody tr');
   rows.forEach(row => {
@@ -1685,30 +1645,7 @@ function filterServicesByPlate(searchTerm) {
   });
 }
 
-// Alternar entre vista cartões e tabela
-function toggleUnscheduledView() {
-  const cardView = document.getElementById('unscheduledList');
-  const tableView = document.getElementById('unscheduledTable');
-  const toggleBtn = document.getElementById('toggleViewBtn');
-  
-  if (!cardView || !tableView || !toggleBtn) return;
-  
-  const isTableVisible = tableView.style.display !== 'none';
-  
-  if (isTableVisible) {
-    // Mudar para vista cartões
-    tableView.style.display = 'none';
-    cardView.style.display = '';
-    toggleBtn.textContent = '📋 Vista Tabela';
-    toggleBtn.classList.remove('active');
-  } else {
-    // Mudar para vista tabela
-    cardView.style.display = 'none';
-    tableView.style.display = '';
-    toggleBtn.textContent = '🎴 Vista Cartões';
-    toggleBtn.classList.add('active');
-  }
-}
+// Vista em tabela é agora a única vista disponível
 
 // Inicializar funcionalidades quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', function() {
@@ -1729,9 +1666,5 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Event listener para botão de alternar vista
-  const toggleBtn = document.getElementById('toggleViewBtn');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', toggleUnscheduledView);
-  }
+  // Vista em tabela é agora a única vista disponível
 });

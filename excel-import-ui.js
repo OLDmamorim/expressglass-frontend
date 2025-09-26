@@ -173,8 +173,6 @@ function autoDetectColumns() {
   const mappings = {
     'mapPlate': ['matricula', 'matrícula', 'plate', 'placa'],
     'mapCar': ['carro', 'modelo', 'car', 'vehicle', 'veiculo', 'veículo'],
-    'mapService': ['servico', 'serviço', 'service', 'tipo'],
-    'mapLocality': ['localidade', 'locality', 'local', 'cidade'],
     'mapNotes': ['observacoes', 'observações', 'notes', 'obs', 'comentarios', 'comentários'],
     'mapAddress': ['morada', 'endereco', 'endereço', 'address', 'rua'],
     'mapPhone': ['telefone', 'contacto', 'contato', 'phone', 'telemovel', 'telemóvel'],
@@ -225,7 +223,7 @@ async function goToStep3() {
   }
   
   // VALIDAÇÃO NORMAL PARA MAPEAMENTO MANUAL
-  const requiredMappings = ['mapPlate', 'mapCar', 'mapService', 'mapLocality'];
+  const requiredMappings = ['mapPlate', 'mapCar'];
   const missingMappings = [];
   
   requiredMappings.forEach(id => {
@@ -311,8 +309,8 @@ function showValidationResults(result) {
 
 // Mostrar pré-visualização dos dados
 function showDataPreview(data) {
-  const headers = ['Matrícula', 'Carro', 'Serviço', 'Localidade', 'Observações'];
-  const fields = ['plate', 'car', 'service', 'locality', 'notes'];
+  const headers = ['Matrícula', 'Carro', 'Observações'];
+  const fields = ['plate', 'car', 'notes'];
   
   // Cabeçalhos
   const headerRow = document.getElementById('previewHeaders');
@@ -687,7 +685,7 @@ function setupTemplateForm() {
     
     // Criar mapeamento básico (sequencial)
     const mapping = {};
-    const fields = ['plate', 'car', 'service', 'locality', 'notes', 'address', 'phone', 'extra'];
+    const fields = ['plate', 'car', 'notes', 'address', 'phone', 'extra'];
     fields.forEach((field, index) => {
       mapping[field] = index < headers.length ? index : null;
     });
