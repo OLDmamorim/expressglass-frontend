@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Administrativo - Expressglass</title>
+  <link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+  <div class="admin-container">
+    <!-- Header -->
+    <header class="admin-header">
+      <div class="header-left">
+        <img src="expressglass-logo.png" alt="Expressglass" class="header-logo">
+        <h1>Painel Administrativo</h1>
+      </div>
+      <div class="header-right">
+        <span class="user-info" id="userInfo">Admin</span>
+        <button id="logoutBtn" class="btn-logout">Sair</button>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="admin-nav">
+      <button class="nav-tab active" data-tab="portals">
+        🏢 Portais
+      </button>
+      <button class="nav-tab" data-tab="users">
+        👤 Utilizadores
+      </button>
+    </nav>
+
+    <!-- Tab Content: Portais -->
+    <div id="portalsTab" class="tab-content active">
+      <div class="content-header">
+        <h2>Gestão de Portais</h2>
+        <button id="addPortalBtn" class="btn-primary">+ Novo Portal</button>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Morada de Partida</th>
+              <th>Nº Utilizadores</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="portalsTableBody">
+            <tr>
+              <td colspan="4" class="loading">A carregar...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab Content: Utilizadores -->
+    <div id="usersTab" class="tab-content">
+      <div class="content-header">
+        <h2>Gestão de Utilizadores</h2>
+        <button id="addUserBtn" class="btn-primary">+ Novo Utilizador</button>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Username</th>
+              <th>Portal</th>
+              <th>Role</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="usersTableBody">
+            <tr>
+              <td colspan="4" class="loading">A carregar...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Portal -->
+  <div id="portalModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="portalModalTitle">Novo Portal</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="portalForm">
+        <div class="form-group">
+          <label for="portalName">Nome do Portal *</label>
+          <input type="text" id="portalName" required placeholder="Ex: SM Famalicão">
+        </div>
+
+        <div class="form-group">
+          <label for="portalAddress">Morada de Partida *</label>
+          <input type="text" id="portalAddress" required placeholder="Ex: Rua Principal 123, 4760-123 Famalicão">
+          <small>Esta morada será usada para cálculo de rotas</small>
+        </div>
+
+        <div class="form-group">
+          <label for="portalLocalities">Localidades (JSON)</label>
+          <textarea id="portalLocalities" rows="8" placeholder='{"Localidade": "#cor", ...}'></textarea>
+          <small>Formato: {"Nome da Localidade": "#código_cor_hex"}</small>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary modal-close">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Utilizador -->
+  <div id="userModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="userModalTitle">Novo Utilizador</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <form id="userForm">
+        <div class="form-group">
+          <label for="userUsername">Username *</label>
+          <input type="text" id="userUsername" required placeholder="Ex: joao.silva">
+        </div>
+
+        <div class="form-group">
+          <label for="userPassword">Password *</label>
+          <input type="password" id="userPassword" placeholder="Mínimo 6 caracteres">
+          <small id="passwordHint">Deixe em branco para manter a password atual</small>
+        </div>
+
+        <div class="form-group">
+          <label for="userRole">Role *</label>
+          <select id="userRole" required>
+            <option value="user">Utilizador Normal</option>
+            <option value="admin">Administrador</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="portalSelectGroup">
+          <label for="userPortal">Portal *</label>
+          <select id="userPortal" required>
+            <option value="">Selecione um portal</option>
+          </select>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn-secondary modal-close">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+
+  <script src="auth-client.js"></script>
+  <script src="admin-script.js"></script>
+</body>
+</html>

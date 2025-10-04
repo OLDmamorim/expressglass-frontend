@@ -1,10 +1,27 @@
 // netlify/functions/appointments.js
 const { Pool } = require('pg');
+const jwt = require('jsonwebtoken');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
+
+const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
+
+// Extrair informações do utilizador do token
+function getUserFromToken(event) {
+  const authHeader = event.headers.authorization || event.headers.Authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new Error('Não autenticado');
+  }
+
+  const token = authHeader.substring(7);
+  const decoded = jwt.verify(token, JWT_SECRET);
+  
+  return decoded;
+}
 
 exports.handler = async (event) => {
   const headers = {
@@ -19,15 +36,28 @@ exports.handler = async (event) => {
   }
 
   try {
+    // Verificar autenticação e obter portal_id do utilizador
+    const user = getUserFromToken(event);
+    const portalId = user.portalId;
+
+    if (!portalId) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ success: false, error: 'Utilizador sem portal atribuído' })
+      };
+    }
+
     // ---------- GET ----------
     if (event.httpMethod === 'GET') {
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
                notes, address, extra, phone, km, sortIndex, created_at, updated_at
         FROM appointments
+        WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
       `;
-      const { rows } = await pool.query(q);
+      const { rows } = await pool.query(q, [portalId]);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
     }
 
@@ -42,9 +72,9 @@ exports.handler = async (event) => {
       const q = `
         INSERT INTO appointments (
           date, period, plate, car, service, locality, status,
-          notes, address, extra, phone, km, sortIndex, created_at, updated_at
+          notes, address, extra, phone, km, sortIndex, portal_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
         ) RETURNING *
       `;
       const v = [
@@ -59,8 +89,9 @@ exports.handler = async (event) => {
         data.address || null,
         data.extra || null,
         data.phone || null,
-        data.km || null,                    // ← NOVO: quilómetros
-        data.sortIndex || 1,                // ← NOVO: ordem (default 1)
+        data.km || null,
+        data.sortIndex || 1,
+        portalId, // Associar ao portal do utilizador
         new Date().toISOString(),
         new Date().toISOString()
       ];
@@ -74,13 +105,25 @@ exports.handler = async (event) => {
       const id = (event.path || '').split('/').pop();
       const data = JSON.parse(event.body || '{}');
 
+      // Verificar se o agendamento pertence ao portal do utilizador
+      const checkQuery = 'SELECT id FROM appointments WHERE id = $1 AND portal_id = $2';
+      const checkResult = await pool.query(checkQuery, [id, portalId]);
+
+      if (checkResult.rows.length === 0) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' })
+        };
+      }
+
       const q = `
         UPDATE appointments SET
           date = $1, period = $2, plate = $3, car = $4,
           service = $5, locality = $6, status = $7,
           notes = $8, address = $9, extra = $10, phone = $11,
           km = $12, sortIndex = $13, updated_at = $14
-        WHERE id = $15
+        WHERE id = $15 AND portal_id = $16
         RETURNING *
       `;
       const v = [
@@ -95,10 +138,11 @@ exports.handler = async (event) => {
         data.address || null,
         data.extra || null,
         data.phone || null,
-        data.km || null,                    // ← NOVO: quilómetros
-        data.sortIndex || null,             // ← NOVO: ordem na rota
+        data.km || null,
+        data.sortIndex || null,
         new Date().toISOString(),
-        id
+        id,
+        portalId
       ];
 
       const { rows } = await pool.query(q, v);
@@ -111,7 +155,13 @@ exports.handler = async (event) => {
     // ---------- DELETE ----------
     if (event.httpMethod === 'DELETE') {
       const id = (event.path || '').split('/').pop();
-      const { rows } = await pool.query('DELETE FROM appointments WHERE id = $1 RETURNING *', [id]);
+      
+      // Verificar se o agendamento pertence ao portal do utilizador
+      const { rows } = await pool.query(
+        'DELETE FROM appointments WHERE id = $1 AND portal_id = $2 RETURNING *',
+        [id, portalId]
+      );
+      
       if (!rows.length) {
         return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
       }
@@ -122,6 +172,15 @@ exports.handler = async (event) => {
 
   } catch (err) {
     console.error('Erro na function appointments:', err);
+    
+    if (err.message === 'Não autenticado' || err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ success: false, error: 'Não autenticado ou token inválido' })
+      };
+    }
+    
     return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: err.message }) };
   }
 };

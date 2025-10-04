@@ -33,9 +33,13 @@ class ApiClient {
   async makeRequest(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     
+    // Adicionar token de autenticação se disponível
+    const token = window.authClient?.getToken();
+    
     const defaultOptions = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers
       },
       ...options
