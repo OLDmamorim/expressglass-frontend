@@ -130,6 +130,41 @@ class ProcessadorPersonalizado {
       throw new Error('Marca e Modelo são obrigatórios (colunas L e M)');
     }
     
+    // 📅 CAPTURAR DATA DE CRIAÇÃO (Coluna D - índice 3)
+    let dataCriacao = null;
+    if (row[3]) {
+      try {
+        const excelDate = row[3];
+        console.log(`📅 [Personalizado] Capturando data da coluna D (linha ${numeroLinha}):`, excelDate, typeof excelDate);
+        
+        // Se for número (data do Excel), converter
+        if (typeof excelDate === 'number') {
+          // Excel armazena datas como número de dias desde 1900-01-01
+          const excelEpoch = new Date(1899, 11, 30);
+          const days = Math.floor(excelDate);
+          const milliseconds = days * 24 * 60 * 60 * 1000;
+          dataCriacao = new Date(excelEpoch.getTime() + milliseconds).toISOString();
+          console.log(`✅ [Personalizado] Data convertida:`, dataCriacao);
+        }
+        // Se for string, tentar parsear
+        else if (typeof excelDate === 'string' && excelDate.trim() !== '') {
+          const parsed = new Date(excelDate);
+          if (!isNaN(parsed.getTime())) {
+            dataCriacao = parsed.toISOString();
+            console.log(`✅ [Personalizado] Data parseada:`, dataCriacao);
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ [Personalizado] Erro ao parsear data:`, error);
+      }
+    }
+    
+    // Se não conseguiu capturar, usar data atual
+    if (!dataCriacao) {
+      dataCriacao = new Date().toISOString();
+      console.log(`⏰ [Personalizado] Usando data atual (linha ${numeroLinha}):`, dataCriacao);
+    }
+    
     // Criar objeto do serviço
     const servico = {
       plate: this.formatarMatricula(matricula),
@@ -147,6 +182,9 @@ class ProcessadorPersonalizado {
       period: null,
       km: null,
       sortIndex: 1,
+      
+      // Data de criação capturada do Excel
+      createdAt: dataCriacao,
       
       // Metadados da importação
       importedAt: new Date().toISOString(),
