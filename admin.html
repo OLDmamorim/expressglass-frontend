@@ -103,9 +103,23 @@
         </div>
 
         <div class="form-group">
-          <label for="portalLocalities">Localidades (JSON)</label>
-          <textarea id="portalLocalities" rows="8" placeholder='{"Localidade": "#cor", ...}'></textarea>
-          <small>Formato: {"Nome da Localidade": "#código_cor_hex"}</small>
+          <label>Localidades *</label>
+          <div class="localities-manager">
+            <table class="localities-table" id="localitiesTable">
+              <thead>
+                <tr>
+                  <th>Nome da Localidade</th>
+                  <th style="width: 100px;">Cor</th>
+                  <th style="width: 60px;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="localitiesTableBody">
+                <!-- Linhas adicionadas dinamicamente -->
+              </tbody>
+            </table>
+            <button type="button" class="btn-add-locality" id="addLocalityBtn">+ Adicionar Localidade</button>
+          </div>
+          <input type="hidden" id="portalLocalities">
         </div>
 
         <div class="form-actions">

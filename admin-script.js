@@ -92,14 +92,101 @@ function renderPortals() {
   `).join('');
 }
 
+// Paleta de cores para localidades
+const colorPalette = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#ec4899', '#14b8a6', '#f97316', '#06b6d4', '#84cc16',
+  '#6366f1', '#a855f7', '#f43f5e', '#22c55e', '#eab308'
+];
+let colorIndex = 0;
+
+// Gestão de localidades
+let localitiesData = [];
+
+function renderLocalitiesTable() {
+  const tbody = document.getElementById('localitiesTableBody');
+  
+  if (localitiesData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;">Nenhuma localidade adicionada</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = localitiesData.map((loc, index) => `
+    <tr>
+      <td>
+        <input type="text" class="locality-name-input" value="${loc.name}" 
+               onchange="updateLocalityName(${index}, this.value)" 
+               placeholder="Nome da localidade">
+      </td>
+      <td>
+        <div class="color-display" style="background-color: ${loc.color};" title="${loc.color}"></div>
+      </td>
+      <td>
+        <button type="button" class="btn-delete-locality" onclick="removeLocality(${index})" title="Eliminar">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+  
+  updateLocalitiesHiddenField();
+}
+
+function addLocality() {
+  const color = colorPalette[colorIndex % colorPalette.length];
+  colorIndex++;
+  
+  localitiesData.push({
+    name: '',
+    color: color
+  });
+  
+  renderLocalitiesTable();
+}
+
+function removeLocality(index) {
+  localitiesData.splice(index, 1);
+  renderLocalitiesTable();
+}
+
+function updateLocalityName(index, newName) {
+  localitiesData[index].name = newName.trim();
+  updateLocalitiesHiddenField();
+}
+
+function updateLocalitiesHiddenField() {
+  const localities = {};
+  localitiesData.forEach(loc => {
+    if (loc.name) {
+      localities[loc.name] = loc.color;
+    }
+  });
+  document.getElementById('portalLocalities').value = JSON.stringify(localities);
+}
+
+function loadLocalitiesFromJSON(localitiesObj) {
+  localitiesData = [];
+  colorIndex = 0;
+  
+  if (localitiesObj && typeof localitiesObj === 'object') {
+    Object.entries(localitiesObj).forEach(([name, color]) => {
+      localitiesData.push({ name, color });
+    });
+  }
+  
+  renderLocalitiesTable();
+}
+
+document.getElementById('addLocalityBtn').addEventListener('click', addLocality);
+
 document.getElementById('addPortalBtn').addEventListener('click', () => {
   editingPortalId = null;
   document.getElementById('portalModalTitle').textContent = 'Novo Portal';
   document.getElementById('portalForm').reset();
-  document.getElementById('portalLocalities').value = JSON.stringify({
-    "Localidade 1": "#3b82f6",
-    "Localidade 2": "#10b981"
-  }, null, 2);
+  
+  // Limpar localidades
+  localitiesData = [];
+  colorIndex = 0;
+  renderLocalitiesTable();
+  
   openModal('portalModal');
 });
 
@@ -111,7 +198,9 @@ function editPortal(id) {
   document.getElementById('portalModalTitle').textContent = 'Editar Portal';
   document.getElementById('portalName').value = portal.name;
   document.getElementById('portalAddress').value = portal.departure_address;
-  document.getElementById('portalLocalities').value = JSON.stringify(portal.localities, null, 2);
+  
+  // Carregar localidades
+  loadLocalitiesFromJSON(portal.localities);
   
   openModal('portalModal');
 }
@@ -150,15 +239,21 @@ document.getElementById('portalForm').addEventListener('submit', async (e) => {
   const address = document.getElementById('portalAddress').value.trim();
   const localitiesText = document.getElementById('portalLocalities').value.trim();
   
-  // Validar JSON
+  // Parse JSON (já gerado automaticamente pela interface)
   let localities = {};
   if (localitiesText) {
     try {
       localities = JSON.parse(localitiesText);
     } catch (error) {
-      showToast('Formato JSON inválido nas localidades', 'error');
-      return;
+      console.error('Erro ao parsear JSON:', error);
+      localities = {};
     }
+  }
+  
+  // Validar se há pelo menos uma localidade
+  if (Object.keys(localities).length === 0) {
+    showToast('Adicione pelo menos uma localidade', 'error');
+    return;
   }
   
   const portalData = { name, departure_address: address, localities };
