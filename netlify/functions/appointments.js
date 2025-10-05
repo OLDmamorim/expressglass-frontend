@@ -69,6 +69,9 @@ exports.handler = async (event) => {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Campos obrigatórios: plate, car, service, locality' }) };
       }
 
+      // Usar createdAt do Excel se disponível, senão usar data atual
+      const createdAt = data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString();
+      
       const q = `
         INSERT INTO appointments (
           date, period, plate, car, service, locality, status,
@@ -92,7 +95,7 @@ exports.handler = async (event) => {
         data.km || null,
         data.sortIndex || 1,
         portalId, // Associar ao portal do utilizador
-        new Date().toISOString(),
+        createdAt, // Usar data do Excel ou data atual
         new Date().toISOString()
       ];
 

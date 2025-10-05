@@ -641,10 +641,11 @@ async function load(){
         console.log(`🔍 LOAD - ${a.plate}: antes=${beforeSortIndex}, depois=${a.sortIndex}`);
       }
     });
-    // 🔁 Normalização de morada (compatibilidade com dados antigos)
+    // 🔁 Normalização de morada e data de criação (compatibilidade com dados antigos)
     appointments = appointments.map(a => ({
       ...a,
-      address: a.address || a.morada || a.addr || null
+      address: a.address || a.morada || a.addr || null,
+      createdAt: a.createdAt || a.created_at || null // Normalizar created_at (snake_case) para createdAt (camelCase)
     }));
     const locs=await window.apiClient.getLocalities();
     if(locs && typeof locs==='object'){ Object.assign(localityColors,locs); window.LOCALITY_COLORS=localityColors;
