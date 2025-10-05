@@ -413,15 +413,30 @@ function showImportResults(results) {
 }
 
 // Finalizar importação
-function finishImport() {
+async function finishImport() {
   closeExcelImportModal();
   
-  // Recarregar dados para mostrar os novos serviços
-  if (typeof load === 'function') {
-    load().then(() => {
+  // Mostrar loading enquanto recarrega
+  showToast('A recarregar dados da cloud...', 'info');
+  
+  try {
+    // Limpar cache local para forçar reload da cloud
+    if (window.apiClient && typeof window.apiClient.clearLocalCache === 'function') {
+      window.apiClient.clearLocalCache();
+    }
+    
+    // Recarregar dados da cloud
+    if (typeof load === 'function') {
+      await load();
       renderAll();
       showToast('Importação concluída! Os novos serviços estão na lista "Serviços por Agendar"', 'success');
-    });
+    } else {
+      // Fallback: reload da página se load() não existir
+      window.location.reload();
+    }
+  } catch (error) {
+    console.error('Erro ao recarregar dados:', error);
+    showToast('Dados importados! Recarregue a página para ver os novos serviços.', 'warning');
   }
 }
 

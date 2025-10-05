@@ -309,6 +309,15 @@ class ApiClient {
     }
   }
   
+  // ===== CACHE =====
+  
+  clearLocalCache() {
+    console.log('🧹 Limpando cache local...');
+    localStorage.removeItem('eg_appointments');
+    localStorage.removeItem('eg_last_sync');
+    console.log('✅ Cache local limpo');
+  }
+  
   // ===== STATUS =====
   
   getConnectionStatus() {
