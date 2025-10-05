@@ -1030,15 +1030,18 @@ function renderUnscheduled(){
       // Formatar data de criação (DD.MM.YY)
       const dataCriacao = a.createdAt ? formatDateShortPortal(a.createdAt) : '—';
       
+      // Calcular dias aberto
+      const diasAberto = a.createdAt ? calcularDiasDesdePortal(a.createdAt) : 0;
+      const diasAbertoText = diasAberto > 0 ? `${diasAberto} ${diasAberto === 1 ? 'dia' : 'dias'}` : '—';
+      
       // Calcular antiguidade e aplicar cor
       let rowClass = '';
       if (a.createdAt) {
-        const dias = calcularDiasDesdePortal(a.createdAt);
-        if (dias >= 8) {
+        if (diasAberto >= 8) {
           rowClass = 'antiguidade-vermelho';
-        } else if (dias >= 5) {
+        } else if (diasAberto >= 5) {
           rowClass = 'antiguidade-laranja';
-        } else if (dias >= 3) {
+        } else if (diasAberto >= 3) {
           rowClass = 'antiguidade-amarelo';
         }
       }
@@ -1046,6 +1049,7 @@ function renderUnscheduled(){
       return `
         <tr class="${rowClass}" data-id="${a.id}" data-plate="${a.plate||''}" data-locality="${a.locality||''}">
           <td class="date-cell">${dataCriacao}</td>
+          <td class="days-open-cell">${diasAbertoText}</td>
           <td class="plate-cell">${a.plate || ''}</td>
           <td>${a.car || ''}</td>
           <td>${a.notes || ''}</td>

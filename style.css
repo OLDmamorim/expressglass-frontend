@@ -854,3 +854,52 @@ body.printing-now > *:not(#print-container-temp) {
   color: #495057;
   white-space: nowrap;
 }
+
+/* Estilo para a coluna de dias aberto */
+.unscheduled-table .days-open-cell {
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* Ajustes de largura das colunas da tabela de pendentes */
+.unscheduled-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.unscheduled-table th:nth-child(1), 
+.unscheduled-table td:nth-child(1) { 
+  width: 10%; /* Data Criação */
+}
+
+.unscheduled-table th:nth-child(2), 
+.unscheduled-table td:nth-child(2) { 
+  width: 10%; /* Dias Aberto */
+}
+
+.unscheduled-table th:nth-child(3), 
+.unscheduled-table td:nth-child(3) { 
+  width: 12%; /* Matrícula */
+}
+
+.unscheduled-table th:nth-child(4), 
+.unscheduled-table td:nth-child(4) { 
+  width: 20%; /* Carro */
+}
+
+.unscheduled-table th:nth-child(5), 
+.unscheduled-table td:nth-child(5) { 
+  width: 30%; /* Observações */
+}
+
+.unscheduled-table th:nth-child(6), 
+.unscheduled-table td:nth-child(6) { 
+  width: 10%; /* Estado */
+}
+
+.unscheduled-table th:nth-child(7), 
+.unscheduled-table td:nth-child(7) { 
+  width: 8%; /* Ações */
+}

@@ -260,6 +260,28 @@ class ExcelImporter {
     service.km = null;
     service.sortIndex = 1;
     
+    // 📅 CAPTURAR DATA DE CRIAÇÃO (Coluna D - índice 3)
+    // Assumindo que a coluna D contém a data de criação do serviço
+    if (row[3]) {
+      try {
+        const excelDate = row[3];
+        // Se for número (data do Excel), converter
+        if (typeof excelDate === 'number') {
+          const date = this.excelDateToJSDate(excelDate);
+          service.createdAt = date.toISOString();
+        } 
+        // Se for string, tentar parsear
+        else if (typeof excelDate === 'string') {
+          const parsed = this.parseExcelDateString(excelDate);
+          if (parsed) {
+            service.createdAt = parsed.toISOString();
+          }
+        }
+      } catch (error) {
+        console.warn(`Erro ao parsear data na linha ${rowNumber}:`, error);
+      }
+    }
+    
     return service;
   }
 
@@ -336,6 +358,49 @@ class ExcelImporter {
     ];
     
     return wb;
+  }
+
+  // Converter data do Excel (número serial) para JavaScript Date
+  excelDateToJSDate(excelDate) {
+    // Excel armazena datas como número de dias desde 1900-01-01
+    // Mas tem um bug: considera 1900 como ano bissexto (não é)
+    const excelEpoch = new Date(1899, 11, 30); // 30 de dezembro de 1899
+    const days = Math.floor(excelDate);
+    const milliseconds = days * 24 * 60 * 60 * 1000;
+    return new Date(excelEpoch.getTime() + milliseconds);
+  }
+
+  // Parsear string de data em vários formatos
+  parseExcelDateString(dateStr) {
+    // Remover espaços e partes de hora
+    const cleanStr = dateStr.trim().split(' ')[0];
+    
+    // Tentar formatos comuns
+    const formats = [
+      /^(\d{2})\.(\d{2})\.(\d{4})$/,  // DD.MM.YYYY
+      /^(\d{2})\/(\d{2})\/(\d{4})$/,  // DD/MM/YYYY
+      /^(\d{4})-(\d{2})-(\d{2})$/,    // YYYY-MM-DD
+      /^(\d{2})-(\d{2})-(\d{4})$/     // DD-MM-YYYY
+    ];
+    
+    for (const format of formats) {
+      const match = cleanStr.match(format);
+      if (match) {
+        let day, month, year;
+        
+        if (format.source.startsWith('^\\(\\d{4}')) {
+          // YYYY-MM-DD
+          [, year, month, day] = match;
+        } else {
+          // DD.MM.YYYY ou DD/MM/YYYY ou DD-MM-YYYY
+          [, day, month, year] = match;
+        }
+        
+        return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      }
+    }
+    
+    return null;
   }
 
   // Importar dados para o sistema
