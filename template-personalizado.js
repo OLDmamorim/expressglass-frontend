@@ -144,14 +144,27 @@ class ProcessadorPersonalizado {
           const days = Math.floor(excelDate);
           const milliseconds = days * 24 * 60 * 60 * 1000;
           dataCriacao = new Date(excelEpoch.getTime() + milliseconds).toISOString();
-          console.log(`✅ [Personalizado] Data convertida:`, dataCriacao);
+          console.log(`✅ [Personalizado] Data convertida de número:`, dataCriacao);
         }
-        // Se for string, tentar parsear
+        // Se for string, tentar parsear formato DD.MM.YYYY
         else if (typeof excelDate === 'string' && excelDate.trim() !== '') {
-          const parsed = new Date(excelDate);
-          if (!isNaN(parsed.getTime())) {
-            dataCriacao = parsed.toISOString();
-            console.log(`✅ [Personalizado] Data parseada:`, dataCriacao);
+          // Remover parte de hora se existir (ex: "01.07.2025 00:00:00" -> "01.07.2025")
+          const cleanStr = excelDate.trim().split(' ')[0];
+          
+          // Tentar formato DD.MM.YYYY
+          const match = cleanStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+          if (match) {
+            const [, day, month, year] = match;
+            // Criar data no formato ISO (YYYY-MM-DD)
+            dataCriacao = new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toISOString();
+            console.log(`✅ [Personalizado] Data parseada de DD.MM.YYYY:`, dataCriacao);
+          } else {
+            // Tentar outros formatos
+            const parsed = new Date(cleanStr);
+            if (!isNaN(parsed.getTime())) {
+              dataCriacao = parsed.toISOString();
+              console.log(`✅ [Personalizado] Data parseada com new Date():`, dataCriacao);
+            }
           }
         }
       } catch (error) {
