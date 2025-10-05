@@ -260,27 +260,48 @@ class ExcelImporter {
     service.km = null;
     service.sortIndex = 1;
     
-    // 📅 CAPTURAR DATA DE CRIAÇÃO (Coluna D - índice 3)
-    // Assumindo que a coluna D contém a data de criação do serviço
-    if (row[3]) {
+    // 📅 CAPTURAR DATA DE CRIAÇÃO
+    // Tentar múltiplas fontes: mapeamento, coluna D, ou data atual
+    let capturedDate = null;
+    
+    // 1. Tentar pelo mapeamento (se houver campo 'createdAt' ou 'date' mapeado)
+    if (service.createdAt && service.createdAt !== '') {
+      capturedDate = service.createdAt;
+      console.log(`📅 Data capturada via mapeamento (linha ${rowNumber}):`, capturedDate);
+    }
+    
+    // 2. Tentar coluna D (índice 3) como fallback
+    if (!capturedDate && row[3]) {
       try {
         const excelDate = row[3];
+        console.log(`📅 Tentando capturar data da coluna D (linha ${rowNumber}):`, excelDate, typeof excelDate);
+        
         // Se for número (data do Excel), converter
         if (typeof excelDate === 'number') {
           const date = this.excelDateToJSDate(excelDate);
-          service.createdAt = date.toISOString();
+          capturedDate = date.toISOString();
+          console.log(`✅ Data convertida de número Excel:`, capturedDate);
         } 
         // Se for string, tentar parsear
-        else if (typeof excelDate === 'string') {
+        else if (typeof excelDate === 'string' && excelDate.trim() !== '') {
           const parsed = this.parseExcelDateString(excelDate);
           if (parsed) {
-            service.createdAt = parsed.toISOString();
+            capturedDate = parsed.toISOString();
+            console.log(`✅ Data parseada de string:`, capturedDate);
           }
         }
       } catch (error) {
-        console.warn(`Erro ao parsear data na linha ${rowNumber}:`, error);
+        console.warn(`⚠️ Erro ao parsear data na linha ${rowNumber}:`, error);
       }
     }
+    
+    // 3. Se não conseguiu capturar, usar data atual
+    if (!capturedDate) {
+      capturedDate = new Date().toISOString();
+      console.log(`⏰ Usando data atual (linha ${rowNumber}):`, capturedDate);
+    }
+    
+    service.createdAt = capturedDate;
     
     return service;
   }
