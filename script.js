@@ -1439,8 +1439,26 @@ cancelEdit?.();
     }
   function row(a){
     const dataFormatada = a.date ? new Date(a.date).toLocaleDateString('pt-PT') : '—';
-    return `<tr>
+    
+    // Data de criação (para serviços por agendar)
+    const dataCriacao = a.createdAt ? formatDateShort(a.createdAt) : '—';
+    
+    // Calcular antiguidade e aplicar cor (apenas para serviços por agendar)
+    let rowClass = '';
+    if (!a.date && a.createdAt) {
+      const dias = calcularDiasDesde(a.createdAt);
+      if (dias >= 8) {
+        rowClass = 'antiguidade-vermelho';
+      } else if (dias >= 5) {
+        rowClass = 'antiguidade-laranja';
+      } else if (dias >= 3) {
+        rowClass = 'antiguidade-amarelo';
+      }
+    }
+    
+    return `<tr class="${rowClass}">
       <td>${dataFormatada}</td>
+      <td>${dataCriacao}</td>
       <td>${a.plate||''}</td>
       <td>${(a.car||'').toUpperCase()}</td>
       <td>${a.service||''}</td>
@@ -1449,16 +1467,44 @@ cancelEdit?.();
       <td>${a.status||''}</td>
     </tr>`;
   }
+  
+  // Formatar data no formato DD.MM.YY
+  function formatDateShort(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '—';
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = String(d.getFullYear()).slice(-2);
+    return `${day}.${month}.${year}`;
+  }
+  
+  // Calcular dias desde uma data
+  function calcularDiasDesde(dateStr) {
+    if (!dateStr) return 0;
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 0;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    const diffMs = hoje - d;
+    return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  }
   function buildTable(title, dateLabel, list){
     const headDate = dateLabel ? `<div class="print-date">${dateLabel}</div>` : '';
     const empty = list.length===0 ? `<div class="print-empty">Sem registos</div>` : '';
+    
+    // Cabeçalho diferente para "Serviços por Agendar" (com coluna Data Criação)
+    const isUnscheduled = title.includes('POR AGENDAR');
+    const tableHeader = isUnscheduled 
+      ? '<thead><tr><th>Data</th><th>Data Criação</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Observações</th><th>Estado</th></tr></thead>'
+      : '<thead><tr><th>Data</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Observações</th><th>Estado</th></tr></thead>';
+    
     return `<section class="print-section">
       <h2 class="print-title">${title}</h2>
       ${headDate}
       <table class="print-table">
-        <thead><tr>
-          <th>Data</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Observações</th><th>Estado</th>
-        </tr></thead>
+        ${tableHeader}
         <tbody>${list.map(row).join('')}</tbody>
       </table>
       ${empty}
@@ -1481,7 +1527,12 @@ cancelEdit?.();
       const list = (Array.isArray(window.appointments)? window.appointments : []).slice();
 
         const unscheduled = list.filter(a => !a.date)
-                            .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
+                            .sort((a,b)=> {
+                              // Ordenar por data de criação (mais antigos primeiro)
+                              const dateA = a.createdAt ? new Date(a.createdAt) : new Date();
+                              const dateB = b.createdAt ? new Date(b.createdAt) : new Date();
+                              return dateA - dateB;
+                            });
       const todayServices = list.filter(a => a.date === isoToday)
                             .sort((a,b)=> (a.sortIndex||0)-(b.sortIndex||0));
       const tomorrowServices = list.filter(a => a.date === isoTomorrow)

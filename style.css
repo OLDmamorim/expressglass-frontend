@@ -807,3 +807,22 @@ body.printing-now > *:not(#print-container-temp) {
     min-width: 600px;
   }
 }
+
+/* === CORES DE ANTIGUIDADE (Serviços por Agendar) === */
+.print-table tr.antiguidade-amarelo {
+  background-color: #fff3cd !important;
+}
+
+.print-table tr.antiguidade-laranja {
+  background-color: #ffe5b4 !important;
+}
+
+.print-table tr.antiguidade-vermelho {
+  background-color: #f8d7da !important;
+}
+
+.print-table tr.antiguidade-amarelo:hover,
+.print-table tr.antiguidade-laranja:hover,
+.print-table tr.antiguidade-vermelho:hover {
+  opacity: 0.9;
+}
