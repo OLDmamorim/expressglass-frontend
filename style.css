@@ -809,6 +809,8 @@ body.printing-now > *:not(#print-container-temp) {
 }
 
 /* === CORES DE ANTIGUIDADE (Serviços por Agendar) === */
+
+/* Cores para tabela de impressão */
 .print-table tr.antiguidade-amarelo {
   background-color: #fff3cd !important;
 }
@@ -825,4 +827,30 @@ body.printing-now > *:not(#print-container-temp) {
 .print-table tr.antiguidade-laranja:hover,
 .print-table tr.antiguidade-vermelho:hover {
   opacity: 0.9;
+}
+
+/* Cores para tabela do portal (interface principal) */
+.unscheduled-table tr.antiguidade-amarelo {
+  background-color: #fff3cd !important;
+}
+
+.unscheduled-table tr.antiguidade-laranja {
+  background-color: #ffe5b4 !important;
+}
+
+.unscheduled-table tr.antiguidade-vermelho {
+  background-color: #f8d7da !important;
+}
+
+.unscheduled-table tr.antiguidade-amarelo:hover,
+.unscheduled-table tr.antiguidade-laranja:hover,
+.unscheduled-table tr.antiguidade-vermelho:hover {
+  opacity: 0.85;
+}
+
+/* Estilo para a coluna de data de criação */
+.unscheduled-table .date-cell {
+  font-weight: 500;
+  color: #495057;
+  white-space: nowrap;
 }

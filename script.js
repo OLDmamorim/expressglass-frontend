@@ -1011,8 +1011,13 @@ function renderUnscheduled(){
   const tableBody=document.getElementById('unscheduledTableBody');
   if (!tableBody) return;
   
+  // Ordenar por data de criação (mais antigos primeiro)
   const unscheduled=filterAppointments(
-    appointments.filter(a=>!a.date).sort((x,y)=>(x.sortIndex||0)-(y.sortIndex||0))
+    appointments.filter(a=>!a.date).sort((x,y)=>{
+      const dateX = x.createdAt ? new Date(x.createdAt) : new Date();
+      const dateY = y.createdAt ? new Date(y.createdAt) : new Date();
+      return dateX - dateY;
+    })
   );
   
   // Vista em cartões removida - apenas vista em tabela disponível
@@ -1022,8 +1027,25 @@ function renderUnscheduled(){
     const rows = unscheduled.map(a => {
       const statusBadge = a.status ? `<span class="status-badge ${a.status}">${a.status}</span>` : '';
       
+      // Formatar data de criação (DD.MM.YY)
+      const dataCriacao = a.createdAt ? formatDateShortPortal(a.createdAt) : '—';
+      
+      // Calcular antiguidade e aplicar cor
+      let rowClass = '';
+      if (a.createdAt) {
+        const dias = calcularDiasDesdePortal(a.createdAt);
+        if (dias >= 8) {
+          rowClass = 'antiguidade-vermelho';
+        } else if (dias >= 5) {
+          rowClass = 'antiguidade-laranja';
+        } else if (dias >= 3) {
+          rowClass = 'antiguidade-amarelo';
+        }
+      }
+      
       return `
-        <tr data-id="${a.id}" data-plate="${a.plate||''}" data-locality="${a.locality||''}">
+        <tr class="${rowClass}" data-id="${a.id}" data-plate="${a.plate||''}" data-locality="${a.locality||''}">
+          <td class="date-cell">${dataCriacao}</td>
           <td class="plate-cell">${a.plate || ''}</td>
           <td>${a.car || ''}</td>
           <td>${a.notes || ''}</td>
@@ -1038,6 +1060,29 @@ function renderUnscheduled(){
   }
   
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
+}
+
+// Formatar data no formato DD.MM.YY (para portal)
+function formatDateShortPortal(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '—';
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = String(d.getFullYear()).slice(-2);
+  return `${day}.${month}.${year}`;
+}
+
+// Calcular dias desde uma data (para portal)
+function calcularDiasDesdePortal(dateStr) {
+  if (!dateStr) return 0;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 0;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  const diffMs = hoje - d;
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }
 
 // ---------- Header da tabela ----------
