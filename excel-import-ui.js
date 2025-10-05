@@ -375,6 +375,7 @@ function showImportResults(results) {
   if (results.details.length > 0) {
     const successList = results.details.filter(d => d.status === 'success');
     const errorList = results.details.filter(d => d.status === 'error');
+    const skippedList = results.details.filter(d => d.status === 'skipped');
     
     if (successList.length > 0) {
       const successDiv = document.createElement('div');
@@ -385,6 +386,17 @@ function showImportResults(results) {
         </div>
       `;
       detailsContainer.appendChild(successDiv);
+    }
+    
+    if (skippedList.length > 0) {
+      const skippedDiv = document.createElement('div');
+      skippedDiv.innerHTML = `
+        <h5 style="color: #ff9800;">⏭️ Ignorados - Já Existem (${skippedList.length})</h5>
+        <div style="max-height: 150px; overflow-y: auto; background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+          ${skippedList.map(s => `<div>• ${s.plate} - ${s.reason}</div>`).join('')}
+        </div>
+      `;
+      detailsContainer.appendChild(skippedDiv);
     }
     
     if (errorList.length > 0) {

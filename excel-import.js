@@ -408,15 +408,43 @@ class ExcelImporter {
     const results = {
       success: 0,
       errors: 0,
+      skipped: 0,
       details: []
     };
     
+    // Obter lista de matrículas já existentes (serviços pendentes)
+    const existingAppointments = window.appointments || [];
+    const existingPlates = new Set(
+      existingAppointments
+        .filter(a => !a.date || a.status !== 'ST') // Apenas pendentes ou não finalizados
+        .map(a => String(a.plate).toUpperCase().trim())
+    );
+    
+    console.log('📋 Matrículas já existentes:', existingPlates.size);
+    
     for (const service of processedData) {
       try {
+        const plateNormalized = String(service.plate).toUpperCase().trim();
+        
+        // Verificar se matrícula já existe
+        if (existingPlates.has(plateNormalized)) {
+          console.log('⏭️ Matrícula já existe, ignorando:', service.plate);
+          results.skipped++;
+          results.details.push({
+            plate: service.plate,
+            status: 'skipped',
+            reason: 'Matrícula já existe'
+          });
+          continue;
+        }
+        
         console.log('📥 Importando serviço:', service.plate);
         
         // Usar a API existente para criar agendamento
         const result = await window.apiClient.createAppointment(service);
+        
+        // Adicionar à lista de existentes para evitar duplicados no mesmo lote
+        existingPlates.add(plateNormalized);
         
         results.success++;
         results.details.push({
