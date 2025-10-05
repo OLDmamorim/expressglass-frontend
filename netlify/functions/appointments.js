@@ -159,15 +159,45 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'DELETE') {
       const id = (event.path || '').split('/').pop();
       
-      // Verificar se o agendamento pertence ao portal do utilizador
+      console.log(`🗑️ DELETE - Tentando eliminar ID: ${id}, Portal: ${portalId}`);
+      
+      // Primeiro verificar se o agendamento existe e qual o seu portal
+      const checkQuery = 'SELECT id, portal_id, plate FROM appointments WHERE id = $1';
+      const checkResult = await pool.query(checkQuery, [id]);
+      
+      if (checkResult.rows.length === 0) {
+        console.log(`❌ DELETE - Agendamento ${id} não existe na base de dados`);
+        return { 
+          statusCode: 404, 
+          headers, 
+          body: JSON.stringify({ success: false, error: 'Agendamento não encontrado na base de dados' }) 
+        };
+      }
+      
+      const appointment = checkResult.rows[0];
+      console.log(`📋 DELETE - Agendamento encontrado: ID=${appointment.id}, Portal=${appointment.portal_id}, Matrícula=${appointment.plate}`);
+      
+      if (appointment.portal_id !== portalId) {
+        console.log(`⚠️ DELETE - Portal não corresponde! Agendamento pertence ao portal ${appointment.portal_id}, utilizador está no portal ${portalId}`);
+        return { 
+          statusCode: 403, 
+          headers, 
+          body: JSON.stringify({ success: false, error: 'Não tem permissão para eliminar este agendamento (pertence a outro portal)' }) 
+        };
+      }
+      
+      // Eliminar o agendamento
       const { rows } = await pool.query(
         'DELETE FROM appointments WHERE id = $1 AND portal_id = $2 RETURNING *',
         [id, portalId]
       );
       
       if (!rows.length) {
+        console.log(`❌ DELETE - Falha ao eliminar (não devia acontecer)`);
         return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
       }
+      
+      console.log(`✅ DELETE - Agendamento ${id} eliminado com sucesso`);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
     }
 
