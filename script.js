@@ -8,12 +8,18 @@
 console.log('🔄 VERSÃO SELECT CORRIGIDO - 25/09/2025 16:00 - CARREGA KM + SORTINDEX!');
 
 // ===== BASES DE PARTIDA POR EQUIPA/LOJA =====
+// NOTA: A morada de partida é configurada pelo portal-init.js em window.basePartidaDoDia
+// Aqui apenas definimos um fallback caso o portal não esteja configurado
 const BASES_PARTIDA = {
   SM_BRAGA: "Avenida Robert Smith 59, 4715-249 Braga",
 };
 
-// Por agora usamos sempre a base do SM Braga
-let basePartidaDoDia = BASES_PARTIDA.SM_BRAGA;
+// Função para obter a morada de partida (usa configuração do portal ou fallback)
+function getBasePartida() {
+  const morada = window.basePartidaDoDia || window.portalConfig?.departureAddress || BASES_PARTIDA.SM_BRAGA;
+  console.log('📍 Morada de partida:', morada);
+  return morada;
+}
 
 // ---- Seletores ----
 const fileInput  = document.getElementById('fileInput');
@@ -79,7 +85,8 @@ function getAddressFromItem(item) {
 
 // ===== ORDENAR EM CADEIA: MAIS LONGE PRIMEIRO =====
 // Recebe um array de agendamentos do dia e devolve NOVA lista ordenada
-async function ordenarAgendamentosCadeiaMaisLongePrimeiro(agendamentos, origemInicial = basePartidaDoDia) {
+async function ordenarAgendamentosCadeiaMaisLongePrimeiro(agendamentos, origemInicial = null) {
+  origemInicial = origemInicial || getBasePartida();
   // Clonar para não mutar o array original
   const restantes = agendamentos.filter(a => getAddressFromItem(a));
   const resultado = [];
@@ -122,7 +129,7 @@ async function ordenarSeNecessario(lista) {
   const comMorada = lista.filter(i => getAddressFromItem(i));
   if (!comMorada.length) return lista;
 
-  const ordenados = await ordenarAgendamentosCadeiaMaisLongePrimeiro(comMorada, basePartidaDoDia);
+  const ordenados = await ordenarAgendamentosCadeiaMaisLongePrimeiro(comMorada, getBasePartida());
   const idsOrdenados = new Set(ordenados.map(x => x.id));
   const restantes = lista.filter(i => !idsOrdenados.has(i.id));
   return [...ordenados, ...restantes];
@@ -242,7 +249,7 @@ async function optimizeDayServices(services) {
   
   for (const service of services) {
     const address = getAddressFromItem(service);
-    const distance = await getDistance(basePartidaDoDia, address);
+    const distance = await getDistance(getBasePartida(), address);
     if (distance > maxDistance && distance !== Infinity) {
       maxDistance = distance;
       farthestService = service;
@@ -295,7 +302,7 @@ async function optimizeDayServices(services) {
       if (i === 0) {
         // Primeiro serviço: distância da loja
         const serviceAddress = getAddressFromItem(service);
-        const distanceFromBase = await getDistance(basePartidaDoDia, serviceAddress);
+        const distanceFromBase = await getDistance(getBasePartida(), serviceAddress);
         newKm = distanceFromBase !== Infinity ? Math.round(distanceFromBase / 1000) : 0;
       } else {
         // Serviços seguintes: distância do serviço anterior
@@ -490,7 +497,24 @@ const localityColors = {
   'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#1E3A8A', 'Vila Verde': '#86EFAC'
 };
 window.LOCALITY_COLORS = localityColors;
-const getLocColor = loc => (localityColors && localityColors[loc]) || '#3b82f6';
+
+// Função para obter cor da localidade (usa configuração do portal se disponível)
+const getLocColor = loc => {
+  // Prioridade 1: Cores do portal configuradas no portal-init.js
+  if (window.portalConfig?.localities?.[loc]) {
+    return window.portalConfig.localities[loc];
+  }
+  // Prioridade 2: Cores carregadas da API
+  if (localityColors && localityColors[loc]) {
+    return localityColors[loc];
+  }
+  // Prioridade 3: Função global do portal-init.js
+  if (window.getLocalityColor) {
+    return window.getLocalityColor(loc);
+  }
+  // Fallback: Cor padrão azul
+  return '#3b82f6';
+};
 
 const statusBarColors = { NE:'#EF4444', VE:'#F59E0B', ST:'#10B981' };
 const localityList = Object.keys(localityColors);
@@ -647,8 +671,18 @@ async function load(){
       address: a.address || a.morada || a.addr || null,
       createdAt: a.createdAt || a.created_at || null // Normalizar created_at (snake_case) para createdAt (camelCase)
     }));
+    // Sincronizar cores do portal se disponíveis
+    if (window.portalConfig?.localities) {
+      Object.assign(localityColors, window.portalConfig.localities);
+      window.LOCALITY_COLORS = localityColors;
+      console.log('✅ Cores do portal sincronizadas:', Object.keys(window.portalConfig.localities).length, 'localidades');
+    }
+    
+    // Carregar cores da API (fallback ou atualização)
     const locs=await window.apiClient.getLocalities();
-    if(locs && typeof locs==='object'){ Object.assign(localityColors,locs); window.LOCALITY_COLORS=localityColors;
+    if(locs && typeof locs==='object'){ 
+      Object.assign(localityColors,locs); 
+      window.LOCALITY_COLORS=localityColors;
       for (const [k,v] of Object.entries(localityColors)) {
         if (!/^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(v)) localityColors[k] = '#3b82f6';
       }
@@ -1313,7 +1347,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     if (address) {
       try {
         showToast('Calculando distância...', 'info');
-        const distanceInMeters = await getDistance(basePartidaDoDia, address);
+        const distanceInMeters = await getDistance(getBasePartida(), address);
         if (distanceInMeters !== Infinity && distanceInMeters > 0) {
           calculatedKm = Math.round(distanceInMeters / 1000); // converter metros para km
           // Atualizar o campo visual dos quilómetros
@@ -1657,7 +1691,7 @@ cancelEdit?.();
         // Calcular distância automaticamente
         try {
           showToast('Calculando distância...', 'info');
-          const distanceInMeters = await getDistance(basePartidaDoDia, txt);
+          const distanceInMeters = await getDistance(getBasePartida(), txt);
           if (distanceInMeters !== Infinity && distanceInMeters > 0) {
             const calculatedKm = Math.round(distanceInMeters / 1000);
             const kmField = document.getElementById('appointmentKm');
