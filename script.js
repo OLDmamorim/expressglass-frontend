@@ -937,6 +937,7 @@ async function deleteAppointment(id) {
 
 function cancelEdit() {
   editingId = null;
+  window.originalUnscheduledServiceId = null; // Limpar ID do serviço original
   document.getElementById('appointmentForm').reset();
   document.getElementById('modalTitle').textContent = 'Novo Agendamento';
   document.getElementById('deleteAppointment').classList.add('hidden');
@@ -1403,6 +1404,27 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       } else {
         // CREATE
         const created = await window.apiClient.createAppointment(payload);
+        
+        // ✨ ELIMINAR SERVIÇO ORIGINAL: Se foi preenchido de um serviço por agendar
+        if (window.originalUnscheduledServiceId && payload.date) {
+          try {
+            console.log('🗑️ Eliminando serviço original por agendar:', window.originalUnscheduledServiceId);
+            await window.apiClient.deleteAppointment(window.originalUnscheduledServiceId);
+            
+            // Remover do array local
+            const index = appointments.findIndex(a => String(a.id) === String(window.originalUnscheduledServiceId));
+            if (index > -1) {
+              appointments.splice(index, 1);
+            }
+            
+            console.log('✅ Serviço original eliminado com sucesso');
+          } catch (error) {
+            console.error('⚠️ Erro ao eliminar serviço original:', error);
+          } finally {
+            // Limpar ID guardado
+            window.originalUnscheduledServiceId = null;
+          }
+        }
        
        // Refaça o array e redesenha já
 appointments = await window.apiClient.getAppointments();
@@ -1719,6 +1741,52 @@ cancelEdit?.();
   el.addEventListener('blur', (e) => {
     const ok = /^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/.test(e.target.value);
     e.target.setCustomValidity(ok ? '' : 'Use o formato XX-XX-XX');
+    
+    // ✨ PREENCHIMENTO AUTOMÁTICO: Procurar matrícula nos serviços por agendar
+    if (ok && !editingId) { // Apenas para novos agendamentos
+      const plate = e.target.value.trim();
+      
+      // Procurar serviço por agendar com esta matrícula
+      const existingService = appointments.find(a => 
+        !a.date && // Sem data (por agendar)
+        a.plate && a.plate.toUpperCase() === plate.toUpperCase()
+      );
+      
+      if (existingService) {
+        console.log('✨ Matrícula encontrada nos serviços por agendar:', existingService);
+        
+        // Preencher campos automaticamente
+        if (existingService.car) {
+          document.getElementById('appointmentCar').value = existingService.car;
+        }
+        if (existingService.service) {
+          document.getElementById('appointmentService').value = existingService.service;
+        }
+        if (existingService.locality) {
+          document.getElementById('appointmentLocality').value = existingService.locality;
+        }
+        if (existingService.notes) {
+          document.getElementById('appointmentNotes').value = existingService.notes;
+        }
+        if (existingService.address) {
+          document.getElementById('appointmentAddress').value = existingService.address;
+        }
+        if (existingService.phone) {
+          document.getElementById('appointmentPhone').value = existingService.phone;
+        }
+        if (existingService.extra) {
+          document.getElementById('appointmentExtra').value = existingService.extra;
+        }
+        if (existingService.status) {
+          document.getElementById('appointmentStatus').value = existingService.status;
+        }
+        
+        // Guardar ID do serviço original para eliminar depois
+        window.originalUnscheduledServiceId = existingService.id;
+        
+        showToast('✨ Dados preenchidos automaticamente do serviço por agendar!', 'info');
+      }
+    }
   });
   })();
 
