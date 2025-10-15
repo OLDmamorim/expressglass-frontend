@@ -1506,6 +1506,55 @@ cancelEdit?.();
   document.getElementById('importExcelBtn')?.addEventListener('click', () => {
     openExcelImportModal();
   });
+  
+  // --- Limpar Todos os Serviços por Agendar ---
+  document.getElementById('clearAllUnscheduledBtn')?.addEventListener('click', async () => {
+    const unscheduled = appointments.filter(a => !a.date);
+    
+    if (unscheduled.length === 0) {
+      showToast('ℹ️ Não há serviços por agendar para limpar.', 'info');
+      return;
+    }
+    
+    const confirmMessage = `Tem a certeza que pretende eliminar TODOS os ${unscheduled.length} serviços por agendar?\n\nEsta ação não pode ser revertida!`;
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+    
+    try {
+      showToast('🗑️ A eliminar serviços...', 'info');
+      
+      let successCount = 0;
+      let errorCount = 0;
+      
+      // Eliminar cada serviço individualmente
+      for (const service of unscheduled) {
+        try {
+          await window.apiClient.deleteAppointment(service.id);
+          const index = appointments.findIndex(a => String(a.id) === String(service.id));
+          if (index > -1) {
+            appointments.splice(index, 1);
+          }
+          successCount++;
+        } catch (error) {
+          console.error(`Erro ao eliminar serviço ${service.id}:`, error);
+          errorCount++;
+        }
+      }
+      
+      renderAll();
+      
+      if (errorCount === 0) {
+        showToast(`✅ ${successCount} serviços eliminados com sucesso!`, 'success');
+      } else {
+        showToast(`⚠️ ${successCount} serviços eliminados, ${errorCount} falharam.`, 'warning');
+      }
+      
+    } catch (error) {
+      showToast('❌ Erro ao eliminar serviços: ' + error.message, 'error');
+    }
+  });
 }); // 👈 FECHO DO DOMContentLoaded
 
 // === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
