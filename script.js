@@ -1521,13 +1521,27 @@ cancelEdit?.();
     function normPeriod(p){
       return ''; // Sem períodos
     }
-  function row(a){
+  // Função para serviços agendados (Hoje/Amanhã) - 7 colunas
+  function rowScheduled(a){
     const dataFormatada = a.date ? new Date(a.date).toLocaleDateString('pt-PT') : '—';
     
-    // Data de criação (para serviços por agendar)
+    return `<tr>
+      <td>${dataFormatada}</td>
+      <td>${a.plate||'—'}</td>
+      <td>${(a.car||'').toUpperCase()}</td>
+      <td>${a.service||'—'}</td>
+      <td>${a.locality||'—'}</td>
+      <td>${a.notes || a.observations || '—'}</td>
+      <td>${a.status||'—'}</td>
+    </tr>`;
+  }
+  
+  // Função para serviços por agendar - 8 colunas (com Data Criação)
+  function rowUnscheduled(a){
+    const dataFormatada = a.date ? new Date(a.date).toLocaleDateString('pt-PT') : '—';
     const dataCriacao = a.createdAt ? formatDateShort(a.createdAt) : '—';
     
-    // Calcular antiguidade e aplicar cor (apenas para serviços por agendar)
+    // Calcular antiguidade e aplicar cor
     let rowClass = '';
     if (!a.date && a.createdAt) {
       const dias = calcularDiasDesde(a.createdAt);
@@ -1543,12 +1557,12 @@ cancelEdit?.();
     return `<tr class="${rowClass}">
       <td>${dataFormatada}</td>
       <td>${dataCriacao}</td>
-      <td>${a.plate||''}</td>
+      <td>${a.plate||'—'}</td>
       <td>${(a.car||'').toUpperCase()}</td>
-      <td>${a.service||''}</td>
-      <td>${a.locality||''}</td>
-      <td>${a.notes || a.observations || ''}</td>
-      <td>${a.status||''}</td>
+      <td>${a.service||'—'}</td>
+      <td>${a.locality||'—'}</td>
+      <td>${a.notes || a.observations || '—'}</td>
+      <td>${a.status||'—'}</td>
     </tr>`;
   }
   
@@ -1584,12 +1598,15 @@ cancelEdit?.();
       ? '<thead><tr><th>Data</th><th>Data Criação</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Observações</th><th>Estado</th></tr></thead>'
       : '<thead><tr><th>Data</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Observações</th><th>Estado</th></tr></thead>';
     
+    // Usar função de linha apropriada conforme tipo de tabela
+    const rowFunction = isUnscheduled ? rowUnscheduled : rowScheduled;
+    
     return `<section class="print-section">
       <h2 class="print-title">${title}</h2>
       ${headDate}
       <table class="print-table">
         ${tableHeader}
-        <tbody>${list.map(row).join('')}</tbody>
+        <tbody>${list.map(rowFunction).join('')}</tbody>
       </table>
       ${empty}
     </section>`;
