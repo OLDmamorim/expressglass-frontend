@@ -19,7 +19,7 @@ const templatePersonalizado = {
     locality: null,  // Será preenchido pelo operador
     notes: 13,       // Coluna N (Ref - assumindo que é a coluna N)
     address: null,   // Será preenchido pelo operador
-    phone: null,     // Será preenchido pelo operador
+    phone: 25,       // Coluna Z (U_contsega - Contacto)
     extra: 10        // Coluna K (Segurado)
   }
 };
@@ -178,6 +178,9 @@ class ProcessadorPersonalizado {
       console.log(`⏰ [Personalizado] Usando data atual (linha ${numeroLinha}):`, dataCriacao);
     }
     
+    // Contacto (coluna Z - índice 25)
+    const contacto = (linha[25] || '').toString().trim();
+    
     // Criar objeto do serviço
     const servico = {
       plate: this.formatarMatricula(matricula),
@@ -186,7 +189,7 @@ class ProcessadorPersonalizado {
       locality: 'Braga', // Valor padrão - será alterado pelo operador
       notes: observacoes,
       address: '', // Vazio - será preenchido pelo operador
-      phone: '', // Vazio - será preenchido pelo operador
+      phone: contacto, // Coluna Z (U_contsega)
       extra: outrosDados,
       
       // Campos padrão do sistema
