@@ -179,7 +179,7 @@ class ProcessadorPersonalizado {
     }
     
     // Contacto (coluna Z - índice 25)
-    const contacto = (linha[25] || '').toString().trim();
+    const contacto = (row[25] || '').toString().trim();
     
     // Criar objeto do serviço
     const servico = {
