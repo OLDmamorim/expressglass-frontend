@@ -1099,6 +1099,12 @@ function renderUnscheduled(){
     tableBody.innerHTML = rows;
   }
   
+  // 🔢 ATUALIZAR CONTADOR: Mostrar número de serviços por agendar
+  const countBadge = document.getElementById('unscheduledCount');
+  if (countBadge) {
+    countBadge.textContent = unscheduled.length;
+  }
+  
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
 

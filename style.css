@@ -209,6 +209,9 @@ table.schedule td:first-child{border-left:none}
 .chip-VE{background:#fef3c7; color:#b45309}
 .chip-ST{background:#d1fae5; color:#065f46}
 
+/* Contador de serviços */
+.count-badge{display:inline-block; margin-left:8px; padding:4px 12px; background:#3b82f6; color:#fff; border-radius:999px; font-size:14px; font-weight:700; vertical-align:middle}
+
 /* =========================
    FORMULÁRIO / MODAIS
    ========================= */
