@@ -516,6 +516,35 @@
   </script>
 </body>
 </html>
+
+<!-- MODAL DE SELEÇÃO DE DIA PARA CÁLCULO DE ROTAS -->
+<div id="selectDayModal" class="modal" style="display: none;">
+  <div class="modal-content" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3>🗺️ Selecionar Dia para Calcular Rotas</h3>
+      <button class="close-btn" onclick="closeSelectDayModal()">&times;</button>
+    </div>
+    
+    <div class="modal-body" style="padding: 24px;">
+      <p style="margin-bottom: 20px; color: #6b7280;">Selecione o dia para o qual pretende otimizar as rotas:</p>
+      
+      <div class="form-group">
+        <label for="routeCalculationDate" style="display: block; margin-bottom: 8px; font-weight: 600;">Data</label>
+        <input type="date" id="routeCalculationDate" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" />
+      </div>
+      
+      <div style="margin-top: 20px; padding: 12px; background: #fef3c7; border-radius: 6px; font-size: 13px; color: #92400e;">
+        <strong>⚠️ Nota:</strong> Apenas serão otimizados os serviços do dia selecionado que tenham morada preenchida.
+      </div>
+    </div>
+    
+    <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; justify-content: flex-end;">
+      <button onclick="closeSelectDayModal()" class="action-btn" style="background: #6b7280;">Cancelar</button>
+      <button onclick="confirmCalculateRoutes()" class="action-btn primary" style="background: #3b82f6;">🗺️ Calcular Rotas</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL DE IMPORTAÇÃO EXCEL -->
 <div id="excelImportModal" class="modal" style="display: none;">
   <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">

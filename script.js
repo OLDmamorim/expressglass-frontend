@@ -135,7 +135,109 @@ async function ordenarSeNecessario(lista) {
   return [...ordenados, ...restantes];
 }
 
-// ===== OTIMIZAÇÃO DE ROTAS - ALGORITMO PRINCIPAL =====
+// ===== MODAL DE SELEÇÃO DE DIA =====
+function openSelectDayModal() {
+  const modal = document.getElementById('selectDayModal');
+  const dateInput = document.getElementById('routeCalculationDate');
+  
+  if (!modal || !dateInput) return;
+  
+  // Definir data padrão como hoje
+  const today = new Date();
+  const todayISO = today.toISOString().split('T')[0];
+  dateInput.value = todayISO;
+  
+  // Mostrar modal
+  modal.style.display = 'flex';
+}
+
+function closeSelectDayModal() {
+  const modal = document.getElementById('selectDayModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+}
+
+function confirmCalculateRoutes() {
+  const dateInput = document.getElementById('routeCalculationDate');
+  
+  if (!dateInput || !dateInput.value) {
+    showToast('⚠️ Por favor, selecione uma data.', 'error');
+    return;
+  }
+  
+  const selectedDate = dateInput.value; // YYYY-MM-DD
+  
+  // Fechar modal
+  closeSelectDayModal();
+  
+  // Calcular rotas para o dia selecionado
+  calculateOptimalRoutesForDay(selectedDate);
+}
+
+// ===== OTIMIZAÇÃO DE ROTAS - DIA ESPECÍFICO =====
+async function calculateOptimalRoutesForDay(selectedDateISO) {
+  try {
+    // Mostrar modal de progresso
+    showProgressModal();
+    updateProgress(0, 'Iniciando otimização...', 'Preparando análise dos serviços...');
+    
+    // Pequena pausa para mostrar o início
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    updateProgress(10, 'Analisando serviços do dia...', 'Contando serviços com morada...');
+    
+    // Formatar data para exibição
+    const selectedDate = new Date(selectedDateISO + 'T00:00:00');
+    const dayName = selectedDate.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+    
+    // Obter serviços do dia que têm morada
+    const dayServices = appointments.filter(a => 
+      a.date === selectedDateISO && 
+      getAddressFromItem(a)
+    );
+    
+    if (dayServices.length < 2) {
+      updateProgress(50, 'Analisando serviços...', `Apenas ${dayServices.length} serviço(s) com morada encontrado(s)`);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      updateProgress(100, 'Análise concluída', 'Não há serviços suficientes para otimizar rotas');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      hideProgressModal();
+      showToast(`ℹ️ ${dayName}: Não há serviços suficientes para otimizar (mínimo 2 com morada).`, 'info');
+      return;
+    }
+    
+    // Otimizar serviços do dia
+    updateProgress(
+      50,
+      `Otimizando ${dayName}`,
+      `${dayServices.length} serviços a reorganizar`
+    );
+    
+    await optimizeDayServices(dayServices);
+    
+    updateProgress(95, 'Guardando alterações...', 'Sincronizando com a base de dados...');
+    
+    // Guardar alterações na base de dados
+    await saveOptimizedRoutes();
+    
+    updateProgress(100, 'Concluído!', `${dayServices.length} serviços reorganizados com sucesso`);
+    
+    // Aguardar um pouco para mostrar 100%
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    hideProgressModal();
+    renderAll();
+    showToast(`✅ Rotas otimizadas para ${dayName}! ${dayServices.length} serviços reorganizados.`, 'success');
+    
+  } catch (error) {
+    console.error('Erro ao calcular rotas:', error);
+    hideProgressModal();
+    showToast('❌ Erro ao calcular rotas: ' + error.message, 'error');
+  }
+}
+
+// ===== OTIMIZAÇÃO DE ROTAS - ALGORITMO PRINCIPAL (SEMANA COMPLETA - DEPRECATED) =====
 async function calculateOptimalRoutes() {
   try {
     // Mostrar modal de progresso
@@ -1316,8 +1418,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
   document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
 
-  // Botão Calcular Rotas
-  document.getElementById('calculateRoutes')?.addEventListener('click', calculateOptimalRoutes);
+  // Botão Calcular Rotas - Abrir modal de seleção de dia
+  document.getElementById('calculateRoutes')?.addEventListener('click', openSelectDayModal);
 
   // Event listeners para edição
   document.getElementById('cancelForm')?.addEventListener('click', cancelEdit);
