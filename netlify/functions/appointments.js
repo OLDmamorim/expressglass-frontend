@@ -52,7 +52,7 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
-               notes, address, extra, phone, km, sortIndex, created_at, updated_at
+               notes, address, extra, phone, km, sortIndex, "glassOrdered", created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
