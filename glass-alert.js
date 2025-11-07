@@ -279,8 +279,8 @@ function printGlassAlert() {
       <title>⚠️ Vidros a Encomendar</title>
       <style>
         @page { 
-          margin: 20mm; 
-          size: A4 portrait;
+          margin: 15mm; 
+          size: A4 landscape;
         }
         
         * {
