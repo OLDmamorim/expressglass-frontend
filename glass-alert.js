@@ -277,33 +277,50 @@ function printGlassAlert() {
   
   // Ocultar tudo exceto a secção de impressão
   const printSection = document.getElementById('glassPrintSection');
-  if (!printSection) return;
+  if (!printSection) {
+    console.error('[Glass Alert] Secção de impressão não encontrada');
+    return;
+  }
   
+  // Guardar estado original
   const originalDisplay = printSection.style.display;
   const bodyChildren = Array.from(document.body.children);
+  const hiddenElements = [];
   
-  // Ocultar todos os elementos
+  // Ocultar TODOS os elementos exceto printSection
   bodyChildren.forEach(child => {
-    if (child !== printSection) {
-      child.dataset.originalDisplay = child.style.display;
+    if (child !== printSection && child.style.display !== 'none') {
+      hiddenElements.push({
+        element: child,
+        originalDisplay: child.style.display || ''
+      });
       child.style.display = 'none';
     }
   });
   
-  // Mostrar secção de impressão
+  // Garantir que printSection está visível
   printSection.style.display = 'block';
+  printSection.style.visibility = 'visible';
+  printSection.style.position = 'static';
   
-  // Imprimir
-  window.print();
+  console.log('[Glass Alert] Imprimindo', services.length, 'vidros');
   
-  // Restaurar
-  printSection.style.display = originalDisplay;
-  bodyChildren.forEach(child => {
-    if (child !== printSection && child.dataset.originalDisplay !== undefined) {
-      child.style.display = child.dataset.originalDisplay;
-      delete child.dataset.originalDisplay;
-    }
-  });
+  // Aguardar renderização e imprimir
+  setTimeout(() => {
+    window.print();
+    
+    // Restaurar após impressão
+    setTimeout(() => {
+      printSection.style.display = originalDisplay;
+      
+      // Restaurar todos os elementos ocultos
+      hiddenElements.forEach(({ element, originalDisplay }) => {
+        element.style.display = originalDisplay;
+      });
+      
+      console.log('[Glass Alert] Impressão concluída, interface restaurada');
+    }, 100);
+  }, 100);
 }
 
 // Verificar e mostrar alerta automaticamente ao carregar (apenas desktop)

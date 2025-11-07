@@ -597,16 +597,82 @@
 <!-- SEÇÃO DE IMPRESSÃO DE VIDROS (oculta) -->
 <div id="glassPrintSection" style="display: none;">
   <style media="print">
-    @page { margin: 20mm; }
-    body { font-family: Arial, sans-serif; }
-    .glass-print-header { text-align: center; margin-bottom: 30px; }
-    .glass-print-header h1 { margin: 0; font-size: 24px; }
-    .glass-print-header p { margin: 5px 0; color: #666; }
-    .glass-print-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    .glass-print-table th, .glass-print-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    .glass-print-table th { background: #f3f4f6; font-weight: bold; }
-    .glass-print-table tr:nth-child(even) { background: #f9fafb; }
-    .glass-print-checkbox { width: 20px; height: 20px; border: 2px solid #000; display: inline-block; }
+    /* Resetar tudo para garantir isolamento */
+    @page { 
+      margin: 20mm; 
+      size: A4 portrait;
+    }
+    
+    /* Ocultar TUDO exceto glassPrintSection */
+    body > *:not(#glassPrintSection) {
+      display: none !important;
+      visibility: hidden !important;
+    }
+    
+    #glassPrintSection {
+      display: block !important;
+      visibility: visible !important;
+      position: static !important;
+    }
+    
+    body { 
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .glass-print-header { 
+      text-align: center; 
+      margin-bottom: 30px; 
+      page-break-inside: avoid;
+    }
+    
+    .glass-print-header h1 { 
+      margin: 0 0 10px 0; 
+      font-size: 24px;
+      font-weight: bold;
+    }
+    
+    .glass-print-header p { 
+      margin: 5px 0; 
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .glass-print-table { 
+      width: 100%; 
+      border-collapse: collapse; 
+      margin-top: 20px;
+    }
+    
+    .glass-print-table th, 
+    .glass-print-table td { 
+      border: 1px solid #333; 
+      padding: 8px 6px; 
+      text-align: left;
+      font-size: 12px;
+    }
+    
+    .glass-print-table th { 
+      background: #e5e7eb !important; 
+      font-weight: bold;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    
+    .glass-print-table tr:nth-child(even) { 
+      background: #f9fafb !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    
+    .glass-print-checkbox { 
+      width: 18px; 
+      height: 18px; 
+      border: 2px solid #000; 
+      display: inline-block;
+      vertical-align: middle;
+    }
   </style>
   
   <div class="glass-print-header">
