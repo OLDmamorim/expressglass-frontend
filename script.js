@@ -1613,6 +1613,14 @@ cancelEdit?.();
     }
 
     document.getElementById('appointmentModal').classList.add('show');
+    
+    // 🎯 FOCO AUTOMÁTICO: Colocar cursor no campo de matrícula
+    setTimeout(() => {
+      const plateInput = document.getElementById('appointmentPlate');
+      if (plateInput) {
+        plateInput.focus();
+      }
+    }, 100);
   });
 
   // --- Novo Serviço (mobile) ---
@@ -1630,6 +1638,14 @@ cancelEdit?.();
     }
 
     document.getElementById('appointmentModal').classList.add('show');
+    
+    // 🎯 FOCO AUTOMÁTICO: Colocar cursor no campo de matrícula
+    setTimeout(() => {
+      const plateInput = document.getElementById('appointmentPlate');
+      if (plateInput) {
+        plateInput.focus();
+      }
+    }, 100);
   });
 
   // --- Importar Excel ---
