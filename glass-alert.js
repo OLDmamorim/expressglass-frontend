@@ -3,23 +3,39 @@
 // Chave para localStorage
 const GLASS_ORDERS_KEY = 'glassOrders';
 
-// Obter estado de encomendas do localStorage
+/// Obter estado de encomenda dos serviços (da base de dados)
 function getGlassOrders() {
-  try {
-    const data = localStorage.getItem(GLASS_ORDERS_KEY);
-    return data ? JSON.parse(data) : {};
-  } catch (error) {
-    console.error('Erro ao ler encomendas de vidros:', error);
-    return {};
-  }
+  // Agora usa o campo glassOrdered de cada appointment
+  // Retorna objeto vazio para compatibilidade
+  return {};
 }
 
-// Guardar estado de encomendas no localStorage
-function saveGlassOrders(orders) {
+// Guardar estado de encomenda (na base de dados)
+async function saveGlassOrder(appointmentId, ordered) {
   try {
-    localStorage.setItem(GLASS_ORDERS_KEY, JSON.stringify(orders));
-  } catch (error) {
-    console.error('Erro ao guardar encomendas de vidros:', error);
+    console.log(`[Glass Alert] Guardando estado: ${appointmentId} = ${ordered}`);
+    
+    // Encontrar appointment
+    const appointment = appointments.find(a => a.id === appointmentId);
+    if (!appointment) {
+      console.error('[Glass Alert] Appointment não encontrado:', appointmentId);
+      return false;
+    }
+    
+    // Atualizar na base de dados via API
+    await window.apiClient.updateAppointment(appointmentId, {
+      ...appointment,
+      glassOrdered: ordered
+    });
+    
+    // Atualizar no array local
+    appointment.glassOrdered = ordered;
+    
+    console.log('[Glass Alert] Estado guardado com sucesso');
+    return true;
+  } catch (e) {
+    console.error('[Glass Alert] Erro ao guardar encomenda:', e);
+    return false;
   }
 }
 
@@ -65,14 +81,13 @@ function getGlassServicesForNextDays(days = 3) {
 // Verificar se há vidros pendentes de marcar como encomendados
 function hasPendingGlassOrders() {
   const services = getGlassServicesForNextDays(3);
-  const orders = getGlassOrders();
   
   console.log(`[Glass Alert] Encontrados ${services.length} serviços para próximos 3 dias`);
   
   let pendingCount = 0;
   for (const service of services) {
-    const key = `${service.id}_${service.date}`;
-    if (!orders[key] || !orders[key].ordered) {
+    // Verificar campo glassOrdered do appointment
+    if (!service.glassOrdered) {
       pendingCount++;
     }
   }
@@ -84,7 +99,6 @@ function hasPendingGlassOrders() {
 // Renderizar lista de vidros no modal
 function renderGlassAlertList() {
   const services = getGlassServicesForNextDays(3);
-  const orders = getGlassOrders();
   const listContainer = document.getElementById('glassAlertList');
   const emptyContainer = document.getElementById('glassAlertEmpty');
   const pendingCountSpan = document.getElementById('glassAlertPendingCount');
@@ -106,9 +120,7 @@ function renderGlassAlertList() {
   let html = '';
   
   for (const service of services) {
-    const key = `${service.id}_${service.date}`;
-    const orderData = orders[key] || { ordered: false };
-    const isOrdered = orderData.ordered;
+    const isOrdered = service.glassOrdered || false;
     
     if (!isOrdered) pendingCount++;
     
@@ -155,7 +167,7 @@ function renderGlassAlertList() {
           </div>
           <div style="display: flex; gap: 8px; flex-shrink: 0;">
             <button 
-              onclick="toggleGlassOrder('${key}', true)" 
+              onclick="toggleGlassOrder(${service.id}, true)" 
               class="action-btn-small" 
               style="background: ${isOrdered ? '#10b981' : '#e5e7eb'}; color: ${isOrdered ? 'white' : '#6b7280'}; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer;"
               title="Marcar como encomendado"
@@ -163,7 +175,7 @@ function renderGlassAlertList() {
               ✅ Encomendado
             </button>
             <button 
-              onclick="toggleGlassOrder('${key}', false)" 
+              onclick="toggleGlassOrder(${service.id}, false)" 
               class="action-btn-small" 
               style="background: ${!isOrdered ? '#ef4444' : '#e5e7eb'}; color: ${!isOrdered ? 'white' : '#6b7280'}; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; border: none; cursor: pointer;"
               title="Marcar como não encomendado"
@@ -188,19 +200,26 @@ function renderGlassAlertList() {
 }
 
 // Alternar estado de encomenda de um vidro
-function toggleGlassOrder(key, ordered) {
-  const orders = getGlassOrders();
-  orders[key] = {
-    ordered: ordered,
-    timestamp: new Date().toISOString()
-  };
-  saveGlassOrders(orders);
-  renderGlassAlertList();
+async function toggleGlassOrder(appointmentId, ordered) {
+  console.log(`[Glass Alert] Toggle: ${appointmentId} -> ${ordered}`);
   
-  // Mostrar feedback
-  const message = ordered ? '✅ Marcado como encomendado' : '❌ Marcado como não encomendado';
-  if (typeof showToast === 'function') {
-    showToast(message, ordered ? 'success' : 'info');
+  // Guardar na base de dados
+  const success = await saveGlassOrder(appointmentId, ordered);
+  
+  if (success) {
+    // Atualizar interface
+    renderGlassAlertList();
+    
+    // Mostrar feedback
+    const message = ordered ? '✅ Marcado como encomendado' : '❌ Marcado como não encomendado';
+    if (typeof showToast === 'function') {
+      showToast(message, ordered ? 'success' : 'info');
+    }
+  } else {
+    // Erro ao guardar
+    if (typeof showToast === 'function') {
+      showToast('⚠️ Erro ao guardar. Tente novamente.', 'error');
+    }
   }
 }
 
@@ -224,7 +243,6 @@ function closeGlassAlertModal() {
 // Imprimir lista de vidros em nova janela
 function printGlassAlert() {
   const services = getGlassServicesForNextDays(3);
-  const orders = getGlassOrders();
   
   console.log('[Glass Alert] Preparando impressão de', services.length, 'vidros');
   
@@ -241,9 +259,7 @@ function printGlassAlert() {
   // Gerar linhas da tabela
   let tableRows = '';
   for (const service of services) {
-    const key = `${service.id}_${service.date}`;
-    const orderData = orders[key] || { ordered: false };
-    const isOrdered = orderData.ordered;
+    const isOrdered = service.glassOrdered || false;
     
     const serviceDate = new Date(service.date + 'T00:00:00');
     const dateStr = serviceDate.toLocaleDateString('pt-PT', { 
@@ -406,29 +422,8 @@ function checkAndShowGlassAlert() {
   }
 }
 
-// Limpar encomendas antigas (opcional - manter apenas últimos 30 dias)
-function cleanOldGlassOrders() {
-  const orders = getGlassOrders();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  
-  let changed = false;
-  for (const key in orders) {
-    const parts = key.split('_');
-    if (parts.length === 2) {
-      const dateStr = parts[1];
-      const date = new Date(dateStr + 'T00:00:00');
-      if (date < thirtyDaysAgo) {
-        delete orders[key];
-        changed = true;
-      }
-    }
-  }
-  
-  if (changed) {
-    saveGlassOrders(orders);
-  }
-}
+// Limpar vidros encomendados antigos (não necessário - gerido pela BD)
+// A base de dados mantém o histórico completo
 
 // Inicializar ao carregar a página
 if (typeof window !== 'undefined') {
@@ -436,8 +431,6 @@ if (typeof window !== 'undefined') {
   function waitForAppointments() {
     if (typeof appointments !== 'undefined' && Array.isArray(appointments)) {
       console.log('[Glass Alert] Dados carregados, verificando vidros...');
-      // Limpar encomendas antigas
-      cleanOldGlassOrders();
       
       // Verificar e mostrar alerta
       checkAndShowGlassAlert();
