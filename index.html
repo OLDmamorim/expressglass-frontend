@@ -503,6 +503,9 @@
   <script src="template-expressglass-completo.js"></script>
   <script src="excel-import.js"></script>
   <script src="excel-import-ui.js"></script>
+  
+  <!-- Sistema de Alerta de Vidros -->
+  <script src="glass-alert.js"></script>
 
   <!-- >>>>>> SCRIPT DE IMPRESSÃO (garantir preenchimento antes de imprimir) <<<<<< -->
   <script>
@@ -545,6 +548,88 @@
       <button onclick="confirmCalculateRoutes()" class="action-btn primary" style="background: #3b82f6;">🗺️ Calcular Rotas</button>
     </div>
   </div>
+</div>
+
+<!-- MODAL DE ALERTA DE VIDROS A ENCOMENDAR -->
+<div id="glassAlertModal" class="modal" style="display: none;">
+  <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
+    <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
+      <h2 style="margin: 0; color: white;">⚠️ Vidros a Encomendar</h2>
+      <button class="close-btn" onclick="closeGlassAlertModal()" style="color: white;">&times;</button>
+    </div>
+    
+    <div class="modal-body" style="padding: 20px; overflow-y: auto; max-height: calc(90vh - 200px);">
+      <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin-bottom: 20px; border-radius: 6px;">
+        <p style="margin: 0; font-size: 14px; color: #92400e;">
+          <strong>📅 Vidros necessários para os próximos 3 dias</strong><br>
+          Marque como "Encomendado" à medida que fizer as encomendas.
+        </p>
+      </div>
+      
+      <div id="glassAlertList" style="margin-top: 20px;">
+        <!-- Lista será preenchida dinamicamente -->
+      </div>
+      
+      <div id="glassAlertEmpty" style="display: none; text-align: center; padding: 40px; color: #6b7280;">
+        <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
+        <p style="font-size: 16px; font-weight: 600; margin: 0;">Todos os vidros estão encomendados!</p>
+        <p style="font-size: 14px; margin-top: 8px;">Não há vidros pendentes para os próximos 3 dias.</p>
+      </div>
+    </div>
+    
+    <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; justify-content: space-between; align-items: center;">
+      <div style="font-size: 13px; color: #6b7280;">
+        <span id="glassAlertPendingCount">0</span> vidro(s) pendente(s)
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <button onclick="printGlassAlert()" class="action-btn" style="background: #6b7280;">
+          🖨️ Imprimir
+        </button>
+        <button onclick="closeGlassAlertModal()" class="action-btn primary" style="background: #3b82f6;">
+          Fechar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SEÇÃO DE IMPRESSÃO DE VIDROS (oculta) -->
+<div id="glassPrintSection" style="display: none;">
+  <style media="print">
+    @page { margin: 20mm; }
+    body { font-family: Arial, sans-serif; }
+    .glass-print-header { text-align: center; margin-bottom: 30px; }
+    .glass-print-header h1 { margin: 0; font-size: 24px; }
+    .glass-print-header p { margin: 5px 0; color: #666; }
+    .glass-print-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .glass-print-table th, .glass-print-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    .glass-print-table th { background: #f3f4f6; font-weight: bold; }
+    .glass-print-table tr:nth-child(even) { background: #f9fafb; }
+    .glass-print-checkbox { width: 20px; height: 20px; border: 2px solid #000; display: inline-block; }
+  </style>
+  
+  <div class="glass-print-header">
+    <h1>⚠️ Vidros a Encomendar</h1>
+    <p id="glassPrintDate"></p>
+    <p>Próximos 3 dias</p>
+  </div>
+  
+  <table class="glass-print-table" id="glassPrintTable">
+    <thead>
+      <tr>
+        <th>Data</th>
+        <th>Matrícula</th>
+        <th>Carro</th>
+        <th>Serviço</th>
+        <th>Localidade</th>
+        <th>Observações</th>
+        <th style="width: 80px;">Encomendado</th>
+      </tr>
+    </thead>
+    <tbody id="glassPrintTableBody">
+      <!-- Linhas serão preenchidas dinamicamente -->
+    </tbody>
+  </table>
 </div>
 
 <!-- MODAL DE IMPORTAÇÃO EXCEL -->
