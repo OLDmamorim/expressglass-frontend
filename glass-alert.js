@@ -221,29 +221,25 @@ function closeGlassAlertModal() {
   }
 }
 
-// Imprimir lista de vidros
+// Imprimir lista de vidros em nova janela
 function printGlassAlert() {
   const services = getGlassServicesForNextDays(3);
   const orders = getGlassOrders();
   
-  // Preencher data de impressão
-  const printDateEl = document.getElementById('glassPrintDate');
-  if (printDateEl) {
-    const today = new Date();
-    printDateEl.textContent = `Impresso em ${today.toLocaleDateString('pt-PT', { 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })}`;
-  }
+  console.log('[Glass Alert] Preparando impressão de', services.length, 'vidros');
   
-  // Preencher tabela de impressão
-  const tbody = document.getElementById('glassPrintTableBody');
-  if (!tbody) return;
+  // Gerar data de impressão
+  const today = new Date();
+  const printDate = today.toLocaleDateString('pt-PT', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
   
-  let html = '';
+  // Gerar linhas da tabela
+  let tableRows = '';
   for (const service of services) {
     const key = `${service.id}_${service.date}`;
     const orderData = orders[key] || { ordered: false };
@@ -257,10 +253,10 @@ function printGlassAlert() {
     });
     
     const checkboxHtml = isOrdered 
-      ? '<span class="glass-print-checkbox" style="background: #000;">✓</span>' 
-      : '<span class="glass-print-checkbox"></span>';
+      ? '<span style="display: inline-block; width: 18px; height: 18px; border: 2px solid #000; background: #000; color: #fff; text-align: center; line-height: 18px; vertical-align: middle;">✓</span>' 
+      : '<span style="display: inline-block; width: 18px; height: 18px; border: 2px solid #000; vertical-align: middle;"></span>';
     
-    html += `
+    tableRows += `
       <tr>
         <td>${dateStr}</td>
         <td>${service.plate || '—'}</td>
@@ -273,54 +269,126 @@ function printGlassAlert() {
     `;
   }
   
-  tbody.innerHTML = html;
+  // Criar HTML completo para nova janela
+  const printHtml = `
+    <!DOCTYPE html>
+    <html lang="pt-PT">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>⚠️ Vidros a Encomendar</title>
+      <style>
+        @page { 
+          margin: 20mm; 
+          size: A4 portrait;
+        }
+        
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body { 
+          font-family: Arial, sans-serif;
+          padding: 20px;
+        }
+        
+        .print-header { 
+          text-align: center; 
+          margin-bottom: 30px;
+        }
+        
+        .print-header h1 { 
+          margin: 0 0 10px 0; 
+          font-size: 24px;
+          font-weight: bold;
+        }
+        
+        .print-header p { 
+          margin: 5px 0; 
+          color: #666;
+          font-size: 14px;
+        }
+        
+        .print-table { 
+          width: 100%; 
+          border-collapse: collapse; 
+          margin-top: 20px;
+        }
+        
+        .print-table th, 
+        .print-table td { 
+          border: 1px solid #333; 
+          padding: 8px 6px; 
+          text-align: left;
+          font-size: 12px;
+        }
+        
+        .print-table th { 
+          background: #e5e7eb; 
+          font-weight: bold;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        
+        .print-table tr:nth-child(even) { 
+          background: #f9fafb;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        
+        @media print {
+          body { padding: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="print-header">
+        <h1>⚠️ Vidros a Encomendar</h1>
+        <p>Impresso em ${printDate}</p>
+        <p>Próximos 3 dias</p>
+      </div>
+      
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Matrícula</th>
+            <th>Carro</th>
+            <th>Serviço</th>
+            <th>Localidade</th>
+            <th>Observações</th>
+            <th style="width: 80px;">Encomendado</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+      </table>
+      
+      <script>
+        // Imprimir automaticamente ao carregar
+        window.onload = function() {
+          window.print();
+          // Fechar janela após impressão (opcional)
+          // window.onafterprint = function() { window.close(); };
+        };
+      </script>
+    </body>
+    </html>
+  `;
   
-  // Ocultar tudo exceto a secção de impressão
-  const printSection = document.getElementById('glassPrintSection');
-  if (!printSection) {
-    console.error('[Glass Alert] Secção de impressão não encontrada');
-    return;
+  // Abrir nova janela com o conteúdo
+  const printWindow = window.open('', '_blank', 'width=800,height=600');
+  if (printWindow) {
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+    console.log('[Glass Alert] Nova janela de impressão aberta');
+  } else {
+    alert('⚠️ Não foi possível abrir a janela de impressão. Verifique se o bloqueador de pop-ups está desativado.');
+    console.error('[Glass Alert] Falha ao abrir janela de impressão');
   }
-  
-  // Guardar estado original
-  const originalDisplay = printSection.style.display;
-  const bodyChildren = Array.from(document.body.children);
-  const hiddenElements = [];
-  
-  // Ocultar TODOS os elementos exceto printSection
-  bodyChildren.forEach(child => {
-    if (child !== printSection && child.style.display !== 'none') {
-      hiddenElements.push({
-        element: child,
-        originalDisplay: child.style.display || ''
-      });
-      child.style.display = 'none';
-    }
-  });
-  
-  // Garantir que printSection está visível
-  printSection.style.display = 'block';
-  printSection.style.visibility = 'visible';
-  printSection.style.position = 'static';
-  
-  console.log('[Glass Alert] Imprimindo', services.length, 'vidros');
-  
-  // Aguardar renderização e imprimir
-  setTimeout(() => {
-    window.print();
-    
-    // Restaurar após impressão
-    setTimeout(() => {
-      printSection.style.display = originalDisplay;
-      
-      // Restaurar todos os elementos ocultos
-      hiddenElements.forEach(({ element, originalDisplay }) => {
-        element.style.display = originalDisplay;
-      });
-      
-      console.log('[Glass Alert] Impressão concluída, interface restaurada');
-    }, 100);
-  }, 100);
 }
 
 // Verificar e mostrar alerta automaticamente ao carregar (apenas desktop)
