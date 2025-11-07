@@ -67,14 +67,18 @@ function hasPendingGlassOrders() {
   const services = getGlassServicesForNextDays(3);
   const orders = getGlassOrders();
   
+  console.log(`[Glass Alert] Encontrados ${services.length} serviços para próximos 3 dias`);
+  
+  let pendingCount = 0;
   for (const service of services) {
     const key = `${service.id}_${service.date}`;
     if (!orders[key] || !orders[key].ordered) {
-      return true;
+      pendingCount++;
     }
   }
   
-  return false;
+  console.log(`[Glass Alert] ${pendingCount} vidros pendentes de marcar`);
+  return pendingCount > 0;
 }
 
 // Renderizar lista de vidros no modal
@@ -343,12 +347,34 @@ function cleanOldGlassOrders() {
 
 // Inicializar ao carregar a página
 if (typeof window !== 'undefined') {
+  // Aguardar que os dados estejam carregados
+  function waitForAppointments() {
+    if (typeof appointments !== 'undefined' && Array.isArray(appointments)) {
+      console.log('[Glass Alert] Dados carregados, verificando vidros...');
+      // Limpar encomendas antigas
+      cleanOldGlassOrders();
+      
+      // Verificar e mostrar alerta
+      checkAndShowGlassAlert();
+    } else {
+      console.log('[Glass Alert] Aguardando dados...');
+      setTimeout(waitForAppointments, 500);
+    }
+  }
+  
   window.addEventListener('DOMContentLoaded', () => {
-    // Limpar encomendas antigas
-    cleanOldGlassOrders();
-    
-    // Verificar e mostrar alerta
-    checkAndShowGlassAlert();
+    console.log('[Glass Alert] DOM carregado, aguardando dados...');
+    waitForAppointments();
+  });
+  
+  // Também tentar após load completo
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      if (typeof appointments !== 'undefined') {
+        console.log('[Glass Alert] Load completo, verificando novamente...');
+        checkAndShowGlassAlert();
+      }
+    }, 2000);
   });
 }
 
