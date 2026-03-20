@@ -75,22 +75,27 @@ function renderPortals() {
   const tbody = document.getElementById('portalsTableBody');
   
   if (portals.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="loading">Nenhum portal criado</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="loading">Nenhum portal criado</td></tr>';
     return;
   }
   
-  tbody.innerHTML = portals.map(portal => `
+  tbody.innerHTML = portals.map(portal => {
+    const lastImport = portal.last_import_at 
+      ? new Date(portal.last_import_at).toLocaleString('pt-PT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
+      : '<span style="color:#9ca3af">—</span>';
+    return `
     <tr>
       <td><strong>${portal.name}</strong></td>
       <td>${portal.departure_address}</td>
       <td>${portal.nmdos_code || '<span style="color:#9ca3af">—</span>'}</td>
-      <td>${portal.user_count || 0}</td>
+      <td>${portal.service_count || 0}</td>
+      <td>${lastImport}</td>
       <td class="table-actions">
         <button class="btn-edit" onclick="editPortal(${portal.id})">Editar</button>
         <button class="btn-danger" onclick="deletePortal(${portal.id})">Eliminar</button>
       </td>
     </tr>
-  `).join('');
+  `}).join('');
 }
 
 // Paleta de cores para localidades
