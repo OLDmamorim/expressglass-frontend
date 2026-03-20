@@ -1123,8 +1123,62 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   }
 
   renderAll();
+
+  // Recalcular KM entre serviços após reordenar
+  if (targetBucket !== 'unscheduled') {
+    await recalcKmForBucket(targetBucket);
+  }
+  if (oldBucket !== targetBucket && oldBucket !== 'unscheduled') {
+    await recalcKmForBucket(oldBucket);
+  }
+
   const bucketsToPersist = new Set([targetBucket, oldBucket]);
   await persistBuckets(bucketsToPersist);
+}
+
+// ===== RECALCULAR KM ENTRE SERVIÇOS DE UM DIA (após reordenar) =====
+async function recalcKmForBucket(bucket) {
+  const list = getBucketList(bucket).filter(a => getAddressFromItem(a));
+  if (list.length === 0) return;
+
+  let changed = false;
+
+  for (let i = 0; i < list.length; i++) {
+    const service = list[i];
+    const serviceAddr = getAddressFromItem(service);
+    if (!serviceAddr) continue;
+
+    let newKm = 0;
+    try {
+      if (i === 0) {
+        // Primeiro serviço: distância da base de partida
+        const d = await getDistance(getBasePartida(), serviceAddr);
+        newKm = d !== Infinity ? Math.round(d / 1000) : 0;
+      } else {
+        // Serviços seguintes: distância do serviço anterior
+        const prevAddr = getAddressFromItem(list[i - 1]);
+        if (prevAddr) {
+          const d = await getDistance(prevAddr, serviceAddr);
+          newKm = d !== Infinity ? Math.round(d / 1000) : 0;
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao recalcular km:', e);
+    }
+
+    // Atualizar no array principal
+    const idx = appointments.findIndex(a => a.id === service.id);
+    if (idx >= 0 && appointments[idx].km !== newKm) {
+      appointments[idx].km = newKm;
+      changed = true;
+      console.log(`🔄 KM recalculado: ${service.plate} → ${newKm} km ${i === 0 ? '(da base)' : '(do anterior)'}`);
+    }
+  }
+
+  if (changed) {
+    renderAll();
+    showToast('🔄 Quilómetros recalculados', 'info');
+  }
 }
 
 // ===== FUNÇÕES DE EDIÇÃO E ELIMINAÇÃO =====
