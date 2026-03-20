@@ -697,6 +697,7 @@ async function startImport() {
   const dataObraCol = importHeaders.findIndex(h => h.toLowerCase() === 'dataobra');
   const phoneCol = importHeaders.findIndex(h => h.toLowerCase() === 'u_contsega');
   const emailCol = importHeaders.findIndex(h => h.toLowerCase() === 'email');
+  const eurocodeCol = importHeaders.findIndex(h => h.toLowerCase() === 'eurocode');
 
   // Mapear nmdos_code → portal_id
   const codeToPortal = {};
@@ -725,20 +726,13 @@ async function startImport() {
     const nome = nomeCol >= 0 && row[nomeCol] ? String(row[nomeCol]).trim() : '';
     const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
     const email = emailCol >= 0 && row[emailCol] ? String(row[emailCol]).trim() : '';
+    const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
 
-    // Notas: combinar campos relevantes
-    const notesParts = [];
-    if (segurado) notesParts.push('Segurado: ' + segurado);
-    if (nome && nome !== 'EXPRESSGLASS VIDROS VIATURAS SA') notesParts.push('Cliente: ' + nome);
-    if (obs) notesParts.push(obs.substring(0, 500)); // Limitar tamanho das obs
-    const notes = notesParts.join('\n');
+    // Observações: só o eurocode
+    const notes = eurocode || '';
 
-    // Extra: ref + email
-    const extraParts = [];
-    if (ref) extraParts.push('Ref: ' + ref);
-    if (email) extraParts.push('Email: ' + email);
-    if (status) extraParts.push('Status EG: ' + status);
-    const extra = extraParts.join(' | ');
+    // Outros dados: só o nome do segurado
+    const extra = segurado || '';
 
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
