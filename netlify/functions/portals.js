@@ -46,8 +46,9 @@ exports.handler = async (event) => {
     // ---------- GET - Listar todos os portais ----------
     if (event.httpMethod === 'GET') {
       const query = `
-        SELECT id, name, departure_address, localities, nmdos_code, created_at, updated_at,
-               (SELECT COUNT(*) FROM users WHERE portal_id = portals.id) as user_count
+        SELECT id, name, departure_address, localities, nmdos_code, last_import_at, created_at, updated_at,
+               (SELECT COUNT(*) FROM users WHERE portal_id = portals.id) as user_count,
+               (SELECT COUNT(*) FROM appointments WHERE portal_id = portals.id) as service_count
         FROM portals
         ORDER BY name ASC
       `;

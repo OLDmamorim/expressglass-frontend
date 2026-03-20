@@ -123,6 +123,19 @@ exports.handler = async (event) => {
 
     console.log(`📥 Importação: ${results.created} criados, ${results.updated} atualizados, ${results.errors} erros`);
 
+    // Atualizar data da última importação nos portais afetados
+    const affectedPortals = new Set(services.map(s => s.portal_id).filter(Boolean));
+    for (const portalId of affectedPortals) {
+      try {
+        await pool.query(
+          'UPDATE portals SET last_import_at = $1 WHERE id = $2',
+          [new Date().toISOString(), portalId]
+        );
+      } catch (e) {
+        console.warn('Erro ao atualizar last_import_at:', e);
+      }
+    }
+
     return {
       statusCode: 200,
       headers,
