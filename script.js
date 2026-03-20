@@ -592,60 +592,216 @@ function updateProgress(percentage, text, details) {
 }
 
 // ---------- Configurações e dados ----------
-const localityColors = {
-  'Outra': '#9CA3AF', 'Barcelos': '#F87171', 'Braga': '#34D399', 'Esposende': '#22D3EE',
-  'Famalicão': '#7E22CE', 'Guimarães': '#FACC15', 'Póvoa de Lanhoso': '#A78BFA',
-  'Póvoa de Varzim': '#6EE7B7', "Riba D'Ave": '#FBBF24', 'Trofa': '#C084FC',
-  'Vieira do Minho': '#93C5FD', 'Vila do Conde': '#1E3A8A', 'Vila Verde': '#86EFAC'
-};
+// Paleta de 25 cores maximamente distintas (testadas para contraste visual)
+const _COLOR_PALETTE = [
+  '#E63946', // vermelho vivo
+  '#1D8CF8', // azul brilhante
+  '#2DC653', // verde esmeralda
+  '#F77F00', // laranja forte
+  '#7B2D8E', // roxo escuro
+  '#00B4D8', // ciano/turquesa
+  '#E9C46A', // dourado/mostarda
+  '#D63384', // magenta/rosa
+  '#0B7A3E', // verde floresta
+  '#6F42C1', // violeta
+  '#FD7E14', // tangerina
+  '#20C997', // verde-menta
+  '#DC3545', // carmesim
+  '#0DCAF0', // azul-gelo
+  '#6610F2', // índigo
+  '#198754', // verde-bandeira
+  '#D35400', // cobre
+  '#6C63FF', // lavanda elétrica
+  '#C71585', // rosa-choque
+  '#17A2B8', // azul-petróleo
+  '#8D6E63', // castanho/terra
+  '#28B463', // verde-lima escuro
+  '#E74C3C', // tomate
+  '#3498DB', // azul-céu
+  '#9B59B6', // ametista
+];
+
+// Hash determinístico do nome (para localidades novas fora da paleta)
+function _hashName(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) {
+    h = Math.imul(31, h) + name.charCodeAt(i) | 0;
+  }
+  return Math.abs(h);
+}
+
+// Gera cor HSL única para localidades além da paleta
+function _generateExtraColor(name) {
+  const h = _hashName(name);
+  const hue = (h * 137.508) % 360;
+  const sat = 60 + (h % 25);       // 60-85%
+  const lum = 40 + ((h >> 8) % 20); // 40-60%
+  const s = sat / 100, ll = lum / 100;
+  const a = s * Math.min(ll, 1 - ll);
+  const f = n => { const k = (n + hue / 30) % 12; return Math.round(255 * (ll - a * Math.max(Math.min(k - 3, 9 - k, 1), -1))).toString(16).padStart(2, '0'); };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+// === Todos os 308 concelhos de Portugal (Continental + Ilhas) ===
+const CONCELHOS_PT = [
+  "Águeda","Albergaria-a-Velha","Anadia","Arouca","Aveiro","Castelo de Paiva",
+  "Espinho","Estarreja","Ílhavo","Mealhada","Murtosa","Oliveira de Azeméis",
+  "Oliveira do Bairro","Ovar","Santa Maria da Feira","São João da Madeira",
+  "Sever do Vouga","Vagos","Vale de Cambra",
+  "Aljustrel","Almodôvar","Alvito","Barrancos","Beja","Castro Verde","Cuba",
+  "Ferreira do Alentejo","Mértola","Moura","Odemira","Ourique","Serpa","Vidigueira",
+  "Amares","Barcelos","Braga","Cabeceiras de Basto","Celorico de Basto",
+  "Esposende","Fafe","Guimarães","Póvoa de Lanhoso","Terras de Bouro",
+  "Vieira do Minho","Vila Nova de Famalicão","Vila Verde","Vizela",
+  "Alfândega da Fé","Bragança","Carrazeda de Ansiães","Freixo de Espada à Cinta",
+  "Macedo de Cavaleiros","Miranda do Douro","Mirandela","Mogadouro",
+  "Torre de Moncorvo","Vila Flor","Vimioso","Vinhais",
+  "Belmonte","Castelo Branco","Covilhã","Fundão","Idanha-a-Nova",
+  "Oleiros","Penamacor","Proença-a-Nova","Sertã","Vila de Rei","Vila Velha de Ródão",
+  "Arganil","Cantanhede","Coimbra","Condeixa-a-Nova","Figueira da Foz",
+  "Góis","Lousã","Mira","Miranda do Corvo","Montemor-o-Velho","Oliveira do Hospital",
+  "Pampilhosa da Serra","Penacova","Penela","Soure","Tábua","Vila Nova de Poiares",
+  "Alandroal","Arraiolos","Borba","Estremoz","Évora","Montemor-o-Novo",
+  "Mora","Mourão","Portel","Redondo","Reguengos de Monsaraz",
+  "Vendas Novas","Viana do Alentejo","Vila Viçosa",
+  "Albufeira","Alcoutim","Aljezur","Castro Marim","Faro","Lagoa",
+  "Lagos","Loulé","Monchique","Olhão","Portimão","São Brás de Alportel",
+  "Silves","Tavira","Vila do Bispo","Vila Real de Santo António",
+  "Aguiar da Beira","Almeida","Celorico da Beira","Figueira de Castelo Rodrigo",
+  "Fornos de Algodres","Gouveia","Guarda","Manteigas","Mêda",
+  "Pinhel","Sabugal","Seia","Trancoso","Vila Nova de Foz Côa",
+  "Alcobaça","Alvaiázere","Ansião","Batalha","Bombarral","Caldas da Rainha",
+  "Castanheira de Pêra","Figueiró dos Vinhos","Leiria","Marinha Grande",
+  "Nazaré","Óbidos","Pedrógão Grande","Peniche","Pombal","Porto de Mós",
+  "Alenquer","Amadora","Arruda dos Vinhos","Azambuja","Cadaval","Cascais",
+  "Lisboa","Loures","Lourinhã","Mafra","Odivelas","Oeiras",
+  "Sintra","Sobral de Monte Agraço","Torres Vedras","Vila Franca de Xira",
+  "Alter do Chão","Arronches","Avis","Campo Maior","Castelo de Vide",
+  "Crato","Elvas","Fronteira","Gavião","Marvão","Monforte",
+  "Nisa","Ponte de Sor","Portalegre","Sousel",
+  "Amarante","Baião","Felgueiras","Gondomar","Lousada","Maia",
+  "Marco de Canaveses","Matosinhos","Paços de Ferreira","Paredes",
+  "Penafiel","Porto","Póvoa de Varzim","Santo Tirso","Trofa",
+  "Valongo","Vila do Conde","Vila Nova de Gaia",
+  "Abrantes","Alcanena","Almeirim","Alpiarça","Benavente","Cartaxo",
+  "Chamusca","Constância","Coruche","Entroncamento","Ferreira do Zêzere",
+  "Golegã","Mação","Ourém","Rio Maior","Salvaterra de Magos",
+  "Santarém","Sardoal","Tomar","Torres Novas","Vila Nova da Barquinha",
+  "Alcácer do Sal","Alcochete","Almada","Barreiro","Grândola","Moita",
+  "Montijo","Palmela","Santiago do Cacém","Seixal","Sesimbra","Setúbal","Sines",
+  "Arcos de Valdevez","Caminha","Melgaço","Monção","Paredes de Coura",
+  "Ponte da Barca","Ponte de Lima","Valença","Viana do Castelo","Vila Nova de Cerveira",
+  "Alijó","Boticas","Chaves","Mesão Frio","Mondim de Basto","Montalegre",
+  "Murça","Peso da Régua","Ribeira de Pena","Sabrosa","Santa Marta de Penaguião",
+  "Valpaços","Vila Pouca de Aguiar","Vila Real",
+  "Armamar","Carregal do Sal","Castro Daire","Cinfães","Lamego",
+  "Mangualde","Moimenta da Beira","Mortágua","Nelas","Oliveira de Frades",
+  "Penalva do Castelo","Penedono","Resende","Santa Comba Dão",
+  "São João da Pesqueira","São Pedro do Sul","Sátão","Sernancelhe",
+  "Tabuaço","Tarouca","Tondela","Vila Nova de Paiva","Viseu","Vouzela",
+  "Angra do Heroísmo","Calheta (Açores)","Corvo","Horta","Lagoa (Açores)",
+  "Lajes das Flores","Lajes do Pico","Madalena","Nordeste","Ponta Delgada",
+  "Povoação","Praia da Vitória","Ribeira Grande","Santa Cruz da Graciosa",
+  "Santa Cruz das Flores","São Roque do Pico","Velas","Vila do Porto",
+  "Vila Franca do Campo",
+  "Calheta (Madeira)","Câmara de Lobos","Funchal","Machico","Ponta do Sol",
+  "Porto Moniz","Porto Santo","Ribeira Brava","Santa Cruz","Santana","São Vicente"
+];
+
+// Atribuir cores a todos os concelhos
+const localityColors = { 'Outra': '#9CA3AF' };
+CONCELHOS_PT.forEach((name, i) => {
+  localityColors[name] = _COLOR_PALETTE[i % _COLOR_PALETTE.length];
+});
 window.LOCALITY_COLORS = localityColors;
 
 // Função para obter cor da localidade (usa configuração do portal se disponível)
+// Gera cor automaticamente para QUALQUER localidade nova — nunca repete
 const getLocColor = loc => {
   // Prioridade 1: Cores do portal configuradas no portal-init.js
   if (window.portalConfig?.localities?.[loc]) {
     return window.portalConfig.localities[loc];
   }
-  // Prioridade 2: Cores carregadas da API
-  if (localityColors && localityColors[loc]) {
+  // Prioridade 2: Cores já atribuídas
+  if (localityColors[loc]) {
     return localityColors[loc];
   }
   // Prioridade 3: Função global do portal-init.js
   if (window.getLocalityColor) {
     return window.getLocalityColor(loc);
   }
-  // Fallback: Cor padrão azul
-  return '#3b82f6';
+  // Prioridade 4: Gerar cor para localidade nova
+  const usedCount = Object.keys(localityColors).length;
+  const newColor = usedCount < _COLOR_PALETTE.length
+    ? _COLOR_PALETTE[usedCount]
+    : _generateExtraColor(loc);
+  localityColors[loc] = newColor;
+  window.LOCALITY_COLORS = localityColors;
+  return newColor;
 };
 
 const statusBarColors = { NE:'#EF4444', VE:'#F59E0B', ST:'#10B981' };
 const localityList = Object.keys(localityColors);
 
-// === Preencher e ligar o dropdown de Localidade ===
-function buildLocalityOptions() {
-  const wrap = document.getElementById('localityDropdown');   // container do dropdown
-  const list = document.getElementById('localityOptions');    // onde vão as opções
-  if (!wrap || !list) return;
+// === Preencher e ligar o dropdown de Localidade (com pesquisa) ===
 
-  // cria os botões das localidades
-  const items = Object.keys(window.LOCALITY_COLORS || localityColors).map(loc => {
-    const color = getLocColor(loc);
-    return `
-      <button type="button" class="loc-opt" data-value="${loc}">
-        <span class="dot" style="background:${color}"></span>
-        <span class="txt">${loc}</span>
-      </button>`;
-  }).join('');
+// Normaliza texto para pesquisa (remove acentos)
+function _normalizeSearch(str) {
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
 
-  list.innerHTML = items;
+// Gera HTML para um botão de localidade
+function _locOptHtml(loc) {
+  const color = getLocColor(loc);
+  return `<button type="button" class="loc-opt" data-value="${loc}">
+    <span class="dot" style="background:${color}"></span>
+    <span class="txt">${loc}</span>
+  </button>`;
+}
 
-  // click nas opções → seleciona e fecha
+// Renderiza as opções filtradas no dropdown
+function renderLocalityOptions(filter) {
+  const list = document.getElementById('localityOptions');
+  if (!list) return;
+
+  const query = _normalizeSearch(filter || '');
+
+  if (!query) {
+    // Sem filtro: pedir para escrever
+    list.innerHTML = '<div class="loc-no-results">Escreva o nome do concelho...</div>';
+    return;
+  }
+
+  const matched = CONCELHOS_PT.filter(loc => _normalizeSearch(loc).includes(query));
+
+  if (matched.length === 0) {
+    list.innerHTML = '<div class="loc-no-results">Nenhum concelho encontrado</div>';
+  } else {
+    list.innerHTML = matched.map(loc => _locOptHtml(loc)).join('');
+  }
+
+  // Bind click events
   list.querySelectorAll('.loc-opt').forEach(btn => {
     btn.addEventListener('click', () => {
-      const val = btn.getAttribute('data-value');
-      window.selectLocality?.(val);   // usa o handler global que já criámos
+      window.selectLocality?.(btn.getAttribute('data-value'));
     });
   });
+}
+
+function buildLocalityOptions() {
+  const list = document.getElementById('localityOptions');
+  const search = document.getElementById('localitySearch');
+  if (!list) return;
+
+  // Render inicial (favoritas)
+  renderLocalityOptions('');
+
+  // Ligar evento de pesquisa
+  if (search) {
+    search.addEventListener('input', (e) => {
+      renderLocalityOptions(e.target.value);
+    });
+  }
 }
 
 
@@ -1977,9 +2133,18 @@ cancelEdit?.();
 window.toggleLocalityDropdown = function () {
   const dd = document.getElementById('localityDropdown');
   if (!dd) return;
-  // aceita .open ou .show (conforme o teu CSS)
+  const isOpen = dd.classList.contains('open') || dd.classList.contains('show');
   dd.classList.toggle('open');
   dd.classList.toggle('show');
+  if (!isOpen) {
+    // Ao abrir: limpar pesquisa, mostrar favoritas, focar input
+    const search = document.getElementById('localitySearch');
+    if (search) {
+      search.value = '';
+      renderLocalityOptions('');
+      setTimeout(() => search.focus(), 50);
+    }
+  }
 };
 
 window.selectLocality = function (value) {
@@ -1991,14 +2156,18 @@ window.selectLocality = function (value) {
   if (dot)   dot.style.backgroundColor = value ? getLocColor(value) : '';
   const dd = document.getElementById('localityDropdown');
   dd?.classList.remove('open'); dd?.classList.remove('show');
+  // Limpar pesquisa
+  const search = document.getElementById('localitySearch');
+  if (search) search.value = '';
 };
 
 // fecha o dropdown ao clicar fora
 document.addEventListener('click', (e) => {
-  const dd = document.getElementById('localityDropdown');
-  if (!dd) return;
-  if (!dd.contains(e.target)) {
-    dd.classList.remove('open'); dd.classList.remove('show');
+  const ac = document.getElementById('localityAutocomplete');
+  if (!ac) return;
+  if (!ac.contains(e.target)) {
+    const dd = document.getElementById('localityDropdown');
+    dd?.classList.remove('open'); dd?.classList.remove('show');
   }
 });
 

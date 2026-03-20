@@ -271,22 +271,18 @@
           <div class="form-row">
             <div class="form-group">
             <label for="appointmentLocality">Localidade *</label>
-  <select id="appointmentLocality" required>
-    <option value="">Selecione a localidade</option>
-    <option>Outra</option>
-    <option>Barcelos</option>
-    <option>Braga</option>
-    <option>Esposende</option>
-    <option>Famalicão</option>
-    <option>Guimarães</option>
-    <option>Póvoa de Lanhoso</option>
-    <option>Póvoa de Varzim</option>
-    <option>Riba D'Ave</option>
-    <option>Trofa</option>
-    <option>Vieira do Minho</option>
-    <option>Vila do Conde</option>
-    <option>Vila Verde</option>
-  </select>
+  <input type="hidden" id="appointmentLocality" required>
+  <div class="locality-autocomplete" id="localityAutocomplete">
+    <div class="locality-selected" id="localitySelected" onclick="window.toggleLocalityDropdown()">
+      <span class="dot" id="selectedLocalityDot"></span>
+      <span id="selectedLocalityText">Selecione a localidade</span>
+      <svg width="12" height="12" viewBox="0 0 12 12" style="margin-left:auto;opacity:.5"><path d="M3 5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+    <div id="localityDropdown">
+      <input type="text" id="localitySearch" placeholder="Escreva para filtrar..." autocomplete="off">
+      <div id="localityOptions"></div>
+    </div>
+  </div>
 </div>
 
 
