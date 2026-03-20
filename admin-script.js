@@ -75,7 +75,7 @@ function renderPortals() {
   const tbody = document.getElementById('portalsTableBody');
   
   if (portals.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="loading">Nenhum portal criado</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">Nenhum portal criado</td></tr>';
     return;
   }
   
@@ -83,6 +83,7 @@ function renderPortals() {
     <tr>
       <td><strong>${portal.name}</strong></td>
       <td>${portal.departure_address}</td>
+      <td>${portal.nmdos_code || '<span style="color:#9ca3af">—</span>'}</td>
       <td>${portal.user_count || 0}</td>
       <td class="table-actions">
         <button class="btn-edit" onclick="editPortal(${portal.id})">Editar</button>
@@ -99,6 +100,51 @@ const colorPalette = [
   '#6366f1', '#a855f7', '#f43f5e', '#22c55e', '#eab308'
 ];
 let colorIndex = 0;
+
+// ===== CÓDIGOS NMDOS (extraídos do Excel) =====
+const NMDOS_CODES = [
+  "Ficha S.Movel 1-Porto","Ficha S.Movel 2-Braga","Ficha S.Movel 3-Camarate",
+  "Ficha S.Movel 5-Setubal","Ficha S.Movel 6-Coimbra","Ficha S.Movel 7-Leiria",
+  "Ficha S.Movel-Rep.Coimbr","Ficha S.Movel-Rep.Leiria","Ficha S.Movel-Rep.Lisboa",
+  "Ficha S.Movel-Rep.Minho","Ficha S.Movel-Rep.Porto",
+  "Ficha Servico 01","Ficha Servico 02","Ficha Servico 03","Ficha Servico 04",
+  "Ficha Servico 05","Ficha Servico 06","Ficha Servico 07","Ficha Servico 08",
+  "Ficha Servico 09","Ficha Servico 10","Ficha Servico 11","Ficha Servico 12",
+  "Ficha Servico 13","Ficha Servico 14","Ficha Servico 15","Ficha Servico 16",
+  "Ficha Servico 17","Ficha Servico 18","Ficha Servico 19","Ficha Servico 20",
+  "Ficha Servico 21","Ficha Servico 22","Ficha Servico 23","Ficha Servico 24",
+  "Ficha Servico 25","Ficha Servico 26","Ficha Servico 27","Ficha Servico 28",
+  "Ficha Servico 29","Ficha Servico 30","Ficha Servico 31","Ficha Servico 32",
+  "Ficha Servico 34","Ficha Servico 35","Ficha Servico 36","Ficha Servico 37",
+  "Ficha Servico 38","Ficha Servico 39","Ficha Servico 40","Ficha Servico 43",
+  "Ficha Servico 44","Ficha Servico 45","Ficha Servico 46","Ficha Servico 48",
+  "Ficha Servico 49","Ficha Servico 50","Ficha Servico 54","Ficha Servico 60",
+  "Ficha Servico 61","Ficha Servico 62","Ficha Servico 63","Ficha Servico 64",
+  "Ficha Servico 65","Ficha Servico 66","Ficha Servico 67","Ficha Servico 68",
+  "Ficha Servico 69","Ficha Servico 71","Ficha Servico 72","Ficha Servico 73",
+  "Ficha Servico 76","Ficha Servico 77","Ficha Servico 84","Ficha Servico 85",
+  "Ficha Servico 86","Ficha Servico 91","Ficha Servico 92","Ficha Servico 94",
+  "Ficha Servico 95","Ficha Servico 96","Ficha Servico 97"
+];
+
+function populateNmdosSelect() {
+  const select = document.getElementById('portalNmdos');
+  if (!select) return;
+  // Manter a primeira opção (vazia)
+  select.innerHTML = '<option value="">-- Sem código atribuído --</option>';
+  // Obter códigos já usados por outros portais
+  const usedCodes = new Set(portals.filter(p => p.nmdos_code && p.id !== editingPortalId).map(p => p.nmdos_code));
+  NMDOS_CODES.forEach(code => {
+    const opt = document.createElement('option');
+    opt.value = code;
+    opt.textContent = code;
+    if (usedCodes.has(code)) {
+      opt.disabled = true;
+      opt.textContent += ' (já atribuído)';
+    }
+    select.appendChild(opt);
+  });
+}
 
 // Gestão de localidades
 let localitiesData = [];
@@ -187,6 +233,9 @@ document.getElementById('addPortalBtn').addEventListener('click', () => {
   colorIndex = 0;
   renderLocalitiesTable();
   
+  // Popular dropdown nmdos
+  populateNmdosSelect();
+  
   openModal('portalModal');
 });
 
@@ -198,6 +247,10 @@ function editPortal(id) {
   document.getElementById('portalModalTitle').textContent = 'Editar Portal';
   document.getElementById('portalName').value = portal.name;
   document.getElementById('portalAddress').value = portal.departure_address;
+  
+  // Popular e selecionar dropdown nmdos
+  populateNmdosSelect();
+  document.getElementById('portalNmdos').value = portal.nmdos_code || '';
   
   // Carregar localidades
   loadLocalitiesFromJSON(portal.localities);
@@ -256,7 +309,7 @@ document.getElementById('portalForm').addEventListener('submit', async (e) => {
     return;
   }
   
-  const portalData = { name, departure_address: address, localities };
+  const portalData = { name, departure_address: address, localities, nmdos_code: document.getElementById('portalNmdos').value || null };
   
   try {
     const url = editingPortalId 
@@ -492,4 +545,277 @@ function showToast(message, type = 'success') {
   setTimeout(() => {
     toast.classList.remove('show');
   }, 3000);
+}
+
+// ===== IMPORTAÇÃO EXCEL GLOBAL =====
+let importExcelData = []; // Raw rows from Excel
+let importHeaders = [];
+
+// Excel date serial → JS Date
+function excelDateToISO(serial) {
+  if (!serial || typeof serial !== 'number') return null;
+  const epoch = new Date(1899, 11, 30);
+  return new Date(epoch.getTime() + Math.floor(serial) * 86400000).toISOString();
+}
+
+// Normalizar matrícula
+function normalizePlate(plate) {
+  if (!plate) return '';
+  let n = String(plate).replace(/\s+/g, '').toUpperCase();
+  if (!n.includes('-') && n.length === 6) {
+    n = n.slice(0,2) + '-' + n.slice(2,4) + '-' + n.slice(4,6);
+  }
+  return n;
+}
+
+// Setup upload area
+(function setupImportUpload() {
+  const area = document.getElementById('importUploadArea');
+  const input = document.getElementById('importExcelFile');
+  if (!area || !input) return;
+
+  area.addEventListener('click', () => input.click());
+  area.addEventListener('dragover', (e) => { e.preventDefault(); area.style.borderColor = '#3b82f6'; });
+  area.addEventListener('dragleave', () => { area.style.borderColor = '#d1d5db'; });
+  area.addEventListener('drop', (e) => {
+    e.preventDefault();
+    area.style.borderColor = '#d1d5db';
+    if (e.dataTransfer.files.length) handleImportFile(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', (e) => {
+    if (e.target.files.length) handleImportFile(e.target.files[0]);
+  });
+})();
+
+async function handleImportFile(file) {
+  if (!file.name.match(/\.(xlsx|xls)$/i)) {
+    showToast('Por favor selecione um ficheiro Excel', 'error');
+    return;
+  }
+
+  try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+    if (json.length < 2) {
+      showToast('Ficheiro vazio ou sem dados', 'error');
+      return;
+    }
+
+    importHeaders = json[0].map(h => String(h || '').trim());
+    importExcelData = json.slice(1).filter(row => row.some(c => c != null && String(c).trim() !== ''));
+
+    // Mostrar info do ficheiro
+    document.getElementById('importFileName').textContent = file.name;
+    document.getElementById('importFileStats').textContent = `${importExcelData.length} linhas · ${importHeaders.length} colunas`;
+    document.getElementById('importFileInfo').style.display = 'block';
+
+    // Analisar distribuição por portal
+    analyzeDistribution();
+
+  } catch (err) {
+    console.error('Erro ao ler Excel:', err);
+    showToast('Erro ao ler ficheiro: ' + err.message, 'error');
+  }
+}
+
+function analyzeDistribution() {
+  // Col B (index 1) = nmdos
+  const nmdosCol = importHeaders.findIndex(h => h.toLowerCase() === 'nmdos');
+  if (nmdosCol < 0) {
+    showToast('Coluna "nmdos" não encontrada no Excel', 'error');
+    return;
+  }
+
+  // Contar serviços por nmdos
+  const countByNmdos = {};
+  importExcelData.forEach(row => {
+    const code = String(row[nmdosCol] || '').trim();
+    if (code) countByNmdos[code] = (countByNmdos[code] || 0) + 1;
+  });
+
+  // Mapear portais com código nmdos
+  const tbody = document.getElementById('importSummaryBody');
+  let matched = 0, unmatched = 0;
+  const rows = [];
+
+  portals.forEach(portal => {
+    if (!portal.nmdos_code) return;
+    const count = countByNmdos[portal.nmdos_code] || 0;
+    matched += count;
+    rows.push(`
+      <tr>
+        <td><strong>${portal.name}</strong></td>
+        <td>${portal.nmdos_code}</td>
+        <td>${count}</td>
+      </tr>
+    `);
+  });
+
+  // Total de linhas no Excel
+  const totalExcel = importExcelData.length;
+  unmatched = totalExcel - matched;
+
+  // Portais sem código
+  const portaisSemCodigo = portals.filter(p => !p.nmdos_code);
+  portaisSemCodigo.forEach(portal => {
+    rows.push(`
+      <tr style="opacity:0.5">
+        <td>${portal.name}</td>
+        <td><em>sem código</em></td>
+        <td>—</td>
+      </tr>
+    `);
+  });
+
+  tbody.innerHTML = rows.join('');
+
+  // Info de não correspondidos
+  const info = document.getElementById('importUnmatchedInfo');
+  if (unmatched > 0) {
+    info.textContent = `⚠️ ${unmatched} serviços no Excel não correspondem a nenhum portal configurado (códigos nmdos não atribuídos).`;
+    info.style.display = 'block';
+  } else {
+    info.style.display = 'none';
+  }
+
+  document.getElementById('importPortalSummary').style.display = 'block';
+}
+
+async function startImport() {
+  const nmdosCol = importHeaders.findIndex(h => h.toLowerCase() === 'nmdos');
+  const plateCol = importHeaders.findIndex(h => h.toLowerCase() === 'matricula');
+  const marcaCol = importHeaders.findIndex(h => h.toLowerCase() === 'marca');
+  const modeloCol = importHeaders.findIndex(h => h.toLowerCase() === 'modelo');
+  const refCol = importHeaders.findIndex(h => h.toLowerCase() === 'ref');
+  const statusCol = importHeaders.findIndex(h => h.toLowerCase() === 'status');
+  const obsCol = importHeaders.findIndex(h => h.toLowerCase() === 'obs');
+  const seguradoCol = importHeaders.findIndex(h => h.toLowerCase() === 'segurado');
+  const nomeCol = importHeaders.findIndex(h => h.toLowerCase() === 'nome');
+  const dataObraCol = importHeaders.findIndex(h => h.toLowerCase() === 'dataobra');
+  const phoneCol = importHeaders.findIndex(h => h.toLowerCase() === 'u_contsega');
+  const emailCol = importHeaders.findIndex(h => h.toLowerCase() === 'email');
+
+  // Mapear nmdos_code → portal_id
+  const codeToPortal = {};
+  portals.forEach(p => {
+    if (p.nmdos_code) codeToPortal[p.nmdos_code] = p.id;
+  });
+
+  // Preparar serviços
+  const services = [];
+  importExcelData.forEach(row => {
+    const code = String(row[nmdosCol] || '').trim();
+    const portalId = codeToPortal[code];
+    if (!portalId) return; // Ignorar se não tem portal
+
+    const plate = normalizePlate(row[plateCol]);
+    if (!plate) return;
+
+    const marca = row[marcaCol] ? String(row[marcaCol]).trim() : '';
+    const modelo = row[modeloCol] ? String(row[modeloCol]).trim() : '';
+    const car = [marca, modelo].filter(Boolean).join(' ') || 'Sem modelo';
+
+    const ref = refCol >= 0 && row[refCol] ? String(row[refCol]).trim() : '';
+    const status = statusCol >= 0 && row[statusCol] ? String(row[statusCol]).trim() : '';
+    const obs = obsCol >= 0 && row[obsCol] ? String(row[obsCol]).trim() : '';
+    const segurado = seguradoCol >= 0 && row[seguradoCol] ? String(row[seguradoCol]).trim() : '';
+    const nome = nomeCol >= 0 && row[nomeCol] ? String(row[nomeCol]).trim() : '';
+    const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
+    const email = emailCol >= 0 && row[emailCol] ? String(row[emailCol]).trim() : '';
+
+    // Notas: combinar campos relevantes
+    const notesParts = [];
+    if (segurado) notesParts.push('Segurado: ' + segurado);
+    if (nome && nome !== 'EXPRESSGLASS VIDROS VIATURAS SA') notesParts.push('Cliente: ' + nome);
+    if (obs) notesParts.push(obs.substring(0, 500)); // Limitar tamanho das obs
+    const notes = notesParts.join('\n');
+
+    // Extra: ref + email
+    const extraParts = [];
+    if (ref) extraParts.push('Ref: ' + ref);
+    if (email) extraParts.push('Email: ' + email);
+    if (status) extraParts.push('Status EG: ' + status);
+    const extra = extraParts.join(' | ');
+
+    const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
+
+    services.push({
+      portal_id: portalId,
+      plate,
+      car,
+      service: 'PB',
+      notes,
+      extra,
+      phone,
+      status: 'NE',
+      createdAt
+    });
+  });
+
+  if (services.length === 0) {
+    showToast('Nenhum serviço para importar (portais sem código atribuído?)', 'error');
+    return;
+  }
+
+  // Mostrar progress
+  document.getElementById('importProgress').style.display = 'block';
+  document.getElementById('btnStartImport').disabled = true;
+
+  // Enviar em batches de 50
+  const batchSize = 50;
+  let totalCreated = 0, totalUpdated = 0, totalErrors = 0;
+
+  for (let i = 0; i < services.length; i += batchSize) {
+    const batch = services.slice(i, i + batchSize);
+    const pct = Math.round(((i + batch.length) / services.length) * 100);
+
+    document.getElementById('importProgressBar').style.width = pct + '%';
+    document.getElementById('importProgressText').textContent = `A importar... ${i + batch.length} / ${services.length} (${pct}%)`;
+
+    try {
+      const response = await authClient.authenticatedFetch('/.netlify/functions/import-services', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ services: batch })
+      });
+      const result = await response.json();
+      if (result.success) {
+        totalCreated += result.data.created;
+        totalUpdated += result.data.updated;
+        totalErrors += result.data.errors;
+      }
+    } catch (err) {
+      console.error('Erro no batch:', err);
+      totalErrors += batch.length;
+    }
+  }
+
+  // Mostrar resultados
+  document.getElementById('importProgressBar').style.width = '100%';
+  document.getElementById('importProgressText').textContent = 'Concluído!';
+  document.getElementById('btnStartImport').disabled = false;
+
+  const resultsHtml = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;">
+      <div style="text-align:center;padding:16px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+        <div style="font-size:28px;font-weight:700;color:#16a34a;">${totalCreated}</div>
+        <div style="font-size:13px;color:#6b7280;">Criados</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">
+        <div style="font-size:28px;font-weight:700;color:#2563eb;">${totalUpdated}</div>
+        <div style="font-size:13px;color:#6b7280;">Atualizados</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;">
+        <div style="font-size:28px;font-weight:700;color:#dc2626;">${totalErrors}</div>
+        <div style="font-size:13px;color:#6b7280;">Erros</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('importResultsContent').innerHTML = resultsHtml;
+  document.getElementById('importResults').style.display = 'block';
+
+  showToast(`Importação concluída: ${totalCreated} criados, ${totalUpdated} atualizados`, 'success');
 }

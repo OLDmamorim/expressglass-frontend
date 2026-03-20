@@ -534,3 +534,21 @@ body {
     padding: 24px;
   }
 }
+
+/* ===== Import Section ===== */
+.import-section {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.import-upload-area {
+  border: 2px dashed #d1d5db;
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.import-upload-area:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
