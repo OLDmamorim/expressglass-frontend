@@ -887,3 +887,4 @@ async function refreshFuelPrice() {
   await loadDGEGPrice();
   showToast('Preço DGEG atualizado', 'success');
 }
+
