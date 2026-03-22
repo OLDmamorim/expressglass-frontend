@@ -552,3 +552,54 @@ body {
   border-color: #3b82f6;
   background: #eff6ff;
 }
+
+/* ===== Settings Section ===== */
+.settings-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.settings-card h3 {
+  font-size: 16px;
+  color: #1f2937;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+.settings-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+}
+.input-suffix {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.input-suffix input {
+  flex: 1;
+  border: none;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  outline: none;
+  min-width: 0;
+}
+.input-suffix span {
+  padding: 10px 12px;
+  background: #f3f4f6;
+  color: #6b7280;
+  font-size: 13px;
+  white-space: nowrap;
+  border-left: 1px solid #d1d5db;
+}
