@@ -867,8 +867,14 @@ function getServiceTime(serviceCode, vehicleType) {
 function buildDaySummary(dayDate) {
   if (isLoja()) return '';
   const iso = localISO(dayDate);
-  const items = appointments.filter(a => a.date && a.date === iso)
+  const userRole = window.authClient?.getUser()?.role;
+  const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
+  let items = appointments.filter(a => a.date && a.date === iso)
     .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
+  // Técnicos: só contar serviços com localidade confirmada
+  if (!canSeeUnconfirmed) {
+    items = items.filter(a => !!a.locality);
+  }
   if (items.length === 0) return '';
 
   // KM total
@@ -1569,14 +1575,22 @@ function buildDesktopCard(a){
   const sub = loja
     ? [a.notes].filter(Boolean).join(' | ')
     : [a.locality, a.notes].filter(Boolean).join(' | ');
-  // SM com data mas sem localidade → piscar
-  const needsLoc = !loja && a.date && !a.locality ? ' needs-locality' : '';
+  // SM com data mas sem localidade → piscar (só coord/admin)
+  const userRole = window.authClient?.getUser()?.role;
+  const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
+  const needsLoc = !loja && a.date && !a.locality && canSeeUnconfirmed ? ' needs-locality' : '';
+  const locWarning = needsLoc ? `
+      <div class="needs-loc-msg">
+        <div>⚠️ Falta localidade</div>
+        <div style="font-size:11px;opacity:0.8;margin-top:2px;">Confirma agendamento?</div>
+      </div>` : '';
   return `
     <div class="appointment desk-card${needsLoc}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; ${bar}">
       <div class="dc-title">${title}</div>
-      <div class="dc-sub">${sub || (needsLoc ? '⚠️ Localidade em falta' : '')}</div>
+      <div class="dc-sub">${sub}</div>
+      ${locWarning}
       <div class="appt-status dc-status">
         <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
         <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
@@ -1624,12 +1638,19 @@ function renderSchedule(){
     tbody.appendChild(rowT);
   } else {
     // SM: resumo do dia + serviços
+    const userRole = window.authClient?.getUser()?.role;
+    const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
+
     const renderCell = (dayDate) => {
       const iso = localISO(dayDate);
-      const items = filterAppointments(
+      let items = filterAppointments(
         appointments.filter(a => a.date && a.date === iso)
           .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
       );
+      // Técnicos: esconder serviços SM sem localidade
+      if (!canSeeUnconfirmed) {
+        items = items.filter(a => !!a.locality);
+      }
       const blocks = items.map(buildDesktopCard).join('');
       return `<div class="drop-zone" data-drop-bucket="${iso}">${blocks}</div>`;
     };
@@ -1825,17 +1846,15 @@ const telBtn = phone ? `
   const base = getCardBaseColor(a);
   const g = gradFromBase(base);
   const title = `${a.plate} • ${(a.car||'').toUpperCase()}`;
-  const needsLoc = !isLoja() && a.date && !a.locality;
   const chips = [
     a.period ? `<span class="m-chip">${a.period}</span>` : '',
     a.service ? `<span class="m-chip">${a.service}</span>` : '',
-    !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : '',
-    needsLoc ? '<span class="m-chip" style="background:rgba(245,158,11,0.3);color:#92400e;">⚠️ Sem localidade</span>' : ''
+    !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
   ].join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
 
   return `
-    <div class="appointment m-card${needsLoc ? ' needs-locality' : ''}" data-id="${a.id}"
+    <div class="appointment m-card" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
       <div class="map-icons">
         ${wazeBtn}${mapsBtn}${telBtn}
@@ -1890,6 +1909,16 @@ async function renderMobileDay(){
 
   if(items.length === 0){
     list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
+    return;
+  }
+
+  // Mobile: excluir serviços SM sem localidade (só visíveis no desktop para coord/admin)
+  if (!isLoja()) {
+    items = items.filter(a => !!a.locality);
+  }
+
+  if(items.length === 0){
+    list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços confirmados para este dia.</div>`;
     return;
   }
 
