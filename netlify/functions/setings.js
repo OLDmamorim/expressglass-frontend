@@ -18,7 +18,10 @@ function verifyToken(event) {
 
 // Valores default
 const DEFAULT_SETTINGS = {
-  serviceTimes: { PB: 90, LT: 45, OC: 60, REP: 30, POL: 45 },
+  serviceTimes: { 
+    PB_L: 90, LT_L: 45, OC_L: 60, REP_L: 30, POL_L: 45,
+    PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60
+  },
   avgSpeedKmh: 50,
   fuelPer100km: 7.5,
   fuelPricePerLiter: 1.65
@@ -37,7 +40,8 @@ exports.handler = async (event) => {
   }
 
   try {
-    verifyToken(event);
+    const user = verifyToken(event);
+    console.log('Settings request:', event.httpMethod, 'user:', user.username, 'role:', user.role);
 
     // GET - Obter configurações
     if (event.httpMethod === 'GET') {
@@ -45,24 +49,32 @@ exports.handler = async (event) => {
         "SELECT value FROM settings WHERE key = 'global' LIMIT 1"
       );
       
-      const settings = rows.length > 0 ? JSON.parse(rows[0].value) : DEFAULT_SETTINGS;
+      if (rows.length > 0) {
+        const saved = JSON.parse(rows[0].value);
+        console.log('Settings loaded from DB:', JSON.stringify(saved).substring(0, 200));
+        // Merge: defaults primeiro, saved por cima
+        const merged = { 
+          ...DEFAULT_SETTINGS, 
+          ...saved,
+          serviceTimes: { ...DEFAULT_SETTINGS.serviceTimes, ...(saved.serviceTimes || {}) }
+        };
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: merged }) };
+      }
       
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ success: true, data: { ...DEFAULT_SETTINGS, ...settings } })
-      };
+      console.log('No settings in DB, returning defaults');
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: DEFAULT_SETTINGS }) };
     }
 
     // PUT - Guardar configurações (admin only)
     if (event.httpMethod === 'PUT') {
-      const user = verifyToken(event);
       if (user.role !== 'admin') {
+        console.log('Settings PUT rejected: role is', user.role);
         return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Apenas administradores' }) };
       }
 
       const data = JSON.parse(event.body || '{}');
       const settingsJson = JSON.stringify(data);
+      console.log('Saving settings:', settingsJson.substring(0, 200));
 
       await pool.query(`
         INSERT INTO settings (key, value, updated_at) 
@@ -70,6 +82,7 @@ exports.handler = async (event) => {
         ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()
       `, [settingsJson]);
 
+      console.log('Settings saved successfully');
       return {
         statusCode: 200,
         headers,
@@ -87,4 +100,3 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: 'Erro interno' }) };
   }
 };
-
