@@ -63,12 +63,13 @@ exports.handler = async (event) => {
         );
 
         if (existing.rows.length > 0) {
-          // Atualizar serviço existente
+          // Atualizar serviço existente (incluindo data/período se fornecidos)
           const updateQ = `
             UPDATE appointments SET
               car = $1, service = $2, notes = $3, extra = $4,
-              phone = $5, updated_at = $6
-            WHERE id = $7
+              phone = $5, date = COALESCE($6, date), period = COALESCE($7, period),
+              updated_at = $8
+            WHERE id = $9
             RETURNING id
           `;
           await pool.query(updateQ, [
@@ -77,6 +78,8 @@ exports.handler = async (event) => {
             svc.notes || null,
             svc.extra || null,
             svc.phone || null,
+            svc.date || null,
+            svc.period || null,
             new Date().toISOString(),
             existing.rows[0].id
           ]);
@@ -94,8 +97,8 @@ exports.handler = async (event) => {
             ) RETURNING id
           `;
           await pool.query(insertQ, [
-            null,                           // date (por agendar)
-            null,                           // period
+            svc.date || null,               // date (auto-agendado ou null)
+            svc.period || null,             // period (Manhã/Tarde ou null)
             String(svc.plate).trim(),
             svc.car || null,
             svc.service || null,
