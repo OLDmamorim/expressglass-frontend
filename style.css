@@ -99,6 +99,56 @@ table.schedule td:first-child{border-left:none}
 /* =========================
    CARTÕES DESKTOP (gradiente + barra de status)
    ========================= */
+/* === Day Summary (SM totalizador) === */
+.summary-row th {
+  background: #f0f9ff !important;
+  color: #1e40af !important;
+  font-size: 12px !important;
+  padding: 6px 10px !important;
+  vertical-align: middle !important;
+}
+.summary-row td {
+  background: #f0f9ff;
+  padding: 4px 6px !important;
+  border-bottom: 2px solid #bfdbfe !important;
+  vertical-align: middle !important;
+}
+.day-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.ds-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #1e40af;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ds-muted {
+  color: #93c5fd;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* Mobile day summary */
+.mobile-day-summary {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
+.mobile-day-summary .day-summary {
+  justify-content: center;
+  gap: 6px 14px;
+  font-size: 13px;
+}
+
 .desk-card {
   position: relative;
   border-radius: 18px;
