@@ -78,8 +78,10 @@ function renderPortals() {
     tbody.innerHTML = '<tr><td colspan="6" class="loading">Nenhum portal criado</td></tr>';
     return;
   }
+
+  const sorted = [...portals].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt'));
   
-  tbody.innerHTML = portals.map(portal => {
+  tbody.innerHTML = sorted.map(portal => {
     const lastImport = portal.last_import_at 
       ? new Date(portal.last_import_at).toLocaleString('pt-PT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
       : '<span style="color:#9ca3af">—</span>';
@@ -293,8 +295,10 @@ function renderUsers() {
     tbody.innerHTML = '<tr><td colspan="4" class="loading">Nenhum utilizador criado</td></tr>';
     return;
   }
+
+  const sorted = [...users].sort((a, b) => (a.username || '').localeCompare(b.username || '', 'pt'));
   
-  tbody.innerHTML = users.map(user => `
+  tbody.innerHTML = sorted.map(user => `
     <tr>
       <td><strong>${user.username}</strong></td>
       <td>${user.portalName || '-'}</td>
