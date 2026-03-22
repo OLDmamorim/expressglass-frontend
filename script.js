@@ -2008,7 +2008,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       phone:  get('appointmentPhone'),
       extra:  get('appointmentExtra'),
       status: (document.getElementById('appointmentStatus')?.value || 'NE'),
-      vehicleType: (document.getElementById('appointmentVehicleType')?.value || 'L'),
+      vehicleType: (document.getElementById('appointmentVehicleType')?.value || localStorage.getItem('eg_last_vehicleType') || 'L'),
       // ===== ADICIONAR OS QUILÓMETROS CALCULADOS =====
       km: calculatedKm
     };
@@ -2018,6 +2018,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     e?.preventDefault?.();
 
     const payload = await collectFormData();
+
+    // Guardar último tipo de veículo selecionado
+    if (payload.vehicleType) localStorage.setItem('eg_last_vehicleType', payload.vehicleType);
 
     // defaults mínimos
     if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
@@ -2127,6 +2130,11 @@ cancelEdit?.();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
 
+    // Carregar último tipo de veículo usado
+    const lastVT = localStorage.getItem('eg_last_vehicleType') || 'L';
+    const vtSelect = document.getElementById('appointmentVehicleType');
+    if (vtSelect) vtSelect.value = lastVT;
+
     // Reset dropdown da localidade
     const selectedText = document.getElementById('selectedLocalityText');
     const selectedDot = document.getElementById('selectedLocalityDot');
@@ -2152,6 +2160,11 @@ cancelEdit?.();
     document.getElementById('appointmentForm').reset();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
+
+    // Carregar último tipo de veículo usado
+    const lastVT = localStorage.getItem('eg_last_vehicleType') || 'L';
+    const vtSelect = document.getElementById('appointmentVehicleType');
+    if (vtSelect) vtSelect.value = lastVT;
 
     const selectedText = document.getElementById('selectedLocalityText');
     const selectedDot = document.getElementById('selectedLocalityDot');
