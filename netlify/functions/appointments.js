@@ -81,8 +81,8 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'POST') {
       const data = JSON.parse(event.body || '{}');
 
-      if (!data.plate || !data.car || !data.service || !data.locality) {
-        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Campos obrigatórios: plate, car, service, locality' }) };
+      if (!data.plate || !data.car) {
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Campos obrigatórios: plate, car' }) };
       }
 
       // Usar createdAt do Excel se disponível, senão usar data atual
