@@ -71,7 +71,7 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
-               notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, travel_time, created_at, updated_at
+               notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, travel_time, auto_imported, created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -147,7 +147,7 @@ exports.handler = async (event) => {
           date = $1, period = $2, plate = $3, car = $4,
           service = $5, locality = $6, status = $7,
           notes = $8, address = $9, extra = $10, phone = $11,
-          km = $12, sortIndex = $13, "glassOrdered" = $14, vehicle_type = $15, travel_time = $16, updated_at = $17
+          km = $12, sortIndex = $13, "glassOrdered" = $14, vehicle_type = $15, travel_time = $16, auto_imported = false, updated_at = $17
         WHERE id = $18 AND portal_id = $19
         RETURNING *
       `;

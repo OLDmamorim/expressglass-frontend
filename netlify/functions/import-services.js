@@ -87,18 +87,19 @@ exports.handler = async (event) => {
           results.details.push({ plate: svc.plate, portal_id: svc.portal_id, status: 'updated' });
         } else {
           // Criar novo serviço
+          const hasAutoDate = !!svc.date;
           const insertQ = `
             INSERT INTO appointments (
               date, period, plate, car, service, locality, status,
               notes, address, extra, phone, km, sortIndex, "glassOrdered",
-              portal_id, created_at, updated_at
+              auto_imported, portal_id, created_at, updated_at
             ) VALUES (
-              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
+              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
             ) RETURNING id
           `;
           await pool.query(insertQ, [
-            svc.date || null,               // date (auto-agendado ou null)
-            svc.period || null,             // period (Manhã/Tarde ou null)
+            svc.date || null,
+            svc.period || null,
             String(svc.plate).trim(),
             svc.car || null,
             svc.service || null,
@@ -111,6 +112,7 @@ exports.handler = async (event) => {
             null,                           // km
             1,                              // sortIndex
             false,                          // glassOrdered
+            hasAutoDate,                    // auto_imported: true se veio com data do Excel
             svc.portal_id,
             svc.createdAt || new Date().toISOString(),
             new Date().toISOString()
