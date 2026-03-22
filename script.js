@@ -933,12 +933,29 @@ function buildDaySummary(dayDate) {
   const fuelLiters = (totalKmWithReturn * ROUTE_CONFIG.fuelPer100km / 100).toFixed(1);
   const fuelCost = (fuelLiters * ROUTE_CONFIG.fuelPricePerLiter).toFixed(2);
 
-  // Hora estimada de regresso (assumindo início às 8:30)
-  const startHour = 8;
-  const startMin = 30;
-  const etaMinutes = startMin + totalMin;
-  const etaH = startHour + Math.floor(etaMinutes / 60);
-  const etaM = etaMinutes % 60;
+  // Hora estimada de regresso
+  // Início: 09:00, Almoço: 13:00-14:00 (1h pausa)
+  const startAt = 9 * 60; // 09:00 em minutos
+  const lunchStart = 13 * 60; // 13:00
+  const lunchDuration = 60; // 1 hora
+  
+  let elapsed = 0;
+  let clock = startAt;
+  let remaining = totalMin;
+  
+  // Trabalhar até ao almoço
+  const workBeforeLunch = lunchStart - startAt; // 240 min (09:00-13:00)
+  if (remaining <= workBeforeLunch) {
+    // Termina antes do almoço
+    clock = startAt + remaining;
+  } else {
+    // Passa do almoço: adicionar pausa
+    remaining -= workBeforeLunch;
+    clock = lunchStart + lunchDuration + remaining; // 14:00 + resto
+  }
+  
+  const etaH = Math.floor(clock / 60);
+  const etaM = clock % 60;
   const etaStr = `${String(etaH).padStart(2,'0')}:${String(etaM).padStart(2,'0')}`;
 
   return `<div class="day-summary">
@@ -949,7 +966,7 @@ function buildDaySummary(dayDate) {
     <span class="ds-item" title="Viagem + Execução">⏱️ ${totalStr}</span>
     <span class="ds-item" title="Consumo (${ROUTE_CONFIG.fuelPer100km}L/100km)">⛽ ${fuelLiters}L</span>
     <span class="ds-item" title="€${ROUTE_CONFIG.fuelPricePerLiter}/L (${ROUTE_CONFIG.fuelSource === 'DGEG' ? 'DGEG' : 'manual'})">💰 ${fuelCost}€</span>
-    <span class="ds-item ds-eta" title="Hora estimada de regresso à loja (início 08:30)">🏠 ${etaStr}</span>
+    <span class="ds-item ds-eta" title="Regresso à loja (saída 09:00, almoço 13-14h)">🏠 ${etaStr}</span>
   </div>`;
 }
 
