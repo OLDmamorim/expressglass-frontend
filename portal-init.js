@@ -20,9 +20,48 @@
 
   const user = authClient.getUser();
 
-  // Se for admin, redirecionar para painel administrativo
-  if (user.role === 'admin') {
+  // Se for admin e NÃO tiver ?view=agenda, redirecionar para painel
+  const urlParams = new URLSearchParams(window.location.search);
+  if (user.role === 'admin' && !urlParams.has('view')) {
     window.location.href = '/admin.html';
+    return;
+  }
+
+  // === ADMIN com ?view=agenda: carregar todos os portais ===
+  if (user.role === 'admin') {
+    try {
+      const token = window.authClient?.getToken();
+      const resp = await fetch('/.netlify/functions/portals', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await resp.json();
+      if (data.success && data.data && data.data.length > 0) {
+        const allPortals = data.data.map(function(p) {
+          return {
+            id: p.id,
+            name: p.name,
+            departureAddress: p.departure_address || p.departureAddress,
+            localities: p.localities || {},
+            portalType: p.portal_type || p.portalType || 'sm'
+          };
+        });
+        window.coordPortals = allPortals;
+        
+        const savedPortalId = sessionStorage.getItem('eg_active_portal');
+        const activePortal = savedPortalId 
+          ? allPortals.find(function(p) { return String(p.id) === savedPortalId; }) || allPortals[0]
+          : allPortals[0];
+        
+        window.activePortalId = activePortal.id;
+        applyPortalConfig(activePortal);
+        buildPortalSwitcher(allPortals, activePortal.id);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar portais para admin:', e);
+    }
+    addLogoutButton();
+    addAdminBackButton();
+    console.log('✅ Admin: vista de agendas');
     return;
   }
 
@@ -215,6 +254,23 @@ function addLogoutButton() {
   });
 
   headerActions.appendChild(logoutBtn);
+}
+
+// Botão para admin voltar ao painel
+function addAdminBackButton() {
+  var headerActions = document.querySelector('.header-actions');
+  if (!headerActions) return;
+
+  var backBtn = document.createElement('button');
+  backBtn.className = 'header-btn';
+  backBtn.title = 'Voltar ao Painel Admin';
+  backBtn.textContent = '⚙️';
+  backBtn.style.cssText = 'font-size:18px;';
+  backBtn.addEventListener('click', function() {
+    window.location.href = '/admin.html';
+  });
+
+  headerActions.insertBefore(backBtn, headerActions.firstChild);
 }
 
 // Atualizar dropdown de localidades
