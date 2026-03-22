@@ -663,22 +663,55 @@ async function startImport() {
   const seguradoCol = importHeaders.findIndex(h => h.toLowerCase() === 'segurado');
   const nomeCol = importHeaders.findIndex(h => h.toLowerCase() === 'nome');
   const dataObraCol = importHeaders.findIndex(h => h.toLowerCase() === 'dataobra');
+  const dataServicoCol = importHeaders.findIndex(h => h.toLowerCase().replace('í','i').replace('ç','c') === 'dataservico');
   const phoneCol = importHeaders.findIndex(h => h.toLowerCase() === 'u_contsega');
   const emailCol = importHeaders.findIndex(h => h.toLowerCase() === 'email');
   const eurocodeCol = importHeaders.findIndex(h => h.toLowerCase() === 'eurocode');
+  const horaInicioCol = importHeaders.findIndex(h => h.toLowerCase().replace('í','i') === 'hora_inicio');
+  const horaFimCol = importHeaders.findIndex(h => h.toLowerCase() === 'hora_fim');
 
-  // Mapear nmdos_code → portal_id
+  // Mapear nmdos_code → {portal_id, portal_type}
   const codeToPortal = {};
   portals.forEach(p => {
-    if (p.nmdos_code) codeToPortal[p.nmdos_code] = p.id;
+    if (p.nmdos_code) codeToPortal[p.nmdos_code] = { id: p.id, type: p.portal_type || 'sm' };
   });
+
+  // Helper: converter hora Excel (decimal ou string) em minutos desde 00:00
+  function parseHoraToMinutes(val) {
+    if (val == null || val === '') return null;
+    // Excel time: número decimal (0.375 = 09:00, 0.583 = 14:00)
+    if (typeof val === 'number' && val < 1) {
+      return Math.round(val * 24 * 60);
+    }
+    // String "09:00" ou "14:00"
+    const str = String(val).trim();
+    const match = str.match(/^(\d{1,2}):(\d{2})/);
+    if (match) {
+      return parseInt(match[1]) * 60 + parseInt(match[2]);
+    }
+    return null;
+  }
+
+  // Helper: converter data Excel para YYYY-MM-DD
+  function excelDateToYMD(serial) {
+    if (!serial) return null;
+    if (typeof serial === 'number') {
+      const epoch = new Date(1899, 11, 30);
+      const d = new Date(epoch.getTime() + Math.floor(serial) * 86400000);
+      return d.toISOString().slice(0, 10);
+    }
+    // Já é string de data
+    const s = String(serial).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    return null;
+  }
 
   // Preparar serviços
   const services = [];
   importExcelData.forEach(row => {
     const code = String(row[nmdosCol] || '').trim();
-    const portalId = codeToPortal[code];
-    if (!portalId) return; // Ignorar se não tem portal
+    const portalInfo = codeToPortal[code];
+    if (!portalInfo) return;
 
     const plate = normalizePlate(row[plateCol]);
     if (!plate) return;
@@ -704,8 +737,32 @@ async function startImport() {
 
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
+    // === AUTO-AGENDAMENTO: hora_inicio entre 09:00 e 18:00 ===
+    let scheduleDate = null;
+    let schedulePeriod = null;
+    let needsLocality = false;
+
+    const horaMin = horaInicioCol >= 0 ? parseHoraToMinutes(row[horaInicioCol]) : null;
+    
+    if (horaMin !== null && horaMin >= 540 && horaMin < 1080) {
+      // Entre 09:00 (540min) e 18:00 (1080min) → agendar
+      // Data do serviço: usar dataserviço ou dataobra
+      scheduleDate = (dataServicoCol >= 0 ? excelDateToYMD(row[dataServicoCol]) : null) 
+                  || (dataObraCol >= 0 ? excelDateToYMD(row[dataObraCol]) : null);
+
+      if (scheduleDate) {
+        if (portalInfo.type === 'loja') {
+          // Loja: determinar período
+          schedulePeriod = horaMin < 840 ? 'Manhã' : 'Tarde'; // 840min = 14:00
+        } else {
+          // SM: sem período, mas marcar como a precisar de localidade
+          needsLocality = true;
+        }
+      }
+    }
+
     services.push({
-      portal_id: portalId,
+      portal_id: portalInfo.id,
       plate,
       car,
       service: 'PB',
@@ -713,7 +770,11 @@ async function startImport() {
       extra,
       phone,
       status: 'NE',
-      createdAt
+      createdAt,
+      // Campos de agendamento automático
+      date: scheduleDate || null,
+      period: schedulePeriod || null,
+      needsLocality: needsLocality
     });
   });
 

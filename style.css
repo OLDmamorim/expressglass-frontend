@@ -155,6 +155,28 @@ table.schedule td:first-child{border-left:none}
   font-size: 13px;
 }
 
+/* Card a piscar (SM sem localidade) */
+@keyframes pulseNoLocality {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.desk-card.needs-locality {
+  animation: pulseNoLocality 1.5s ease-in-out infinite;
+  background: linear-gradient(135deg, #fbbf24, #ffffff, #fbbf24) !important;
+  border: 2px dashed #f59e0b !important;
+}
+.desk-card.needs-locality .dc-title,
+.desk-card.needs-locality .dc-sub,
+.desk-card.needs-locality * {
+  color: #92400e !important;
+}
+.m-card.needs-locality {
+  animation: pulseNoLocality 1.5s ease-in-out infinite;
+  border: 2px dashed #f59e0b !important;
+  --c1: #fbbf24 !important;
+  --c2: #ffffff !important;
+}
+
 .desk-card {
   position: relative;
   border-radius: 18px;
