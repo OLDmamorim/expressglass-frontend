@@ -128,26 +128,24 @@ function applyLojaMode(isLoja) {
 
 // === SWITCHER DE PORTAIS (COORDENADOR) ===
 function buildPortalSwitcher(portals, activeId) {
-  const headerActions = document.querySelector('.header-actions');
-  if (!headerActions) return;
-
   // Remover switcher antigo se existir
   const old = document.getElementById('portalSwitcher');
   if (old) old.remove();
 
   const wrapper = document.createElement('div');
   wrapper.id = 'portalSwitcher';
-  wrapper.style.cssText = 'display:flex;align-items:center;gap:8px;margin-right:12px;';
+  wrapper.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:10px;' +
+    'padding:10px 16px;background:linear-gradient(135deg,#1e40af,#1d4ed8);';
 
   const label = document.createElement('span');
   label.textContent = 'Agenda:';
-  label.style.cssText = 'color:rgba(255,255,255,0.8);font-size:13px;';
+  label.style.cssText = 'color:rgba(255,255,255,0.85);font-size:14px;font-weight:500;';
 
   const select = document.createElement('select');
   select.id = 'portalSwitcherSelect';
-  select.style.cssText = 'padding:6px 12px;border-radius:8px;border:2px solid rgba(255,255,255,0.3);' +
-    'background:rgba(255,255,255,0.15);color:white;font-size:14px;font-weight:600;cursor:pointer;' +
-    'min-width:160px;outline:none;';
+  select.style.cssText = 'padding:8px 16px;border-radius:8px;border:2px solid rgba(255,255,255,0.3);' +
+    'background:rgba(255,255,255,0.15);color:white;font-size:15px;font-weight:600;cursor:pointer;' +
+    'min-width:180px;outline:none;';
 
   portals.forEach(function(p) {
     const opt = document.createElement('option');
@@ -159,13 +157,19 @@ function buildPortalSwitcher(portals, activeId) {
   });
 
   select.addEventListener('change', function() {
-    var newId = parseInt(this.value);
-    switchPortal(newId);
+    switchPortal(parseInt(this.value));
   });
 
   wrapper.appendChild(label);
   wrapper.appendChild(select);
-  headerActions.insertBefore(wrapper, headerActions.firstChild);
+
+  // Inserir logo após o header
+  const header = document.querySelector('.page-header');
+  if (header && header.nextSibling) {
+    header.parentNode.insertBefore(wrapper, header.nextSibling);
+  } else if (header) {
+    header.parentNode.appendChild(wrapper);
+  }
 }
 
 // === TROCAR PORTAL (COORDENADOR) ===
