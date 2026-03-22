@@ -776,3 +776,114 @@ async function startImport() {
 
   showToast(`Importação concluída: ${totalCreated} criados, ${totalUpdated} atualizados`, 'success');
 }
+
+// ===== CONFIGURAÇÕES =====
+let settingsLoaded = false;
+
+async function loadSettings() {
+  try {
+    const response = await authClient.authenticatedFetch('/.netlify/functions/settings');
+    const data = await response.json();
+    if (data.success) {
+      const s = data.data;
+      // Ligeiros
+      document.getElementById('timePB_L').value = s.serviceTimes?.PB_L ?? s.serviceTimes?.PB ?? 90;
+      document.getElementById('timeLT_L').value = s.serviceTimes?.LT_L ?? s.serviceTimes?.LT ?? 45;
+      document.getElementById('timeOC_L').value = s.serviceTimes?.OC_L ?? s.serviceTimes?.OC ?? 60;
+      document.getElementById('timeREP_L').value = s.serviceTimes?.REP_L ?? s.serviceTimes?.REP ?? 30;
+      document.getElementById('timePOL_L').value = s.serviceTimes?.POL_L ?? s.serviceTimes?.POL ?? 45;
+      // Pesados
+      document.getElementById('timePB_P').value = s.serviceTimes?.PB_P ?? 120;
+      document.getElementById('timeLT_P').value = s.serviceTimes?.LT_P ?? 60;
+      document.getElementById('timeOC_P').value = s.serviceTimes?.OC_P ?? 90;
+      document.getElementById('timeREP_P').value = s.serviceTimes?.REP_P ?? 45;
+      document.getElementById('timePOL_P').value = s.serviceTimes?.POL_P ?? 60;
+      // Rota
+      document.getElementById('avgSpeed').value = s.avgSpeedKmh ?? 50;
+      document.getElementById('fuelConsumption').value = s.fuelPer100km ?? 7.5;
+      document.getElementById('fuelPrice').value = s.fuelPricePerLiter ?? 1.65;
+      settingsLoaded = true;
+    }
+  } catch (err) {
+    console.error('Erro ao carregar configurações:', err);
+  }
+}
+
+async function saveSettings() {
+  const settings = {
+    serviceTimes: {
+      PB_L: parseInt(document.getElementById('timePB_L').value) || 90,
+      LT_L: parseInt(document.getElementById('timeLT_L').value) || 45,
+      OC_L: parseInt(document.getElementById('timeOC_L').value) || 60,
+      REP_L: parseInt(document.getElementById('timeREP_L').value) || 30,
+      POL_L: parseInt(document.getElementById('timePOL_L').value) || 45,
+      PB_P: parseInt(document.getElementById('timePB_P').value) || 120,
+      LT_P: parseInt(document.getElementById('timeLT_P').value) || 60,
+      OC_P: parseInt(document.getElementById('timeOC_P').value) || 90,
+      REP_P: parseInt(document.getElementById('timeREP_P').value) || 45,
+      POL_P: parseInt(document.getElementById('timePOL_P').value) || 60
+    },
+    avgSpeedKmh: parseFloat(document.getElementById('avgSpeed').value) || 50,
+    fuelPer100km: parseFloat(document.getElementById('fuelConsumption').value) || 7.5,
+    fuelPricePerLiter: parseFloat(document.getElementById('fuelPrice').value) || 1.65
+  };
+
+  try {
+    const response = await authClient.authenticatedFetch('/.netlify/functions/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    const data = await response.json();
+    if (data.success) {
+      showToast('Configurações guardadas', 'success');
+      const status = document.getElementById('settingsSaveStatus');
+      status.style.display = 'inline';
+      setTimeout(() => { status.style.display = 'none'; }, 3000);
+    } else {
+      showToast(data.error || 'Erro ao guardar', 'error');
+    }
+  } catch (err) {
+    console.error('Erro ao guardar configurações:', err);
+    showToast('Erro ao guardar configurações', 'error');
+  }
+}
+
+// Carregar settings ao abrir a tab
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    if (tab.dataset.tab === 'settings' && !settingsLoaded) {
+      loadSettings();
+      loadDGEGPrice();
+    }
+  });
+});
+
+// Buscar preço DGEG
+async function loadDGEGPrice() {
+  const el = document.getElementById('dgegPrice');
+  if (!el) return;
+  el.textContent = 'A carregar...';
+  try {
+    const response = await authClient.authenticatedFetch('/.netlify/functions/fuel-price');
+    const data = await response.json();
+    if (data.success && data.data) {
+      const d = data.data;
+      const sourceText = d.source === 'DGEG' ? 'DGEG (média de ' + (d.stations || '?') + ' postos)' : d.source;
+      const dateText = d.date ? new Date(d.date).toLocaleString('pt-PT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+      el.innerHTML = '<strong style="font-size:18px;color:#1e40af;">' + d.price.toFixed(3) + ' €/litro</strong>' +
+        '<br><span style="color:#6b7280;font-size:11px;">Fonte: ' + sourceText + (d.cached ? ' (cache)' : '') + ' · ' + dateText + '</span>';
+      
+      document.getElementById('fuelPriceInfo').textContent = 'Este valor é usado como fallback se a DGEG estiver indisponível';
+    }
+  } catch (err) {
+    el.textContent = 'Erro ao carregar preço da DGEG';
+    console.error('Erro DGEG:', err);
+  }
+}
+
+async function refreshFuelPrice() {
+  showToast('A atualizar preço da DGEG...', 'info');
+  await loadDGEGPrice();
+  showToast('Preço DGEG atualizado', 'success');
+}
