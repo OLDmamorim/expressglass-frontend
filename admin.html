@@ -301,7 +301,11 @@
 
         <div class="form-group">
           <label for="userPassword">Password *</label>
-          <input type="password" id="userPassword" placeholder="Mínimo 6 caracteres">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="userPassword" placeholder="Mínimo 6 caracteres" style="flex:1;" autocomplete="off">
+            <button type="button" class="btn-secondary" onclick="generatePassword()" title="Gerar password aleatória" style="white-space:nowrap;padding:8px 12px;">🔑 Gerar</button>
+            <button type="button" class="btn-secondary" onclick="copyPassword()" title="Copiar password" style="padding:8px 12px;">📋</button>
+          </div>
           <small id="passwordHint">Deixe em branco para manter a password atual</small>
         </div>
 
@@ -343,4 +347,3 @@
   <script src="admin-script.js"></script>
 </body>
 </html>
-

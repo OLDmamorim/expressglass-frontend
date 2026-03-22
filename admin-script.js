@@ -777,6 +777,36 @@ async function startImport() {
   showToast(`Importação concluída: ${totalCreated} criados, ${totalUpdated} atualizados`, 'success');
 }
 
+// ===== GESTÃO DE PASSWORDS =====
+function generatePassword() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let pass = '';
+  for (let i = 0; i < 8; i++) {
+    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  document.getElementById('userPassword').value = pass;
+}
+
+function copyPassword() {
+  const pass = document.getElementById('userPassword').value;
+  if (!pass) {
+    showToast('Nenhuma password para copiar', 'error');
+    return;
+  }
+  navigator.clipboard.writeText(pass).then(() => {
+    showToast('Password copiada!', 'success');
+  }).catch(() => {
+    // Fallback para browsers antigos
+    const temp = document.createElement('input');
+    temp.value = pass;
+    document.body.appendChild(temp);
+    temp.select();
+    document.execCommand('copy');
+    document.body.removeChild(temp);
+    showToast('Password copiada!', 'success');
+  });
+}
+
 // ===== CONFIGURAÇÕES =====
 let settingsLoaded = false;
 
