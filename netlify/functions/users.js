@@ -37,7 +37,7 @@ exports.handler = async (event) => {
     // ---------- GET ----------
     if (event.httpMethod === 'GET') {
       const query = `
-        SELECT u.id, u.username, u.portal_id, u.role, u.created_at, u.updated_at,
+        SELECT u.id, u.username, u.plain_password, u.portal_id, u.role, u.created_at, u.updated_at,
                p.name as portal_name
         FROM users u
         LEFT JOIN portals p ON u.portal_id = p.id
@@ -50,6 +50,7 @@ exports.handler = async (event) => {
         const u = {
           id: user.id,
           username: user.username,
+          plain_password: user.plain_password || null,
           portalId: user.portal_id,
           portalName: user.portal_name,
           role: user.role,
@@ -99,13 +100,14 @@ exports.handler = async (event) => {
       const passwordHash = await bcrypt.hash(data.password, 10);
 
       const query = `
-        INSERT INTO users (username, password_hash, portal_id, role, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO users (username, password_hash, plain_password, portal_id, role, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id, username, portal_id, role
       `;
       const values = [
         data.username.trim(),
         passwordHash,
+        data.password,
         data.portal_id || null,
         data.role || 'user',
         new Date().toISOString(),
@@ -144,6 +146,7 @@ exports.handler = async (event) => {
 
       if (data.username) { updates.push('username = $' + paramIndex++); values.push(data.username.trim()); }
       if (passwordHash) { updates.push('password_hash = $' + paramIndex++); values.push(passwordHash); }
+      if (data.password) { updates.push('plain_password = $' + paramIndex++); values.push(data.password); }
       if (data.portal_id !== undefined) { updates.push('portal_id = $' + paramIndex++); values.push(data.portal_id || null); }
       if (data.role) { updates.push('role = $' + paramIndex++); values.push(data.role); }
 
