@@ -134,6 +134,12 @@ table.schedule td:first-child{border-left:none}
   font-weight: 400;
   font-style: italic;
 }
+.ds-eta {
+  color: #059669 !important;
+  background: rgba(5,150,105,0.1);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
 
 /* Mobile day summary */
 .mobile-day-summary {
