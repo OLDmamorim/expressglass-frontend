@@ -2071,7 +2071,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
     // defaults mínimos
     if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
     if (!payload.service) { showToast('Tipo de serviço é obrigatório', 'error'); return; }
-    if (!payload.locality) { showToast('Localidade é obrigatória', 'error'); return; }
+    if (!payload.locality && !isLoja()) { showToast('Localidade é obrigatória', 'error'); return; }
 
     try {
       if (editingId) {
