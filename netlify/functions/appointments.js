@@ -68,7 +68,7 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
-               notes, address, extra, phone, km, sortIndex, "glassOrdered", created_at, updated_at
+               notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -91,9 +91,9 @@ exports.handler = async (event) => {
       const q = `
         INSERT INTO appointments (
           date, period, plate, car, service, locality, status,
-          notes, address, extra, phone, km, sortIndex, "glassOrdered", portal_id, created_at, updated_at
+          notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, portal_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
         ) RETURNING *
       `;
       const v = [
@@ -110,9 +110,10 @@ exports.handler = async (event) => {
         data.phone || null,
         data.km || null,
         data.sortIndex || 1,
-        data.glassOrdered || false, // Padrão: não encomendado
-        portalId, // Associar ao portal do utilizador
-        createdAt, // Usar data do Excel ou data atual
+        data.glassOrdered || false,
+        data.vehicleType || data.vehicle_type || 'L',
+        portalId,
+        createdAt,
         new Date().toISOString()
       ];
 
@@ -142,8 +143,8 @@ exports.handler = async (event) => {
           date = $1, period = $2, plate = $3, car = $4,
           service = $5, locality = $6, status = $7,
           notes = $8, address = $9, extra = $10, phone = $11,
-          km = $12, sortIndex = $13, "glassOrdered" = $14, updated_at = $15
-        WHERE id = $16 AND portal_id = $17
+          km = $12, sortIndex = $13, "glassOrdered" = $14, vehicle_type = $15, updated_at = $16
+        WHERE id = $17 AND portal_id = $18
         RETURNING *
       `;
       const v = [
@@ -161,6 +162,7 @@ exports.handler = async (event) => {
         data.km || null,
         data.sortIndex || null,
         data.glassOrdered !== undefined ? data.glassOrdered : null,
+        data.vehicleType || data.vehicle_type || 'L',
         new Date().toISOString(),
         id,
         portalId
