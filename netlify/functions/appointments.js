@@ -68,7 +68,7 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
-               notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, created_at, updated_at
+               notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, travel_time, created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -91,9 +91,9 @@ exports.handler = async (event) => {
       const q = `
         INSERT INTO appointments (
           date, period, plate, car, service, locality, status,
-          notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, portal_id, created_at, updated_at
+          notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, travel_time, portal_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
         ) RETURNING *
       `;
       const v = [
@@ -112,6 +112,7 @@ exports.handler = async (event) => {
         data.sortIndex || 1,
         data.glassOrdered || false,
         data.vehicleType || data.vehicle_type || 'L',
+        data.travelTime || data.travel_time || null,
         portalId,
         createdAt,
         new Date().toISOString()
@@ -143,8 +144,8 @@ exports.handler = async (event) => {
           date = $1, period = $2, plate = $3, car = $4,
           service = $5, locality = $6, status = $7,
           notes = $8, address = $9, extra = $10, phone = $11,
-          km = $12, sortIndex = $13, "glassOrdered" = $14, vehicle_type = $15, updated_at = $16
-        WHERE id = $17 AND portal_id = $18
+          km = $12, sortIndex = $13, "glassOrdered" = $14, vehicle_type = $15, travel_time = $16, updated_at = $17
+        WHERE id = $18 AND portal_id = $19
         RETURNING *
       `;
       const v = [
@@ -163,6 +164,7 @@ exports.handler = async (event) => {
         data.sortIndex || null,
         data.glassOrdered !== undefined ? data.glassOrdered : null,
         data.vehicleType || data.vehicle_type || 'L',
+        data.travelTime || data.travel_time || null,
         new Date().toISOString(),
         id,
         portalId
