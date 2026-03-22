@@ -301,8 +301,9 @@ function renderUsers() {
   tbody.innerHTML = sorted.map(user => `
     <tr>
       <td><strong>${user.username}</strong></td>
+      <td><code style="background:#f3f4f6;padding:2px 8px;border-radius:4px;font-size:13px;user-select:all;">${user.plain_password || '••••••'}</code></td>
       <td>${user.portalName || '-'}</td>
-      <td><span class="badge ${user.role}">${user.role === 'admin' ? 'Admin' : 'Utilizador'}</span></td>
+      <td><span class="badge ${user.role}">${user.role === 'admin' ? 'Admin' : user.role === 'coordenador' ? 'Coordenador' : 'Técnico'}</span></td>
       <td class="table-actions">
         <button class="btn-edit" onclick="editUser(${user.id})">Editar</button>
         <button class="btn-danger" onclick="deleteUser(${user.id})">Eliminar</button>
