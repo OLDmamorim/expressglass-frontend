@@ -31,6 +31,9 @@
       <button class="nav-tab" data-tab="import">
         📥 Importar Excel
       </button>
+      <button class="nav-tab" data-tab="settings">
+        ⚙️ Configurações
+      </button>
     </nav>
 
     <!-- Tab Content: Portais -->
@@ -138,6 +141,103 @@
         <div id="importResults" style="display:none;margin-top:20px;">
           <h3>Resultado da Importação</h3>
           <div id="importResultsContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Content: Configurações -->
+    <div id="settingsTab" class="tab-content">
+      <div class="content-header">
+        <h2>Configurações</h2>
+      </div>
+
+      <div class="settings-section" style="max-width:700px;">
+        <!-- Tempos por tipo de serviço -->
+        <div class="settings-card">
+          <h3 style="margin-bottom:16px;">⏱️ Tempos de execução por tipo de serviço</h3>
+          
+          <h4 style="margin:12px 0 8px;color:#2563eb;font-size:14px;">🚗 Ligeiros</h4>
+          <div class="settings-grid">
+            <div class="settings-field">
+              <label>PB - Para-brisas</label>
+              <div class="input-suffix"><input type="number" id="timePB_L" min="0" step="5" value="90"><span>min</span></div>
+            </div>
+            <div class="settings-field">
+              <label>LT - Lateral</label>
+              <div class="input-suffix"><input type="number" id="timeLT_L" min="0" step="5" value="45"><span>min</span></div>
+            </div>
+            <div class="settings-field">
+              <label>OC - Óculo</label>
+              <div class="input-suffix"><input type="number" id="timeOC_L" min="0" step="5" value="60"><span>min</span></div>
+            </div>
+            <div class="settings-field">
+              <label>REP - Reparação</label>
+              <div class="input-suffix"><input type="number" id="timeREP_L" min="0" step="5" value="30"><span>min</span></div>
+            </div>
+            <div class="settings-field">
+              <label>POL - Polimento</label>
+              <div class="input-suffix"><input type="number" id="timePOL_L" min="0" step="5" value="45"><span>min</span></div>
+            </div>
+          </div>
+
+          <h4 style="margin:20px 0 8px;color:#dc2626;font-size:14px;">🚛 Pesados</h4>
+          <div class="settings-grid">
+            <div class="settings-field">
+              <label>PB - Para-brisas</label>
+              <div class="input-suffix"><input type="number" id="timePB_P" min="0" step="5" value="120"><span>min</span></div>
+            </div>
+            <div class="settings-field">
+              <label>LT - Lateral</label>
+              <div class="input-suffix"><input type="number" id="timeLT_P" min="0" step="5" value="60"><span>min</span></div>
+            </div>
+            <div class="settings-field">
+              <label>OC - Óculo</label>
+              <div class="input-suffix"><input type="number" id="timeOC_P" min="0" step="5" value="90"><span>min</span></div>
+            </div>
+            <div class="settings-field">
+              <label>REP - Reparação</label>
+              <div class="input-suffix"><input type="number" id="timeREP_P" min="0" step="5" value="45"><span>min</span></div>
+            </div>
+            <div class="settings-field">
+              <label>POL - Polimento</label>
+              <div class="input-suffix"><input type="number" id="timePOL_P" min="0" step="5" value="60"><span>min</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Parâmetros de rota -->
+        <div class="settings-card">
+          <h3 style="margin-bottom:16px;">🛣️ Parâmetros de rota</h3>
+          <div class="settings-grid">
+            <div class="settings-field">
+              <label>Velocidade média</label>
+              <div class="input-suffix"><input type="number" id="avgSpeed" min="10" step="5" value="50"><span>km/h</span></div>
+            </div>
+            <div class="settings-field">
+              <label>Consumo combustível</label>
+              <div class="input-suffix"><input type="number" id="fuelConsumption" min="1" step="0.5" value="7.5"><span>L/100km</span></div>
+            </div>
+            <div class="settings-field">
+              <label>Preço combustível</label>
+              <div class="input-suffix"><input type="number" id="fuelPrice" min="0.5" step="0.05" value="1.65"><span>€/litro</span></div>
+              <small id="fuelPriceInfo" style="color:#6b7280;margin-top:4px;display:block;font-size:12px;">Valor manual (fallback)</small>
+            </div>
+          </div>
+          <div style="margin-top:12px;padding:12px 16px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;" id="dgegInfo">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:18px;">⛽</span>
+              <div>
+                <strong style="color:#1e40af;">Preço DGEG (automático)</strong><br>
+                <span id="dgegPrice" style="font-size:13px;color:#374151;">A carregar...</span>
+              </div>
+              <button class="btn-primary" style="margin-left:auto;font-size:12px;padding:6px 12px;" onclick="refreshFuelPrice()">🔄 Atualizar</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;">
+          <button class="btn-primary" onclick="saveSettings()">💾 Guardar Configurações</button>
+          <span id="settingsSaveStatus" style="margin-left:12px;color:#16a34a;font-size:14px;display:none;">✅ Guardado!</span>
         </div>
       </div>
     </div>
