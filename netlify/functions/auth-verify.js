@@ -52,7 +52,7 @@ exports.handler = async (event) => {
     // Buscar dados completos do utilizador e portal
     const query = `
       SELECT u.id, u.username, u.portal_id, u.role,
-             p.name as portal_name, p.departure_address, p.localities
+             p.name as portal_name, p.departure_address, p.localities, p.portal_type
       FROM users u
       LEFT JOIN portals p ON u.portal_id = p.id
       WHERE u.id = $1
@@ -73,6 +73,25 @@ exports.handler = async (event) => {
 
     const user = rows[0];
 
+    // Buscar portais do coordenador
+    let coordPortals = [];
+    if (user.role === 'coordenador') {
+      const cp = await pool.query(`
+        SELECT p.id, p.name, p.departure_address, p.localities, p.portal_type
+        FROM coordinator_portals cp
+        JOIN portals p ON cp.portal_id = p.id
+        WHERE cp.user_id = $1
+        ORDER BY p.name
+      `, [user.id]);
+      coordPortals = cp.rows.map(p => ({
+        id: p.id,
+        name: p.name,
+        departureAddress: p.departure_address,
+        localities: p.localities,
+        portalType: p.portal_type || 'sm'
+      }));
+    }
+
     // Preparar dados do utilizador
     const userData = {
       id: user.id,
@@ -82,9 +101,15 @@ exports.handler = async (event) => {
         id: user.portal_id,
         name: user.portal_name,
         departureAddress: user.departure_address,
-        localities: user.localities
-      } : null
+        localities: user.localities,
+        portalType: user.portal_type || 'sm'
+      } : (coordPortals.length > 0 ? coordPortals[0] : null)
     };
+
+    // Adicionar lista de portais para coordenadores
+    if (user.role === 'coordenador' && coordPortals.length > 0) {
+      userData.portals = coordPortals;
+    }
 
     return {
       statusCode: 200,
