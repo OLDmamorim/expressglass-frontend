@@ -163,82 +163,8 @@ function togglePortalTypeFields() {
   }
 }
 
-// Gestão de localidades
+// Gestão de localidades - REMOVIDO (308 concelhos automáticos no frontend)
 let localitiesData = [];
-
-function renderLocalitiesTable() {
-  const tbody = document.getElementById('localitiesTableBody');
-  
-  if (localitiesData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:#999;">Nenhuma localidade adicionada</td></tr>';
-    return;
-  }
-  
-  tbody.innerHTML = localitiesData.map((loc, index) => `
-    <tr>
-      <td>
-        <input type="text" class="locality-name-input" value="${loc.name}" 
-               onchange="updateLocalityName(${index}, this.value)" 
-               placeholder="Nome da localidade">
-      </td>
-      <td>
-        <div class="color-display" style="background-color: ${loc.color};" title="${loc.color}"></div>
-      </td>
-      <td>
-        <button type="button" class="btn-delete-locality" onclick="removeLocality(${index})" title="Eliminar">🗑️</button>
-      </td>
-    </tr>
-  `).join('');
-  
-  updateLocalitiesHiddenField();
-}
-
-function addLocality() {
-  const color = colorPalette[colorIndex % colorPalette.length];
-  colorIndex++;
-  
-  localitiesData.push({
-    name: '',
-    color: color
-  });
-  
-  renderLocalitiesTable();
-}
-
-function removeLocality(index) {
-  localitiesData.splice(index, 1);
-  renderLocalitiesTable();
-}
-
-function updateLocalityName(index, newName) {
-  localitiesData[index].name = newName.trim();
-  updateLocalitiesHiddenField();
-}
-
-function updateLocalitiesHiddenField() {
-  const localities = {};
-  localitiesData.forEach(loc => {
-    if (loc.name) {
-      localities[loc.name] = loc.color;
-    }
-  });
-  document.getElementById('portalLocalities').value = JSON.stringify(localities);
-}
-
-function loadLocalitiesFromJSON(localitiesObj) {
-  localitiesData = [];
-  colorIndex = 0;
-  
-  if (localitiesObj && typeof localitiesObj === 'object') {
-    Object.entries(localitiesObj).forEach(([name, color]) => {
-      localitiesData.push({ name, color });
-    });
-  }
-  
-  renderLocalitiesTable();
-}
-
-document.getElementById('addLocalityBtn').addEventListener('click', addLocality);
 
 document.getElementById('addPortalBtn').addEventListener('click', () => {
   editingPortalId = null;
@@ -246,12 +172,6 @@ document.getElementById('addPortalBtn').addEventListener('click', () => {
   document.getElementById('portalForm').reset();
   document.getElementById('portalType').value = 'sm';
   
-  // Limpar localidades
-  localitiesData = [];
-  colorIndex = 0;
-  renderLocalitiesTable();
-  
-  // Popular dropdown nmdos
   populateNmdosSelect();
   togglePortalTypeFields();
   
@@ -268,12 +188,8 @@ function editPortal(id) {
   document.getElementById('portalAddress').value = portal.departure_address;
   document.getElementById('portalType').value = portal.portal_type || 'sm';
   
-  // Popular e selecionar dropdown nmdos
   populateNmdosSelect();
   document.getElementById('portalNmdos').value = portal.nmdos_code || '';
-  
-  // Carregar localidades
-  loadLocalitiesFromJSON(portal.localities);
   togglePortalTypeFields();
   
   openModal('portalModal');
@@ -311,30 +227,12 @@ document.getElementById('portalForm').addEventListener('submit', async (e) => {
   
   const name = document.getElementById('portalName').value.trim();
   const address = document.getElementById('portalAddress').value.trim();
-  const localitiesText = document.getElementById('portalLocalities').value.trim();
-  
-  // Parse JSON (já gerado automaticamente pela interface)
-  let localities = {};
-  if (localitiesText) {
-    try {
-      localities = JSON.parse(localitiesText);
-    } catch (error) {
-      console.error('Erro ao parsear JSON:', error);
-      localities = {};
-    }
-  }
-  
-  // Validar se há pelo menos uma localidade (apenas para SM)
   const portalType = document.getElementById('portalType').value;
-  if (portalType === 'sm' && Object.keys(localities).length === 0) {
-    showToast('Adicione pelo menos uma localidade', 'error');
-    return;
-  }
   
   const portalData = { 
     name, 
     departure_address: address, 
-    localities, 
+    localities: {},
     nmdos_code: document.getElementById('portalNmdos').value || null,
     portal_type: portalType
   };
@@ -441,6 +339,12 @@ function editUser(id) {
   document.getElementById('userPortal').value = user.portalId || '';
   
   togglePortalSelect();
+  
+  // Se coordenador, carregar portais atribuídos
+  if (user.role === 'coordenador' && user.portalIds) {
+    populateMultiPortalCheckboxes(user.portalIds);
+  }
+  
   openModal('userModal');
 }
 
@@ -474,16 +378,36 @@ async function deleteUser(id) {
 // Mostrar/esconder campo de portal baseado no role
 document.getElementById('userRole').addEventListener('change', togglePortalSelect);
 
+function populateMultiPortalCheckboxes(selectedIds = []) {
+  const container = document.getElementById('multiPortalCheckboxes');
+  if (!container) return;
+  container.innerHTML = portals.map(p => `
+    <label style="display:flex;align-items:center;gap:8px;padding:6px 4px;cursor:pointer;">
+      <input type="checkbox" class="coord-portal-cb" value="${p.id}" ${selectedIds.includes(p.id) ? 'checked' : ''}>
+      <strong>${p.name}</strong>
+      <span style="color:#9ca3af;font-size:12px;">(${p.portal_type === 'loja' ? 'Loja' : 'SM'})</span>
+    </label>
+  `).join('');
+}
+
 function togglePortalSelect() {
   const role = document.getElementById('userRole').value;
   const portalGroup = document.getElementById('portalSelectGroup');
+  const multiGroup = document.getElementById('multiPortalGroup');
   const portalSelect = document.getElementById('userPortal');
   
   if (role === 'admin') {
     portalGroup.style.display = 'none';
+    multiGroup.style.display = 'none';
     portalSelect.required = false;
+  } else if (role === 'coordenador') {
+    portalGroup.style.display = 'none';
+    multiGroup.style.display = 'block';
+    portalSelect.required = false;
+    populateMultiPortalCheckboxes();
   } else {
     portalGroup.style.display = 'block';
+    multiGroup.style.display = 'none';
     portalSelect.required = true;
   }
 }
@@ -508,8 +432,20 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
     userData.password = password;
   }
   
-  if (role !== 'admin' && portalId) {
+  if (role === 'user' && portalId) {
     userData.portal_id = parseInt(portalId);
+  }
+  
+  if (role === 'coordenador') {
+    // Recolher portais selecionados
+    const checked = document.querySelectorAll('.coord-portal-cb:checked');
+    const portalIds = Array.from(checked).map(cb => parseInt(cb.value));
+    if (portalIds.length === 0) {
+      showToast('Selecione pelo menos um portal para o coordenador', 'error');
+      return;
+    }
+    userData.portal_id = portalIds[0]; // Portal principal (primeiro)
+    userData.portal_ids = portalIds;   // Todos os portais
   }
   
   try {
