@@ -38,7 +38,23 @@ exports.handler = async (event) => {
   try {
     // Verificar autenticação e obter portal_id do utilizador
     const user = getUserFromToken(event);
-    const portalId = user.portalId;
+    
+    // Coordenadores podem escolher o portal via query param ou body
+    let portalId = user.portalId;
+    const params = event.queryStringParameters || {};
+    
+    if (user.role === 'coordenador' && user.portalIds) {
+      // Tentar query param primeiro, depois body
+      let requestedId = params.portal_id ? parseInt(params.portal_id) : null;
+      if (!requestedId && event.body) {
+        try { requestedId = JSON.parse(event.body)._portalId; } catch(e) {}
+      }
+      if (requestedId && user.portalIds.includes(requestedId)) {
+        portalId = requestedId;
+      } else if (!portalId && user.portalIds.length > 0) {
+        portalId = user.portalIds[0]; // Fallback para o primeiro portal
+      }
+    }
 
     if (!portalId) {
       return {

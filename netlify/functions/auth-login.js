@@ -86,17 +86,36 @@ exports.handler = async (event) => {
     }
 
     // Gerar token JWT
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        username: user.username,
-        portalId: user.portal_id,
-        portalName: user.portal_name,
-        role: user.role
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN }
-    );
+    const tokenPayload = {
+      userId: user.id,
+      username: user.username,
+      portalId: user.portal_id,
+      portalName: user.portal_name,
+      role: user.role
+    };
+
+    // Se coordenador, buscar todos os portais atribuídos
+    let coordPortals = [];
+    if (user.role === 'coordenador') {
+      const cp = await pool.query(`
+        SELECT p.id, p.name, p.departure_address, p.localities, p.portal_type
+        FROM coordinator_portals cp
+        JOIN portals p ON cp.portal_id = p.id
+        WHERE cp.user_id = $1
+        ORDER BY p.name
+      `, [user.id]);
+      coordPortals = cp.rows.map(p => ({
+        id: p.id,
+        name: p.name,
+        departureAddress: p.departure_address,
+        localities: p.localities,
+        portalType: p.portal_type || 'sm'
+      }));
+      // Incluir IDs no token para validação no backend
+      tokenPayload.portalIds = coordPortals.map(p => p.id);
+    }
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
     // Preparar dados do utilizador (sem password)
     const userData = {
@@ -109,8 +128,13 @@ exports.handler = async (event) => {
         departureAddress: user.departure_address,
         localities: user.localities,
         portalType: user.portal_type || 'sm'
-      } : null
+      } : (coordPortals.length > 0 ? coordPortals[0] : null)
     };
+
+    // Adicionar lista de portais para coordenadores
+    if (user.role === 'coordenador' && coordPortals.length > 0) {
+      userData.portals = coordPortals;
+    }
 
     console.log(`✅ Login bem-sucedido: ${username} (${user.role})`);
 
