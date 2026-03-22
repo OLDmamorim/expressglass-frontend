@@ -1584,6 +1584,13 @@ function buildDesktopCard(a){
         <div>⚠️ Falta localidade</div>
         <div style="font-size:11px;opacity:0.8;margin-top:2px;">Confirma agendamento?</div>
       </div>` : '';
+  // Auto-importado do PHC com data
+  const isAutoImported = a.auto_imported && a.date;
+  const phcFooter = isAutoImported ? `
+      <div class="phc-import-footer">
+        <div>Importado direto PHC, mantém?</div>
+        <div>Confirma status vidro</div>
+      </div>` : '';
   return `
     <div class="appointment desk-card${needsLoc}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
@@ -1600,7 +1607,7 @@ function buildDesktopCard(a){
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
       </div>
-    ${loja ? '' : buildKmRow(a)}</div>`;
+    ${loja ? '' : buildKmRow(a)}${phcFooter}</div>`;
 }
 
 function renderSchedule(){
@@ -1852,6 +1859,12 @@ const telBtn = phone ? `
     !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
   ].join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
+  const isAutoImported = a.auto_imported && a.date;
+  const phcFooter = isAutoImported ? `
+      <div class="phc-import-footer">
+        <div>Importado direto PHC, mantém?</div>
+        <div>Confirma status vidro</div>
+      </div>` : '';
 
   return `
     <div class="appointment m-card" data-id="${a.id}"
@@ -1862,7 +1875,7 @@ const telBtn = phone ? `
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
       ${notes}
-    ${isLoja() ? '' : buildKmRow(a)}</div>
+    ${isLoja() ? '' : buildKmRow(a)}${phcFooter}</div>
   `;
 }
 

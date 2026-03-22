@@ -179,6 +179,23 @@ table.schedule td:first-child{border-left:none}
   line-height: 1.3;
 }
 
+/* Rodapé PHC auto-importado */
+.phc-import-footer {
+  text-align: center;
+  padding: 6px 8px;
+  margin-top: 6px;
+  border-top: 1px dashed rgba(255,255,255,0.3);
+  font-size: 11px;
+  font-weight: 700;
+  color: #fbbf24 !important;
+  line-height: 1.4;
+}
+.phc-import-footer div:last-child {
+  font-size: 10px;
+  opacity: 0.85;
+  margin-top: 1px;
+}
+
 .desk-card {
   position: relative;
   border-radius: 18px;
