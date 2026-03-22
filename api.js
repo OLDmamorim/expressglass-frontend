@@ -31,7 +31,12 @@ class ApiClient {
   
   // Fazer requisição HTTP com retry automático
   async makeRequest(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
+    // Coordenadores: anexar portal_id activo a todos os pedidos
+    let url = `${this.baseURL}${endpoint}`;
+    if (window.activePortalId) {
+      const sep = url.includes('?') ? '&' : '?';
+      url += sep + 'portal_id=' + window.activePortalId;
+    }
     
     // Adicionar token de autenticação se disponível
     const token = window.authClient?.getToken();

@@ -1673,6 +1673,21 @@ function renderAll(){
   try { renderMobileDay(); } catch(e){ console.error('Erro renderMobileDay:', e); }
 }
 
+// Função global para recarregar appointments (usada pelo switcher do coordenador)
+window.reloadAppointments = async function() {
+  try {
+    const raw = await window.apiClient.getAppointments();
+    appointments = raw.map(a => ({
+      ...a,
+      date: a.date ? String(a.date).slice(0,10) : null,
+      address: a.address || a.morada || a.addr || null,
+      sortIndex: a.sortIndex || 1,
+      id: a.id ?? (Date.now() + Math.random())
+    }));
+    renderAll();
+  } catch(e) { console.error('Erro ao recarregar:', e); }
+};
+
 // Bootstrap da app (carrega BD e desenha)
 document.addEventListener('DOMContentLoaded', async ()=>{
   try { await load(); } catch(e){ console.error('load() falhou', e); }
