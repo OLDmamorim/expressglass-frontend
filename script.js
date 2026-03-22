@@ -741,6 +741,24 @@ const getLocColor = loc => {
 };
 
 const statusBarColors = { NE:'#EF4444', VE:'#F59E0B', ST:'#10B981' };
+
+// === TIPO DE PORTAL (loja vs sm) ===
+function isLoja() { return window.portalConfig?.portalType === 'loja'; }
+
+// Cores dos cards para Loja (baseadas no status do vidro)
+const glassCardColors = {
+  NE: '#EF4444', // Vermelho - Não encomendado
+  VE: '#F59E0B', // Amarelo - Vidro encomendado
+  ST: '#10B981'  // Verde - Stock
+};
+
+// Cor base do card conforme tipo de portal
+function getCardBaseColor(a) {
+  if (isLoja()) {
+    return glassCardColors[a.status] || '#9CA3AF';
+  }
+  return getLocColor(a.locality);
+}
 const localityList = Object.keys(localityColors);
 
 // === Preencher e ligar o dropdown de Localidade (com pesquisa) ===
@@ -839,7 +857,11 @@ const rgbToHex=({r,g,b})=>'#'+toHex(clamp(r))+toHex(clamp(g))+toHex(clamp(b));
 const lighten=(rgb,a)=>({ r:rgb.r+(255-rgb.r)*a, g:rgb.g+(255-rgb.g)*a, b:rgb.b+(255-rgb.b)*a });
 const darken=(rgb,a)=>({ r:rgb.r*(1-a), g:rgb.g*(1-a), b:rgb.b*(1-a) });
 function gradFromBase(hex){ const rgb=parseColor(hex)||parseColor('#1e88e5'); return { c1: rgbToHex(lighten(rgb,0.06)), c2: rgbToHex(darken(rgb,0.18)) }; }
-function bucketOf(a){ if(!a.date) return 'unscheduled'; return a.date; }
+function bucketOf(a){ 
+  if(!a.date) return 'unscheduled'; 
+  if(isLoja()) return `${a.date}|${a.period || 'Manhã'}`;
+  return a.date; 
+}
 function getBucketList(bucket){ return appointments.filter(x=>bucketOf(x)===bucket).sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0)); }
 function normalizeBucketOrder(bucket){ appointments.filter(a=>bucketOf(a)===bucket).forEach((x,i)=>x.sortIndex=i+1); }
 
@@ -1110,8 +1132,17 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   const a = appointments[i];
   const oldBucket = bucketOf(a);
 
-  if(targetBucket === 'unscheduled'){ a.date=null; }
-  else { a.date=targetBucket; }
+  if(targetBucket === 'unscheduled'){ 
+    a.date = null; 
+    a.period = null;
+  } else if (targetBucket.includes('|')) {
+    // Loja: bucket = "2026-03-21|Manhã"
+    const [date, period] = targetBucket.split('|');
+    a.date = date;
+    a.period = period;
+  } else { 
+    a.date = targetBucket; 
+  }
 
   const dest = getBucketList(targetBucket).filter(x=>String(x.id)!==String(a.id));
   dest.splice(Math.min(targetIndex, dest.length), 0, a);
@@ -1124,12 +1155,16 @@ async function onDropAppointment(id, targetBucket, targetIndex){
 
   renderAll();
 
-  // Recalcular KM entre serviços após reordenar
-  if (targetBucket !== 'unscheduled') {
-    await recalcKmForBucket(targetBucket);
-  }
-  if (oldBucket !== targetBucket && oldBucket !== 'unscheduled') {
-    await recalcKmForBucket(oldBucket);
+  // Recalcular KM entre serviços após reordenar (só SM)
+  if (!isLoja()) {
+    const dateBucket = targetBucket.split('|')[0];
+    const oldDateBucket = oldBucket.split('|')[0];
+    if (dateBucket !== 'unscheduled') {
+      await recalcKmForBucket(dateBucket);
+    }
+    if (oldDateBucket !== dateBucket && oldDateBucket !== 'unscheduled') {
+      await recalcKmForBucket(oldDateBucket);
+    }
   }
 
   const bucketsToPersist = new Set([targetBucket, oldBucket]);
@@ -1301,15 +1336,18 @@ function buildKmRow(ag) {
   `;
 }
 function buildDesktopCard(a){
-  const base = getLocColor(a.locality);
+  const base = getCardBaseColor(a);
   const g = gradFromBase(base);
-  const bar = statusBarColors[a.status] || '#999';
-  const title = `${a.plate} | ${a.service} | ${(a.car||'').toUpperCase()}`;
-  const sub   = [a.locality, a.notes].filter(Boolean).join(' | ');
+  const loja = isLoja();
+  const bar = loja ? '' : `border-left:6px solid ${statusBarColors[a.status] || '#999'}`;
+  const title = `${a.plate} | ${a.service || 'PB'} | ${(a.car||'').toUpperCase()}`;
+  const sub = loja
+    ? [a.notes].filter(Boolean).join(' | ')
+    : [a.locality, a.notes].filter(Boolean).join(' | ');
   return `
     <div class="appointment desk-card" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
-         style="--c1:${g.c1}; --c2:${g.c2}; border-left:6px solid ${bar}">
+         style="--c1:${g.c1}; --c2:${g.c2}; ${bar}">
       <div class="dc-title">${title}</div>
       <div class="dc-sub">${sub}</div>
       <div class="appt-status dc-status">
@@ -1321,7 +1359,7 @@ function buildDesktopCard(a){
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
       </div>
-    ${buildKmRow(a)}</div>`;
+    ${loja ? '' : buildKmRow(a)}</div>`;
 }
 
 function renderSchedule(){
@@ -1336,20 +1374,44 @@ function renderSchedule(){
   thead+='</tr></thead>';
   table.insertAdjacentHTML('beforeend', thead);
 
-  const renderCell=(dayDate)=>{
-    const iso=localISO(dayDate);
-    const items=filterAppointments(
-      appointments.filter(a=>a.date&&a.date===iso)
-        .sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0))
-    );
-    const blocks = items.map(buildDesktopCard).join('');
-    return `<div class="drop-zone" data-drop-bucket="${iso}">${blocks}</div>`;
-  };
-
   const tbody=document.createElement('tbody');
-  const row=document.createElement('tr');
-  row.innerHTML=`<th>Serviços</th>` + week.map(d=>`<td>${renderCell(d)}</td>`).join('');
-  tbody.appendChild(row);
+
+  if (isLoja()) {
+    // LOJA: duas linhas por dia (Manhã / Tarde)
+    const renderPeriodCell = (dayDate, period) => {
+      const iso = localISO(dayDate);
+      const items = filterAppointments(
+        appointments.filter(a => a.date && a.date === iso && (a.period || 'Manhã') === period)
+          .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
+      );
+      const blocks = items.map(buildDesktopCard).join('');
+      return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
+    };
+
+    const rowM = document.createElement('tr');
+    rowM.innerHTML = `<th>Manhã</th>` + week.map(d => `<td>${renderPeriodCell(d, 'Manhã')}</td>`).join('');
+    tbody.appendChild(rowM);
+
+    const rowT = document.createElement('tr');
+    rowT.innerHTML = `<th>Tarde</th>` + week.map(d => `<td>${renderPeriodCell(d, 'Tarde')}</td>`).join('');
+    tbody.appendChild(rowT);
+  } else {
+    // SM: uma linha por dia
+    const renderCell = (dayDate) => {
+      const iso = localISO(dayDate);
+      const items = filterAppointments(
+        appointments.filter(a => a.date && a.date === iso)
+          .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
+      );
+      const blocks = items.map(buildDesktopCard).join('');
+      return `<div class="drop-zone" data-drop-bucket="${iso}">${blocks}</div>`;
+    };
+
+    const row = document.createElement('tr');
+    row.innerHTML = `<th>Serviços</th>` + week.map(d => `<td>${renderCell(d)}</td>`).join('');
+    tbody.appendChild(row);
+  }
+
   table.appendChild(tbody);
   enableDragDrop(); attachStatusListeners(); highlightSearchResults();
 }
@@ -1526,13 +1588,13 @@ const telBtn = phone ? `
            onerror="this.src=''; this.parentElement.textContent='🗺️';"/>
     </a>` : '';
 
-  const base = getLocColor(a.locality);
+  const base = getCardBaseColor(a);
   const g = gradFromBase(base);
   const title = `${a.plate} • ${(a.car||'').toUpperCase()}`;
   const chips = [
     a.period ? `<span class="m-chip">${a.period}</span>` : '',
     a.service ? `<span class="m-chip">${a.service}</span>` : '',
-    a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
+    !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
   ].join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
 
@@ -1545,7 +1607,7 @@ const telBtn = phone ? `
       <div class="m-title">${title}</div>
       <div class="m-chips">${chips}</div>
       ${notes}
-    ${buildKmRow(a)}</div>
+    ${isLoja() ? '' : buildKmRow(a)}</div>
   `;
 }
 

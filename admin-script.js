@@ -83,9 +83,12 @@ function renderPortals() {
     const lastImport = portal.last_import_at 
       ? new Date(portal.last_import_at).toLocaleString('pt-PT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
       : '<span style="color:#9ca3af">—</span>';
+    const typeLabel = portal.portal_type === 'loja' 
+      ? '<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:4px;font-size:12px;">Loja</span>'
+      : '<span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:4px;font-size:12px;">SM</span>';
     return `
     <tr>
-      <td><strong>${portal.name}</strong></td>
+      <td><strong>${portal.name}</strong> ${typeLabel}</td>
       <td>${portal.departure_address}</td>
       <td>${portal.nmdos_code || '<span style="color:#9ca3af">—</span>'}</td>
       <td>${portal.service_count || 0}</td>
@@ -149,6 +152,15 @@ function populateNmdosSelect() {
     }
     select.appendChild(opt);
   });
+}
+
+// Mostrar/esconder campos baseado no tipo de portal
+function togglePortalTypeFields() {
+  const type = document.getElementById('portalType').value;
+  const localitiesSection = document.getElementById('localitiesSection');
+  if (localitiesSection) {
+    localitiesSection.style.display = type === 'loja' ? 'none' : 'block';
+  }
 }
 
 // Gestão de localidades
@@ -232,6 +244,7 @@ document.getElementById('addPortalBtn').addEventListener('click', () => {
   editingPortalId = null;
   document.getElementById('portalModalTitle').textContent = 'Novo Portal';
   document.getElementById('portalForm').reset();
+  document.getElementById('portalType').value = 'sm';
   
   // Limpar localidades
   localitiesData = [];
@@ -240,6 +253,7 @@ document.getElementById('addPortalBtn').addEventListener('click', () => {
   
   // Popular dropdown nmdos
   populateNmdosSelect();
+  togglePortalTypeFields();
   
   openModal('portalModal');
 });
@@ -252,6 +266,7 @@ function editPortal(id) {
   document.getElementById('portalModalTitle').textContent = 'Editar Portal';
   document.getElementById('portalName').value = portal.name;
   document.getElementById('portalAddress').value = portal.departure_address;
+  document.getElementById('portalType').value = portal.portal_type || 'sm';
   
   // Popular e selecionar dropdown nmdos
   populateNmdosSelect();
@@ -259,6 +274,7 @@ function editPortal(id) {
   
   // Carregar localidades
   loadLocalitiesFromJSON(portal.localities);
+  togglePortalTypeFields();
   
   openModal('portalModal');
 }
@@ -308,13 +324,20 @@ document.getElementById('portalForm').addEventListener('submit', async (e) => {
     }
   }
   
-  // Validar se há pelo menos uma localidade
-  if (Object.keys(localities).length === 0) {
+  // Validar se há pelo menos uma localidade (apenas para SM)
+  const portalType = document.getElementById('portalType').value;
+  if (portalType === 'sm' && Object.keys(localities).length === 0) {
     showToast('Adicione pelo menos uma localidade', 'error');
     return;
   }
   
-  const portalData = { name, departure_address: address, localities, nmdos_code: document.getElementById('portalNmdos').value || null };
+  const portalData = { 
+    name, 
+    departure_address: address, 
+    localities, 
+    nmdos_code: document.getElementById('portalNmdos').value || null,
+    portal_type: portalType
+  };
   
   try {
     const url = editingPortalId 

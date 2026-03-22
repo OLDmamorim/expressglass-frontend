@@ -58,18 +58,54 @@
     id: portalConfig.id,
     name: portalConfig.name,
     departureAddress: portalConfig.departureAddress,
-    localities: portalConfig.localities || {}
+    localities: portalConfig.localities || {},
+    portalType: portalConfig.portalType || 'sm'
   };
 
-  // Atualizar base de partida para cálculo de rotas
-  if (window.BASES_PARTIDA) {
+  // Atualizar base de partida para cálculo de rotas (só SM)
+  if (window.BASES_PARTIDA && portalConfig.portalType !== 'loja') {
     window.basePartidaDoDia = portalConfig.departureAddress;
   }
 
-  // Atualizar dropdown de localidades no formulário
-  updateLocalitiesDropdown();
+  // Atualizar dropdown de localidades no formulário (só SM)
+  if (portalConfig.portalType !== 'loja') {
+    updateLocalitiesDropdown();
+  }
 
-  console.log('✅ Portal inicializado com sucesso');
+  // Esconder elementos não aplicáveis a Loja
+  if (portalConfig.portalType === 'loja') {
+    // Esconder campo de localidade no formulário
+    const locGroup = document.querySelector('#appointmentLocality')?.closest('.form-group') 
+                  || document.querySelector('#localityAutocomplete')?.closest('.form-group');
+    if (locGroup) locGroup.style.display = 'none';
+    
+    // Esconder campo de morada e km
+    const addressField = document.querySelector('#appointmentAddress')?.closest('.form-group');
+    if (addressField) addressField.style.display = 'none';
+    const kmField = document.querySelector('#appointmentKm')?.closest('.form-group');
+    if (kmField) kmField.style.display = 'none';
+    
+    // Esconder botão de calcular rotas
+    const routeBtn = document.querySelector('[onclick*="openSelectDayModal"]') || document.querySelector('[onclick*="calculateOptimalRoutes"]');
+    if (routeBtn) routeBtn.style.display = 'none';
+
+    // Adicionar campo de período ao formulário se não existir
+    const dateField = document.querySelector('#appointmentDate')?.closest('.form-group');
+    if (dateField && !document.getElementById('appointmentPeriod')) {
+      const periodGroup = document.createElement('div');
+      periodGroup.className = 'form-group';
+      periodGroup.innerHTML = `
+        <label for="appointmentPeriod">Período</label>
+        <select id="appointmentPeriod">
+          <option value="Manhã">Manhã</option>
+          <option value="Tarde">Tarde</option>
+        </select>
+      `;
+      dateField.parentNode.insertBefore(periodGroup, dateField.nextSibling);
+    }
+  }
+
+  console.log('✅ Portal inicializado com sucesso (' + (portalConfig.portalType || 'sm') + ')');
 })();
 
 // Adicionar botão de logout
