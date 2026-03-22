@@ -50,7 +50,7 @@ exports.handler = async (event) => {
     // Buscar utilizador na base de dados
     const query = `
       SELECT u.id, u.username, u.password_hash, u.portal_id, u.role,
-             p.name as portal_name, p.departure_address, p.localities
+             p.name as portal_name, p.departure_address, p.localities, p.portal_type
       FROM users u
       LEFT JOIN portals p ON u.portal_id = p.id
       WHERE u.username = $1
@@ -107,7 +107,8 @@ exports.handler = async (event) => {
         id: user.portal_id,
         name: user.portal_name,
         departureAddress: user.departure_address,
-        localities: user.localities
+        localities: user.localities,
+        portalType: user.portal_type || 'sm'
       } : null
     };
 

@@ -46,7 +46,7 @@ exports.handler = async (event) => {
     // ---------- GET - Listar todos os portais ----------
     if (event.httpMethod === 'GET') {
       const query = `
-        SELECT id, name, departure_address, localities, nmdos_code, last_import_at, created_at, updated_at,
+        SELECT id, name, departure_address, localities, nmdos_code, portal_type, last_import_at, created_at, updated_at,
                (SELECT COUNT(*) FROM users WHERE portal_id = portals.id) as user_count,
                (SELECT COUNT(*) FROM appointments WHERE portal_id = portals.id) as service_count
         FROM portals
@@ -95,8 +95,8 @@ exports.handler = async (event) => {
       }
 
       const query = `
-        INSERT INTO portals (name, departure_address, localities, nmdos_code, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO portals (name, departure_address, localities, nmdos_code, portal_type, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
       `;
       
@@ -105,6 +105,7 @@ exports.handler = async (event) => {
         data.departure_address.trim(),
         JSON.stringify(localities),
         data.nmdos_code || null,
+        data.portal_type || 'sm',
         new Date().toISOString(),
         new Date().toISOString()
       ];
@@ -148,8 +149,9 @@ exports.handler = async (event) => {
             departure_address = $2, 
             localities = $3,
             nmdos_code = $4,
-            updated_at = $5
-        WHERE id = $6
+            portal_type = $5,
+            updated_at = $6
+        WHERE id = $7
         RETURNING *
       `;
       
@@ -158,6 +160,7 @@ exports.handler = async (event) => {
         data.departure_address?.trim(),
         JSON.stringify(localities),
         data.nmdos_code || null,
+        data.portal_type || 'sm',
         new Date().toISOString(),
         id
       ];
