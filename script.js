@@ -759,6 +759,146 @@ function getCardBaseColor(a) {
   }
   return getLocColor(a.locality);
 }
+
+// === TOTALIZADOR DIÁRIO (SM) ===
+// Configurações default (serão sobrescritas pela API)
+const ROUTE_CONFIG = {
+  avgSpeedKmh: 50,
+  fuelPer100km: 7.5,
+  fuelPricePerLiter: 1.65
+};
+const SERVICE_TIMES = { 
+  PB_L: 90, LT_L: 45, OC_L: 60, REP_L: 30, POL_L: 45,
+  PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60
+};
+
+// Carregar configurações da API
+async function loadRouteSettings() {
+  try {
+    const token = window.authClient?.getToken();
+    if (!token) return;
+    
+    // Carregar configurações gerais
+    const resp = await fetch('/.netlify/functions/settings', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await resp.json();
+    if (data.success && data.data) {
+      const s = data.data;
+      if (s.avgSpeedKmh) ROUTE_CONFIG.avgSpeedKmh = s.avgSpeedKmh;
+      if (s.fuelPer100km) ROUTE_CONFIG.fuelPer100km = s.fuelPer100km;
+      if (s.fuelPricePerLiter) ROUTE_CONFIG.fuelPricePerLiter = s.fuelPricePerLiter;
+      if (s.serviceTimes) {
+        Object.assign(SERVICE_TIMES, s.serviceTimes);
+      }
+    }
+
+    // Carregar preço do combustível da DGEG (sobrescreve o manual)
+    try {
+      const fuelResp = await fetch('/.netlify/functions/fuel-price', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const fuelData = await fuelResp.json();
+      if (fuelData.success && fuelData.data && fuelData.data.price) {
+        ROUTE_CONFIG.fuelPricePerLiter = fuelData.data.price;
+        ROUTE_CONFIG.fuelSource = fuelData.data.source;
+        console.log('⛽ Preço combustível:', fuelData.data.price, '€/L (fonte:', fuelData.data.source + ')');
+      }
+    } catch (e) {
+      console.warn('⚠️ Não foi possível obter preço DGEG, usando valor manual');
+    }
+
+    console.log('✅ Configurações carregadas:', ROUTE_CONFIG, SERVICE_TIMES);
+  } catch (e) {
+    console.warn('⚠️ Não foi possível carregar configurações, usando defaults');
+  }
+}
+
+// Obter tempo de execução de um serviço (baseado no tipo + veículo)
+function getServiceTime(serviceCode, vehicleType) {
+  const code = serviceCode ? String(serviceCode).toUpperCase().trim().split(' ')[0].split('-')[0] : 'PB';
+  const vt = (vehicleType || 'L').toUpperCase().charAt(0); // L ou P
+  const key = code + '_' + vt;
+  // Tentar chave específica, depois fallback para ligeiro, depois default
+  return SERVICE_TIMES[key] || SERVICE_TIMES[code + '_L'] || SERVICE_TIMES['PB_L'] || 90;
+}
+
+function buildDaySummary(dayDate) {
+  if (isLoja()) return '';
+  const iso = localISO(dayDate);
+  const items = appointments.filter(a => a.date && a.date === iso)
+    .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
+  if (items.length === 0) return '';
+
+  // Calcular KM total (ida entre serviços)
+  let totalKm = 0;
+  let hasKm = false;
+  let firstKm = 0;
+  items.forEach((a, i) => {
+    const km = getKmValue(a);
+    if (km != null && km > 0) {
+      totalKm += km;
+      hasKm = true;
+      if (i === 0) firstKm = km; // KM do primeiro serviço = base → mais longe
+    }
+  });
+
+  // Estimar regresso: KM do primeiro serviço (base→mais longe) como estimativa conservadora
+  // Na rota otimizada, o último serviço está perto da base, então o regresso é curto
+  // Usamos metade do primeiro KM como estimativa razoável
+  const returnKm = hasKm ? Math.round(firstKm * 0.5) : 0;
+  const totalKmWithReturn = totalKm + returnKm;
+
+  // Calcular tempo total de execução dos serviços (com tipo de veículo)
+  let totalServiceMin = 0;
+  items.forEach(a => {
+    totalServiceMin += getServiceTime(a.service, a.vehicleType);
+  });
+
+  if (!hasKm) {
+    const svcH = Math.floor(totalServiceMin / 60);
+    const svcM = totalServiceMin % 60;
+    const svcStr = svcH > 0 ? `${svcH}h${svcM > 0 ? String(svcM).padStart(2,'0') : ''}` : `${svcM} min`;
+    return `<div class="day-summary">
+      <span class="ds-item" title="Serviços agendados">📋 ${items.length} serviços</span>
+      <span class="ds-item" title="Tempo estimado de execução">🔧 ${svcStr}</span>
+      <span class="ds-item ds-muted" title="Sem dados de rota">Sem KM calculados</span>
+    </div>`;
+  }
+
+  const totalKmRound = Math.round(totalKmWithReturn);
+  
+  // Tempo de viagem (incluindo regresso)
+  const travelMinutes = Math.round((totalKmWithReturn / ROUTE_CONFIG.avgSpeedKmh) * 60);
+  const returnMinutes = Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
+  
+  // Tempo total = viagem (ida+regresso) + execução
+  const totalMinutes = travelMinutes + totalServiceMin;
+  const totalH = Math.floor(totalMinutes / 60);
+  const totalM = totalMinutes % 60;
+  const totalStr = totalH > 0 ? `${totalH}h${totalM > 0 ? String(totalM).padStart(2,'0') : ''}` : `${totalM} min`;
+  
+  // Detalhes para tooltip
+  const travelH = Math.floor(travelMinutes / 60);
+  const travelM = travelMinutes % 60;
+  const travelStr = travelH > 0 ? `${travelH}h${travelM > 0 ? String(travelM).padStart(2,'0') : ''}` : `${travelM} min`;
+  
+  const svcH = Math.floor(totalServiceMin / 60);
+  const svcM = totalServiceMin % 60;
+  const svcStr = svcH > 0 ? `${svcH}h${svcM > 0 ? String(svcM).padStart(2,'0') : ''}` : `${svcM} min`;
+
+  const fuelLiters = (totalKmWithReturn * ROUTE_CONFIG.fuelPer100km / 100).toFixed(1);
+  const fuelCost = (fuelLiters * ROUTE_CONFIG.fuelPricePerLiter).toFixed(2);
+
+  return `<div class="day-summary">
+    <span class="ds-item" title="Serviços agendados">📋 ${items.length}</span>
+    <span class="ds-item" title="${Math.round(totalKm)} km rota + ~${returnKm} km regresso">🛣️ ${totalKmRound} km</span>
+    <span class="ds-item" title="${travelStr} viagem (incl. ~${returnMinutes}min regresso) + ${svcStr} execução">⏱️ ${totalStr}</span>
+    <span class="ds-item" title="Consumo estimado (${ROUTE_CONFIG.fuelPer100km} L/100km)">⛽ ${fuelLiters} L</span>
+    <span class="ds-item" title="Custo estimado (€${ROUTE_CONFIG.fuelPricePerLiter}/L - ${ROUTE_CONFIG.fuelSource === 'DGEG' ? 'preço DGEG' : 'preço manual'})">💰 ${fuelCost}€</span>
+  </div>`;
+}
+
 const localityList = Object.keys(localityColors);
 
 // === Preencher e ligar o dropdown de Localidade (com pesquisa) ===
@@ -1232,6 +1372,9 @@ function editAppointment(id) {
   document.getElementById('appointmentPlate').value = appointment.plate || '';
   document.getElementById('appointmentCar').value = appointment.car || '';
   document.getElementById('appointmentService').value = appointment.service || '';
+  if (document.getElementById('appointmentVehicleType')) {
+    document.getElementById('appointmentVehicleType').value = appointment.vehicleType || appointment.vehicle_type || 'L';
+  }
   document.getElementById('appointmentLocality').value = appointment.locality || '';
   document.getElementById('appointmentNotes').value = appointment.notes || '';
   document.getElementById('appointmentAddress').value = appointment.address || '';
@@ -1396,7 +1539,7 @@ function renderSchedule(){
     rowT.innerHTML = `<th>Tarde</th>` + week.map(d => `<td>${renderPeriodCell(d, 'Tarde')}</td>`).join('');
     tbody.appendChild(rowT);
   } else {
-    // SM: uma linha por dia
+    // SM: resumo do dia + serviços
     const renderCell = (dayDate) => {
       const iso = localISO(dayDate);
       const items = filterAppointments(
@@ -1407,6 +1550,13 @@ function renderSchedule(){
       return `<div class="drop-zone" data-drop-bucket="${iso}">${blocks}</div>`;
     };
 
+    // Linha de resumo (KM, tempo, combustível)
+    const summaryRow = document.createElement('tr');
+    summaryRow.className = 'summary-row';
+    summaryRow.innerHTML = `<th>Resumo</th>` + week.map(d => `<td>${buildDaySummary(d)}</td>`).join('');
+    tbody.appendChild(summaryRow);
+
+    // Linha de serviços
     const row = document.createElement('tr');
     row.innerHTML = `<th>Serviços</th>` + week.map(d => `<td>${renderCell(d)}</td>`).join('');
     tbody.appendChild(row);
@@ -1657,9 +1807,11 @@ async function renderMobileDay(){
     return;
   }
 
+  // Resumo do dia (só SM)
+  const summary = buildDaySummary(currentMobileDay);
   const allServices = items.map(buildMobileCard).join('');
 
-  list.innerHTML = allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
+  list.innerHTML = (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
 }
 
@@ -1690,6 +1842,7 @@ window.reloadAppointments = async function() {
 
 // Bootstrap da app (carrega BD e desenha)
 document.addEventListener('DOMContentLoaded', async ()=>{
+  try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
   try { await load(); } catch(e){ console.error('load() falhou', e); }
   try { buildLocalityOptions?.(); } catch(e){}
   renderAll();
@@ -1773,6 +1926,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       phone:  get('appointmentPhone'),
       extra:  get('appointmentExtra'),
       status: (document.getElementById('appointmentStatus')?.value || 'NE'),
+      vehicleType: (document.getElementById('appointmentVehicleType')?.value || 'L'),
       // ===== ADICIONAR OS QUILÓMETROS CALCULADOS =====
       km: calculatedKm
     };
