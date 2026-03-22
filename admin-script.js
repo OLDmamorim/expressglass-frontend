@@ -691,8 +691,8 @@ async function startImport() {
     const email = emailCol >= 0 && row[emailCol] ? String(row[emailCol]).trim() : '';
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
 
-    // Observações: só o eurocode
-    const notes = eurocode || '';
+    // Observações: eurocode da coluna ref
+    const notes = ref || eurocode || '';
 
     // Outros dados: só o nome do segurado
     const extra = segurado || '';
@@ -887,4 +887,3 @@ async function refreshFuelPrice() {
   await loadDGEGPrice();
   showToast('Preço DGEG atualizado', 'success');
 }
-
