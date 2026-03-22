@@ -39,12 +39,15 @@ exports.handler = async (event) => {
     // Verificar autenticação e obter portal_id do utilizador
     const user = getUserFromToken(event);
     
-    // Coordenadores podem escolher o portal via query param ou body
     let portalId = user.portalId;
     const params = event.queryStringParameters || {};
     
-    if (user.role === 'coordenador' && user.portalIds) {
-      // Tentar query param primeiro, depois body
+    // Admin pode aceder a qualquer portal
+    if (user.role === 'admin' && params.portal_id) {
+      portalId = parseInt(params.portal_id);
+    }
+    // Coordenadores podem escolher entre os seus portais
+    else if (user.role === 'coordenador' && user.portalIds) {
       let requestedId = params.portal_id ? parseInt(params.portal_id) : null;
       if (!requestedId && event.body) {
         try { requestedId = JSON.parse(event.body)._portalId; } catch(e) {}
@@ -52,7 +55,7 @@ exports.handler = async (event) => {
       if (requestedId && user.portalIds.includes(requestedId)) {
         portalId = requestedId;
       } else if (!portalId && user.portalIds.length > 0) {
-        portalId = user.portalIds[0]; // Fallback para o primeiro portal
+        portalId = user.portalIds[0];
       }
     }
 
