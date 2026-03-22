@@ -73,6 +73,43 @@ function getDistance(from, to) {
     }
   });
 }
+
+// Versão que devolve distância E tempo de viagem do Google
+function getDistanceAndTime(from, to) {
+  return new Promise((resolve) => {
+    try {
+      if (!window.google || !google.maps || !google.maps.DistanceMatrixService) {
+        resolve({ distance: Infinity, duration: 0 });
+        return;
+      }
+      const svc = new google.maps.DistanceMatrixService();
+      svc.getDistanceMatrix(
+        {
+          origins: [from],
+          destinations: [to],
+          travelMode: google.maps.TravelMode.DRIVING,
+          unitSystem: google.maps.UnitSystem.METRIC,
+        },
+        (res, status) => {
+          if (
+            status === "OK" &&
+            res?.rows?.[0]?.elements?.[0]?.status === "OK" &&
+            res.rows[0].elements[0].distance?.value != null
+          ) {
+            resolve({
+              distance: res.rows[0].elements[0].distance.value, // metros
+              duration: Math.round((res.rows[0].elements[0].duration?.value || 0) / 60) // minutos
+            });
+          } else {
+            resolve({ distance: Infinity, duration: 0 });
+          }
+        }
+      );
+    } catch (err) {
+      resolve({ distance: Infinity, duration: 0 });
+    }
+  });
+}
   
 
 // ===== NORMALIZAR CAMPO MORADA =====
@@ -399,29 +436,33 @@ async function optimizeDayServices(services) {
       // Atualizar sortIndex
       appointments[appointmentIndex].sortIndex = i + 1;
       
-      // Calcular quilómetros do ponto anterior para este
+      // Calcular quilómetros e tempo do ponto anterior para este
       let newKm = 0;
+      let travelMin = 0;
       if (i === 0) {
         // Primeiro serviço: distância da loja
         const serviceAddress = getAddressFromItem(service);
-        const distanceFromBase = await getDistance(getBasePartida(), serviceAddress);
-        newKm = distanceFromBase !== Infinity ? Math.round(distanceFromBase / 1000) : 0;
+        const result = await getDistanceAndTime(getBasePartida(), serviceAddress);
+        newKm = result.distance !== Infinity ? Math.round(result.distance / 1000) : 0;
+        travelMin = result.duration || 0;
       } else {
         // Serviços seguintes: distância do serviço anterior
         const previousService = optimizedRoute[i - 1];
         const previousAddress = getAddressFromItem(previousService);
         const currentAddress = getAddressFromItem(service);
-        const distanceFromPrevious = await getDistance(previousAddress, currentAddress);
-        newKm = distanceFromPrevious !== Infinity ? Math.round(distanceFromPrevious / 1000) : 0;
+        const result = await getDistanceAndTime(previousAddress, currentAddress);
+        newKm = result.distance !== Infinity ? Math.round(result.distance / 1000) : 0;
+        travelMin = result.duration || 0;
       }
       
-      // Atualizar quilómetros no appointment
+      // Atualizar quilómetros e tempo de viagem no appointment
       appointments[appointmentIndex].km = newKm;
+      appointments[appointmentIndex].travelTime = travelMin;
       
       // Marcar como otimizado para feedback visual
       appointments[appointmentIndex]._optimized = true;
       
-      console.log(`🗺️ Serviço ${i + 1}: ${newKm}km ${i === 0 ? 'da loja' : 'do anterior'}`);
+      console.log(`🗺️ Serviço ${i + 1}: ${newKm}km, ${travelMin}min ${i === 0 ? 'da loja' : 'do anterior'}`);
     }
   }
 }
@@ -830,73 +871,94 @@ function buildDaySummary(dayDate) {
     .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
   if (items.length === 0) return '';
 
-  // Calcular KM total (ida entre serviços)
+  // KM total
   let totalKm = 0;
   let hasKm = false;
-  let firstKm = 0;
+  let lastServiceKm = 0; // KM do último serviço (para estimar regresso)
   items.forEach((a, i) => {
     const km = getKmValue(a);
     if (km != null && km > 0) {
       totalKm += km;
       hasKm = true;
-      if (i === 0) firstKm = km; // KM do primeiro serviço = base → mais longe
+      if (i === 0) lastServiceKm = km; // Primeiro = mais longe da base
     }
   });
 
-  // Estimar regresso: KM do primeiro serviço (base→mais longe) como estimativa conservadora
-  // Na rota otimizada, o último serviço está perto da base, então o regresso é curto
-  // Usamos metade do primeiro KM como estimativa razoável
-  const returnKm = hasKm ? Math.round(firstKm * 0.5) : 0;
+  // Tempo de viagem total (do Google Maps, guardado em cada serviço)
+  let totalTravelMin = 0;
+  let hasGoogleTime = false;
+  items.forEach(a => {
+    const tt = a.travelTime || a.travel_time || 0;
+    if (tt > 0) {
+      totalTravelMin += tt;
+      hasGoogleTime = true;
+    }
+  });
+
+  // Fallback: se não tem tempos do Google, calcular pela velocidade média
+  if (!hasGoogleTime && hasKm) {
+    totalTravelMin = Math.round((totalKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
+  }
+
+  // Estimar regresso: metade do KM do primeiro serviço (na rota otimizada, último serviço está perto)
+  const returnKm = hasKm ? Math.round(lastServiceKm * 0.5) : 0;
+  const returnMin = hasGoogleTime ? Math.round(totalTravelMin * 0.15) : Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
   const totalKmWithReturn = totalKm + returnKm;
 
-  // Calcular tempo total de execução dos serviços (com tipo de veículo)
+  // Tempo de execução (por tipo de serviço × veículo)
   let totalServiceMin = 0;
   items.forEach(a => {
-    totalServiceMin += getServiceTime(a.service, a.vehicleType);
+    totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type);
   });
 
   if (!hasKm) {
-    const svcH = Math.floor(totalServiceMin / 60);
-    const svcM = totalServiceMin % 60;
-    const svcStr = svcH > 0 ? `${svcH}h${svcM > 0 ? String(svcM).padStart(2,'0') : ''}` : `${svcM} min`;
+    const svcStr = fmtTime(totalServiceMin);
     return `<div class="day-summary">
-      <span class="ds-item" title="Serviços agendados">📋 ${items.length} serviços</span>
+      <span class="ds-item" title="Serviços agendados">📋 ${items.length}</span>
       <span class="ds-item" title="Tempo estimado de execução">🔧 ${svcStr}</span>
-      <span class="ds-item ds-muted" title="Sem dados de rota">Sem KM calculados</span>
+      <span class="ds-item ds-muted">Sem KM calculados</span>
     </div>`;
   }
 
-  const totalKmRound = Math.round(totalKmWithReturn);
-  
-  // Tempo de viagem (incluindo regresso)
-  const travelMinutes = Math.round((totalKmWithReturn / ROUTE_CONFIG.avgSpeedKmh) * 60);
-  const returnMinutes = Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
-  
-  // Tempo total = viagem (ida+regresso) + execução
-  const totalMinutes = travelMinutes + totalServiceMin;
-  const totalH = Math.floor(totalMinutes / 60);
-  const totalM = totalMinutes % 60;
-  const totalStr = totalH > 0 ? `${totalH}h${totalM > 0 ? String(totalM).padStart(2,'0') : ''}` : `${totalM} min`;
-  
-  // Detalhes para tooltip
-  const travelH = Math.floor(travelMinutes / 60);
-  const travelM = travelMinutes % 60;
-  const travelStr = travelH > 0 ? `${travelH}h${travelM > 0 ? String(travelM).padStart(2,'0') : ''}` : `${travelM} min`;
-  
-  const svcH = Math.floor(totalServiceMin / 60);
-  const svcM = totalServiceMin % 60;
-  const svcStr = svcH > 0 ? `${svcH}h${svcM > 0 ? String(svcM).padStart(2,'0') : ''}` : `${svcM} min`;
+  // Formatação
+  const travelWithReturn = totalTravelMin + returnMin;
+  const totalMin = travelWithReturn + totalServiceMin;
+  const travelStr = fmtTime(travelWithReturn);
+  const svcStr = fmtTime(totalServiceMin);
+  const totalStr = fmtTime(totalMin);
+  const returnStr = fmtTime(returnMin);
+  const sourceLabel = hasGoogleTime ? 'Google Maps' : 'estimativa';
 
+  // Combustível
   const fuelLiters = (totalKmWithReturn * ROUTE_CONFIG.fuelPer100km / 100).toFixed(1);
   const fuelCost = (fuelLiters * ROUTE_CONFIG.fuelPricePerLiter).toFixed(2);
 
+  // Hora estimada de regresso (assumindo início às 8:30)
+  const startHour = 8;
+  const startMin = 30;
+  const etaMinutes = startMin + totalMin;
+  const etaH = startHour + Math.floor(etaMinutes / 60);
+  const etaM = etaMinutes % 60;
+  const etaStr = `${String(etaH).padStart(2,'0')}:${String(etaM).padStart(2,'0')}`;
+
   return `<div class="day-summary">
     <span class="ds-item" title="Serviços agendados">📋 ${items.length}</span>
-    <span class="ds-item" title="${Math.round(totalKm)} km rota + ~${returnKm} km regresso">🛣️ ${totalKmRound} km</span>
-    <span class="ds-item" title="${travelStr} viagem (incl. ~${returnMinutes}min regresso) + ${svcStr} execução">⏱️ ${totalStr}</span>
-    <span class="ds-item" title="Consumo estimado (${ROUTE_CONFIG.fuelPer100km} L/100km)">⛽ ${fuelLiters} L</span>
-    <span class="ds-item" title="Custo estimado (€${ROUTE_CONFIG.fuelPricePerLiter}/L - ${ROUTE_CONFIG.fuelSource === 'DGEG' ? 'preço DGEG' : 'preço manual'})">💰 ${fuelCost}€</span>
+    <span class="ds-item" title="${Math.round(totalKm)}km rota + ~${returnKm}km regresso">🛣️ ${Math.round(totalKmWithReturn)} km</span>
+    <span class="ds-item" title="Viagem: ${travelStr} (incl. ~${returnStr} regresso) — fonte: ${sourceLabel}">🚐 ${travelStr}</span>
+    <span class="ds-item" title="Execução dos ${items.length} serviços">🔧 ${svcStr}</span>
+    <span class="ds-item" title="Viagem + Execução">⏱️ ${totalStr}</span>
+    <span class="ds-item" title="Consumo (${ROUTE_CONFIG.fuelPer100km}L/100km)">⛽ ${fuelLiters}L</span>
+    <span class="ds-item" title="€${ROUTE_CONFIG.fuelPricePerLiter}/L (${ROUTE_CONFIG.fuelSource === 'DGEG' ? 'DGEG' : 'manual'})">💰 ${fuelCost}€</span>
+    <span class="ds-item ds-eta" title="Hora estimada de regresso à loja (início 08:30)">🏠 ${etaStr}</span>
   </div>`;
+}
+
+// Formatar minutos em horas:minutos
+function fmtTime(min) {
+  if (!min || min <= 0) return '0 min';
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return h > 0 ? `${h}h${m > 0 ? String(m).padStart(2,'0') : ''}` : `${m} min`;
 }
 
 const localityList = Object.keys(localityColors);
@@ -1324,35 +1386,38 @@ async function recalcKmForBucket(bucket) {
     if (!serviceAddr) continue;
 
     let newKm = 0;
+    let travelMin = 0;
     try {
       if (i === 0) {
-        // Primeiro serviço: distância da base de partida
-        const d = await getDistance(getBasePartida(), serviceAddr);
-        newKm = d !== Infinity ? Math.round(d / 1000) : 0;
+        const result = await getDistanceAndTime(getBasePartida(), serviceAddr);
+        newKm = result.distance !== Infinity ? Math.round(result.distance / 1000) : 0;
+        travelMin = result.duration || 0;
       } else {
-        // Serviços seguintes: distância do serviço anterior
         const prevAddr = getAddressFromItem(list[i - 1]);
         if (prevAddr) {
-          const d = await getDistance(prevAddr, serviceAddr);
-          newKm = d !== Infinity ? Math.round(d / 1000) : 0;
+          const result = await getDistanceAndTime(prevAddr, serviceAddr);
+          newKm = result.distance !== Infinity ? Math.round(result.distance / 1000) : 0;
+          travelMin = result.duration || 0;
         }
       }
     } catch (e) {
       console.warn('Erro ao recalcular km:', e);
     }
 
-    // Atualizar no array principal
     const idx = appointments.findIndex(a => a.id === service.id);
-    if (idx >= 0 && appointments[idx].km !== newKm) {
-      appointments[idx].km = newKm;
-      changed = true;
-      console.log(`🔄 KM recalculado: ${service.plate} → ${newKm} km ${i === 0 ? '(da base)' : '(do anterior)'}`);
+    if (idx >= 0) {
+      if (appointments[idx].km !== newKm || appointments[idx].travelTime !== travelMin) {
+        appointments[idx].km = newKm;
+        appointments[idx].travelTime = travelMin;
+        changed = true;
+        console.log(`🔄 Recalculado: ${service.plate} → ${newKm}km, ${travelMin}min ${i === 0 ? '(da base)' : '(do anterior)'}`);
+      }
     }
   }
 
   if (changed) {
     renderAll();
-    showToast('🔄 Quilómetros recalculados', 'info');
+    showToast('🔄 Quilómetros e tempos recalculados', 'info');
   }
 }
 
