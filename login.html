@@ -5,7 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Expressglass</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#6366f1">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Agendamentos EG">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(function(){});
+    }
+  </script>
   <style>
     * {
       margin: 0;
