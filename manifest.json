@@ -1,8 +1,24 @@
 {
-  "name": "Agendamento SM Braga",
-  "short_name": "SM Braga",
+  "name": "Agendamentos ExpressGlass",
+  "short_name": "Agendamentos EG",
+  "description": "Portal de agendamento de serviços ExpressGlass",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0ea5e9",
-  "theme_color": "#0ea5e9"
+  "background_color": "#1e3a8a",
+  "theme_color": "#2563eb",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }
