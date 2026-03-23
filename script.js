@@ -864,14 +864,14 @@ function getServiceTime(serviceCode, vehicleType) {
   return SERVICE_TIMES[key] || SERVICE_TIMES[code + '_L'] || SERVICE_TIMES['PB_L'] || 90;
 }
 
-function buildDaySummary(dayDate) {
+function buildDaySummary(dayDate, isMobile) {
   if (isLoja()) return '';
   const iso = localISO(dayDate);
   const userRole = window.authClient?.getUser()?.role;
-  const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
+  const canSeeUnconfirmed = !isMobile && (userRole === 'admin' || userRole === 'coordenador');
   let items = appointments.filter(a => a.date && a.date === iso)
     .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
-  // Técnicos: só contar serviços com localidade confirmada
+  // Mobile ou técnicos: só contar serviços com localidade confirmada
   if (!canSeeUnconfirmed) {
     items = items.filter(a => !!a.locality);
   }
@@ -1936,7 +1936,7 @@ async function renderMobileDay(){
   }
 
   // Resumo do dia (só SM)
-  const summary = buildDaySummary(currentMobileDay);
+  const summary = buildDaySummary(currentMobileDay, true);
   const allServices = items.map(buildMobileCard).join('');
 
   list.innerHTML = (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
