@@ -381,90 +381,123 @@ async function calculateOptimalRoutes() {
 // Otimizar serviços de um dia específico
 async function optimizeDayServices(services) {
   if (services.length < 2) return;
-  
-  // 1. Encontrar o serviço mais distante da loja
-  let farthestService = null;
-  let maxDistance = 0;
-  
-  for (const service of services) {
-    const address = getAddressFromItem(service);
-    const distance = await getDistance(getBasePartida(), address);
-    if (distance > maxDistance && distance !== Infinity) {
-      maxDistance = distance;
-      farthestService = service;
+
+  const base = getBasePartida();
+
+  // Pré-calcular todas as distâncias necessárias (base→cada, cada→cada)
+  const addresses = services.map(s => getAddressFromItem(s));
+  const n = services.length;
+
+  // Matriz de distâncias e tempos: [from][to]
+  // índice 0 = base, 1..n = serviços
+  const dist = [];  // dist[i][j] = metros
+  const time = [];  // time[i][j] = minutos
+
+  // Inicializar matriz
+  for (let i = 0; i <= n; i++) {
+    dist.push(new Array(n + 1).fill(Infinity));
+    time.push(new Array(n + 1).fill(0));
+  }
+
+  // Calcular base → cada serviço
+  for (let j = 0; j < n; j++) {
+    const r = await getDistanceAndTime(base, addresses[j]);
+    dist[0][j + 1] = r.distance;
+    time[0][j + 1] = r.duration || 0;
+  }
+
+  // Calcular serviço → serviço
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      if (i === j) { dist[i+1][j+1] = 0; time[i+1][j+1] = 0; continue; }
+      const r = await getDistanceAndTime(addresses[i], addresses[j]);
+      dist[i+1][j+1] = r.distance;
+      time[i+1][j+1] = r.duration || 0;
     }
   }
-  
-  if (!farthestService) return;
-  
-  // 2. Criar rota otimizada começando pelo mais distante
-  const optimizedRoute = [farthestService];
-  const remaining = services.filter(s => s.id !== farthestService.id);
-  
-  // 3. Para cada posição seguinte, encontrar o mais próximo do anterior
-  while (remaining.length > 0) {
-    const currentLocation = getAddressFromItem(optimizedRoute[optimizedRoute.length - 1]);
-    let closestService = null;
-    let minDistance = Infinity;
-    
-    for (const service of remaining) {
-      const serviceAddress = getAddressFromItem(service);
-      const distance = await getDistance(currentLocation, serviceAddress);
-      if (distance < minDistance && distance !== Infinity) {
-        minDistance = distance;
-        closestService = service;
+
+  let bestOrder = null;
+  let bestTotal = Infinity;
+
+  if (n <= 8) {
+    // Brute-force: testar todas as permutações (exato para n≤8)
+    const permutations = getPermutations([...Array(n).keys()]); // 0..n-1
+    for (const perm of permutations) {
+      let total = dist[0][perm[0] + 1]; // base → primeiro
+      for (let i = 0; i < perm.length - 1; i++) {
+        total += dist[perm[i] + 1][perm[i+1] + 1];
+      }
+      if (total < bestTotal) {
+        bestTotal = total;
+        bestOrder = perm;
       }
     }
-    
-    if (closestService) {
-      optimizedRoute.push(closestService);
-      const index = remaining.indexOf(closestService);
-      remaining.splice(index, 1);
-    } else {
-      // Se não conseguir calcular distância, adiciona o restante na ordem original
-      optimizedRoute.push(...remaining);
-      break;
+  } else {
+    // Nearest-neighbor melhorado: testa cada serviço como ponto de partida
+    for (let start = 0; start < n; start++) {
+      const visited = new Array(n).fill(false);
+      const route = [start];
+      visited[start] = true;
+      let total = dist[0][start + 1];
+
+      while (route.length < n) {
+        const last = route[route.length - 1];
+        let nearest = -1, minD = Infinity;
+        for (let j = 0; j < n; j++) {
+          if (!visited[j] && dist[last + 1][j + 1] < minD) {
+            minD = dist[last + 1][j + 1];
+            nearest = j;
+          }
+        }
+        if (nearest === -1) break;
+        route.push(nearest);
+        visited[nearest] = true;
+        total += minD;
+      }
+
+      if (total < bestTotal) {
+        bestTotal = total;
+        bestOrder = route;
+      }
     }
   }
-  
-  // 4. Recalcular quilómetros entre pontos da rota otimizada
+
+  if (!bestOrder) return;
+
+  const optimizedRoute = bestOrder.map(i => services[i]);
+
+  // Persistir sortIndex e km/travelTime na ordem ótima
   for (let i = 0; i < optimizedRoute.length; i++) {
     const service = optimizedRoute[i];
     const appointmentIndex = appointments.findIndex(a => a.id === service.id);
-    
-    if (appointmentIndex >= 0) {
-      // Atualizar sortIndex
-      appointments[appointmentIndex].sortIndex = i + 1;
-      
-      // Calcular quilómetros e tempo do ponto anterior para este
-      let newKm = 0;
-      let travelMin = 0;
-      if (i === 0) {
-        // Primeiro serviço: distância da loja
-        const serviceAddress = getAddressFromItem(service);
-        const result = await getDistanceAndTime(getBasePartida(), serviceAddress);
-        newKm = result.distance !== Infinity ? Math.round(result.distance / 1000) : 0;
-        travelMin = result.duration || 0;
-      } else {
-        // Serviços seguintes: distância do serviço anterior
-        const previousService = optimizedRoute[i - 1];
-        const previousAddress = getAddressFromItem(previousService);
-        const currentAddress = getAddressFromItem(service);
-        const result = await getDistanceAndTime(previousAddress, currentAddress);
-        newKm = result.distance !== Infinity ? Math.round(result.distance / 1000) : 0;
-        travelMin = result.duration || 0;
-      }
-      
-      // Atualizar quilómetros e tempo de viagem no appointment
-      appointments[appointmentIndex].km = newKm;
-      appointments[appointmentIndex].travelTime = travelMin;
-      
-      // Marcar como otimizado para feedback visual
-      appointments[appointmentIndex]._optimized = true;
-      
-      console.log(`🗺️ Serviço ${i + 1}: ${newKm}km, ${travelMin}min ${i === 0 ? 'da loja' : 'do anterior'}`);
+    if (appointmentIndex < 0) continue;
+
+    appointments[appointmentIndex].sortIndex = i + 1;
+
+    const fromIdx  = i === 0 ? 0 : bestOrder[i - 1] + 1;
+    const toIdx    = bestOrder[i] + 1;
+    const newKm    = dist[fromIdx][toIdx] !== Infinity ? Math.round(dist[fromIdx][toIdx] / 1000) : 0;
+    const travelMin = time[fromIdx][toIdx] || 0;
+
+    appointments[appointmentIndex].km = newKm;
+    appointments[appointmentIndex].travelTime = travelMin;
+    appointments[appointmentIndex]._optimized = true;
+
+    console.log(`🗺️ Serviço ${i + 1} (${service.plate}): ${newKm}km, ${travelMin}min ${i === 0 ? 'da loja' : 'do anterior'}`);
+  }
+}
+
+// Gera todas as permutações de um array
+function getPermutations(arr) {
+  if (arr.length <= 1) return [arr];
+  const result = [];
+  for (let i = 0; i < arr.length; i++) {
+    const rest = [...arr.slice(0, i), ...arr.slice(i + 1)];
+    for (const perm of getPermutations(rest)) {
+      result.push([arr[i], ...perm]);
     }
   }
+  return result;
 }
 
 // Guardar rotas otimizadas na base de dados
