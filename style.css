@@ -400,25 +400,339 @@ table.schedule td:first-child{border-left:none}
 .toast.info{ border-left:4px solid #3b82f6; }
 
 /* =========================
-   MOBILE: vista do dia
+   MOBILE: vista do dia — REDESIGN PRO
    ========================= */
 .mobile-day-container{display:none !important;}
+
 @media (max-width: 820px){
-  body{margin:12px}
-  .schedule-container, .services-table-container{display:none !important}
-  .unscheduled-container{ display:none !important; }
-  .nav-left button#prevWeek, .nav-left button#nextWeek, .nav-right{display:none}
-  .week-range{font-size:14px}
-  .mobile-day-container{display:block !important}
-  .mobile-day-header{ margin-top: 6px; }
-  .mobile-day-label{ font-weight:700; text-align:center; margin-bottom:8px; }
-  .mobile-day-buttons{ display:grid; grid-template-columns: repeat(3, 1fr); gap:8px; }
-  .mobile-day-buttons .nav-button{ width:100%; padding:12px 10px; text-align:center; }
-  /* esconder ações e checkboxes no mobile */
-  .actions, .appt-status{display:none !important}
-  /* cartões do dia em branco sobre gradiente */
-  #mobileDayList .appointment, #mobileDayList .appointment *{ color:#fff !important; }
-  #mobileDayList .appt-status, #mobileDayList .chip, #mobileDayList .badge{ display:none !important; }
+  /* ── Base ── */
+  body {
+    margin: 0;
+    font-family: 'Figtree', system-ui, sans-serif;
+    background: #f0f2f7;
+  }
+  .page { padding: 0; }
+
+  /* ── Ocultar elementos desktop ── */
+  .schedule-container, .services-table-container { display:none !important; }
+  .unscheduled-container { display:none !important; }
+  .nav-bar { display:none !important; }
+  .search-bar { display:none !important; }
+  .actions, .appt-status { display:none !important; }
+  #mobileDayList .appt-status, #mobileDayList .chip, #mobileDayList .badge { display:none !important; }
+
+  /* ── Header compacto ── */
+  .page-header {
+    background: #0f172a;
+    border-radius: 0;
+    margin: 0;
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    position: relative;
+    z-index: 10;
+  }
+  .page-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 20px; right: 20px;
+    height: 1px;
+    background: rgba(255,255,255,0.07);
+  }
+  .page-header h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 19px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-align: left;
+    margin: 0;
+    line-height: 1.1;
+    flex: 1;
+  }
+  .subtitle { display: none; }
+  .header-actions {
+    position: static !important;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .header-btn {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    padding: 7px 9px;
+    border-radius: 10px;
+    font-size: 15px;
+    line-height: 1;
+  }
+  .header-btn:hover { background: rgba(255,255,255,0.16); transform: none; }
+  .connection-status {
+    font-size: 0;
+    padding: 7px 9px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  .connection-status #statusIcon { font-size: 15px; }
+
+  /* ── Mobile day container ── */
+  .mobile-day-container {
+    display: block !important;
+    padding: 0 0 100px;
+    min-height: 100vh;
+  }
+
+  /* ── Navegador de dia ── */
+  .mobile-day-header {
+    background: #fff;
+    margin: 10px 12px 0;
+    border-radius: 20px;
+    padding: 14px 12px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+  }
+  .m-nav-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .m-nav-arrow {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    background: #f1f5f9;
+    border: none;
+    border-radius: 14px;
+    color: #0f172a;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .m-nav-arrow:active { background: #e2e8f0; }
+  .m-date-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .mobile-day-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    color: #0f172a;
+    text-align: center;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+  .m-today-chip {
+    background: #eff6ff;
+    border: 1.5px solid #bfdbfe;
+    color: #2563eb;
+    font-family: 'Figtree', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .m-today-chip:active { background: #dbeafe; border-color: #93c5fd; }
+
+  /* ── Lista de cards ── */
+  .mobile-day-list,
+  #mobileDayList {
+    display: grid;
+    gap: 12px;
+    padding: 14px 12px 8px;
+  }
+
+  /* ── Totalizador do dia ── */
+  .mobile-day-summary {
+    background: #0f172a;
+    border: none;
+    border-radius: 16px;
+    padding: 12px 16px;
+    margin-bottom: 0;
+  }
+  .mobile-day-summary .day-summary {
+    justify-content: flex-start;
+    gap: 6px 16px;
+    font-size: 13px;
+  }
+  .mobile-day-summary .ds-item {
+    color: #e2e8f0;
+    font-family: 'Figtree', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .mobile-day-summary .ds-muted {
+    color: #64748b;
+    font-style: normal;
+  }
+  .mobile-day-summary .ds-eta {
+    color: #34d399 !important;
+    background: rgba(52,211,153,0.12);
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+
+  /* ── Cards mobile ── */
+  .m-card {
+    position: relative;
+    border-radius: 22px;
+    padding: 18px 16px 14px;
+    background: linear-gradient(150deg, var(--c1, #1e88e5) 0%, var(--c2, #1565c0) 100%);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.15);
+    overflow: hidden;
+  }
+  .m-card::before {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 120px; height: 120px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .m-card, .m-card * { color: #fff !important; }
+
+  /* Matrícula — destaque máximo */
+  .m-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    line-height: 1;
+    margin-bottom: 2px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  /* Nome do carro — secundário */
+  .m-car {
+    font-family: 'Figtree', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.75;
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+    color: #fff !important;
+  }
+
+  /* Chips — período, serviço, localidade */
+  .m-chips {
+    display: flex;
+    gap: 7px;
+    margin: 10px 0 8px;
+    flex-wrap: wrap;
+  }
+  .m-chip {
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-family: 'Figtree', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 0.2px;
+    backdrop-filter: blur(4px);
+  }
+
+  /* Notas */
+  .m-info {
+    font-family: 'Figtree', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0.9;
+    margin-top: 4px;
+    line-height: 1.4;
+  }
+
+  /* Ícones de mapa (já posicionados absolutamente no JS) */
+  .m-card .map-icons {
+    position: absolute;
+    top: 16px; right: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .m-card .icon-btn {
+    width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.25);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    text-decoration: none;
+    transition: background 0.15s;
+  }
+  .m-card .icon-btn:active { background: rgba(255,255,255,0.3); }
+  .m-card .icon-btn svg { fill: #fff !important; }
+  .m-card .icon-btn img { filter: brightness(0) invert(1); }
+
+  /* Linha de KM */
+  .card-km, [data-km-row] {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    font-family: 'Figtree', sans-serif;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Card de estado vazio */
+  #mobileDayList > .m-card:only-child {
+    text-align: center;
+    padding: 24px;
+    font-family: 'Figtree', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+
+  /* ── FAB "+ Novo Serviço" ── */
+  #addServiceMobile {
+    position: fixed;
+    bottom: 24px;
+    right: 20px;
+    width: 58px; height: 58px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border: none;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 6px 24px rgba(37,99,235,0.45), 0 2px 8px rgba(0,0,0,0.2);
+    cursor: pointer;
+    z-index: 500;
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #addServiceMobile:active {
+    transform: scale(0.93);
+    box-shadow: 0 3px 12px rgba(37,99,235,0.35);
+  }
+
+  /* PHC footer */
+  .phc-import-footer {
+    padding: 8px 0 0;
+    margin-top: 8px;
+    border-top: 1px dashed rgba(255,255,255,0.25);
+    font-family: 'Figtree', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fde68a !important;
+  }
 }
 
 /* =========================
@@ -426,68 +740,6 @@ table.schedule td:first-child{border-left:none}
    ========================= */
 textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: none; }
 .highlight{ background:#fef3c7 !important; border:2px solid #f59e0b !important; }
-
-/* ===== SM BRAGA (MOBILE): alinhar header como Famalicão ===== */
-@media (max-width: 820px){
-  body.page-sm-braga .page-header{
-    padding: 16px 16px 18px 16px;   /* header mais compacto */
-    border-radius: 12px;
-    z-index: 1;                     /* não cobre a navegação */
-  }
-  body.page-sm-braga .page-header h1{
-    font-size: 22px;                /* desce um pouco para caber */
-    line-height: 1.15;
-    margin: 0;
-    text-align: center;
-  }
-  body.page-sm-braga .subtitle{
-    font-size: 12px;
-    margin: 6px 0 0;
-    text-align: center;
-  }
-  /* Ícones deixam de ser absolute: não sobrepõem o título */
-  body.page-sm-braga .header-actions{
-    position: static;
-    display: flex;
-    gap: 8px;
-    justify-content: center;        /* como em Famalicão */
-    margin-top: 8px;
-  }
-  /* Garante cliques na navegação */
-  body.page-sm-braga .nav-bar{ position: relative; z-index: 2; }
-}
-/* ===== CLICK FIX — SM BRAGA (mobile) ===== */
-@media (max-width: 820px){
-  /* header nunca cobre a navegação */
-  body.page-sm-braga .page-header{
-    position: relative !important;
-    z-index: 1 !important;
-    overflow: visible !important;
-  }
-  /* nenhum pseudo-elemento decorativo por cima */
-  body.page-sm-braga .page-header::before,
-  body.page-sm-braga .page-header::after{ content: none !important; }
-
-  /* ações do header deixam de ser absolutas */
-  body.page-sm-braga .header-actions{
-    position: static !important;
-  }
-
-  /* navegação fica acima de tudo e com cliques garantidos */
-  body.page-sm-braga .nav-bar{
-    position: relative !important;
-    z-index: 9999 !important;
-  }
-  body.page-sm-braga .nav-bar, 
-  body.page-sm-braga .nav-bar *{
-    pointer-events: auto !important;
-  }
-
-  /* se existir algum "+ Novo Serviço" perdido dentro do header, esconde */
-  body.page-sm-braga header.page-header button:not(.header-btn){
-    display: none !important;
-  }
-}
 
 /* ==================================================
    IMPRESSÃO HORIZONTAL (HOJE E AMANHÃ) - VERSÃO FINAL
