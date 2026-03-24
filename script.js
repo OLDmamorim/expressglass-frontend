@@ -1477,8 +1477,6 @@ function editAppointment(id) {
   document.getElementById('appointmentAddress').value = appointment.address || '';
   document.getElementById('appointmentPhone').value = appointment.phone || '';
   document.getElementById('appointmentExtra').value = appointment.extra || '';
-  const calibCb = document.getElementById('appointmentCalibration');
-  if (calibCb) calibCb.checked = !!(appointment.calibration);
   
   // Preencher campo de quilómetros se existir
   const kmValue = getKmValue(appointment);
