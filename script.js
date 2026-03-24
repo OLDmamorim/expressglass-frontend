@@ -1570,8 +1570,11 @@ function buildDesktopCard(a){
   const base = getCardBaseColor(a);
   const g = gradFromBase(base);
   const loja = isLoja();
-  const bar = loja ? '' : `border-left:6px solid ${statusBarColors[a.status] || '#999'}`;
-  const title = `${a.plate} | ${a.service || 'PB'} | ${(a.car||'').toUpperCase()}`;
+  const bar = loja ? '' : `border-left:5px solid ${statusBarColors[a.status] || '#475569'}`;
+  // Nova hierarquia: matrícula em Barlow Condensed, badge serviço, carro secundário
+  const plate = (a.plate || '').toUpperCase();
+  const service = a.service || 'PB';
+  const car = (a.car || '').toUpperCase();
   const sub = loja
     ? [a.notes].filter(Boolean).join(' | ')
     : [a.locality, a.notes].filter(Boolean).join(' | ');
@@ -1595,8 +1598,12 @@ function buildDesktopCard(a){
     <div class="appointment desk-card${needsLoc}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; ${bar}">
-      <div class="dc-title">${title}</div>
-      <div class="dc-sub">${sub}</div>
+      <div class="dc-title">${plate}</div>
+      <div class="dc-meta">
+        <span class="dc-badge">${service}</span>
+        ${car ? `<span class="dc-car">${car}</span>` : ''}
+      </div>
+      ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
       ${locWarning}
       <div class="appt-status dc-status">
         <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
