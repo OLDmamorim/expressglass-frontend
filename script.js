@@ -782,10 +782,11 @@ const CONCELHOS_PT = [
   "Porto Moniz","Porto Santo","Ribeira Brava","Santa Cruz","Santana","São Vicente"
 ];
 
-// Atribuir cores a todos os concelhos
+// Atribuir cores a todos os concelhos — cor única gerada pelo hash do nome
+// (garante que mesmo localidades com nomes próximos ficam com cores distintas)
 const localityColors = { 'Outra': '#9CA3AF' };
-CONCELHOS_PT.forEach((name, i) => {
-  localityColors[name] = _COLOR_PALETTE[i % _COLOR_PALETTE.length];
+CONCELHOS_PT.forEach((name) => {
+  localityColors[name] = _generateExtraColor(name);
 });
 window.LOCALITY_COLORS = localityColors;
 
