@@ -11,7 +11,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css"/>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2563eb">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <meta name="theme-color" content="#0f172a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Agendamentos EG">
@@ -326,6 +328,18 @@
       <option value="L">🚗 Ligeiro</option>
       <option value="P">🚛 Pesado</option>
     </select>
+  </div>
+
+  <!-- Calibragem ADAS -->
+  <div class="form-group calib-group">
+    <label>Calibragem</label>
+    <label class="calib-toggle" for="appointmentCalibration">
+      <input type="checkbox" id="appointmentCalibration" />
+      <span class="calib-toggle-ui">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </span>
+      <span class="calib-toggle-label">Requer calibragem ADAS</span>
+    </label>
   </div>
 </div>
 
