@@ -894,6 +894,9 @@ async function loadSettings() {
       document.getElementById('timeOC_P').value = s.serviceTimes?.OC_P ?? 90;
       document.getElementById('timeREP_P').value = s.serviceTimes?.REP_P ?? 45;
       document.getElementById('timePOL_P').value = s.serviceTimes?.POL_P ?? 60;
+      // Calibragem ADAS
+      document.getElementById('timeCALIB_EXTRA_L').value = s.serviceTimes?.CALIB_EXTRA_L ?? 30;
+      document.getElementById('timeCALIB_EXTRA_P').value = s.serviceTimes?.CALIB_EXTRA_P ?? 45;
       // Rota
       document.getElementById('avgSpeed').value = s.avgSpeedKmh ?? 50;
       document.getElementById('fuelConsumption').value = s.fuelPer100km ?? 7.5;
@@ -917,7 +920,9 @@ async function saveSettings() {
       LT_P: parseInt(document.getElementById('timeLT_P').value) || 60,
       OC_P: parseInt(document.getElementById('timeOC_P').value) || 90,
       REP_P: parseInt(document.getElementById('timeREP_P').value) || 45,
-      POL_P: parseInt(document.getElementById('timePOL_P').value) || 60
+      POL_P: parseInt(document.getElementById('timePOL_P').value) || 60,
+      CALIB_EXTRA_L: parseInt(document.getElementById('timeCALIB_EXTRA_L').value) || 30,
+      CALIB_EXTRA_P: parseInt(document.getElementById('timeCALIB_EXTRA_P').value) || 45
     },
     avgSpeedKmh: parseFloat(document.getElementById('avgSpeed').value) || 50,
     fuelPer100km: parseFloat(document.getElementById('fuelConsumption').value) || 7.5,
