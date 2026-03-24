@@ -875,10 +875,11 @@ function buildDaySummary(dayDate, isMobile) {
   if (isLoja()) return '';
   const iso = localISO(dayDate);
   const userRole = window.authClient?.getUser()?.role;
-  const canSeeUnconfirmed = !isMobile && (userRole === 'admin' || userRole === 'coordenador');
+  // Filtro baseado apenas no role — mobile e desktop devem calcular com os mesmos serviços
+  const canSeeUnconfirmed = (userRole === 'admin' || userRole === 'coordenador');
   let items = appointments.filter(a => a.date && a.date === iso)
     .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
-  // Mobile ou técnicos: só contar serviços com localidade confirmada
+  // Técnicos: só contar serviços com localidade confirmada
   if (!canSeeUnconfirmed) {
     items = items.filter(a => !!a.locality);
   }
