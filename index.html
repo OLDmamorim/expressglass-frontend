@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1"/>
   <title>Portal de Agendamento - Expressglass</title>
   <!-- 🚨 TESTE DEPLOY 25/09/2025 13:20 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css"/>
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#2563eb">
@@ -93,21 +96,7 @@
     .table-wrapper{ overflow-x:auto; }
     @media (max-width:1100px){ .services-table{ min-width:1100px; } }
 
-    /* ===== MOBILE CARDS — cor pela LOCALIDADE ===== */
-    @media (max-width: 768px){
-      #mobileDayList{ display: grid; gap: 16px; padding: 8px 16px; }
-      .m-card{
-        position: relative; border-radius: 22px; padding: 16px;
-        background: linear-gradient(180deg, var(--c1, #1e88e5) 0%, var(--c2, #1565c0) 100%);
-        box-shadow: 0 8px 24px rgba(0,0,0,.18); color: #fff;
-      }
-      .m-card, .m-card *{ color:#fff !important; text-shadow: 0 1px 2px rgba(0,0,0,.55), 0 0 2px rgba(0,0,0,.35); }
-      .m-title{ display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 20px; letter-spacing: .2px; }
-      .m-chips{ display:flex; gap:10px; margin:12px 0 8px; flex-wrap:wrap; }
-      .m-chip{ background: transparent; border: 1px solid rgba(255,255,255,.45); border-radius: 999px; padding: 6px 10px; font-weight: 700; font-size: 14px; line-height: 1; }
-      .m-info{ margin-top: 6px; font-size: 15px; font-weight: 600; opacity: .95; }
-      #mobileDayList .m-status, #mobileDayList .status, #mobileDayList .m-divider{ display:none !important; }
-    }
+    /* ===== MOBILE CARDS — substituído por style.css redesign ===== */
   </style>
   <!-- /PRINT -->
   <script
@@ -199,15 +188,23 @@
     <!-- Vista diária (mobile) -->
     <section id="mobileDayView" class="mobile-day-container">
       <div class="mobile-day-header">
-        <div id="mobileDayLabel" class="mobile-day-label">—</div>
-        <div class="mobile-day-buttons">
-          <button id="prevDay" class="nav-button small full">◀ Anterior</button>
-          <button id="todayDay" class="nav-button small full">Hoje</button>
-          <button id="nextDay" class="nav-button small full">Seguinte ▶</button>
+        <div class="m-nav-row">
+          <button id="prevDay" class="m-nav-arrow" aria-label="Dia anterior">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <div class="m-date-center">
+            <div id="mobileDayLabel" class="mobile-day-label">—</div>
+            <button id="todayDay" class="m-today-chip">Hoje</button>
+          </div>
+          <button id="nextDay" class="m-nav-arrow" aria-label="Dia seguinte">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
         </div>
       </div>
       <div id="mobileDayList" class="mobile-day-list"></div>
-      <button id="addServiceMobile" class="mobile-add-btn">+ Novo Serviço</button>
+      <button id="addServiceMobile" class="mobile-add-btn" aria-label="Novo Serviço">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </button>
     </section>
 
     <!-- Tabela de serviços a realizar -->
