@@ -1852,12 +1852,18 @@ const telBtn = phone ? `
 
   const base = getCardBaseColor(a);
   const g = gradFromBase(base);
-  const title = `${a.plate} • ${(a.car||'').toUpperCase()}`;
+
+  // Hierarquia visual: matrícula em destaque, carro secundário
+  const hasIcons = !!(wazeBtn || mapsBtn || telBtn);
+  const iconPadding = hasIcons ? 'padding-right: 52px;' : '';
+
+  const plate = (a.plate || '').toUpperCase();
+  const car = (a.car || '').toUpperCase();
   const chips = [
     a.period ? `<span class="m-chip">${a.period}</span>` : '',
     a.service ? `<span class="m-chip">${a.service}</span>` : '',
     !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
-  ].join('');
+  ].filter(Boolean).join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
   const isAutoImported = a.auto_imported && a.date;
   const phcFooter = isAutoImported ? `
@@ -1872,10 +1878,15 @@ const telBtn = phone ? `
       <div class="map-icons">
         ${wazeBtn}${mapsBtn}${telBtn}
       </div>
-      <div class="m-title">${title}</div>
-      <div class="m-chips">${chips}</div>
-      ${notes}
-    ${isLoja() ? '' : buildKmRow(a)}${phcFooter}</div>
+      <div style="${iconPadding}">
+        <div class="m-title">${plate}</div>
+        ${car ? `<div class="m-car">${car}</div>` : ''}
+        ${chips ? `<div class="m-chips">${chips}</div>` : ''}
+        ${notes}
+        ${isLoja() ? '' : buildKmRow(a)}
+      </div>
+      ${phcFooter}
+    </div>
   `;
 }
 
