@@ -266,10 +266,24 @@ table.schedule td.is-today {
   font-style: normal;
 }
 .ds-eta {
-  color: #34d399 !important;
-  background: rgba(52,211,153,.12);
-  padding: 2px 7px;
-  border-radius: 5px;
+  color: #fff !important;
+  background: #1d6f47;
+  border: 1px solid #22c55e;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.3px;
+}
+.ds-cost {
+  color: #fff !important;
+  background: #7c3b0a;
+  border: 1px solid #f97316;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.3px;
 }
 
 /* Mobile day summary */
@@ -811,10 +825,20 @@ table.schedule td.is-today {
     font-style: normal;
   }
   .mobile-day-summary .ds-eta {
-    color: #34d399 !important;
-    background: rgba(52,211,153,0.12);
-    padding: 2px 8px;
+    color: #fff !important;
+    background: #1d6f47;
+    border: 1px solid #22c55e;
+    padding: 3px 10px;
     border-radius: 6px;
+    font-weight: 800 !important;
+  }
+  .mobile-day-summary .ds-cost {
+    color: #fff !important;
+    background: #7c3b0a;
+    border: 1px solid #f97316;
+    padding: 3px 10px;
+    border-radius: 6px;
+    font-weight: 800 !important;
   }
 
   /* ── Cards mobile ── */

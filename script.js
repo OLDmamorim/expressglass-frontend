@@ -971,7 +971,7 @@ function buildDaySummary(dayDate, isMobile) {
     <span class="ds-item" title="Execução dos ${items.length} serviços">🔧 ${svcStr}</span>
     <span class="ds-item" title="Viagem + Execução">⏱️ ${totalStr}</span>
     <span class="ds-item" title="Consumo (${ROUTE_CONFIG.fuelPer100km}L/100km)">⛽ ${fuelLiters}L</span>
-    <span class="ds-item" title="€${ROUTE_CONFIG.fuelPricePerLiter}/L (${ROUTE_CONFIG.fuelSource === 'DGEG' ? 'DGEG' : 'manual'})">💰 ${fuelCost}€</span>
+    <span class="ds-item ds-cost" title="€${ROUTE_CONFIG.fuelPricePerLiter}/L (${ROUTE_CONFIG.fuelSource === 'DGEG' ? 'DGEG' : 'manual'})">💰 ${fuelCost}€</span>
     <span class="ds-item ds-eta" title="Regresso à loja (saída 09:00, almoço 13-14h)">🏠 ${etaStr}</span>
   </div>`;
 }
