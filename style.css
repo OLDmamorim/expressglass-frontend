@@ -211,15 +211,15 @@ table.schedule thead th.is-today .date {
   box-shadow: 0 0 6px rgba(59,130,246,.7);
 }
 table.schedule td.is-today {
-  background: rgba(59,130,246,.04);
-  border-left: 1px solid rgba(59,130,246,.2) !important;
-  border-right: 1px solid rgba(59,130,246,.2) !important;
+  background: rgba(59,130,246,.08);
+  border-left: 2px solid rgba(59,130,246,.35) !important;
+  border-right: 2px solid rgba(59,130,246,.35) !important;
 }
 /* Summary row hoje */
 .summary-row td.is-today {
   background: #1a2f4a !important;
-  border-left: 1px solid rgba(59,130,246,.25) !important;
-  border-right: 1px solid rgba(59,130,246,.25) !important;
+  border-left: 2px solid rgba(59,130,246,.4) !important;
+  border-right: 2px solid rgba(59,130,246,.4) !important;
 }
 
 /* =========================
