@@ -810,7 +810,10 @@ const ROUTE_CONFIG = {
 };
 const SERVICE_TIMES = { 
   PB_L: 90, LT_L: 45, OC_L: 60, REP_L: 30, POL_L: 45,
-  PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60
+  PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60,
+  // Tempo extra por calibragem ADAS (em minutos, somado ao serviço base)
+  CALIB_EXTRA_L: 30,
+  CALIB_EXTRA_P: 45
 };
 
 // Carregar configurações da API
@@ -831,6 +834,9 @@ async function loadRouteSettings() {
       if (s.fuelPricePerLiter) ROUTE_CONFIG.fuelPricePerLiter = s.fuelPricePerLiter;
       if (s.serviceTimes) {
         Object.assign(SERVICE_TIMES, s.serviceTimes);
+        // garantir que CALIB_EXTRA fica sempre disponível com defaults
+        if (!SERVICE_TIMES.CALIB_EXTRA_L) SERVICE_TIMES.CALIB_EXTRA_L = 30;
+        if (!SERVICE_TIMES.CALIB_EXTRA_P) SERVICE_TIMES.CALIB_EXTRA_P = 45;
       }
     }
 
@@ -855,13 +861,14 @@ async function loadRouteSettings() {
   }
 }
 
-// Obter tempo de execução de um serviço (baseado no tipo + veículo)
-function getServiceTime(serviceCode, vehicleType) {
+// Obter tempo de execução de um serviço (baseado no tipo + veículo + calibragem)
+function getServiceTime(serviceCode, vehicleType, calibration) {
   const code = serviceCode ? String(serviceCode).toUpperCase().trim().split(' ')[0].split('-')[0] : 'PB';
   const vt = (vehicleType || 'L').toUpperCase().charAt(0); // L ou P
   const key = code + '_' + vt;
-  // Tentar chave específica, depois fallback para ligeiro, depois default
-  return SERVICE_TIMES[key] || SERVICE_TIMES[code + '_L'] || SERVICE_TIMES['PB_L'] || 90;
+  const base = SERVICE_TIMES[key] || SERVICE_TIMES[code + '_L'] || SERVICE_TIMES['PB_L'] || 90;
+  const extra = calibration ? (SERVICE_TIMES['CALIB_EXTRA_' + vt] || SERVICE_TIMES['CALIB_EXTRA_L'] || 30) : 0;
+  return base + extra;
 }
 
 function buildDaySummary(dayDate, isMobile) {
@@ -914,7 +921,7 @@ function buildDaySummary(dayDate, isMobile) {
   // Tempo de execução (por tipo de serviço × veículo)
   let totalServiceMin = 0;
   items.forEach(a => {
-    totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type);
+    totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration);
   });
 
   if (!hasKm) {
@@ -1463,11 +1470,15 @@ function editAppointment(id) {
   if (document.getElementById('appointmentVehicleType')) {
     document.getElementById('appointmentVehicleType').value = appointment.vehicleType || appointment.vehicle_type || 'L';
   }
+  const calibCb = document.getElementById('appointmentCalibration');
+  if (calibCb) calibCb.checked = !!(appointment.calibration);
   document.getElementById('appointmentLocality').value = appointment.locality || '';
   document.getElementById('appointmentNotes').value = appointment.notes || '';
   document.getElementById('appointmentAddress').value = appointment.address || '';
   document.getElementById('appointmentPhone').value = appointment.phone || '';
   document.getElementById('appointmentExtra').value = appointment.extra || '';
+  const calibCb = document.getElementById('appointmentCalibration');
+  if (calibCb) calibCb.checked = !!(appointment.calibration);
   
   // Preencher campo de quilómetros se existir
   const kmValue = getKmValue(appointment);
@@ -1517,6 +1528,8 @@ function cancelEdit() {
   editingId = null;
   window.originalUnscheduledServiceId = null; // Limpar ID do serviço original
   document.getElementById('appointmentForm').reset();
+  const calibCb = document.getElementById('appointmentCalibration');
+  if (calibCb) calibCb.checked = false;
   document.getElementById('modalTitle').textContent = 'Novo Agendamento';
   document.getElementById('deleteAppointment').classList.add('hidden');
   
@@ -1601,6 +1614,7 @@ function buildDesktopCard(a){
       <div class="dc-title">${plate}</div>
       <div class="dc-meta">
         <span class="dc-badge">${service}</span>
+        ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
         ${car ? `<span class="dc-car">${car}</span>` : ''}
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
@@ -1876,7 +1890,8 @@ const telBtn = phone ? `
   const chips = [
     a.period ? `<span class="m-chip">${a.period}</span>` : '',
     a.service ? `<span class="m-chip">${a.service}</span>` : '',
-    !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : ''
+    !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : '',
+    a.calibration ? `<span class="m-chip m-chip-calib">⊕ CALIB</span>` : ''
   ].filter(Boolean).join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
   const isAutoImported = a.auto_imported && a.date;
@@ -2080,6 +2095,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       extra:  get('appointmentExtra'),
       status: (document.getElementById('appointmentStatus')?.value || 'NE'),
       vehicleType: (document.getElementById('appointmentVehicleType')?.value || localStorage.getItem('eg_last_vehicleType') || 'L'),
+      calibration: document.getElementById('appointmentCalibration')?.checked || false,
       // ===== ADICIONAR OS QUILÓMETROS CALCULADOS =====
       km: calculatedKm
     };
