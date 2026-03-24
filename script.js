@@ -1624,8 +1624,15 @@ function renderSchedule(){
   const wr=document.getElementById('weekRange');
   if(wr){ wr.textContent = `${week[0].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'})} - ${week[5].toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}`; }
 
+  const todayISO = localISO(new Date());
+  const isToday = d => localISO(d) === todayISO;
+
   let thead='<thead><tr><th>Data</th>';
-  for(const d of week){ const h=fmtHeader(d); thead+=`<th><div class="day">${cap(h.day)}</div><div class="date">${h.dm}</div></th>`; }
+  for(const d of week){
+    const h=fmtHeader(d);
+    const cls = isToday(d) ? ' class="is-today"' : '';
+    thead+=`<th${cls}><div class="day">${cap(h.day)}</div><div class="date">${h.dm}</div>${isToday(d) ? '<div class="today-dot"></div>' : ''}</th>`;
+  }
   thead+='</tr></thead>';
   table.insertAdjacentHTML('beforeend', thead);
 
@@ -1644,11 +1651,11 @@ function renderSchedule(){
     };
 
     const rowM = document.createElement('tr');
-    rowM.innerHTML = `<th>Manhã</th>` + week.map(d => `<td>${renderPeriodCell(d, 'Manhã')}</td>`).join('');
+    rowM.innerHTML = `<th>Manhã</th>` + week.map(d => `<td${isToday(d)?' class="is-today"':''}>${renderPeriodCell(d, 'Manhã')}</td>`).join('');
     tbody.appendChild(rowM);
 
     const rowT = document.createElement('tr');
-    rowT.innerHTML = `<th>Tarde</th>` + week.map(d => `<td>${renderPeriodCell(d, 'Tarde')}</td>`).join('');
+    rowT.innerHTML = `<th>Tarde</th>` + week.map(d => `<td${isToday(d)?' class="is-today"':''}>${renderPeriodCell(d, 'Tarde')}</td>`).join('');
     tbody.appendChild(rowT);
   } else {
     // SM: resumo do dia + serviços
@@ -1672,12 +1679,12 @@ function renderSchedule(){
     // Linha de resumo (KM, tempo, combustível)
     const summaryRow = document.createElement('tr');
     summaryRow.className = 'summary-row';
-    summaryRow.innerHTML = `<th>Resumo</th>` + week.map(d => `<td>${buildDaySummary(d)}</td>`).join('');
+    summaryRow.innerHTML = `<th>Resumo</th>` + week.map(d => `<td${isToday(d)?' class="is-today"':''}>${buildDaySummary(d)}</td>`).join('');
     tbody.appendChild(summaryRow);
 
     // Linha de serviços
     const row = document.createElement('tr');
-    row.innerHTML = `<th>Serviços</th>` + week.map(d => `<td>${renderCell(d)}</td>`).join('');
+    row.innerHTML = `<th>Serviços</th>` + week.map(d => `<td${isToday(d)?' class="is-today"':''}>${renderCell(d)}</td>`).join('');
     tbody.appendChild(row);
   }
 

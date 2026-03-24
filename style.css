@@ -192,6 +192,36 @@ table.schedule td:first-child{border-left:none}
 .appointment[draggable="true"]:hover{ transform: translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,.18); }
 .appointment.dragging{ opacity:.5; transform: rotate(1.5deg) scale(1.02); cursor:grabbing; z-index:1000; }
 
+/* === Hoje — destaque subtil na coluna === */
+table.schedule thead th.is-today {
+  background: #1e3a5f;
+  position: relative;
+}
+table.schedule thead th.is-today .day {
+  color: #93c5fd;
+}
+table.schedule thead th.is-today .date {
+  color: rgba(147,197,253,0.65);
+}
+.today-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #3b82f6;
+  margin: 4px auto 0;
+  box-shadow: 0 0 6px rgba(59,130,246,.7);
+}
+table.schedule td.is-today {
+  background: rgba(59,130,246,.04);
+  border-left: 1px solid rgba(59,130,246,.2) !important;
+  border-right: 1px solid rgba(59,130,246,.2) !important;
+}
+/* Summary row hoje */
+.summary-row td.is-today {
+  background: #1a2f4a !important;
+  border-left: 1px solid rgba(59,130,246,.25) !important;
+  border-right: 1px solid rgba(59,130,246,.25) !important;
+}
+
 /* =========================
    CARTÕES DESKTOP
    ========================= */
