@@ -845,7 +845,7 @@ async function startImport() {
 
 // ===== SINCRONIZAÇÃO COMPLETA COM EXCEL (apaga o que não está no Excel) =====
 async function startSync() {
-  if (!confirm('⚠️ ATENÇÃO: A sincronização vai apagar da base de dados todos os registos que NÃO estejam no Excel carregado.\n\nOs dados de localidade, morada e km guardados manualmente serão perdidos para os registos apagados.\n\nTens a certeza que queres continuar?')) return;
+  if (!confirm('🔄 SINCRONIZAR COM EXCEL\n\nO que vai acontecer:\n✅ Cria os serviços que faltam\n✅ Move para agenda os que têm hora\n🗑️ Apaga os pendentes (sem data) que não estão no Excel\n🔒 Nunca toca nos já agendados (com data)\n\nTens a certeza?')) return;
 
   const nmdosCol = importHeaders.findIndex(h => h.toLowerCase() === 'nmdos');
   const plateCol = importHeaders.findIndex(h => h.toLowerCase() === 'matricula');
