@@ -843,6 +843,154 @@ async function startImport() {
   showToast(`Importação concluída: ${totalCreated} criados, ${totalUpdated} atualizados`, 'success');
 }
 
+// ===== SINCRONIZAÇÃO COMPLETA COM EXCEL (apaga o que não está no Excel) =====
+async function startSync() {
+  if (!confirm('⚠️ ATENÇÃO: A sincronização vai apagar da base de dados todos os registos que NÃO estejam no Excel carregado.\n\nOs dados de localidade, morada e km guardados manualmente serão perdidos para os registos apagados.\n\nTens a certeza que queres continuar?')) return;
+
+  const nmdosCol = importHeaders.findIndex(h => h.toLowerCase() === 'nmdos');
+  const plateCol = importHeaders.findIndex(h => h.toLowerCase() === 'matricula');
+  const marcaCol = importHeaders.findIndex(h => h.toLowerCase() === 'marca');
+  const modeloCol = importHeaders.findIndex(h => h.toLowerCase() === 'modelo');
+  const refCol = importHeaders.findIndex(h => h.toLowerCase() === 'ref');
+  const obsCol = importHeaders.findIndex(h => h.toLowerCase() === 'obs');
+  const seguradoCol = importHeaders.findIndex(h => h.toLowerCase() === 'segurado');
+  const phoneCol = importHeaders.findIndex(h => h.toLowerCase() === 'u_contsega');
+  const eurocodeCol = importHeaders.findIndex(h => h.toLowerCase() === 'eurocode');
+  const dataObraCol = importHeaders.findIndex(h => h.toLowerCase() === 'dataobra');
+  const dataServicoCol = importHeaders.findIndex(h => h.toLowerCase().replace('í','i').replace('ç','c') === 'dataservico');
+  const horaInicioCol = importHeaders.findIndex(h => h.toLowerCase().replace('í','i') === 'hora_inicio');
+
+  function parseHoraToMinutes(val) {
+    if (val == null || val === '') return null;
+    if (typeof val === 'number' && val < 1) return Math.round(val * 24 * 60);
+    const str = String(val).trim();
+    const match = str.match(/^(\d{1,2}):(\d{2})/);
+    if (match) return parseInt(match[1]) * 60 + parseInt(match[2]);
+    return null;
+  }
+
+  function excelDateToYMD(serial) {
+    if (!serial) return null;
+    if (typeof serial === 'number') {
+      const epoch = new Date(1899, 11, 30);
+      const d = new Date(epoch.getTime() + Math.floor(serial) * 86400000);
+      return d.toISOString().slice(0, 10);
+    }
+    const s = String(serial).trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    return null;
+  }
+
+  const codeToPortal = {};
+  portals.forEach(p => { if (p.nmdos_code) codeToPortal[p.nmdos_code] = { id: p.id, type: p.portal_type || 'sm' }; });
+
+  // Agrupar serviços por portal
+  const byPortal = {};
+  importExcelData.forEach(row => {
+    const code = String(row[nmdosCol] || '').trim();
+    const portalInfo = codeToPortal[code];
+    if (!portalInfo) return;
+    const plate = normalizePlate(row[plateCol]);
+    if (!plate) return;
+
+    const marca = row[marcaCol] ? String(row[marcaCol]).trim() : '';
+    const modelo = row[modeloCol] ? String(row[modeloCol]).trim() : '';
+    const car = [marca, modelo].filter(Boolean).join(' ') || 'Sem modelo';
+    const ref = refCol >= 0 && row[refCol] ? String(row[refCol]).trim() : '';
+    const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
+    const notes = ref || eurocode || '';
+    const extra = seguradoCol >= 0 && row[seguradoCol] ? String(row[seguradoCol]).trim() : '';
+    const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
+    const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
+
+    const horaMin = horaInicioCol >= 0 ? parseHoraToMinutes(row[horaInicioCol]) : null;
+    let scheduleDate = null, schedulePeriod = null;
+    if (horaMin !== null && horaMin >= 540 && horaMin < 1080) {
+      scheduleDate = (dataServicoCol >= 0 ? excelDateToYMD(row[dataServicoCol]) : null)
+                  || (dataObraCol >= 0 ? excelDateToYMD(row[dataObraCol]) : null);
+      if (scheduleDate && portalInfo.type === 'loja') {
+        schedulePeriod = horaMin < 840 ? 'Manhã' : 'Tarde';
+      }
+    }
+
+    if (!byPortal[portalInfo.id]) byPortal[portalInfo.id] = [];
+    byPortal[portalInfo.id].push({
+      portal_id: portalInfo.id, plate, car, service: 'PB',
+      notes, extra, phone, status: 'NE', createdAt,
+      date: scheduleDate || null, period: schedulePeriod || null
+    });
+  });
+
+  const portalIds = Object.keys(byPortal);
+  if (portalIds.length === 0) {
+    showToast('Nenhum portal reconhecido no Excel', 'error');
+    return;
+  }
+
+  document.getElementById('importProgress').style.display = 'block';
+  document.getElementById('btnSyncImport').disabled = true;
+  document.getElementById('btnStartImport').disabled = true;
+
+  let totalCreated = 0, totalUpdated = 0, totalDeleted = 0, totalSkipped = 0, totalErrors = 0;
+  let done = 0;
+  const total = portalIds.length;
+
+  for (const portalId of portalIds) {
+    const services = byPortal[portalId];
+    const pct = Math.round(((done + 1) / total) * 100);
+    document.getElementById('importProgressBar').style.width = pct + '%';
+    document.getElementById('importProgressText').textContent = `A sincronizar portal ${done + 1}/${total} (${services.length} serviços)...`;
+
+    try {
+      const response = await authClient.authenticatedFetch('/.netlify/functions/sync-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ portal_id: parseInt(portalId), services })
+      });
+      const result = await response.json();
+      if (result.success) {
+        totalCreated += result.data.created || 0;
+        totalUpdated += result.data.updated || 0;
+        totalDeleted += result.data.deleted || 0;
+        totalSkipped += result.data.skipped || 0;
+        totalErrors  += result.data.errors  || 0;
+      }
+    } catch (err) {
+      console.error('Erro sync portal', portalId, err);
+      totalErrors++;
+    }
+    done++;
+  }
+
+  document.getElementById('importProgressBar').style.width = '100%';
+  document.getElementById('importProgressText').textContent = 'Sincronização concluída!';
+  document.getElementById('btnSyncImport').disabled = false;
+  document.getElementById('btnStartImport').disabled = false;
+
+  document.getElementById('importResultsContent').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px;">
+      <div style="text-align:center;padding:16px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+        <div style="font-size:28px;font-weight:700;color:#16a34a;">${totalCreated}</div>
+        <div style="font-size:13px;color:#6b7280;">Criados</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">
+        <div style="font-size:28px;font-weight:700;color:#2563eb;">${totalUpdated}</div>
+        <div style="font-size:13px;color:#6b7280;">Agendados</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#fff7ed;border-radius:8px;border:1px solid #fed7aa;">
+        <div style="font-size:28px;font-weight:700;color:#ea580c;">${totalDeleted}</div>
+        <div style="font-size:13px;color:#6b7280;">Apagados</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;">
+        <div style="font-size:28px;font-weight:700;color:#dc2626;">${totalErrors}</div>
+        <div style="font-size:13px;color:#6b7280;">Erros</div>
+      </div>
+    </div>
+  `;
+  document.getElementById('importResults').style.display = 'block';
+  showToast(`Sync concluído: ${totalCreated} criados, ${totalUpdated} agendados, ${totalDeleted} apagados`, 'success');
+}
+
 // ===== GESTÃO DE PASSWORDS =====
 function generatePassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
