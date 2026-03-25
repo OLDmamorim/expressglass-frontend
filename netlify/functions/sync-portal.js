@@ -55,17 +55,28 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Nenhuma matrícula válida no Excel' }) };
     }
 
-    // 1. Apagar TODOS os registos sem data (pendentes) deste portal
+    // Determinar tipo de portal
+    const { rows: portalRows } = await pool.query(
+      `SELECT portal_type FROM portals WHERE id = $1 LIMIT 1`,
+      [portal_id]
+    );
+    const isLoja = portalRows[0]?.portal_type === 'loja';
+
+    // "Agendado de verdade":
+    //   SM   → tem date E locality
+    //   Loja → tem date E period
+    const reallyScheduledCondition = isLoja
+      ? `date IS NOT NULL AND period IS NOT NULL AND period != ''`
+      : `date IS NOT NULL AND locality IS NOT NULL AND locality != ''`;
+
+    // 1. Apagar TODOS os registos que NÃO estão realmente agendados
     const delResult = await pool.query(
-      `DELETE FROM appointments WHERE portal_id = $1 AND (date IS NULL OR date = '')  RETURNING id`,
+      `DELETE FROM appointments
+       WHERE portal_id = $1 AND NOT (${reallyScheduledCondition})
+       RETURNING id`,
       [portal_id]
     );
     const deleted = delResult.rowCount;
-
-    // 2. Para cada registo do Excel, aplicar lógica:
-    //    - Se já existe COM data → ignorar (agenda intacta)
-    //    - Se não existe → criar
-    //    - (sem data já foram todos apagados em cima)
 
     const results = { created: 0, updated: 0, skipped: 0, errors: 0, deleted, details: [] };
 
@@ -74,12 +85,12 @@ exports.handler = async (event) => {
       if (!plateNorm) { results.errors++; continue; }
 
       try {
-        // Verificar se já existe COM data (agendado — não tocar)
+        // Verificar se já existe realmente agendado — não tocar
         const { rows } = await pool.query(
           `SELECT id FROM appointments
            WHERE portal_id = $1
              AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = $2
-             AND date IS NOT NULL
+             AND (${reallyScheduledCondition})
            LIMIT 1`,
           [portal_id, plateNorm]
         );
