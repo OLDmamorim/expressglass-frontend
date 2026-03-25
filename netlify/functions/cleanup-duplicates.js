@@ -42,6 +42,7 @@ exports.handler = async (event) => {
       const { rows } = await pool.query(`
         SELECT
           portal_id,
+          date,
           UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) AS plate_norm,
           COUNT(*) AS total,
           ARRAY_AGG(id ORDER BY id ASC) AS ids,
@@ -49,7 +50,7 @@ exports.handler = async (event) => {
           ARRAY_AGG(status ORDER BY id ASC) AS statuses,
           ARRAY_AGG(created_at ORDER BY id ASC) AS created_ats
         FROM appointments
-        GROUP BY portal_id, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g'))
+        GROUP BY portal_id, date, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g'))
         HAVING COUNT(*) > 1
         ORDER BY total DESC
       `);
@@ -86,7 +87,7 @@ exports.handler = async (event) => {
       const { rows } = await pool.query(`
         SELECT ARRAY_AGG(id ORDER BY id ASC) AS ids
         FROM appointments
-        GROUP BY portal_id, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g'))
+        GROUP BY portal_id, date, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g'))
         HAVING COUNT(*) > 1
       `);
 
