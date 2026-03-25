@@ -55,23 +55,18 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Nenhuma matrícula válida no Excel' }) };
     }
 
-    // 1. Apagar registos do portal que NÃO estão no Excel — mas NUNCA os que têm data (agendados)
-    const { rows: existing } = await pool.query(
-      `SELECT id, plate, date FROM appointments WHERE portal_id = $1`,
+    // 1. Apagar TODOS os registos sem data (pendentes) deste portal
+    const delResult = await pool.query(
+      `DELETE FROM appointments WHERE portal_id = $1 AND (date IS NULL OR date = '')  RETURNING id`,
       [portal_id]
     );
+    const deleted = delResult.rowCount;
 
-    const toDelete = existing
-      .filter(r => !excelNorms.has(norm(r.plate)) && !r.date) // só apaga os sem data
-      .map(r => r.id);
+    // 2. Para cada registo do Excel, aplicar lógica:
+    //    - Se já existe COM data → ignorar (agenda intacta)
+    //    - Se não existe → criar
+    //    - (sem data já foram todos apagados em cima)
 
-    let deleted = 0;
-    if (toDelete.length > 0) {
-      const res = await pool.query(`DELETE FROM appointments WHERE id = ANY($1)`, [toDelete]);
-      deleted = res.rowCount;
-    }
-
-    // 2. Para cada registo do Excel, aplicar lógica correcta
     const results = { created: 0, updated: 0, skipped: 0, errors: 0, deleted, details: [] };
 
     for (const svc of services) {
@@ -79,55 +74,40 @@ exports.handler = async (event) => {
       if (!plateNorm) { results.errors++; continue; }
 
       try {
+        // Verificar se já existe COM data (agendado — não tocar)
         const { rows } = await pool.query(
-          `SELECT id, date FROM appointments
+          `SELECT id FROM appointments
            WHERE portal_id = $1
              AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = $2
-             AND (status IS NULL OR status != 'ST')
+             AND date IS NOT NULL
            LIMIT 1`,
           [portal_id, plateNorm]
         );
 
         if (rows.length > 0) {
-          const existingHasDate = !!rows[0].date;
-          const newHasDate = !!svc.date;
-
-          if (!existingHasDate && newHasDate) {
-            // Actualizar: passou de fora de horas para na agenda
-            await pool.query(
-              `UPDATE appointments SET
-                 date = $1, period = $2, car = $3, service = $4,
-                 notes = $5, extra = $6, phone = $7,
-                 auto_imported = true, updated_at = $8
-               WHERE id = $9`,
-              [svc.date, svc.period || null, svc.car || null, svc.service || null,
-               svc.notes || null, svc.extra || null, svc.phone || null,
-               new Date().toISOString(), rows[0].id]
-            );
-            results.updated++;
-            results.details.push({ plate: svc.plate, status: 'updated' });
-          } else {
-            results.skipped++;
-          }
-        } else {
-          // Criar novo
-          await pool.query(
-            `INSERT INTO appointments (
-               date, period, plate, car, service, locality, status,
-               notes, extra, phone, km, sortIndex, "glassOrdered",
-               auto_imported, portal_id, created_at, updated_at
-             ) VALUES ($1,$2,$3,$4,$5,null,$6,$7,$8,$9,null,1,false,$10,$11,$12,$13)`,
-            [
-              svc.date || null, svc.period || null,
-              String(svc.plate).trim(), svc.car || null, svc.service || null,
-              svc.status || 'NE', svc.notes || null, svc.extra || null, svc.phone || null,
-              !!svc.date, portal_id,
-              svc.createdAt || new Date().toISOString(), new Date().toISOString()
-            ]
-          );
-          results.created++;
-          results.details.push({ plate: svc.plate, status: 'created' });
+          // Já está agendado — ignorar completamente
+          results.skipped++;
+          continue;
         }
+
+        // Não existe (ou foi apagado por ser pendente) → criar
+        await pool.query(
+          `INSERT INTO appointments (
+             date, period, plate, car, service, locality, status,
+             notes, extra, phone, km, sortIndex, "glassOrdered",
+             auto_imported, portal_id, created_at, updated_at
+           ) VALUES ($1,$2,$3,$4,$5,null,$6,$7,$8,$9,null,1,false,$10,$11,$12,$13)`,
+          [
+            svc.date || null, svc.period || null,
+            String(svc.plate).trim(), svc.car || null, svc.service || null,
+            svc.status || 'NE', svc.notes || null, svc.extra || null, svc.phone || null,
+            !!svc.date, portal_id,
+            svc.createdAt || new Date().toISOString(), new Date().toISOString()
+          ]
+        );
+        results.created++;
+        results.details.push({ plate: svc.plate, status: 'created' });
+
       } catch (err) {
         results.errors++;
         results.details.push({ plate: svc.plate, status: 'error', error: err.message });
