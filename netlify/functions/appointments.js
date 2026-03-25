@@ -88,9 +88,9 @@ exports.handler = async (event) => {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Campos obrigatórios: plate, car' }) };
       }
 
-      // Verificar se matrícula já existe neste portal (não finalizada)
+      // Se já existe (pendente ou agendado, não finalizado) → ignorar sempre
       const dupCheck = await pool.query(
-        `SELECT id, date FROM appointments
+        `SELECT id FROM appointments
          WHERE portal_id = $1
            AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
            AND (status IS NULL OR status != 'ST')
@@ -99,38 +99,10 @@ exports.handler = async (event) => {
       );
 
       if (dupCheck.rows.length > 0) {
-        const existing = dupCheck.rows[0];
-        const existingHasDate = !!existing.date;
-        const newHasDate = !!data.date;
-
-        // Única actualização permitida: existe SEM data + novo registo TEM data → passar para agenda
-        if (!existingHasDate && newHasDate) {
-          const upd = await pool.query(
-            `UPDATE appointments SET
-               date = $1, period = $2, car = $3, service = $4,
-               notes = $5, extra = $6, phone = $7,
-               auto_imported = true, updated_at = $8
-             WHERE id = $9 RETURNING *`,
-            [
-              data.date,
-              data.period || null,
-              data.car ? String(data.car).trim() : null,
-              data.service || null,
-              data.notes || null,
-              data.extra || null,
-              data.phone || null,
-              new Date().toISOString(),
-              existing.id
-            ]
-          );
-          return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: upd.rows[0], action: 'updated' }) };
-        }
-
-        // Todos os outros casos → ignorar silenciosamente
         return {
           statusCode: 409,
           headers,
-          body: JSON.stringify({ success: false, error: 'Matrícula já existe', existingId: existing.id })
+          body: JSON.stringify({ success: false, error: 'Matrícula já existe', existingId: dupCheck.rows[0].id })
         };
       }
 
