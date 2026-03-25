@@ -35,6 +35,10 @@ exports.handler = async (event) => {
   try {
     // GET — apenas pré-visualizar duplicados sem apagar
     if (event.httpMethod === 'GET') {
+      // Contar total de registos para diagnóstico
+      const { rows: countRows } = await pool.query(`SELECT COUNT(*) as total FROM appointments`);
+      const totalRecords = parseInt(countRows[0].total);
+
       const { rows } = await pool.query(`
         SELECT
           portal_id,
@@ -45,7 +49,6 @@ exports.handler = async (event) => {
           ARRAY_AGG(status ORDER BY id ASC) AS statuses,
           ARRAY_AGG(created_at ORDER BY id ASC) AS created_ats
         FROM appointments
-        WHERE status IS DISTINCT FROM 'ST'
         GROUP BY portal_id, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g'))
         HAVING COUNT(*) > 1
         ORDER BY total DESC
@@ -69,6 +72,7 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({
           success: true,
+          totalRecords,
           duplicateGroups: duplicates.length,
           toDelete: totalToDelete,
           preview: duplicates
@@ -78,11 +82,10 @@ exports.handler = async (event) => {
 
     // POST — apagar duplicados
     if (event.httpMethod === 'POST') {
-      // 1. Encontrar todos os ids a apagar
+      // Encontrar todos os ids a apagar (incluindo os ST)
       const { rows } = await pool.query(`
         SELECT ARRAY_AGG(id ORDER BY id ASC) AS ids
         FROM appointments
-        WHERE status IS DISTINCT FROM 'ST'
         GROUP BY portal_id, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g'))
         HAVING COUNT(*) > 1
       `);
