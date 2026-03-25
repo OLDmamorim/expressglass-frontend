@@ -62,6 +62,7 @@
     addLogoutButton();
     addAdminBackButton();
     console.log('✅ Admin: vista de agendas');
+    window.dispatchEvent(new CustomEvent('portalReady'));
     return;
   }
 
@@ -95,6 +96,7 @@
   addLogoutButton();
 
   console.log('✅ Portal inicializado com sucesso (' + (window.portalConfig?.portalType || 'sm') + ')');
+  window.dispatchEvent(new CustomEvent('portalReady'));
 })();
 
 // === APLICAR CONFIGURAÇÃO DO PORTAL ===
