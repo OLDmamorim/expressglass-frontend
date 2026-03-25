@@ -48,7 +48,9 @@ exports.handler = async (event) => {
       const query = `
         SELECT id, name, departure_address, localities, nmdos_code, portal_type, last_import_at, created_at, updated_at,
                (SELECT COUNT(*) FROM users WHERE portal_id = portals.id) as user_count,
-               (SELECT COUNT(*) FROM appointments WHERE portal_id = portals.id) as service_count
+               (SELECT COUNT(*) FROM appointments 
+                WHERE portal_id = portals.id 
+                  AND (date IS NULL OR date >= CURRENT_DATE)) as service_count
         FROM portals
         ORDER BY name ASC
       `;
