@@ -465,8 +465,7 @@ class ExcelImporter {
         const result = await window.apiClient.createAppointment(service);
         
         // Adicionar à lista de existentes para evitar duplicados no mesmo lote
-        existingPlates.add(plateNormalized);
-        
+        existingPlates.add(plateNormalized);        
         results.success++;
         results.details.push({
           plate: service.plate,
@@ -475,14 +474,24 @@ class ExcelImporter {
         });
         
       } catch (error) {
-        console.error('❌ Erro ao importar:', service.plate, error);
-        
-        results.errors++;
-        results.details.push({
-          plate: service.plate,
-          status: 'error',
-          error: error.message
-        });
+        // Duplicado devolvido pelo backend → ignorar silenciosamente
+        if (error.message && error.message.includes('já existe')) {
+          console.log('⏭️ Backend: matrícula já existe na BD, ignorando:', service.plate);
+          results.skipped++;
+          results.details.push({
+            plate: service.plate,
+            status: 'skipped',
+            reason: 'Matrícula já existe (BD)'
+          });
+        } else {
+          console.error('❌ Erro ao importar:', service.plate, error);
+          results.errors++;
+          results.details.push({
+            plate: service.plate,
+            status: 'error',
+            error: error.message
+          });
+        }
       }
     }
     
