@@ -83,12 +83,9 @@ class ProcessadorPersonalizado {
     if (!matricula || matricula.trim() === '') {
       throw new Error('Matrícula é obrigatória (coluna I)');
     }
-    
-    // 🚫 FILTRO PRINCIPAL: Verificar se matrícula já existe
-    const jaExiste = this.matriculaJaExiste(matricula);
-    if (jaExiste) {
-      return null; // Retorna null para indicar que deve ser ignorada
-    }
+
+    // Nota: verificação de duplicados é feita pelo backend (appointments POST)
+    // que aplica a lógica correcta: sem data→com data = actualizar, resto = ignorar
     
     // Construir carro (Marca + Modelo)
     const carro = [marca, modelo].filter(v => v).join(' ');
