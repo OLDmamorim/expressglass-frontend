@@ -503,34 +503,12 @@ function getPermutations(arr) {
 // Guardar rotas otimizadas na base de dados
 async function saveOptimizedRoutes() {
   const optimizedServices = appointments.filter(a => a._optimized);
-  
-  console.log(`🔍 DEBUG - Serviços com flag _optimized: ${optimizedServices.length}`);
-  console.log('🔍 DEBUG - Todos os appointments:', appointments.length);
-  
-  // Debug: Mostrar todos os sortIndex atuais
-  appointments.forEach(a => {
-    if (a.date === '2025-09-26') { // Ajustar data conforme necessário
-      console.log(`🔍 DEBUG - ${a.plate}: sortIndex=${a.sortIndex}, _optimized=${a._optimized}`);
-    }
-  });
-  
-  if (optimizedServices.length === 0) {
-    console.log('⚠️ AVISO: Nenhum serviço marcado como _optimized para guardar!');
-    return;
-  }
-  
-  console.log(`💾 Guardando ${optimizedServices.length} serviços otimizados na BASE DE DADOS...`);
-  
+
+  if (optimizedServices.length === 0) return;
+
   for (const service of optimizedServices) {
     try {
-      // Preparar dados para guardar (incluindo km e sortIndex)
-      const serviceData = {
-        id: service.id,
-        date: service.date,
-        address: service.address,
-        km: service.km, // ← IMPORTANTE: Incluir quilómetros recalculados
-        sortIndex: service.sortIndex, // ← IMPORTANTE: Incluir nova ordem
-        // Incluir todos os outros campos necessários
+      await window.apiClient.updateAppointment(service.id, {
         plate: service.plate,
         car: service.car,
         service: service.service,
@@ -538,26 +516,23 @@ async function saveOptimizedRoutes() {
         notes: service.notes,
         status: service.status,
         phone: service.phone,
-        extra: service.extra
-      };
-      
-      console.log(`💾 DEBUG - Guardando serviço ${service.plate}: km=${service.km}, sortIndex=${service.sortIndex}`);
-      console.log(`💾 DEBUG - Dados enviados:`, serviceData);
-      
-      const result = await window.apiClient.updateAppointment(service.id, serviceData);
-      console.log(`✅ DEBUG - Resultado da gravação:`, result);
-      
+        extra: service.extra,
+        date: service.date,
+        period: service.period,
+        address: service.address,
+        km: service.km,
+        sortIndex: service.sortIndex,
+        travelTime: service.travelTime || service.travel_time || null,
+        vehicleType: service.vehicleType || service.vehicle_type || 'L'
+      });
     } catch (error) {
-      console.error('❌ Erro ao guardar serviço otimizado:', service.id, error);
-      showToast(`Erro ao guardar serviço: ${error.message}`, 'error');
-      throw error; // Re-throw para parar o processo se houver erro
+      console.error('❌ Erro ao guardar rota optimizada:', service.plate, error);
+      showToast(`Erro ao guardar: ${error.message}`, 'error');
     }
   }
-  
-  console.log('✅ Todos os serviços otimizados foram guardados na BASE DE DADOS');
-  
-  // Limpar flags temporários
+
   appointments.forEach(a => delete a._optimized);
+  console.log(`✅ ${optimizedServices.length} rotas guardadas na BD`);
 }
 
 // ===== FUNÇÕES DO MODAL DE PROGRESSO =====
