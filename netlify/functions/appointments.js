@@ -88,6 +88,28 @@ exports.handler = async (event) => {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Campos obrigatórios: plate, car' }) };
       }
 
+      // Verificar duplicado: mesma matrícula + mesmo portal + não finalizado (ST)
+      const dupCheck = await pool.query(
+        `SELECT id FROM appointments
+         WHERE portal_id = $1
+           AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
+           AND (status IS NULL OR status != 'ST')
+         LIMIT 1`,
+        [portalId, String(data.plate).trim()]
+      );
+
+      if (dupCheck.rows.length > 0) {
+        return {
+          statusCode: 409,
+          headers,
+          body: JSON.stringify({
+            success: false,
+            error: 'Matrícula já existe',
+            existingId: dupCheck.rows[0].id
+          })
+        };
+      }
+
       // Usar createdAt do Excel se disponível, senão usar data atual
       const createdAt = data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString();
       
