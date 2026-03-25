@@ -88,12 +88,11 @@ exports.handler = async (event) => {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Campos obrigatórios: plate, car' }) };
       }
 
-      // Se já existe (pendente ou agendado, não finalizado) → ignorar sempre
+      // Se já existe em qualquer estado → ignorar sempre (incluindo ST)
       const dupCheck = await pool.query(
         `SELECT id FROM appointments
          WHERE portal_id = $1
            AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
-           AND (status IS NULL OR status != 'ST')
          LIMIT 1`,
         [portalId, String(data.plate).trim()]
       );

@@ -54,12 +54,11 @@ exports.handler = async (event) => {
           continue;
         }
 
-        // Se já existe (pendente ou agendado, não finalizado) → ignorar sempre
+        // Se já existe em qualquer estado → ignorar sempre (incluindo ST)
         const existing = await pool.query(
           `SELECT id FROM appointments 
            WHERE portal_id = $1
              AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
-             AND (status IS NULL OR status != 'ST')
            LIMIT 1`,
           [svc.portal_id, String(svc.plate).trim()]
         );
