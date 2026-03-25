@@ -2041,12 +2041,13 @@ window.reloadAppointments = async function() {
   } catch(e) { console.error('Erro ao recarregar:', e); }
 };
 
-// Bootstrap da app (carrega BD e desenha)
-document.addEventListener('DOMContentLoaded', async ()=>{
-  try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
-  try { await load(); } catch(e){ console.error('load() falhou', e); }
-  try { buildLocalityOptions?.(); } catch(e){}
-  renderAll();
+// Bootstrap da app — espera que o portal-init.js termine antes de carregar dados
+function bootApp() {
+  (async () => {
+    try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
+    try { await load(); } catch(e){ console.error('load() falhou', e); }
+    try { buildLocalityOptions?.(); } catch(e){}
+    renderAll();
   document.querySelector('.locality-select')?.addEventListener('click', toggleLocalityDropdown);
 
 
@@ -2357,7 +2358,15 @@ cancelEdit?.();
       showToast('❌ Erro ao eliminar serviços: ' + error.message, 'error');
     }
   });
-}); // 👈 FECHO DO DOMContentLoaded
+  })(); // fecho do async IIFE dentro de bootApp
+} // fecho de bootApp
+
+// Aguardar que o portal-init.js termine (dispara 'portalReady')
+// antes de carregar os dados — resolve race condition no arranque
+window.addEventListener('portalReady', bootApp, { once: true });
+
+// Fallback: se o portal-init não disparar o evento (ex: redirect para login),
+// não fazer nada — a página vai redirecionar de qualquer forma
 
 // === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
 (function(){
