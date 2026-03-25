@@ -54,37 +54,47 @@ exports.handler = async (event) => {
           continue;
         }
 
-        // Verificar se já existe (mesma matrícula + mesmo portal + não finalizado)
+        // Verificar se já existe (mesma matrícula + mesmo portal, normalizada)
         const existing = await pool.query(
-          `SELECT id FROM appointments 
-           WHERE portal_id = $1 AND UPPER(TRIM(plate)) = UPPER(TRIM($2)) AND (status IS NULL OR status != 'ST')
+          `SELECT id, date FROM appointments 
+           WHERE portal_id = $1
+             AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
+             AND (status IS NULL OR status != 'ST')
            LIMIT 1`,
-          [svc.portal_id, svc.plate]
+          [svc.portal_id, String(svc.plate).trim()]
         );
 
         if (existing.rows.length > 0) {
-          // Atualizar serviço existente (incluindo data/período se fornecidos)
-          const updateQ = `
-            UPDATE appointments SET
-              car = $1, service = $2, notes = $3, extra = $4,
-              phone = $5, date = COALESCE($6, date), period = COALESCE($7, period),
-              updated_at = $8
-            WHERE id = $9
-            RETURNING id
-          `;
-          await pool.query(updateQ, [
-            svc.car || null,
-            svc.service || null,
-            svc.notes || null,
-            svc.extra || null,
-            svc.phone || null,
-            svc.date || null,
-            svc.period || null,
-            new Date().toISOString(),
-            existing.rows[0].id
-          ]);
-          results.updated++;
-          results.details.push({ plate: svc.plate, portal_id: svc.portal_id, status: 'updated' });
+          const existingHasDate = !!existing.rows[0].date;
+          const newHasDate = !!svc.date;
+
+          // Única actualização permitida: existe SEM data + Excel TEM data → passar para agenda
+          if (!existingHasDate && newHasDate) {
+            await pool.query(
+              `UPDATE appointments SET
+                 date = $1, period = $2, car = $3, service = $4,
+                 notes = $5, extra = $6, phone = $7,
+                 auto_imported = true, updated_at = $8
+               WHERE id = $9`,
+              [
+                svc.date,
+                svc.period || null,
+                svc.car || null,
+                svc.service || null,
+                svc.notes || null,
+                svc.extra || null,
+                svc.phone || null,
+                new Date().toISOString(),
+                existing.rows[0].id
+              ]
+            );
+            results.updated++;
+            results.details.push({ plate: svc.plate, portal_id: svc.portal_id, status: 'updated', reason: 'sem data → com data' });
+          } else {
+            // Todos os outros casos → ignorar
+            results.skipped = (results.skipped || 0) + 1;
+            results.details.push({ plate: svc.plate, portal_id: svc.portal_id, status: 'skipped' });
+          }
         } else {
           // Criar novo serviço
           const hasAutoDate = !!svc.date;
