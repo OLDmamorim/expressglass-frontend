@@ -420,12 +420,12 @@ async function optimizeDayServices(services) {
   let bestTotal = Infinity;
 
   if (n <= 8) {
-    // Brute-force: testar todas as permutações (exato para n≤8)
-    const permutations = getPermutations([...Array(n).keys()]); // 0..n-1
+    // Brute-force: testar todas as permutações — minimiza TEMPO (não distância)
+    const permutations = getPermutations([...Array(n).keys()]);
     for (const perm of permutations) {
-      let total = dist[0][perm[0] + 1]; // base → primeiro
+      let total = time[0][perm[0] + 1]; // base → primeiro
       for (let i = 0; i < perm.length - 1; i++) {
-        total += dist[perm[i] + 1][perm[i+1] + 1];
+        total += time[perm[i] + 1][perm[i+1] + 1];
       }
       if (total < bestTotal) {
         bestTotal = total;
@@ -433,26 +433,26 @@ async function optimizeDayServices(services) {
       }
     }
   } else {
-    // Nearest-neighbor melhorado: testa cada serviço como ponto de partida
+    // Nearest-neighbor multi-start — minimiza TEMPO
     for (let start = 0; start < n; start++) {
       const visited = new Array(n).fill(false);
       const route = [start];
       visited[start] = true;
-      let total = dist[0][start + 1];
+      let total = time[0][start + 1];
 
       while (route.length < n) {
         const last = route[route.length - 1];
-        let nearest = -1, minD = Infinity;
+        let nearest = -1, minT = Infinity;
         for (let j = 0; j < n; j++) {
-          if (!visited[j] && dist[last + 1][j + 1] < minD) {
-            minD = dist[last + 1][j + 1];
+          if (!visited[j] && time[last + 1][j + 1] < minT) {
+            minT = time[last + 1][j + 1];
             nearest = j;
           }
         }
         if (nearest === -1) break;
         route.push(nearest);
         visited[nearest] = true;
-        total += minD;
+        total += minT;
       }
 
       if (total < bestTotal) {
