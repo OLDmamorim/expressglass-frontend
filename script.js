@@ -1910,20 +1910,23 @@ const telBtn = phone ? `
       </div>` : '';
 
   const isRealizado = a.status === 'ST';
-  const statusToggle = `
+  const todayISO = localISO(new Date());
+  const isToday = a.date === todayISO;
+
+  const statusToggle = isToday ? `
     <div class="m-status-row">
-      <label class="m-status-btn ${isRealizado ? '' : 'm-status-active-ne'}" data-toggle="NE" data-id="${a.id}">
+      <button class="m-status-btn ${!isRealizado ? 'm-status-active-ne' : ''}" data-toggle="NE" data-id="${a.id}">
         <span class="m-status-dot m-dot-ne"></span>
         N. Realizado
-      </label>
-      <label class="m-status-btn ${isRealizado ? 'm-status-active-st' : ''}" data-toggle="ST" data-id="${a.id}">
+      </button>
+      <button class="m-status-btn ${isRealizado ? 'm-status-active-st' : ''}" data-toggle="ST" data-id="${a.id}">
         <span class="m-status-dot m-dot-st"></span>
         Realizado
-      </label>
-    </div>`;
+      </button>
+    </div>` : '';
 
   return `
-    <div class="appointment m-card${isRealizado ? ' m-card-done' : ''}" data-id="${a.id}"
+    <div class="appointment m-card" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
       <div class="map-icons">
         ${wazeBtn}${mapsBtn}${telBtn}
