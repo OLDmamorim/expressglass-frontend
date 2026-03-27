@@ -1909,8 +1909,21 @@ const telBtn = phone ? `
         <div>Confirma status vidro</div>
       </div>` : '';
 
+  const isRealizado = a.status === 'ST';
+  const statusToggle = `
+    <div class="m-status-row">
+      <label class="m-status-btn ${isRealizado ? '' : 'm-status-active-ne'}" data-toggle="NE" data-id="${a.id}">
+        <span class="m-status-dot m-dot-ne"></span>
+        N. Realizado
+      </label>
+      <label class="m-status-btn ${isRealizado ? 'm-status-active-st' : ''}" data-toggle="ST" data-id="${a.id}">
+        <span class="m-status-dot m-dot-st"></span>
+        Realizado
+      </label>
+    </div>`;
+
   return `
-    <div class="appointment m-card" data-id="${a.id}"
+    <div class="appointment m-card${isRealizado ? ' m-card-done' : ''}" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
       <div class="map-icons">
         ${wazeBtn}${mapsBtn}${telBtn}
@@ -1922,6 +1935,7 @@ const telBtn = phone ? `
         ${notes}
         ${isLoja() ? '' : buildKmRow(a)}
       </div>
+      ${statusToggle}
       ${phcFooter}
     </div>
   `;
@@ -2034,6 +2048,17 @@ function bootApp() {
   document.getElementById('prevDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, -1); renderMobileDay(); });
   document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
   document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
+
+  // Status toggle nos cards mobile (delegado)
+  document.getElementById('mobileDayList')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-toggle]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const newStatus = btn.dataset.toggle;
+    if (!id || !newStatus) return;
+    await persistStatus(id, newStatus);
+    renderMobileDay();
+  });
 
   // Botão Calcular Rotas - Abrir modal de seleção de dia
   document.getElementById('calculateRoutes')?.addEventListener('click', openSelectDayModal);
