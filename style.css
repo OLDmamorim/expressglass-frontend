@@ -1090,6 +1090,29 @@ table.schedule td.is-today {
     box-shadow: 0 3px 12px rgba(37,99,235,0.35);
   }
 
+  /* ── Botão Relatório ── */
+  .m-report-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    margin-top: 10px;
+    padding: 11px 16px;
+    border-radius: 12px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #94a3b8;
+    font-family: 'Figtree', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: background 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .m-report-btn:active { background: #334155; }
+
   /* PHC footer */
   .phc-import-footer {
     padding: 8px 0 0;
@@ -1174,6 +1197,23 @@ table.schedule td.is-today {
    ========================= */
 textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: none; }
 .highlight{ background:#fef3c7 !important; border:2px solid #f59e0b !important; }
+
+/* Relatório semanal — stats */
+.rel-stat {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+.rel-stat-green { background: #f0fdf4; border-color: #bbf7d0; }
+.rel-stat-red   { background: #fff1f2; border-color: #fecdd3; }
+.rel-stat-orange{ background: #fff7ed; border-color: #fed7aa; }
+.rel-n { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 800; color: #0f172a; line-height: 1; margin-bottom: 4px; }
+.rel-stat-green .rel-n { color: #16a34a; }
+.rel-stat-red   .rel-n { color: #dc2626; }
+.rel-stat-orange .rel-n { color: #ea580c; }
+.rel-l { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; }
 
 /* ==================================================
    IMPRESSÃO HORIZONTAL (HOJE E AMANHÃ) - VERSÃO FINAL
