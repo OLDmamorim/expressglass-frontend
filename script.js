@@ -1911,9 +1911,9 @@ const telBtn = phone ? `
 
   const isRealizado = a.status === 'ST';
   const todayISO = localISO(new Date());
-  const isToday = a.date === todayISO;
+  const isPastOrToday = a.date && a.date <= todayISO;
 
-  const statusToggle = isToday ? `
+  const statusToggle = isPastOrToday ? `
     <div class="m-status-row">
       <button class="m-status-btn ${!isRealizado ? 'm-status-active-ne' : ''}" data-toggle="NE" data-id="${a.id}">
         <span class="m-status-dot m-dot-ne"></span>
@@ -2033,6 +2033,113 @@ window.reloadAppointments = async function() {
   } catch(e) { console.error('Erro ao recarregar:', e); }
 };
 
+// ===== RELATÓRIO SEMANAL =====
+function buildRelatorio() {
+  const el = document.getElementById('relatorioContent');
+  if (!el) return;
+
+  // Semana actual (seg–sáb)
+  const week = [...Array(6)].map((_, i) => addDays(currentMonday, i));
+  const weekStart = week[0].toLocaleDateString('pt-PT', {day:'2-digit', month:'2-digit'});
+  const weekEnd   = week[5].toLocaleDateString('pt-PT', {day:'2-digit', month:'2-digit', year:'numeric'});
+
+  const loja = isLoja();
+
+  // Filtrar agendamentos da semana
+  const isoWeek = week.map(d => localISO(d));
+  const weekAppts = appointments.filter(a => a.date && isoWeek.includes(a.date));
+
+  const total     = weekAppts.length;
+  const realized  = weekAppts.filter(a => a.status === 'ST').length;
+  const notDone   = total - realized;
+
+  let html = `<div style="font-family:'Figtree',sans-serif;">
+    <div style="font-size:13px;color:#6b7280;margin-bottom:16px;">${weekStart} — ${weekEnd}</div>`;
+
+  // Resumo de serviços
+  html += `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+      <div class="rel-stat">
+        <div class="rel-n">${total}</div>
+        <div class="rel-l">Agendados</div>
+      </div>
+      <div class="rel-stat rel-stat-green">
+        <div class="rel-n">${realized}</div>
+        <div class="rel-l">Realizados</div>
+      </div>
+      <div class="rel-stat rel-stat-red">
+        <div class="rel-n">${notDone}</div>
+        <div class="rel-l">Não realizados</div>
+      </div>
+    </div>`;
+
+  // SM: totais de km, horas e combustível
+  if (!loja) {
+    let totalKm = 0, totalTravelMin = 0, totalServiceMin = 0;
+
+    weekAppts.forEach(a => {
+      const km = getKmValue(a);
+      if (km) totalKm += km;
+      totalTravelMin += (a.travelTime || a.travel_time || 0);
+      totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration);
+    });
+
+    const totalMin = totalTravelMin + totalServiceMin;
+    const totalHours = Math.floor(totalMin / 60);
+    const totalMins  = totalMin % 60;
+    const fuelL = (totalKm * ROUTE_CONFIG.fuelPer100km / 100).toFixed(1);
+    const fuelEur = (fuelL * ROUTE_CONFIG.fuelPricePerLiter).toFixed(2);
+
+    html += `
+      <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:4px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;margin-bottom:12px;">Serviço Móvel</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+          <div class="rel-stat">
+            <div class="rel-n" style="font-size:22px;">🛣️ ${totalKm} km</div>
+            <div class="rel-l">Total km</div>
+          </div>
+          <div class="rel-stat">
+            <div class="rel-n" style="font-size:22px;">⏱️ ${totalHours}h${String(totalMins).padStart(2,'0')}</div>
+            <div class="rel-l">Horas trabalho</div>
+          </div>
+          <div class="rel-stat">
+            <div class="rel-n" style="font-size:22px;">⛽ ${fuelL}L</div>
+            <div class="rel-l">Combustível</div>
+          </div>
+          <div class="rel-stat rel-stat-orange">
+            <div class="rel-n" style="font-size:22px;">💰 ${fuelEur}€</div>
+            <div class="rel-l">Custo combustível</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // Lista dia a dia
+  html += `<div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:16px;">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;margin-bottom:10px;">Por dia</div>`;
+
+  week.forEach(d => {
+    const iso = localISO(d);
+    const dayAppts = weekAppts.filter(a => a.date === iso);
+    if (!dayAppts.length) return;
+    const dR = dayAppts.filter(a => a.status === 'ST').length;
+    const dN = dayAppts.length - dR;
+    const dayLabel = d.toLocaleDateString('pt-PT', {weekday:'short', day:'2-digit', month:'2-digit'});
+    html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:14px;">
+      <span style="font-weight:600;color:#374151;">${dayLabel}</span>
+      <span>
+        <span style="color:#16a34a;font-weight:700;">${dR} ✓</span>
+        <span style="color:#6b7280;margin:0 4px;">/</span>
+        <span style="color:#dc2626;font-weight:700;">${dN} ✗</span>
+        <span style="color:#9ca3af;font-size:12px;margin-left:4px;">(${dayAppts.length} total)</span>
+      </span>
+    </div>`;
+  });
+
+  html += `</div></div>`;
+  el.innerHTML = html;
+}
+
 // Bootstrap da app — espera que o portal-init.js termine antes de carregar dados
 function bootApp() {
   (async () => {
@@ -2065,6 +2172,15 @@ function bootApp() {
 
   // Botão Calcular Rotas - Abrir modal de seleção de dia
   document.getElementById('calculateRoutes')?.addEventListener('click', openSelectDayModal);
+
+  // Relatório semanal
+  document.getElementById('btnRelatorio')?.addEventListener('click', () => {
+    buildRelatorio();
+    document.getElementById('relatorioModal')?.classList.add('show');
+  });
+  document.getElementById('closeRelatorio')?.addEventListener('click', () => {
+    document.getElementById('relatorioModal')?.classList.remove('show');
+  });
 
   // Event listeners para edição
   document.getElementById('cancelForm')?.addEventListener('click', cancelEdit);
