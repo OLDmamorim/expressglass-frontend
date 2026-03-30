@@ -2108,15 +2108,36 @@ function buildRelatorio() {
       </div>
     </div>`;
 
-  // SM: totais de km, horas e combustível
+  // SM: totais de km, horas e combustível — mesma lógica do buildDaySummary por dia
   if (!loja) {
     let totalKm = 0, totalTravelMin = 0, totalServiceMin = 0;
 
-    weekAppts.forEach(a => {
-      const km = getKmValue(a);
-      if (km) totalKm += km;
-      totalTravelMin += (a.travelTime || a.travel_time || 0);
-      totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration);
+    week.forEach(d => {
+      const iso = localISO(d);
+      const items = appointments.filter(a => a.date === iso)
+        .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
+        .filter(a => !!a.locality); // só confirmados
+
+      if (!items.length) return;
+
+      // KM com regresso (igual ao buildDaySummary)
+      let dayKm = 0, hasKm = false, lastKm = 0;
+      items.forEach((a, i) => {
+        const km = getKmValue(a);
+        if (km != null && km > 0) { dayKm += km; hasKm = true; if (i === 0) lastKm = km; }
+      });
+      const returnKm = hasKm ? Math.round(lastKm * 0.5) : 0;
+      totalKm += dayKm + returnKm;
+
+      // Tempo de viagem (Google Maps ou estimativa)
+      let dayTravel = 0, hasGoogle = false;
+      items.forEach(a => { const tt = a.travelTime || a.travel_time || 0; if (tt > 0) { dayTravel += tt; hasGoogle = true; } });
+      if (!hasGoogle && hasKm) dayTravel = Math.round((dayKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
+      const returnMin = hasGoogle ? Math.round(dayTravel * 0.15) : Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
+      totalTravelMin += dayTravel + returnMin;
+
+      // Tempo de execução
+      items.forEach(a => { totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration); });
     });
 
     const totalMin = totalTravelMin + totalServiceMin;
