@@ -62,12 +62,9 @@ exports.handler = async (event) => {
     );
     const isLoja = portalRows[0]?.portal_type === 'loja';
 
-    // "Agendado de verdade":
-    //   SM   → tem date E locality
-    //   Loja → tem date E period
-    const reallyScheduledCondition = isLoja
-      ? `date IS NOT NULL AND period IS NOT NULL AND period != ''`
-      : `date IS NOT NULL AND locality IS NOT NULL AND locality != ''`;
+    // "Agendado de verdade" = TEM DATA — independentemente de localidade, período, etc.
+    // Qualquer serviço com data preenchida está protegido do sync.
+    const reallyScheduledCondition = `date IS NOT NULL`;
 
     // 1. Apagar TODOS os registos que NÃO estão realmente agendados
     const delResult = await pool.query(
