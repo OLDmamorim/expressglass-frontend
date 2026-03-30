@@ -2173,11 +2173,13 @@ function bootApp() {
   // Botão Calcular Rotas - Abrir modal de seleção de dia
   document.getElementById('calculateRoutes')?.addEventListener('click', openSelectDayModal);
 
-  // Relatório semanal
-  document.getElementById('btnRelatorio')?.addEventListener('click', () => {
+  // Relatório semanal (mobile + desktop)
+  const openRelatorio = () => {
     buildRelatorio();
     document.getElementById('relatorioModal')?.classList.add('show');
-  });
+  };
+  document.getElementById('btnRelatorio')?.addEventListener('click', openRelatorio);
+  document.getElementById('btnRelatorioDesk')?.addEventListener('click', openRelatorio);
   document.getElementById('closeRelatorio')?.addEventListener('click', () => {
     document.getElementById('relatorioModal')?.classList.remove('show');
   });
