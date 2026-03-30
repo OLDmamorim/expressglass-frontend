@@ -2173,98 +2173,7 @@ function bootApp() {
   // Botão Calcular Rotas - Abrir modal de seleção de dia
   document.getElementById('calculateRoutes')?.addEventListener('click', openSelectDayModal);
 
-  // ── Backup / Restaurar ──
-  function doExportBackup() {
-    try {
-      if (!appointments || appointments.length === 0) {
-        showToast('Sem agendamentos para exportar', 'error'); return;
-      }
-      const portalName = (window.portalConfig?.name || 'portal').replace(/\s+/g, '-');
-      const now = new Date();
-      const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
-      const filename = `backup_${portalName}_${stamp}.json`;
-      const json = JSON.stringify({ portal: portalName, exportedAt: now.toISOString(), total: appointments.length, appointments }, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = filename; a.click();
-      URL.revokeObjectURL(url);
-      showToast(`💾 Backup guardado: ${filename}`, 'success');
-    } catch(e) { showToast('Erro ao criar backup: ' + e.message, 'error'); }
-  }
-
-  document.getElementById('btnBackupRapido')?.addEventListener('click', () => {
-    document.getElementById('backupModal')?.classList.add('show');
-  });
-  document.getElementById('backupBtn')?.addEventListener('click', () => {
-    document.getElementById('backupModal')?.classList.add('show');
-  });
-  document.getElementById('closeBackupModal')?.addEventListener('click', () => {
-    document.getElementById('backupModal')?.classList.remove('show');
-  });
-  document.getElementById('backupModal')?.addEventListener('click', (e) => {
-    if (e.target === document.getElementById('backupModal')) {
-      document.getElementById('backupModal').classList.remove('show');
-    }
-  });
-  document.getElementById('btnExportBackup')?.addEventListener('click', doExportBackup);
-
-  // Restaurar
-  document.getElementById('btnChooseRestore')?.addEventListener('click', () => {
-    document.getElementById('restoreFile')?.click();
-  });
-  document.getElementById('restoreFile')?.addEventListener('change', async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const statusEl = document.getElementById('restoreStatus');
-    statusEl.style.display = 'block';
-    statusEl.style.color = '#6b7280';
-    statusEl.textContent = '⏳ A ler ficheiro...';
-
-    try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      const toRestore = data.appointments || (Array.isArray(data) ? data : []);
-
-      if (toRestore.length === 0) {
-        statusEl.style.color = '#dc2626';
-        statusEl.textContent = '❌ Ficheiro vazio ou formato inválido.';
-        return;
-      }
-
-      statusEl.textContent = `⏳ A restaurar ${toRestore.length} agendamentos...`;
-
-      // Matrículas já existentes
-      const existing = new Set(appointments.map(a => (a.plate||'').replace(/[^A-Z0-9]/gi,'').toUpperCase()));
-
-      let created = 0, skipped = 0, errors = 0;
-      for (const appt of toRestore) {
-        const norm = (appt.plate||'').replace(/[^A-Z0-9]/gi,'').toUpperCase();
-        if (existing.has(norm)) { skipped++; continue; }
-        try {
-          const { id, ...payload } = appt; // remover id antigo
-          await window.apiClient.createAppointment(payload);
-          existing.add(norm);
-          created++;
-        } catch(err) {
-          // 409 = já existe no backend
-          if (err.message?.includes('já existe')) { skipped++; }
-          else { errors++; }
-        }
-      }
-
-      statusEl.style.color = '#16a34a';
-      statusEl.textContent = `✅ Restaurados: ${created} novos, ${skipped} ignorados (já existiam)${errors ? `, ${errors} erros` : ''}.`;
-      if (created > 0) { await load(); renderAll(); }
-
-    } catch(err) {
-      statusEl.style.color = '#dc2626';
-      statusEl.textContent = '❌ Erro: ' + err.message;
-    }
-    e.target.value = ''; // reset input
-  });
-
-  // Relatório semanal (mobile + desktop)
+  // ── Relatório semanal (mobile + desktop) ──
   const openRelatorio = () => {
     buildRelatorio();
     document.getElementById('relatorioModal')?.classList.add('show');
@@ -2932,6 +2841,91 @@ function filterServicesByPlate(searchTerm) {
 
 // Inicializar funcionalidades quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', function() {
+
+  // ── Backup / Restaurar (independente do portalReady) ──
+  function openBackupModal() {
+    document.getElementById('backupModal')?.classList.add('show');
+  }
+  function closeBackupModalFn() {
+    document.getElementById('backupModal')?.classList.remove('show');
+    const s = document.getElementById('restoreStatus');
+    if (s) { s.style.display = 'none'; s.textContent = ''; }
+    const fi = document.getElementById('restoreFile');
+    if (fi) fi.value = '';
+  }
+
+  document.getElementById('btnBackupRapido')?.addEventListener('click', openBackupModal);
+  document.getElementById('backupBtn')?.addEventListener('click', openBackupModal);
+  document.getElementById('closeBackupModal')?.addEventListener('click', closeBackupModalFn);
+  document.getElementById('backupModal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'backupModal') closeBackupModalFn();
+  });
+
+  document.getElementById('btnExportBackup')?.addEventListener('click', () => {
+    try {
+      const appts = window.appointments || [];
+      if (!appts.length) { alert('Sem agendamentos para exportar.'); return; }
+      const portalName = (window.portalConfig?.name || 'portal').replace(/\s+/g, '-');
+      const now = new Date();
+      const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+      const filename = `backup_${portalName}_${stamp}.json`;
+      const json = JSON.stringify({ portal: portalName, exportedAt: now.toISOString(), total: appts.length, appointments: appts }, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.click();
+      URL.revokeObjectURL(url);
+    } catch(e) { alert('Erro ao criar backup: ' + e.message); }
+  });
+
+  document.getElementById('btnChooseRestore')?.addEventListener('click', () => {
+    document.getElementById('restoreFile')?.click();
+  });
+
+  document.getElementById('restoreFile')?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const statusEl = document.getElementById('restoreStatus');
+    statusEl.style.display = 'block';
+    statusEl.style.color = '#6b7280';
+    statusEl.textContent = '⏳ A ler ficheiro...';
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      const toRestore = data.appointments || (Array.isArray(data) ? data : []);
+      if (!toRestore.length) {
+        statusEl.style.color = '#dc2626';
+        statusEl.textContent = '❌ Ficheiro vazio ou inválido.';
+        return;
+      }
+      statusEl.textContent = `⏳ A restaurar ${toRestore.length} agendamentos...`;
+      const existing = new Set((window.appointments||[]).map(a => (a.plate||'').replace(/[^A-Z0-9]/gi,'').toUpperCase()));
+      let created = 0, skipped = 0, errors = 0;
+      for (const appt of toRestore) {
+        const n = (appt.plate||'').replace(/[^A-Z0-9]/gi,'').toUpperCase();
+        if (existing.has(n)) { skipped++; continue; }
+        try {
+          const { id, ...payload } = appt;
+          await window.apiClient.createAppointment(payload);
+          existing.add(n); created++;
+        } catch(err) {
+          if (err.message?.includes('já existe')) skipped++;
+          else errors++;
+        }
+      }
+      statusEl.style.color = '#16a34a';
+      statusEl.textContent = `✅ ${created} restaurados, ${skipped} ignorados${errors ? `, ${errors} erros` : ''}.`;
+      if (created > 0 && typeof renderAll === 'function') {
+        if (typeof load === 'function') await load();
+        renderAll();
+      }
+    } catch(err) {
+      statusEl.style.color = '#dc2626';
+      statusEl.textContent = '❌ Erro: ' + err.message;
+    }
+    e.target.value = '';
+  });
+
   // Event listener para caixa de procura
   const searchInput = document.getElementById('searchPlate');
   if (searchInput) {
