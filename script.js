@@ -1282,7 +1282,21 @@ async function persistStatus(id, newStatus) {
 }
 
 
-// ---------- Status Listeners ----------
+// ---------- Executed (realizado pelo técnico) ----------
+async function persistExecuted(id, executed) {
+  const i = appointments.findIndex(a => String(a.id) === String(id));
+  if (i < 0) return;
+  const prev = appointments[i].executed;
+  appointments[i].executed = executed;
+  renderMobileDay();
+  try {
+    await window.apiClient.updateAppointment(id, { ...appointments[i], executed });
+  } catch (err) {
+    appointments[i].executed = prev;
+    showToast('Falha ao gravar: ' + err.message, 'error');
+    renderMobileDay();
+  }
+}
 function attachStatusListeners(){
   document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(checkbox => {
     checkbox.addEventListener('change', async function(e) {
@@ -1909,17 +1923,17 @@ const telBtn = phone ? `
         <div>Confirma status vidro</div>
       </div>` : '';
 
-  const isRealizado = a.status === 'ST';
+  const isRealizado = !!a.executed;
   const todayISO = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO;
 
   const statusToggle = isPastOrToday ? `
     <div class="m-status-row">
-      <button class="m-status-btn ${!isRealizado ? 'm-status-active-ne' : ''}" data-toggle="NE" data-id="${a.id}">
+      <button class="m-status-btn ${!isRealizado ? 'm-status-active-ne' : ''}" data-exec="false" data-id="${a.id}">
         <span class="m-status-dot m-dot-ne"></span>
         N. Realizado
       </button>
-      <button class="m-status-btn ${isRealizado ? 'm-status-active-st' : ''}" data-toggle="ST" data-id="${a.id}">
+      <button class="m-status-btn ${isRealizado ? 'm-status-active-st' : ''}" data-exec="true" data-id="${a.id}">
         <span class="m-status-dot m-dot-st"></span>
         Realizado
       </button>
@@ -2050,7 +2064,7 @@ function buildRelatorio() {
   const weekAppts = appointments.filter(a => a.date && isoWeek.includes(a.date));
 
   const total     = weekAppts.length;
-  const realized  = weekAppts.filter(a => a.status === 'ST').length;
+  const realized  = weekAppts.filter(a => !!a.executed).length;
   const notDone   = total - realized;
 
   let html = `<div style="font-family:'Figtree',sans-serif;">
@@ -2122,7 +2136,7 @@ function buildRelatorio() {
     const iso = localISO(d);
     const dayAppts = weekAppts.filter(a => a.date === iso);
     if (!dayAppts.length) return;
-    const dR = dayAppts.filter(a => a.status === 'ST').length;
+    const dR = dayAppts.filter(a => !!a.executed).length;
     const dN = dayAppts.length - dR;
     const dayLabel = d.toLocaleDateString('pt-PT', {weekday:'short', day:'2-digit', month:'2-digit'});
     html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:14px;">
@@ -2159,15 +2173,14 @@ function bootApp() {
   document.getElementById('todayDay')?.addEventListener('click', ()=>{ currentMobileDay = new Date(); currentMobileDay.setHours(0,0,0,0); renderMobileDay(); });
   document.getElementById('nextDay')?.addEventListener('click', ()=>{ currentMobileDay = addDays(currentMobileDay, 1); renderMobileDay(); });
 
-  // Status toggle nos cards mobile (delegado)
+  // Status toggle nos cards mobile (delegado) — usa campo executed
   document.getElementById('mobileDayList')?.addEventListener('click', async (e) => {
-    const btn = e.target.closest('[data-toggle]');
+    const btn = e.target.closest('[data-exec]');
     if (!btn) return;
     const id = btn.dataset.id;
-    const newStatus = btn.dataset.toggle;
-    if (!id || !newStatus) return;
-    await persistStatus(id, newStatus);
-    renderMobileDay();
+    const executed = btn.dataset.exec === 'true';
+    if (!id) return;
+    await persistExecuted(id, executed);
   });
 
   // Botão Calcular Rotas - Abrir modal de seleção de dia
