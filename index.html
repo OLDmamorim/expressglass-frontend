@@ -139,6 +139,7 @@
       <div class="nav-right">
         <button id="calculateRoutes" class="nav-button" title="Otimizar rotas por proximidade">🗺️ Calcular Rotas</button>
         <button id="btnRelatorioDesk" class="nav-button" title="Relatório semanal">📊 Relatório</button>
+        <button id="btnBackupRapido" class="nav-button" title="Backup / Restaurar agendamentos">💾 Backup</button>
         <button id="printPage" class="nav-button">🖨 Imprimir</button>
       </div>
     </div>
@@ -401,27 +402,32 @@
 
     <!-- Modal de backup -->
     <div id="backupModal" class="modal">
-      <div class="modal-content">
+      <div class="modal-content" style="max-width:480px;">
         <div class="modal-header">
-          <h3>Backup de Dados</h3>
-          <button class="close-btn" onclick="closeBackupModal()">✕</button>
+          <h3>💾 Backup / Restaurar</h3>
+          <button class="close-btn" id="closeBackupModal">✕</button>
         </div>
-        <div class="backup-content">
-          <div class="backup-section">
-            <h4>📤 Exportar Dados</h4>
-            <p>Faça backup dos seus agendamentos</p>
-            <div class="backup-actions">
-              <button id="exportJson" class="btn primary">💾 Exportar JSON</button>
-              <button id="exportCsv" class="btn secondary">📊 Exportar CSV</button>
+        <div style="padding:24px;display:flex;flex-direction:column;gap:16px;">
+
+          <!-- Export -->
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;">
+            <div style="font-weight:700;font-size:15px;margin-bottom:6px;">📤 Exportar backup</div>
+            <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">Descarrega um ficheiro JSON com todos os agendamentos do portal activo.</div>
+            <button id="btnExportBackup" class="btn primary" style="width:100%;">💾 Descarregar backup agora</button>
+          </div>
+
+          <!-- Restore -->
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:16px;">
+            <div style="font-weight:700;font-size:15px;margin-bottom:6px;">📥 Restaurar backup</div>
+            <div style="font-size:13px;color:#6b7280;margin-bottom:12px;">
+              Repõe os agendamentos a partir de um ficheiro de backup.<br>
+              <strong style="color:#ea580c;">⚠️ Só restaura os que não existem — não apaga os actuais.</strong>
             </div>
+            <input type="file" id="restoreFile" accept=".json" style="display:none;">
+            <button id="btnChooseRestore" class="btn secondary" style="width:100%;margin-bottom:8px;">📁 Escolher ficheiro de backup</button>
+            <div id="restoreStatus" style="font-size:13px;display:none;"></div>
           </div>
-          <div class="backup-section">
-            <h4>📥 Importar Dados</h4>
-            <p>Restaurar dados de um backup anterior</p>
-            <input type="file" id="importFile" accept=".json" style="display: none;" />
-            <button id="importBtn" class="btn secondary">📁 Selecionar Ficheiro</button>
-            <div id="importStatus" class="import-status"></div>
-          </div>
+
         </div>
       </div>
     </div>
