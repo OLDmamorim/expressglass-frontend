@@ -2068,6 +2068,31 @@ window.reloadAppointments = async function() {
   } catch(e) { console.error('Erro ao recarregar:', e); }
 };
 
+// Auto-refresh a cada 30s — mantém vistas sincronizadas entre utilizadores
+// Só corre se a página está visível (não gasta bateria em background)
+(function startPolling() {
+  const INTERVAL = 30000; // 30 segundos
+  let timer = null;
+
+  function poll() {
+    if (document.visibilityState === 'visible' && window.reloadAppointments) {
+      window.reloadAppointments().catch(() => {});
+    }
+  }
+
+  function start() { if (!timer) timer = setInterval(poll, INTERVAL); }
+  function stop()  { if (timer) { clearInterval(timer); timer = null; } }
+
+  // Pausa quando a aba está em background, retoma quando volta ao primeiro plano
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') { poll(); start(); }
+    else stop();
+  });
+
+  // Inicia após o portalReady (dados já carregados)
+  window.addEventListener('portalReady', () => setTimeout(start, 5000), { once: true });
+})();
+
 // ===== RELATÓRIO SEMANAL =====
 function buildRelatorio() {
   const el = document.getElementById('relatorioContent');
