@@ -1288,15 +1288,27 @@ async function persistExecuted(id, executed) {
   if (i < 0) return;
   const prev = appointments[i].executed;
   appointments[i].executed = executed;
-  renderMobileDay();
+  renderAll();
   try {
     await window.apiClient.updateAppointment(id, { ...appointments[i], executed });
   } catch (err) {
     appointments[i].executed = prev;
     showToast('Falha ao gravar: ' + err.message, 'error');
-    renderMobileDay();
+    renderAll();
   }
 }
+// ---------- Exec Listeners (desktop) ----------
+function attachExecListeners(){
+  document.querySelectorAll('.dc-exec-btn').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      const id = this.dataset.id;
+      const executed = this.dataset.exec === 'true';
+      await persistExecuted(id, executed);
+    });
+  });
+}
+
 function attachStatusListeners(){
   document.querySelectorAll('.appt-status input[type="checkbox"]').forEach(checkbox => {
     checkbox.addEventListener('change', async function(e) {
@@ -1629,6 +1641,14 @@ function buildDesktopCard(a){
         <div>Importado direto PHC, mantém?</div>
         <div>Confirma status vidro</div>
       </div>` : '';
+  const todayISO2 = localISO(new Date());
+  const isPastOrToday = a.date && a.date <= todayISO2;
+  const execBadge = isPastOrToday ? `
+    <div class="dc-exec-row" data-id="${a.id}">
+      <button class="dc-exec-btn ${!a.executed ? 'dc-exec-ne' : ''}" data-exec="false" data-id="${a.id}">✗ N. Realizado</button>
+      <button class="dc-exec-btn ${a.executed ? 'dc-exec-st' : ''}" data-exec="true" data-id="${a.id}">✓ Realizado</button>
+    </div>` : '';
+
   return `
     <div class="appointment desk-card${needsLoc}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
@@ -1646,6 +1666,7 @@ function buildDesktopCard(a){
         <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
         <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
       </div>
+      ${execBadge}
       <div class="card-actions">
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
@@ -1725,7 +1746,7 @@ function renderSchedule(){
   }
 
   table.appendChild(tbody);
-  enableDragDrop(); attachStatusListeners(); highlightSearchResults();
+  enableDragDrop(); attachStatusListeners(); attachExecListeners(); highlightSearchResults();
 }
 
 // ---------- Render PENDENTES ----------
@@ -1791,7 +1812,7 @@ function renderUnscheduled(){
     countBadge.textContent = unscheduled.length;
   }
   
-  enableDragDrop(); attachStatusListeners(); highlightSearchResults();
+  enableDragDrop(); attachStatusListeners(); attachExecListeners(); highlightSearchResults();
 }
 
 // Formatar data no formato DD.MM.YY (para portal)
