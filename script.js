@@ -2196,8 +2196,16 @@ function bootApp() {
   document.getElementById('btnBackupRapido')?.addEventListener('click', () => {
     document.getElementById('backupModal')?.classList.add('show');
   });
+  document.getElementById('backupBtn')?.addEventListener('click', () => {
+    document.getElementById('backupModal')?.classList.add('show');
+  });
   document.getElementById('closeBackupModal')?.addEventListener('click', () => {
     document.getElementById('backupModal')?.classList.remove('show');
+  });
+  document.getElementById('backupModal')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('backupModal')) {
+      document.getElementById('backupModal').classList.remove('show');
+    }
   });
   document.getElementById('btnExportBackup')?.addEventListener('click', doExportBackup);
 
