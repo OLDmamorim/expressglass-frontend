@@ -1432,23 +1432,23 @@ async function onDropAppointment(id, targetBucket, targetIndex){
 
   renderAll();
 
-  // Recalcular KM entre serviços após reordenar (só SM)
-  if (!isLoja()) {
-    const dateBucket = targetBucket.split('|')[0];
-    const oldDateBucket = oldBucket.split('|')[0];
-    if (dateBucket !== 'unscheduled') {
-      await recalcKmForBucket(dateBucket);
-    }
-    if (oldDateBucket !== dateBucket && oldDateBucket !== 'unscheduled') {
-      await recalcKmForBucket(oldDateBucket);
-    }
-  }
-
-  const bucketsToPersist = new Set([targetBucket, oldBucket]);
-
-  // Guardar directamente (sem debounce) — mais fiável
+  // Pausar polling ANTES de qualquer operação async para evitar race condition
   window._pausePolling = true;
+
   try {
+    // Recalcular KM entre serviços após reordenar (só SM)
+    if (!isLoja()) {
+      const dateBucket = targetBucket.split('|')[0];
+      const oldDateBucket = oldBucket.split('|')[0];
+      if (dateBucket !== 'unscheduled') {
+        await recalcKmForBucket(dateBucket);
+      }
+      if (oldDateBucket !== dateBucket && oldDateBucket !== 'unscheduled') {
+        await recalcKmForBucket(oldDateBucket);
+      }
+    }
+
+    // Guardar directamente
     for (const bucket of bucketsToPersist) {
       const list = getBucketList(bucket);
       for (const item of list) {
