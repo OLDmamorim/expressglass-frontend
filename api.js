@@ -3,22 +3,32 @@
 
 class ApiClient {
   constructor() {
-    // URL base da API (será configurada automaticamente)
     this.baseURL = this.detectApiUrl();
     this.isOnline = navigator.onLine;
     this.retryAttempts = 3;
     this.retryDelay = 1000;
-    
-    // Escutar mudanças de conectividade
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      console.log('🌐 Conexão restaurada - sincronizando dados...');
-      this.syncOfflineData();
+
+    // Limpar dados offline antigos do localStorage que causavam POST duplicados
+    ['eg_appointments_v31_api','eg_appointments_v30','eg_appointments_v29b'].forEach(k => {
+      try {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (Array.isArray(data) && data.some(a => a._offline || a._created || a._updated)) {
+            localStorage.removeItem(k);
+            console.log(`🧹 Limpo localStorage offline: ${k}`);
+          }
+        }
+      } catch(e) {}
     });
-    
+
     window.addEventListener('offline', () => {
       this.isOnline = false;
-      console.log('📱 Modo offline ativado - usando localStorage');
+      console.log('📱 Offline');
+    });
+    window.addEventListener('online', () => {
+      this.isOnline = true;
+      console.log('🌐 Online');
     });
   }
   
@@ -122,15 +132,16 @@ class ApiClient {
   
   async updateAppointment(id, appointmentData) {
     try {
-      console.log('🔄 Atualizando agendamento na base de dados:', id);
-      
+      // Incluir _portalId para coordenadores/admin com múltiplos portais
+      const payload = { ...appointmentData };
+      if (window.activePortalId) payload._portalId = window.activePortalId;
+
       const response = await this.makeRequest(`/appointments/${id}`, {
         method: 'PUT',
-        body: JSON.stringify(appointmentData)
+        body: JSON.stringify(payload)
       });
       
       if (response.success) {
-        console.log('✅ Agendamento atualizado na base de dados:', id);
         return response.data;
       } else {
         throw new Error(response.error);
