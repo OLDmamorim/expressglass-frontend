@@ -109,8 +109,8 @@ class ApiClient {
   }
   
   async createAppointment(appointmentData) {
+    console.trace('🚨 createAppointment chamado — quem está a chamar?');
     try {
-      console.log('🔄 Criando agendamento na base de dados...');
       
       const response = await this.makeRequest('/appointments', {
         method: 'POST',
