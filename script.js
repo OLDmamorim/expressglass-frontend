@@ -1348,6 +1348,10 @@ async function persistBuckets(buckets){
 async function runPersistFlush(){
   const queue = [...persistQueue];
   persistQueue = [];
+  if (queue.length === 0) return;
+
+  // Pausar polling enquanto grava para evitar race condition
+  window._pausePolling = true;
   try{
     for (const item of queue) {
       let ok=false, attempts=0;
@@ -1360,6 +1364,8 @@ async function runPersistFlush(){
     showToast('Alterações gravadas.', 'success');
   }catch(e){
     showToast('Falha a gravar alguns itens.', 'error');
+  } finally {
+    window._pausePolling = false;
   }
 }
 
@@ -2075,6 +2081,7 @@ window.reloadAppointments = async function() {
   let timer = null;
 
   function poll() {
+    if (window._pausePolling) return; // aguardar gravação pendente
     if (document.visibilityState === 'visible' && window.reloadAppointments) {
       window.reloadAppointments().catch(() => {});
     }
