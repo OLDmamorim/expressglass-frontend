@@ -1342,7 +1342,7 @@ async function persistBuckets(buckets){
   }
   persistQueue = payload;
   if (persistTimer) clearTimeout(persistTimer);
-  persistTimer = setTimeout(runPersistFlush, 350);
+  persistTimer = setTimeout(runPersistFlush, 50); // reduzido para 50ms
 }
 
 async function runPersistFlush(){
@@ -1350,20 +1350,22 @@ async function runPersistFlush(){
   persistQueue = [];
   if (queue.length === 0) return;
 
-  // Pausar polling enquanto grava para evitar race condition
   window._pausePolling = true;
-  try{
+  let saved = 0, failed = 0;
+  try {
     for (const item of queue) {
-      let ok=false, attempts=0;
-      while(!ok && attempts<2){
-        attempts++;
-        try { await window.apiClient.updateAppointment(item.id, item); ok=true; }
-        catch(e){ if(attempts>=2) throw e; }
+      try {
+        console.log(`💾 A gravar ID=${item.id} date=${item.date} portal=${window.activePortalId}`);
+        await window.apiClient.updateAppointment(item.id, item);
+        saved++;
+        console.log(`✅ Gravado ID=${item.id}`);
+      } catch(e) {
+        failed++;
+        console.error(`❌ Falha ID=${item.id}:`, e.message);
+        showToast(`❌ Erro ao gravar ${item.plate}: ${e.message}`, 'error');
       }
     }
-    showToast('Alterações gravadas.', 'success');
-  }catch(e){
-    showToast('Falha a gravar alguns itens.', 'error');
+    if (saved > 0 && failed === 0) showToast('✅ Alterações gravadas.', 'success');
   } finally {
     window._pausePolling = false;
   }
@@ -1394,6 +1396,7 @@ function enableDragDrop(scope){
       const id    = e.dataTransfer.getData('text/plain');
       const bucket= zone.getAttribute('data-drop-bucket');
       const idxIn = zone.querySelectorAll('.appointment').length;
+      console.log(`🖱️ DROP id=${id} bucket=${bucket}`);
       await onDropAppointment(id, bucket, idxIn);
     });
     enableDragDrop._bound = true;
@@ -1442,7 +1445,27 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   }
 
   const bucketsToPersist = new Set([targetBucket, oldBucket]);
-  await persistBuckets(bucketsToPersist);
+
+  // Guardar directamente (sem debounce) — mais fiável
+  window._pausePolling = true;
+  try {
+    for (const bucket of bucketsToPersist) {
+      const list = getBucketList(bucket);
+      for (const item of list) {
+        console.log(`💾 Gravando ID=${item.id} plate=${item.plate} date=${item.date}`);
+        try {
+          await window.apiClient.updateAppointment(item.id, item);
+          console.log(`✅ Gravado ID=${item.id}`);
+        } catch(e) {
+          console.error(`❌ Erro ID=${item.id}:`, e.message);
+          showToast(`❌ Erro ao gravar ${item.plate}: ${e.message}`, 'error');
+        }
+      }
+    }
+    showToast('✅ Alterações gravadas.', 'success');
+  } finally {
+    window._pausePolling = false;
+  }
 }
 
 // ===== RECALCULAR KM ENTRE SERVIÇOS DE UM DIA (após reordenar) =====
