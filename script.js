@@ -1409,16 +1409,15 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   const a = appointments[i];
   const oldBucket = bucketOf(a);
 
-  if(targetBucket === 'unscheduled'){ 
-    a.date = null; 
+  if(targetBucket === 'unscheduled'){
+    a.date = null;
     a.period = null;
   } else if (targetBucket.includes('|')) {
-    // Loja: bucket = "2026-03-21|Manhã"
     const [date, period] = targetBucket.split('|');
     a.date = date;
     a.period = period;
-  } else { 
-    a.date = targetBucket; 
+  } else {
+    a.date = targetBucket;
   }
 
   const dest = getBucketList(targetBucket).filter(x=>String(x.id)!==String(a.id));
@@ -1430,42 +1429,35 @@ async function onDropAppointment(id, targetBucket, targetIndex){
     orig.forEach((x,idx)=> x.sortIndex = idx+1);
   }
 
+  // 1. GRAVAR NA BD IMEDIATAMENTE (antes de qualquer outra coisa)
+  window._pausePolling = true;
+  const bucketsToPersist = new Set([targetBucket, oldBucket]);
+  for (const bucket of bucketsToPersist) {
+    for (const item of getBucketList(bucket)) {
+      try {
+        console.log(`💾 Gravando ID=${item.id} date=${item.date}`);
+        await window.apiClient.updateAppointment(item.id, item);
+        console.log(`✅ ID=${item.id} gravado`);
+      } catch(e) {
+        console.error(`❌ ID=${item.id}:`, e.message);
+        showToast(`❌ Erro: ${e.message}`, 'error');
+      }
+    }
+  }
+  window._pausePolling = false;
+
+  // 2. Render
   renderAll();
 
-  // Pausar polling ANTES de qualquer operação async para evitar race condition
-  window._pausePolling = true;
-
-  try {
-    // Recalcular KM entre serviços após reordenar (só SM)
-    if (!isLoja()) {
-      const dateBucket = targetBucket.split('|')[0];
-      const oldDateBucket = oldBucket.split('|')[0];
-      if (dateBucket !== 'unscheduled') {
-        await recalcKmForBucket(dateBucket);
-      }
-      if (oldDateBucket !== dateBucket && oldDateBucket !== 'unscheduled') {
-        await recalcKmForBucket(oldDateBucket);
-      }
-    }
-
-    // Guardar directamente
-    for (const bucket of bucketsToPersist) {
-      const list = getBucketList(bucket);
-      for (const item of list) {
-        console.log(`💾 Gravando ID=${item.id} plate=${item.plate} date=${item.date}`);
-        try {
-          await window.apiClient.updateAppointment(item.id, item);
-          console.log(`✅ Gravado ID=${item.id}`);
-        } catch(e) {
-          console.error(`❌ Erro ID=${item.id}:`, e.message);
-          showToast(`❌ Erro ao gravar ${item.plate}: ${e.message}`, 'error');
-        }
-      }
-    }
-    showToast('✅ Alterações gravadas.', 'success');
-  } finally {
-    window._pausePolling = false;
+  // 3. Recalc km em background (não bloqueia, não afecta dados)
+  if (!isLoja()) {
+    const dateBucket = targetBucket.split('|')[0];
+    const oldDateBucket = oldBucket.split('|')[0];
+    if (dateBucket !== 'unscheduled') recalcKmForBucket(dateBucket);
+    if (oldDateBucket !== dateBucket && oldDateBucket !== 'unscheduled') recalcKmForBucket(oldDateBucket);
   }
+
+  showToast('✅ Alterações gravadas.', 'success');
 }
 
 // ===== RECALCULAR KM ENTRE SERVIÇOS DE UM DIA (após reordenar) =====
@@ -2775,6 +2767,11 @@ window.addEventListener('portalReady', bootApp, { once: true });
       if (existingService) {
         console.log('✨ Matrícula encontrada nos serviços por agendar:', existingService);
         
+        // ✅ CORRECÇÃO: usar editingId para actualizar o registo existente
+        // em vez de criar um novo e apagar o original (causava 409)
+        editingId = existingService.id;
+        window.originalUnscheduledServiceId = null; // já não é necessário
+
         // Preencher campos automaticamente
         if (existingService.car) {
           document.getElementById('appointmentCar').value = existingService.car;
@@ -2801,10 +2798,7 @@ window.addEventListener('portalReady', bootApp, { once: true });
           document.getElementById('appointmentStatus').value = existingService.status;
         }
         
-        // Guardar ID do serviço original para eliminar depois
-        window.originalUnscheduledServiceId = existingService.id;
-        
-        showToast('✨ Dados preenchidos automaticamente do serviço por agendar!', 'info');
+        showToast('✨ Dados preenchidos automaticamente — vai actualizar o registo existente', 'info');
       }
     }
   });
