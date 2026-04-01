@@ -2527,7 +2527,7 @@ cancelEdit?.();
     document.getElementById('appointmentForm').reset();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
-    setConfirmed(true); // default: confirmado
+    setConfirmed(false); // default: pré-agendamento
 
     // Carregar último tipo de veículo usado
     const lastVT = localStorage.getItem('eg_last_vehicleType') || 'L';
@@ -2559,7 +2559,7 @@ cancelEdit?.();
     document.getElementById('appointmentForm').reset();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
-    setConfirmed(true);
+    setConfirmed(false); // default: pré-agendamento
 
     // Carregar último tipo de veículo usado
     const lastVT = localStorage.getItem('eg_last_vehicleType') || 'L';
