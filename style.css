@@ -450,9 +450,10 @@ table.schedule td.is-today {
 .desk-card .dc-title-text {
   padding: 5px 12px;
   color: #111 !important;
-  font-size: 20px;
-  font-weight: 900;
-  letter-spacing: 2px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: 4px;
   text-shadow: none;
 }
 .desk-card .dc-sub {
@@ -753,6 +754,19 @@ table.schedule td.is-today {
 }
 .modal.show{ display:flex !important; align-items:center; justify-content:center; }
 .modal-content{ background:#fff; border-radius:12px; max-width:600px; width:90%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 25px -5px rgba(0,0,0,.1); }
+
+@media (max-width: 600px) {
+  .modal { align-items: flex-end; padding: 0; }
+  .modal-content {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 20px 20px 0 0;
+    max-height: 95vh;
+    margin: 0;
+  }
+  .modal-header { padding: 16px 20px; }
+  .appointment-form { padding: 16px 20px; }
+}
 .modal-header{ display:flex; justify-content:space-between; align-items:center; padding:20px 24px; border-bottom:1px solid #e5e7eb; }
 .modal-header h3{ margin:0; font-size:18px; font-weight:700; }
 .close-btn{ background:none; border:none; font-size:20px; cursor:pointer; color:#6b7280; padding:4px; border-radius:4px; }
@@ -1038,9 +1052,10 @@ table.schedule td.is-today {
   .m-title-text {
     padding: 6px 14px;
     color: #111 !important;
-    font-size: 24px;
-    font-weight: 900;
-    letter-spacing: 2px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: 4px;
     text-shadow: none;
   }
 
