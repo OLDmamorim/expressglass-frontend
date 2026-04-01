@@ -1127,3 +1127,73 @@ async function refreshFuelPrice() {
   await loadDGEGPrice();
   showToast('Preço DGEG atualizado', 'success');
 }
+
+// ===== BACKUP GERAL (admin) =====
+document.getElementById('adminBtnExportBackup')?.addEventListener('click', async () => {
+  const btn = document.getElementById('adminBtnExportBackup');
+  btn.textContent = '⏳ A exportar...';
+  btn.disabled = true;
+  try {
+    const token = authClient?.getToken?.() || '';
+    const resp = await fetch('/.netlify/functions/backup-all', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Erro');
+    const now = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+    const filename = `backup_GERAL_${stamp}.json`;
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+    showToast(`✅ Backup guardado: ${filename} (${data.total} agendamentos)`, 'success');
+  } catch(e) {
+    showToast('❌ Erro no backup: ' + e.message, 'error');
+  } finally {
+    btn.textContent = '💾 Fazer Backup Agora';
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('adminBtnChooseRestore')?.addEventListener('click', () => {
+  document.getElementById('adminRestoreFile')?.click();
+});
+
+document.getElementById('adminRestoreFile')?.addEventListener('change', async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const statusEl = document.getElementById('adminRestoreStatus');
+  statusEl.style.display = 'block';
+  statusEl.style.color = '#6b7280';
+  statusEl.textContent = '⏳ A ler ficheiro...';
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const toRestore = data.appointments || (Array.isArray(data) ? data : []);
+    if (!toRestore.length) { statusEl.style.color='#dc2626'; statusEl.textContent='❌ Ficheiro vazio ou inválido.'; return; }
+    statusEl.textContent = `⏳ A restaurar ${toRestore.length} agendamentos...`;
+    const token = authClient?.getToken?.() || '';
+    let created = 0, skipped = 0, errors = 0;
+    for (const appt of toRestore) {
+      const { id, portal_name, ...payload } = appt;
+      try {
+        const resp = await fetch(`/.netlify/functions/appointments?portal_id=${appt.portal_id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(payload)
+        });
+        const r = await resp.json();
+        if (resp.status === 409 || !r.success) skipped++;
+        else created++;
+      } catch { errors++; }
+    }
+    statusEl.style.color = '#16a34a';
+    statusEl.textContent = `✅ ${created} restaurados, ${skipped} ignorados (já existiam)${errors ? `, ${errors} erros` : ''}.`;
+  } catch(err) {
+    statusEl.style.color = '#dc2626';
+    statusEl.textContent = '❌ Erro: ' + err.message;
+  }
+  e.target.value = '';
+});
