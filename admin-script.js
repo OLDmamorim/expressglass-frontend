@@ -1268,13 +1268,29 @@ function renderReport(data) {
   const fmtDate = d => new Date(d+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
   document.getElementById('reportPeriod').textContent = `${fmtDate(period.from)} → ${fmtDate(period.to)}`;
 
-  // KPIs
+  // KPIs calculados
   const total = parseInt(totals.total_agendados)||0;
   const realiz = parseInt(totals.total_realizados)||0;
   const nRealiz = parseInt(totals.total_nao_realizados)||0;
   const taxa = total > 0 ? Math.round((realiz/total)*100) : 0;
   const km = parseInt(totals.total_km)||0;
-  const fuel = (km * 7.5 / 100).toFixed(1);
+  const diasComServicos = parseInt(totals.dias_com_servicos)||1;
+  const mediaDiaria = diasComServicos > 0 ? (total/diasComServicos).toFixed(1) : '—';
+  const travelMin = parseInt(totals.total_travel_min)||0;
+  const travelHoras = Math.floor(travelMin/60);
+  const travelMins = travelMin%60;
+  const travelStr = travelMin > 0 ? `${travelHoras}h${String(travelMins).padStart(2,'0')}` : '—';
+
+  // Tempo total de trabalho estimado (km / velocidade média 80kmh → horas estrada + serviços a 60min cada)
+  const horasEstrada = km > 0 ? (km/80) : 0;
+  const horasServico = total * 1; // 60min por serviço em horas
+  const horasTotal = horasEstrada + horasServico;
+  const horasTotalStr = horasTotal > 0 ? `${Math.floor(horasTotal)}h${String(Math.round((horasTotal%1)*60)).padStart(2,'0')}` : '—';
+
+  // Custos
+  const fuelLitros = (km * 7.5 / 100);
+  const custoGasoleo = (fuelLitros * 1.95).toFixed(2);
+  const custoTotal = custoGasoleo; // pode expandir com portagens, etc
 
   document.getElementById('kpiTotal').textContent = total;
   document.getElementById('kpiRealizados').textContent = realiz;
@@ -1282,6 +1298,9 @@ function renderReport(data) {
   document.getElementById('kpiTaxa').textContent = taxa + '%';
   document.getElementById('kpiKm').textContent = km + ' km';
   document.getElementById('kpiPendentes').textContent = parseInt(totals.total_pendentes)||0;
+  document.getElementById('kpiMediaDiaria').textContent = mediaDiaria;
+  document.getElementById('kpiTempoEstrada').textContent = travelStr;
+  document.getElementById('kpiCusto').textContent = custoGasoleo + '€';
 
   // Destruir charts anteriores
   Object.values(reportCharts).forEach(c => c?.destroy());
@@ -1305,8 +1324,11 @@ function renderReport(data) {
     options: { indexAxis: 'y', responsive: true, plugins: { legend: { position: 'top' } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
   });
 
-  // Gráfico: evolução semanal (line)
-  const weekLabels = byWeek.map(r => new Date(r.week_start+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'}));
+  // Gráfico: evolução semanal — corrigir Invalid Date
+  const weekLabels = byWeek.map(r => {
+    const d = new Date(r.week_start + 'T12:00:00');
+    return isNaN(d) ? r.week_start : d.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'});
+  });
   reportCharts.weekly = new Chart(document.getElementById('chartWeekly'), {
     type: 'line',
     data: {
