@@ -1049,10 +1049,10 @@ table.schedule td.is-today {
     font-family: 'Figtree', sans-serif;
     font-size: 13px;
     font-weight: 600;
-    opacity: 0.75;
     letter-spacing: 0.3px;
     margin-bottom: 6px;
-    color: #fff !important;
+    color: var(--tc, #fff) !important;
+    opacity: 0.8;
   }
 
   /* Chips — período, serviço, localidade */
