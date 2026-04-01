@@ -2846,7 +2846,7 @@ window.addEventListener('portalReady', bootApp, { once: true });
         const statusEl = document.getElementById('appointmentStatus');
         if (statusEl) statusEl.value = existingService.status;
       }
-      setConfirmed(existingService.confirmed !== false);
+      // NÃO alterar o estado confirmed — manter o que o coordenador seleccionou
 
       showToast('✨ Dados preenchidos automaticamente', 'info');
     }
