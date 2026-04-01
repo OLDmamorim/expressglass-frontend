@@ -54,10 +54,9 @@ exports.handler = async (event) => {
           continue;
         }
 
-        // Se já existe em qualquer estado → ignorar sempre (incluindo ST)
-        // Para loja: se já tem data (agendado) → nunca tocar
+        // Se já existe → verificar se tem campos em falta que o Excel pode preencher
         const existing = await pool.query(
-          `SELECT id, date FROM appointments 
+          `SELECT id, date, phone, extra, notes FROM appointments 
            WHERE portal_id = $1
              AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
            LIMIT 1`,
@@ -65,8 +64,31 @@ exports.handler = async (event) => {
         );
 
         if (existing.rows.length > 0) {
-          results.skipped = (results.skipped || 0) + 1;
-          results.details.push({ plate: svc.plate, portal_id: svc.portal_id, status: 'skipped' });
+          const row = existing.rows[0];
+          // Actualizar apenas campos em falta: phone, extra (nome/segurado), notes (eurocode)
+          // Nunca mexer em: date, period, locality, address, status, confirmed, etc.
+          const updateFields = [];
+          const updateVals = [];
+          let idx = 1;
+
+          if (!row.phone && svc.phone) { updateFields.push(`phone = $${idx++}`); updateVals.push(svc.phone); }
+          if (!row.extra && svc.extra) { updateFields.push(`extra = $${idx++}`); updateVals.push(svc.extra); }
+          if (!row.notes && svc.notes) { updateFields.push(`notes = $${idx++}`); updateVals.push(svc.notes); }
+
+          if (updateFields.length > 0) {
+            updateFields.push(`updated_at = $${idx++}`);
+            updateVals.push(new Date().toISOString());
+            updateVals.push(row.id);
+            await pool.query(
+              `UPDATE appointments SET ${updateFields.join(', ')} WHERE id = $${idx}`,
+              updateVals
+            );
+            results.updated = (results.updated || 0) + 1;
+            results.details.push({ plate: svc.plate, portal_id: svc.portal_id, status: 'updated', reason: 'campos em falta preenchidos' });
+          } else {
+            results.skipped = (results.skipped || 0) + 1;
+            results.details.push({ plate: svc.plate, portal_id: svc.portal_id, status: 'skipped' });
+          }
         } else {
           // Criar novo serviço — sempre com confirmed=false (pré-agendamento)
           const hasAutoDate = !!svc.date;
