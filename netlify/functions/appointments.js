@@ -42,9 +42,12 @@ exports.handler = async (event) => {
     let portalId = user.portalId;
     const params = event.queryStringParameters || {};
     
-    // Admin pode aceder a qualquer portal
-    if (user.role === 'admin' && params.portal_id) {
-      portalId = parseInt(params.portal_id);
+    // Admin pode aceder a qualquer portal via query param ou body
+    if (user.role === 'admin') {
+      const reqId = params.portal_id
+        ? parseInt(params.portal_id)
+        : (() => { try { return JSON.parse(event.body || '{}')._portalId; } catch(e) { return null; } })();
+      if (reqId) portalId = reqId;
     }
     // Coordenadores podem escolher entre os seus portais
     else if (user.role === 'coordenador' && user.portalIds) {
@@ -71,7 +74,7 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
-               notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, travel_time, auto_imported, executed, created_at, updated_at
+               notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, travel_time, auto_imported, executed, confirmed, created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -111,9 +114,9 @@ exports.handler = async (event) => {
       const q = `
         INSERT INTO appointments (
           date, period, plate, car, service, locality, status,
-          notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, travel_time, portal_id, created_at, updated_at
+          notes, address, extra, phone, km, sortIndex, "glassOrdered", vehicle_type, travel_time, confirmed, portal_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
         ) RETURNING *
       `;
       const v = [
@@ -133,6 +136,7 @@ exports.handler = async (event) => {
         data.glassOrdered || false,
         data.vehicleType || data.vehicle_type || 'L',
         data.travelTime || data.travel_time || null,
+        data.confirmed !== undefined ? data.confirmed : true,
         portalId,
         createdAt,
         new Date().toISOString()
@@ -165,8 +169,8 @@ exports.handler = async (event) => {
           service = $5, locality = $6, status = $7,
           notes = $8, address = $9, extra = $10, phone = $11,
           km = $12, sortIndex = $13, "glassOrdered" = $14, vehicle_type = $15, travel_time = $16, auto_imported = false,
-          executed = $17, updated_at = $18
-        WHERE id = $19 AND portal_id = $20
+          executed = $17, confirmed = $18, updated_at = $19
+        WHERE id = $20 AND portal_id = $21
         RETURNING *
       `;
       const v = [
@@ -187,6 +191,7 @@ exports.handler = async (event) => {
         data.vehicleType || data.vehicle_type || 'L',
         data.travelTime || data.travel_time || null,
         data.executed !== undefined ? data.executed : false,
+        data.confirmed !== undefined ? data.confirmed : true,
         new Date().toISOString(),
         id,
         portalId
