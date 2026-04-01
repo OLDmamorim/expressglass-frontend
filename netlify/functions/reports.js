@@ -99,6 +99,22 @@ exports.handler = async (event) => {
       'SELECT name, portal_type FROM portals WHERE id = $1', [portalId]
     );
 
+    // 7. Dias com serviços (para média diária)
+    const { rows: diasRows } = await pool.query(`
+      SELECT COUNT(DISTINCT date) AS dias_com_servicos
+      FROM appointments
+      WHERE portal_id = $1 AND date BETWEEN $2 AND $3
+    `, [portalId, dateFrom, dateTo]);
+
+    // 8. Totais de tempo (travel_time em minutos)
+    const { rows: timeRows } = await pool.query(`
+      SELECT
+        COALESCE(SUM(travel_time), 0) AS total_travel_min,
+        COUNT(*) FILTER (WHERE travel_time > 0) AS servicos_com_tempo
+      FROM appointments
+      WHERE portal_id = $1 AND date BETWEEN $2 AND $3
+    `, [portalId, dateFrom, dateTo]);
+
     return {
       statusCode: 200,
       headers,
@@ -106,7 +122,11 @@ exports.handler = async (event) => {
         success: true,
         portal: portalInfo[0] || {},
         period: { from: dateFrom, to: dateTo },
-        totals: totals[0],
+        totals: {
+          ...totals[0],
+          dias_com_servicos: parseInt(diasRows[0]?.dias_com_servicos) || 0,
+          total_travel_min: parseInt(timeRows[0]?.total_travel_min) || 0
+        },
         byLocality,
         byWeekday,
         byWeek,
