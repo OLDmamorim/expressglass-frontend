@@ -2809,56 +2809,49 @@ window.addEventListener('portalReady', bootApp, { once: true });
   el.addEventListener('blur', (e) => {
     const ok = /^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/.test(e.target.value);
     e.target.setCustomValidity(ok ? '' : 'Use o formato XX-XX-XX');
-    
-    // ✨ PREENCHIMENTO AUTOMÁTICO: Procurar matrícula nos serviços por agendar
-    if (ok && !editingId) { // Apenas para novos agendamentos
-      const plate = e.target.value.trim();
-      
-      // Procurar serviço por agendar com esta matrícula
-      const existingService = appointments.find(a => 
-        !a.date && // Sem data (por agendar)
-        a.plate && a.plate.toUpperCase() === plate.toUpperCase()
-      );
-      
-      if (existingService) {
-        console.log('✨ Matrícula encontrada nos serviços por agendar:', existingService);
-        
-        // ✅ CORRECÇÃO: usar editingId para actualizar o registo existente
-        // em vez de criar um novo e apagar o original (causava 409)
-        editingId = existingService.id;
-        window.originalUnscheduledServiceId = null; // já não é necessário
-
-        // Preencher campos automaticamente
-        if (existingService.car) {
-          document.getElementById('appointmentCar').value = existingService.car;
-        }
-        if (existingService.service) {
-          document.getElementById('appointmentService').value = existingService.service;
-        }
-        if (existingService.locality) {
-          document.getElementById('appointmentLocality').value = existingService.locality;
-        }
-        if (existingService.notes) {
-          document.getElementById('appointmentNotes').value = existingService.notes;
-        }
-        if (existingService.address) {
-          document.getElementById('appointmentAddress').value = existingService.address;
-        }
-        if (existingService.phone) {
-          document.getElementById('appointmentPhone').value = existingService.phone;
-        }
-        if (existingService.extra) {
-          document.getElementById('appointmentExtra').value = existingService.extra;
-        }
-        if (existingService.status) {
-          document.getElementById('appointmentStatus').value = existingService.status;
-        }
-        
-        showToast('✨ Dados preenchidos automaticamente — vai actualizar o registo existente', 'info');
-      }
-    }
+    tryAutoFill(e.target.value);
   });
-  })();
+
+  // Também tentar no input (útil quando matrícula é colada ou preenchida pelo browser)
+  let autoFillTimer = null;
+  el.addEventListener('input', (e) => {
+    clearTimeout(autoFillTimer);
+    autoFillTimer = setTimeout(() => tryAutoFill(e.target.value), 400);
+  });
+
+  function tryAutoFill(rawPlate) {
+    if (editingId) return; // só para novos agendamentos
+    const norm = rawPlate.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+    if (norm.length < 6) return;
+
+    // Procurar matrícula em TODOS os registos (pendentes e agendados)
+    const existingService = appointments.find(a =>
+      a.plate && a.plate.replace(/[^A-Z0-9]/gi, '').toUpperCase() === norm
+    );
+
+    if (existingService) {
+      // Usar editingId para actualizar o registo existente
+      editingId = existingService.id;
+      window.originalUnscheduledServiceId = null;
+
+      // Preencher campos
+      if (existingService.car) document.getElementById('appointmentCar').value = existingService.car;
+      if (existingService.service) document.getElementById('appointmentService').value = existingService.service;
+      if (existingService.locality) document.getElementById('appointmentLocality').value = existingService.locality;
+      if (existingService.notes) document.getElementById('appointmentNotes').value = existingService.notes;
+      if (existingService.address) document.getElementById('appointmentAddress').value = existingService.address;
+      if (existingService.phone) document.getElementById('appointmentPhone').value = existingService.phone;
+      if (existingService.extra) document.getElementById('appointmentExtra').value = existingService.extra;
+      if (existingService.status) {
+        const statusEl = document.getElementById('appointmentStatus');
+        if (statusEl) statusEl.value = existingService.status;
+      }
+      setConfirmed(existingService.confirmed !== false);
+
+      showToast('✨ Dados preenchidos automaticamente', 'info');
+    }
+  }
+})();
 
 
 // === Autocomplete de Morada (Google Places) ===
@@ -3021,20 +3014,42 @@ document.addEventListener('DOMContentLoaded', function() {
     if (e.target.id === 'backupModal') closeBackupModalFn();
   });
 
-  document.getElementById('btnExportBackup')?.addEventListener('click', () => {
+  document.getElementById('btnExportBackup')?.addEventListener('click', async () => {
     try {
-      const appts = window.appointments || [];
-      if (!appts.length) { alert('Sem agendamentos para exportar.'); return; }
-      const portalName = (window.portalConfig?.name || 'portal').replace(/\s+/g, '-');
       const now = new Date();
       const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
-      const filename = `backup_${portalName}_${stamp}.json`;
-      const json = JSON.stringify({ portal: portalName, exportedAt: now.toISOString(), total: appts.length, appointments: appts }, null, 2);
+      const role = window.authClient?.getUser()?.role;
+      const isAdmin = role === 'admin';
+
+      let appts, filename, exportData;
+
+      if (isAdmin) {
+        // Admin: backup geral de todos os portais
+        const token = window.authClient?.getToken();
+        const resp = await fetch('/.netlify/functions/backup-all', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.error || 'Erro no backup');
+        appts = data.appointments;
+        filename = `backup_GERAL_${stamp}.json`;
+        exportData = { exportedAt: data.exportedAt, portals: data.portals, total: data.total, appointments: appts };
+      } else {
+        // Outros: só portal activo
+        appts = window.appointments || [];
+        if (!appts.length) { alert('Sem agendamentos para exportar.'); return; }
+        const portalName = (window.portalConfig?.name || 'portal').replace(/\s+/g, '-');
+        filename = `backup_${portalName}_${stamp}.json`;
+        exportData = { portal: portalName, exportedAt: now.toISOString(), total: appts.length, appointments: appts };
+      }
+
+      const json = JSON.stringify(exportData, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = filename; a.click();
       URL.revokeObjectURL(url);
+      alert(`✅ Backup guardado: ${filename}\n${appts.length} agendamentos exportados.`);
     } catch(e) { alert('Erro ao criar backup: ' + e.message); }
   });
 
