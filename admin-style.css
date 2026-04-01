@@ -494,9 +494,16 @@ body {
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
   .admin-header {
-    flex-direction: column;
-    gap: 16px;
-    padding: 16px;
+    padding: 10px 16px;
+    gap: 8px;
+  }
+
+  .admin-header h1 {
+    font-size: 18px;
+  }
+
+  .header-logo img {
+    height: 32px;
   }
 
   .header-left {
@@ -520,7 +527,7 @@ body {
   }
 
   .tab-content {
-    padding: 16px;
+    padding: 12px;
   }
 
   .content-header {
