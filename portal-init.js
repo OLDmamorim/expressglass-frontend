@@ -95,6 +95,19 @@
   // Adicionar botão de logout no header
   addLogoutButton();
 
+  // Controlo de visibilidade por role
+  const role = user.role;
+  const canEdit = role === 'admin' || role === 'coordenador';
+
+  // Botão + (mobile) e Calcular Rotas — só para admin/coordenador
+  const addMobileBtn = document.getElementById('addServiceMobile');
+  const routeBtn = document.getElementById('calculateRoutes');
+  const addDesktopBtn = document.getElementById('addServiceBtn');
+
+  if (addMobileBtn) addMobileBtn.style.display = canEdit ? 'flex' : 'none';
+  if (routeBtn) routeBtn.style.display = canEdit ? '' : 'none';
+  if (addDesktopBtn) addDesktopBtn.style.display = canEdit ? '' : 'none';
+
   console.log('✅ Portal inicializado com sucesso (' + (window.portalConfig?.portalType || 'sm') + ')');
   window.dispatchEvent(new CustomEvent('portalReady'));
 })();
@@ -221,6 +234,12 @@ async function switchPortal(newPortalId) {
   // Guardar selecção na sessão
   sessionStorage.setItem('eg_active_portal', String(newPortalId));
   window.activePortalId = newPortalId;
+
+  // Limpar dados do portal anterior imediatamente
+  if (typeof window.appointments !== 'undefined') {
+    window.appointments = [];
+    if (typeof renderAll === 'function') renderAll();
+  }
 
   // Aplicar nova configuração
   applyPortalConfig(portal);
