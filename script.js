@@ -1283,6 +1283,22 @@ async function persistStatus(id, newStatus) {
 
 
 // ---------- Executed (realizado pelo técnico) ----------
+async function persistConfirmed(id, confirmed) {
+  const i = appointments.findIndex(a => String(a.id) === String(id));
+  if (i < 0) return;
+  const prev = appointments[i].confirmed;
+  appointments[i].confirmed = confirmed;
+  renderAll();
+  try {
+    await window.apiClient.updateAppointment(id, { ...appointments[i], confirmed });
+  } catch (err) {
+    appointments[i].confirmed = prev;
+    showToast('Falha ao confirmar: ' + err.message, 'error');
+    renderAll();
+  }
+}
+
+
 async function persistExecuted(id, executed) {
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
@@ -1305,6 +1321,12 @@ function attachExecListeners(){
       const id = this.dataset.id;
       const executed = this.dataset.exec === 'true';
       await persistExecuted(id, executed);
+    });
+  });
+  document.querySelectorAll('.dc-confirm-btn').forEach(btn => {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      await persistConfirmed(this.dataset.confirm, true);
     });
   });
 }
@@ -1686,6 +1708,7 @@ function buildDesktopCard(a){
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
       ${preAgendadoBadge}
+      ${preAgendado ? `<button class="dc-confirm-btn" data-confirm="${a.id}" title="Confirmar agendamento">✅ Confirmar agendamento</button>` : ''}
       ${locWarning}
       <div class="appt-status dc-status">
         <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
@@ -1999,6 +2022,7 @@ const telBtn = phone ? `
         ${chips ? `<div class="m-chips">${chips}</div>` : ''}
         ${notes}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
+        ${preAgendadoM ? `<button class="m-confirm-btn" data-confirm="${a.id}">✅ Confirmar agendamento</button>` : ''}
         ${isLoja() ? '' : buildKmRow(a)}
       </div>
       ${statusToggle}
@@ -2286,6 +2310,13 @@ function bootApp() {
 
   // Status toggle nos cards mobile (delegado) — usa campo executed
   document.getElementById('mobileDayList')?.addEventListener('click', async (e) => {
+    // Confirmar agendamento
+    const confirmBtn = e.target.closest('[data-confirm]');
+    if (confirmBtn) {
+      await persistConfirmed(confirmBtn.dataset.confirm, true);
+      return;
+    }
+    // Realizado/N.Realizado
     const btn = e.target.closest('[data-exec]');
     if (!btn) return;
     const id = btn.dataset.id;
