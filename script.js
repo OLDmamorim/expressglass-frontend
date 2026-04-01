@@ -861,6 +861,7 @@ function getServiceTime(serviceCode, vehicleType, calibration) {
   const key = code + '_' + vt;
   const base = SERVICE_TIMES[key] || SERVICE_TIMES[code + '_L'] || SERVICE_TIMES['PB_L'] || 90;
   const extra = calibration ? (SERVICE_TIMES['CALIB_EXTRA_' + vt] || SERVICE_TIMES['CALIB_EXTRA_L'] || 30) : 0;
+  console.log(`⏱️ getServiceTime: code=${code} vt=${vt} base=${base} calib=${calibration} extra=${extra} total=${base+extra} | SERVICE_TIMES.PB_L=${SERVICE_TIMES.PB_L}`);
   return base + extra;
 }
 
