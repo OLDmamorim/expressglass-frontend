@@ -194,7 +194,7 @@ exports.handler = async (event) => {
         data.auto_imported !== undefined ? data.auto_imported : false,
         data.executed !== undefined ? data.executed : false,
         data.confirmed !== undefined ? data.confirmed : true,
-        data.calibration !== undefined ? data.calibration : false,
+        data.calibration === true ? true : false,
         new Date().toISOString(),
         id,
         portalId
