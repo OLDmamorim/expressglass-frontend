@@ -1297,13 +1297,15 @@ async function persistStatus(id, newStatus) {
 async function persistConfirmed(id, confirmed) {
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
-  const prev = appointments[i].confirmed;
+  const prev = { confirmed: appointments[i].confirmed, auto_imported: appointments[i].auto_imported };
   appointments[i].confirmed = confirmed;
+  if (confirmed) appointments[i].auto_imported = false; // remove badge PHC
   renderAll();
   try {
-    await window.apiClient.updateAppointment(id, { ...appointments[i], confirmed });
+    await window.apiClient.updateAppointment(id, { ...appointments[i], confirmed, auto_imported: confirmed ? false : appointments[i].auto_imported });
   } catch (err) {
-    appointments[i].confirmed = prev;
+    appointments[i].confirmed = prev.confirmed;
+    appointments[i].auto_imported = prev.auto_imported;
     showToast('Falha ao confirmar: ' + err.message, 'error');
     renderAll();
   }

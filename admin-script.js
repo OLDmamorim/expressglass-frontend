@@ -752,6 +752,7 @@ async function startImport() {
       }
     }
     // SM: importa sempre para pendentes (date: null)
+    // Loja: se tem data (dentro de horas) → agenda mas como pré-agendamento (confirmed=false)
 
     services.push({
       portal_id: portalInfo.id,
@@ -764,7 +765,8 @@ async function startImport() {
       status: 'NE',
       createdAt,
       date: scheduleDate || null,
-      period: schedulePeriod || null
+      period: schedulePeriod || null,
+      confirmed: false  // sempre pré-agendamento ao importar do Excel
     });
   });
 
@@ -908,7 +910,8 @@ async function startSync() {
     byPortal[portalInfo.id].push({
       portal_id: portalInfo.id, plate, car, service: 'PB',
       notes, extra, phone, status: 'NE', createdAt,
-      date: scheduleDate || null, period: schedulePeriod || null
+      date: scheduleDate || null, period: schedulePeriod || null,
+      confirmed: false  // sempre pré-agendamento ao importar do Excel
     });
   });
 
