@@ -523,7 +523,12 @@ async function saveOptimizedRoutes() {
         km: service.km,
         sortIndex: service.sortIndex,
         travelTime: service.travelTime || service.travel_time || null,
-        vehicleType: service.vehicleType || service.vehicle_type || 'L'
+        vehicleType: service.vehicleType || service.vehicle_type || 'L',
+        calibration: service.calibration || false,
+        executed: service.executed || false,
+        confirmed: service.confirmed !== undefined ? service.confirmed : true,
+        auto_imported: service.auto_imported || false,
+        glassOrdered: service.glassOrdered || false
       });
     } catch (error) {
       console.error('❌ Erro ao guardar rota optimizada:', service.plate, error);
@@ -2106,9 +2111,10 @@ async function renderMobileDay(){
     return;
   }
 
-  // Mobile: excluir serviços SM sem localidade (só visíveis no desktop para coord/admin)
+  // Mobile SM: mostrar serviços com localidade OU pré-agendamentos importados (sem localidade mas com data)
+  // Esconder apenas os que não têm nem data nem localidade (pendentes normais sem atribuição)
   if (!isLoja()) {
-    items = items.filter(a => !!a.locality);
+    items = items.filter(a => !!a.locality || (!!a.date && a.confirmed === false));
   }
 
   if(items.length === 0){
