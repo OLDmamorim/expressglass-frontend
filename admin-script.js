@@ -60,6 +60,7 @@ async function loadPortals() {
     
     if (data.success) {
       portals = data.data;
+      window._adminPortals = portals; // para relatórios
       renderPortals();
       updatePortalSelect(); // Atualizar dropdown de portais no formulário de utilizadores
     } else {
@@ -1097,6 +1098,9 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
       loadSettings();
       loadDGEGPrice();
     }
+    if (tab.dataset.tab === 'reports') {
+      initReportFilters();
+    }
   });
 });
 
@@ -1205,3 +1209,159 @@ document.getElementById('adminRestoreFile')?.addEventListener('change', async (e
   }
   e.target.value = '';
 });
+
+// ===== RELATÓRIOS =====
+let reportCharts = {};
+
+function initReportFilters() {
+  // Preencher selector de portais
+  const sel = document.getElementById('reportPortal');
+  if (!sel || sel.options.length > 1) return;
+  const portals = window._adminPortals || [];
+  portals.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+
+  // Default: mês actual
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('reportFrom').value = ym;
+  document.getElementById('reportTo').value = ym;
+}
+
+async function generateReport() {
+  const portalId = document.getElementById('reportPortal').value;
+  const fromMonth = document.getElementById('reportFrom').value;
+  const toMonth   = document.getElementById('reportTo').value;
+  if (!portalId || !fromMonth || !toMonth) { showToast('Preenche todos os campos', 'error'); return; }
+
+  const dateFrom = fromMonth + '-01';
+  const dateTo   = toMonth + '-' + new Date(toMonth.split('-')[0], toMonth.split('-')[1], 0).getDate();
+
+  document.getElementById('reportLoading').style.display = 'block';
+  document.getElementById('reportContent').style.display = 'none';
+  document.getElementById('btnDownloadPDF').style.display = 'none';
+
+  try {
+    const token = authClient.getToken();
+    const resp = await fetch(`/.netlify/functions/reports?portal_id=${portalId}&date_from=${dateFrom}&date_to=${dateTo}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error);
+    renderReport(data);
+  } catch(e) {
+    showToast('Erro: ' + e.message, 'error');
+  } finally {
+    document.getElementById('reportLoading').style.display = 'none';
+  }
+}
+
+function renderReport(data) {
+  const { portal, period, totals, byLocality, byWeekday, byWeek, byService } = data;
+
+  // Header
+  document.getElementById('reportTitle').textContent = portal.name || 'Portal';
+  const fmtDate = d => new Date(d+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
+  document.getElementById('reportPeriod').textContent = `${fmtDate(period.from)} → ${fmtDate(period.to)}`;
+
+  // KPIs
+  const total = parseInt(totals.total_agendados)||0;
+  const realiz = parseInt(totals.total_realizados)||0;
+  const nRealiz = parseInt(totals.total_nao_realizados)||0;
+  const taxa = total > 0 ? Math.round((realiz/total)*100) : 0;
+  const km = parseInt(totals.total_km)||0;
+  const fuel = (km * 7.5 / 100).toFixed(1);
+
+  document.getElementById('kpiTotal').textContent = total;
+  document.getElementById('kpiRealizados').textContent = realiz;
+  document.getElementById('kpiNaoRealizados').textContent = nRealiz;
+  document.getElementById('kpiTaxa').textContent = taxa + '%';
+  document.getElementById('kpiKm').textContent = km + ' km';
+  document.getElementById('kpiPendentes').textContent = parseInt(totals.total_pendentes)||0;
+
+  // Destruir charts anteriores
+  Object.values(reportCharts).forEach(c => c?.destroy());
+  reportCharts = {};
+
+  const COLORS = ['#2563eb','#16a34a','#dc2626','#d97706','#7c3aed','#db2777','#0891b2','#65a30d','#ea580c','#6366f1'];
+
+  // Gráfico: por localidade (bar horizontal)
+  const locLabels = byLocality.map(r => r.locality);
+  const locTotals = byLocality.map(r => parseInt(r.total));
+  const locRealizados = byLocality.map(r => parseInt(r.realizados));
+  reportCharts.locality = new Chart(document.getElementById('chartLocality'), {
+    type: 'bar',
+    data: {
+      labels: locLabels,
+      datasets: [
+        { label: 'Total', data: locTotals, backgroundColor: '#bfdbfe', borderColor: '#2563eb', borderWidth: 1.5, borderRadius: 4 },
+        { label: 'Realizados', data: locRealizados, backgroundColor: '#bbf7d0', borderColor: '#16a34a', borderWidth: 1.5, borderRadius: 4 }
+      ]
+    },
+    options: { indexAxis: 'y', responsive: true, plugins: { legend: { position: 'top' } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+
+  // Gráfico: evolução semanal (line)
+  const weekLabels = byWeek.map(r => new Date(r.week_start+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'}));
+  reportCharts.weekly = new Chart(document.getElementById('chartWeekly'), {
+    type: 'line',
+    data: {
+      labels: weekLabels,
+      datasets: [
+        { label: 'Agendados', data: byWeek.map(r=>parseInt(r.total)), borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', tension: 0.3, fill: true, pointRadius: 4 },
+        { label: 'Realizados', data: byWeek.map(r=>parseInt(r.realizados)), borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.08)', tension: 0.3, fill: true, pointRadius: 4 }
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+
+  // Gráfico: por dia da semana (bar)
+  const dowNames = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
+  const dowData = Array(7).fill(0);
+  byWeekday.forEach(r => { const i = parseInt(r.dow_num)-1; if(i>=0&&i<7) dowData[i]=parseInt(r.total); });
+  reportCharts.weekday = new Chart(document.getElementById('chartWeekday'), {
+    type: 'bar',
+    data: {
+      labels: dowNames,
+      datasets: [{ label: 'Serviços', data: dowData, backgroundColor: COLORS, borderRadius: 6 }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+  });
+
+  // Gráfico: por tipo de serviço (doughnut)
+  const svcMap = { PB:'Para-brisas', LT:'Lateral', OC:'Óculo', REP:'Reparação', POL:'Polimento', MO:'Montante' };
+  reportCharts.service = new Chart(document.getElementById('chartService'), {
+    type: 'doughnut',
+    data: {
+      labels: byService.map(r => svcMap[r.service]||r.service),
+      datasets: [{ data: byService.map(r=>parseInt(r.total)), backgroundColor: COLORS, borderWidth: 2 }]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } }, cutout: '55%' }
+  });
+
+  // Tabela localidades
+  const tbody = document.getElementById('reportLocalityTable');
+  tbody.innerHTML = byLocality.map((r,i) => {
+    const t = parseInt(r.total), rl = parseInt(r.realizados);
+    const tx = t > 0 ? Math.round((rl/t)*100) : 0;
+    const taxaColor = tx>=80?'#16a34a':tx>=50?'#d97706':'#dc2626';
+    return `<tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
+      <td style="padding:10px 12px;font-weight:600;">${r.locality}</td>
+      <td style="text-align:center;padding:10px;">${t}</td>
+      <td style="text-align:center;padding:10px;color:#16a34a;font-weight:700;">${rl}</td>
+      <td style="text-align:center;padding:10px;"><span style="background:${taxaColor}15;color:${taxaColor};font-weight:700;padding:2px 8px;border-radius:20px;">${tx}%</span></td>
+      <td style="text-align:center;padding:10px;color:#7c3aed;font-weight:600;">${parseInt(r.km)||0} km</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('reportContent').style.display = 'block';
+  document.getElementById('btnDownloadPDF').style.display = 'inline-block';
+}
+
+function downloadReportPDF() {
+  window.print();
+}
