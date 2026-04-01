@@ -1519,7 +1519,8 @@ function editAppointment(id) {
 
   editingId = id;
   
-  // Preencher formulário
+  // Estado confirmado
+  setConfirmed(appointment.confirmed !== false);
   document.getElementById('appointmentDate').value = appointment.date || '';
   document.getElementById('appointmentPlate').value = appointment.plate || '';
   document.getElementById('appointmentCar').value = appointment.car || '';
@@ -1662,6 +1663,9 @@ function buildDesktopCard(a){
         <div>Importado direto PHC, mantém?</div>
         <div>Confirma status vidro</div>
       </div>` : '';
+  const preAgendado = a.confirmed === false;
+  const preAgendadoBadge = preAgendado ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : '';
+
   const todayISO2 = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO2;
   const execBadge = isPastOrToday ? `
@@ -1671,7 +1675,7 @@ function buildDesktopCard(a){
     </div>` : '';
 
   return `
-    <div class="appointment desk-card${needsLoc}" data-id="${a.id}" draggable="true"
+    <div class="appointment desk-card${needsLoc}${preAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; ${bar}">
       <div class="dc-title">${plate}</div>
@@ -1681,6 +1685,7 @@ function buildDesktopCard(a){
         ${car ? `<span class="dc-car">${car}</span>` : ''}
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
+      ${preAgendadoBadge}
       ${locWarning}
       <div class="appt-status dc-status">
         <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
@@ -1966,6 +1971,7 @@ const telBtn = phone ? `
       </div>` : '';
 
   const isRealizado = !!a.executed;
+  const preAgendadoM = a.confirmed === false;
   const todayISO = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO;
 
@@ -1982,7 +1988,7 @@ const telBtn = phone ? `
     </div>` : '';
 
   return `
-    <div class="appointment m-card" data-id="${a.id}"
+    <div class="appointment m-card${preAgendadoM ? ' pre-agendado' : ''}" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
       <div class="map-icons">
         ${wazeBtn}${mapsBtn}${telBtn}
@@ -1992,6 +1998,7 @@ const telBtn = phone ? `
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips">${chips}</div>` : ''}
         ${notes}
+        ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
         ${isLoja() ? '' : buildKmRow(a)}
       </div>
       ${statusToggle}
@@ -2243,7 +2250,22 @@ function buildRelatorio() {
   el.innerHTML = html;
 }
 
-// Bootstrap da app — espera que o portal-init.js termine antes de carregar dados
+// Selector Pré-agendamento / Confirmado
+function setConfirmed(value) {
+  document.getElementById('appointmentConfirmed').value = value ? 'true' : 'false';
+  const btnPre  = document.getElementById('btnPreAgendado');
+  const btnConf = document.getElementById('btnConfirmado');
+  if (!btnPre || !btnConf) return;
+  if (value) {
+    btnConf.style.cssText = 'padding:14px 10px;border-radius:10px;border:2px solid #16a34a;background:#dcfce7;color:#14532d;font-weight:800;font-size:14px;cursor:pointer;';
+    btnPre.style.cssText  = 'padding:14px 10px;border-radius:10px;border:2px solid #d1d5db;background:#f9fafb;color:#6b7280;font-weight:800;font-size:14px;cursor:pointer;';
+  } else {
+    btnPre.style.cssText  = 'padding:14px 10px;border-radius:10px;border:2px solid #f59e0b;background:#fef3c7;color:#92400e;font-weight:800;font-size:14px;cursor:pointer;';
+    btnConf.style.cssText = 'padding:14px 10px;border-radius:10px;border:2px solid #d1d5db;background:#f9fafb;color:#6b7280;font-weight:800;font-size:14px;cursor:pointer;';
+  }
+}
+
+
 function bootApp() {
   (async () => {
     try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
@@ -2354,7 +2376,8 @@ function bootApp() {
       vehicleType: (document.getElementById('appointmentVehicleType')?.value || localStorage.getItem('eg_last_vehicleType') || 'L'),
       calibration: document.getElementById('appointmentCalibration')?.checked || false,
       // ===== ADICIONAR OS QUILÓMETROS CALCULADOS =====
-      km: calculatedKm
+      km: calculatedKm,
+      confirmed: document.getElementById('appointmentConfirmed')?.value !== 'false'
     };
   }
 
@@ -2473,6 +2496,7 @@ cancelEdit?.();
     document.getElementById('appointmentForm').reset();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
+    setConfirmed(true); // default: confirmado
 
     // Carregar último tipo de veículo usado
     const lastVT = localStorage.getItem('eg_last_vehicleType') || 'L';
@@ -2504,6 +2528,7 @@ cancelEdit?.();
     document.getElementById('appointmentForm').reset();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
+    setConfirmed(true);
 
     // Carregar último tipo de veículo usado
     const lastVT = localStorage.getItem('eg_last_vehicleType') || 'L';

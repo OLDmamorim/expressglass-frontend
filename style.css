@@ -1234,6 +1234,27 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
 @media (max-width: 820px) {
   .dc-exec-row { display: none !important; }
 }
+/* Pré-agendamento — piscar suave */
+@keyframes preagendado-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.pre-agendado {
+  animation: preagendado-pulse 2s ease-in-out infinite;
+}
+.pre-agendado-badge {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fef3c7;
+  background: rgba(0,0,0,0.35);
+  border-radius: 6px;
+  padding: 3px 7px;
+  margin-top: 6px;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
 .rel-stat {
   background: #f8fafc;
   border: 1px solid #e5e7eb;

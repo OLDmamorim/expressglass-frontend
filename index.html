@@ -391,6 +391,24 @@
             </div>
           </div>
 
+          <!-- Selector Pré-agendamento / Confirmado -->
+          <div class="form-group" style="margin-bottom:20px;">
+            <label style="font-weight:700;font-size:13px;color:#374151;margin-bottom:8px;display:block;">Estado do Agendamento *</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <button type="button" id="btnPreAgendado"
+                onclick="setConfirmed(false)"
+                style="padding:14px 10px;border-radius:10px;border:2px solid #f59e0b;background:#fef3c7;color:#92400e;font-weight:800;font-size:14px;cursor:pointer;transition:all .15s;">
+                ⏳ Pré-agendamento
+              </button>
+              <button type="button" id="btnConfirmado"
+                onclick="setConfirmed(true)"
+                style="padding:14px 10px;border-radius:10px;border:2px solid #d1d5db;background:#f9fafb;color:#6b7280;font-weight:800;font-size:14px;cursor:pointer;transition:all .15s;">
+                ✅ Agendamento Confirmado
+              </button>
+            </div>
+            <input type="hidden" id="appointmentConfirmed" value="true">
+          </div>
+
           <div class="form-actions">
             <button type="button" id="cancelForm" class="btn secondary">Cancelar</button>
             <button type="button" id="deleteAppointment" class="btn danger hidden">Eliminar</button>
