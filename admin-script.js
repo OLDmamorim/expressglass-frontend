@@ -1138,6 +1138,13 @@ document.getElementById('adminBtnExportBackup')?.addEventListener('click', async
     const resp = await fetch('/.netlify/functions/backup-all', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
+
+    // Verificar se é JSON válido antes de fazer parse
+    const contentType = resp.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      throw new Error(`Função não encontrada (HTTP ${resp.status}). Verifica se backup-all.js está em netlify/functions/.`);
+    }
+
     const data = await resp.json();
     if (!data.success) throw new Error(data.error || 'Erro');
     const now = new Date();
