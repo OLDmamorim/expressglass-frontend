@@ -1700,7 +1700,18 @@ function buildDesktopCard(a){
         <div>Confirma status vidro</div>
       </div>` : '';
   const preAgendado = a.confirmed === false;
+
+  // Para SM: botão confirmar só aparece com localidade preenchida
+  // Para Loja: aparece sempre
+  const canConfirm = preAgendado && (loja || !!a.locality);
+  const needsLocMsg = preAgendado && !loja && !a.locality
+    ? `<div style="font-size:11px;font-weight:700;color:#fef3c7;background:rgba(0,0,0,0.3);border-radius:6px;padding:4px 8px;margin-top:6px;">📍 Adicionar localidade e morada para confirmar</div>`
+    : '';
+
   const preAgendadoBadge = preAgendado ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : '';
+  const confirmBtn = canConfirm
+    ? `<button class="dc-confirm-btn" data-confirm="${a.id}">✅ Confirmar agendamento</button>`
+    : needsLocMsg;
 
   const todayISO2 = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO2;
@@ -1722,7 +1733,7 @@ function buildDesktopCard(a){
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
       ${preAgendadoBadge}
-      ${preAgendado ? `<button class="dc-confirm-btn" data-confirm="${a.id}" title="Confirmar agendamento">✅ Confirmar agendamento</button>` : ''}
+      ${confirmBtn}
       ${locWarning}
       <div class="appt-status dc-status">
         <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
@@ -2037,7 +2048,12 @@ const telBtn = phone ? `
         ${chips ? `<div class="m-chips">${chips}</div>` : ''}
         ${notes}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
-        ${preAgendadoM ? `<button class="m-confirm-btn" data-confirm="${a.id}">✅ Confirmar agendamento</button>` : ''}
+        ${preAgendadoM && (isLoja() || !!a.locality)
+          ? `<button class="m-confirm-btn" data-confirm="${a.id}">✅ Confirmar agendamento</button>`
+          : preAgendadoM && !isLoja() && !a.locality
+            ? `<div style="font-size:11px;font-weight:700;color:#fef3c7;background:rgba(0,0,0,0.3);border-radius:6px;padding:5px 10px;margin-top:6px;">📍 Adicionar localidade e morada para confirmar</div>`
+            : ''
+        }
         ${isLoja() ? '' : buildKmRow(a)}
       </div>
       ${statusToggle}

@@ -737,22 +737,20 @@ async function startImport() {
 
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
-    // === AGENDAMENTO AUTOMÁTICO: só para Loja, com hora entre 09:00-18:00 ===
+    // === AGENDAMENTO AUTOMÁTICO: Loja E SM, com hora entre 09:00-18:00 ===
     let scheduleDate = null;
     let schedulePeriod = null;
 
-    if (portalInfo.type === 'loja') {
-      const horaMin = horaInicioCol >= 0 ? parseHoraToMinutes(row[horaInicioCol]) : null;
-      if (horaMin !== null && horaMin >= 540 && horaMin < 1080) {
-        scheduleDate = (dataServicoCol >= 0 ? excelDateToYMD(row[dataServicoCol]) : null)
-                    || (dataObraCol >= 0 ? excelDateToYMD(row[dataObraCol]) : null);
-        if (scheduleDate) {
-          schedulePeriod = horaMin < 840 ? 'Manhã' : 'Tarde';
-        }
+    const horaMin = horaInicioCol >= 0 ? parseHoraToMinutes(row[horaInicioCol]) : null;
+    if (horaMin !== null && horaMin >= 540 && horaMin < 1080) {
+      scheduleDate = (dataServicoCol >= 0 ? excelDateToYMD(row[dataServicoCol]) : null)
+                  || (dataObraCol >= 0 ? excelDateToYMD(row[dataObraCol]) : null);
+      if (scheduleDate && portalInfo.type === 'loja') {
+        schedulePeriod = horaMin < 840 ? 'Manhã' : 'Tarde';
       }
+      // SM: entra na agenda com data mas SEM localidade/morada → coordenador preenche depois
     }
-    // SM: importa sempre para pendentes (date: null)
-    // Loja: se tem data (dentro de horas) → agenda mas como pré-agendamento (confirmed=false)
+    // Fora de horas → pendentes (sem data)
 
     services.push({
       portal_id: portalInfo.id,
@@ -895,14 +893,14 @@ async function startSync() {
     const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
-    // Loja: agenda automática por hora. SM: sempre pendente
+    // Loja e SM: agenda automática se hora entre 09:00-18:00
     let scheduleDate = null, schedulePeriod = null;
-    if (portalInfo.type === 'loja') {
-      const horaMin = horaInicioCol >= 0 ? parseHoraToMinutes(row[horaInicioCol]) : null;
-      if (horaMin !== null && horaMin >= 540 && horaMin < 1080) {
-        scheduleDate = (dataServicoCol >= 0 ? excelDateToYMD(row[dataServicoCol]) : null)
-                    || (dataObraCol >= 0 ? excelDateToYMD(row[dataObraCol]) : null);
-        if (scheduleDate) schedulePeriod = horaMin < 840 ? 'Manhã' : 'Tarde';
+    const horaMinSync = horaInicioCol >= 0 ? parseHoraToMinutes(row[horaInicioCol]) : null;
+    if (horaMinSync !== null && horaMinSync >= 540 && horaMinSync < 1080) {
+      scheduleDate = (dataServicoCol >= 0 ? excelDateToYMD(row[dataServicoCol]) : null)
+                  || (dataObraCol >= 0 ? excelDateToYMD(row[dataObraCol]) : null);
+      if (scheduleDate && portalInfo.type === 'loja') {
+        schedulePeriod = horaMinSync < 840 ? 'Manhã' : 'Tarde';
       }
     }
 
