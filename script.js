@@ -1712,7 +1712,7 @@ function buildDesktopCard(a){
     <div class="appointment desk-card${needsLoc}${preAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar}">
-      <div class="dc-title">${plate}</div>
+      <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
       <div class="dc-meta">
         <span class="dc-badge">${service}</span>
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
@@ -2030,7 +2030,7 @@ const telBtn = phone ? `
         ${wazeBtn}${mapsBtn}${telBtn}
       </div>
       <div style="${iconPadding}">
-        <div class="m-title">${plate}</div>
+        <div class="m-title"><span class="m-title-text">${plate}</span></div>
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips">${chips}</div>` : ''}
         ${notes}
