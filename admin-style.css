@@ -505,7 +505,18 @@ body {
   }
 
   .admin-nav {
-    padding: 0 16px;
+    padding: 0 8px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    gap: 0;
+  }
+
+  .nav-tab {
+    padding: 12px 14px;
+    font-size: 13px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .tab-content {
