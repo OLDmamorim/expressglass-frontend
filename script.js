@@ -503,41 +503,20 @@ function getPermutations(arr) {
 // Guardar rotas otimizadas na base de dados
 async function saveOptimizedRoutes() {
   const optimizedServices = appointments.filter(a => a._optimized);
-
   if (optimizedServices.length === 0) return;
 
   for (const service of optimizedServices) {
     try {
-      await window.apiClient.updateAppointment(service.id, {
-        plate: service.plate,
-        car: service.car,
-        service: service.service,
-        locality: service.locality,
-        notes: service.notes,
-        status: service.status,
-        phone: service.phone,
-        extra: service.extra,
-        date: service.date,
-        period: service.period,
-        address: service.address,
-        km: service.km,
-        sortIndex: service.sortIndex,
-        travelTime: service.travelTime || service.travel_time || null,
-        vehicleType: service.vehicleType || service.vehicle_type || 'L',
-        calibration: service.calibration || false,
-        executed: service.executed || false,
-        confirmed: service.confirmed !== undefined ? service.confirmed : true,
-        auto_imported: service.auto_imported || false,
-        glassOrdered: service.glassOrdered || false
-      });
+      // Enviar objecto completo — nenhum campo se perde
+      await window.apiClient.updateAppointment(service.id, { ...service });
+      console.log(`✅ Rota gravada: ${service.plate} calibration=${service.calibration}`);
     } catch (error) {
-      console.error('❌ Erro ao guardar rota optimizada:', service.plate, error);
+      console.error('❌ Erro ao guardar rota:', service.plate, error);
       showToast(`Erro ao guardar: ${error.message}`, 'error');
     }
   }
 
   appointments.forEach(a => delete a._optimized);
-  console.log(`✅ ${optimizedServices.length} rotas guardadas na BD`);
 }
 
 // ===== FUNÇÕES DO MODAL DE PROGRESSO =====
