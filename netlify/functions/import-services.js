@@ -55,8 +55,9 @@ exports.handler = async (event) => {
         }
 
         // Se já existe em qualquer estado → ignorar sempre (incluindo ST)
+        // Para loja: se já tem data (agendado) → nunca tocar
         const existing = await pool.query(
-          `SELECT id FROM appointments 
+          `SELECT id, date FROM appointments 
            WHERE portal_id = $1
              AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
            LIMIT 1`,
@@ -67,15 +68,15 @@ exports.handler = async (event) => {
           results.skipped = (results.skipped || 0) + 1;
           results.details.push({ plate: svc.plate, portal_id: svc.portal_id, status: 'skipped' });
         } else {
-          // Criar novo serviço
+          // Criar novo serviço — sempre com confirmed=false (pré-agendamento)
           const hasAutoDate = !!svc.date;
           const insertQ = `
             INSERT INTO appointments (
               date, period, plate, car, service, locality, status,
               notes, address, extra, phone, km, sortIndex, "glassOrdered",
-              auto_imported, portal_id, created_at, updated_at
+              auto_imported, confirmed, portal_id, created_at, updated_at
             ) VALUES (
-              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18
+              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
             ) RETURNING id
           `;
           await pool.query(insertQ, [
@@ -94,6 +95,7 @@ exports.handler = async (event) => {
             1,                              // sortIndex
             false,                          // glassOrdered
             hasAutoDate,                    // auto_imported: true se veio com data do Excel
+            false,                          // confirmed: sempre false ao importar
             svc.portal_id,
             svc.createdAt || new Date().toISOString(),
             new Date().toISOString()

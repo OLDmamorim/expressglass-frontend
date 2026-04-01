@@ -168,9 +168,9 @@ exports.handler = async (event) => {
           date = $1, period = $2, plate = $3, car = $4,
           service = $5, locality = $6, status = $7,
           notes = $8, address = $9, extra = $10, phone = $11,
-          km = $12, sortIndex = $13, "glassOrdered" = $14, vehicle_type = $15, travel_time = $16, auto_imported = false,
-          executed = $17, confirmed = $18, updated_at = $19
-        WHERE id = $20 AND portal_id = $21
+          km = $12, sortIndex = $13, "glassOrdered" = $14, vehicle_type = $15, travel_time = $16, auto_imported = $17,
+          executed = $18, confirmed = $19, updated_at = $20
+        WHERE id = $21 AND portal_id = $22
         RETURNING *
       `;
       const v = [
@@ -190,6 +190,7 @@ exports.handler = async (event) => {
         data.glassOrdered !== undefined ? data.glassOrdered : null,
         data.vehicleType || data.vehicle_type || 'L',
         data.travelTime || data.travel_time || null,
+        data.auto_imported !== undefined ? data.auto_imported : false,
         data.executed !== undefined ? data.executed : false,
         data.confirmed !== undefined ? data.confirmed : true,
         new Date().toISOString(),
