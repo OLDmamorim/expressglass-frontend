@@ -1099,6 +1099,17 @@ const rgbToHex=({r,g,b})=>'#'+toHex(clamp(r))+toHex(clamp(g))+toHex(clamp(b));
 const lighten=(rgb,a)=>({ r:rgb.r+(255-rgb.r)*a, g:rgb.g+(255-rgb.g)*a, b:rgb.b+(255-rgb.b)*a });
 const darken=(rgb,a)=>({ r:rgb.r*(1-a), g:rgb.g*(1-a), b:rgb.b*(1-a) });
 function gradFromBase(hex){ const rgb=parseColor(hex)||parseColor('#1e88e5'); return { c1: rgbToHex(lighten(rgb,0.06)), c2: rgbToHex(darken(rgb,0.18)) }; }
+
+// Calcula luminância relativa (WCAG) e devolve '#000' ou '#fff' conforme contraste
+function textColorForBg(hex) {
+  const rgb = parseColor(hex);
+  if (!rgb) return '#fff';
+  // sRGB linearization
+  const lin = v => { const s = v / 255; return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+  const L = 0.2126 * lin(rgb.r) + 0.7152 * lin(rgb.g) + 0.0722 * lin(rgb.b);
+  // branco se escuro (L < 0.35), preto se claro
+  return L > 0.35 ? '#111' : '#fff';
+}
 function bucketOf(a){ 
   if(!a.date) return 'unscheduled'; 
   if(isLoja()) return `${a.date}|${a.period || 'Manhã'}`;
@@ -1660,6 +1671,7 @@ function buildKmRow(ag) {
 function buildDesktopCard(a){
   const base = getCardBaseColor(a);
   const g = gradFromBase(base);
+  const textColor = textColorForBg(base);
   const loja = isLoja();
   const bar = loja ? '' : `border-left:5px solid ${statusBarColors[a.status] || '#475569'}`;
   // Nova hierarquia: matrícula em Barlow Condensed, badge serviço, carro secundário
@@ -1699,7 +1711,7 @@ function buildDesktopCard(a){
   return `
     <div class="appointment desk-card${needsLoc}${preAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
-         style="--c1:${g.c1}; --c2:${g.c2}; ${bar}">
+         style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar}">
       <div class="dc-title">${plate}</div>
       <div class="dc-meta">
         <span class="dc-badge">${service}</span>
@@ -1972,6 +1984,7 @@ const telBtn = phone ? `
 
   const base = getCardBaseColor(a);
   const g = gradFromBase(base);
+  const textColor = textColorForBg(base);
 
   // Hierarquia visual: matrícula em destaque, carro secundário
   const hasIcons = !!(wazeBtn || mapsBtn || telBtn);
@@ -2012,7 +2025,7 @@ const telBtn = phone ? `
 
   return `
     <div class="appointment m-card${preAgendadoM ? ' pre-agendado' : ''}" data-id="${a.id}"
-         style="--c1:${g.c1}; --c2:${g.c2}; position:relative;">
+         style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; position:relative;">
       <div class="map-icons">
         ${wazeBtn}${mapsBtn}${telBtn}
       </div>

@@ -359,7 +359,7 @@ table.schedule td.is-today {
   border-radius: 50%;
   pointer-events: none;
 }
-.desk-card, .desk-card * { color:#fff !important; }
+.desk-card, .desk-card * { color: var(--tc, #fff) !important; }
 
 /* Matrícula em destaque */
 .desk-card .dc-plate {
@@ -967,7 +967,7 @@ table.schedule td.is-today {
     border-radius: 50%;
     pointer-events: none;
   }
-  .m-card, .m-card * { color: #fff !important; }
+  .m-card, .m-card * { color: var(--tc, #fff) !important; }
 
   /* Matrícula — destaque máximo */
   .m-title {
