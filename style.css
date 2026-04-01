@@ -1315,21 +1315,22 @@ textarea, input, select { font-size: 14px !important; -webkit-text-size-adjust: 
 }
 .dc-confirm-btn:hover { background: #15803d; }
 
-/* Botão confirmar agendamento — mobile */
-.m-confirm-btn {
-  width: 100%;
-  margin-top: 8px;
-  padding: 10px;
-  border-radius: 10px;
-  border: none;
-  background: #16a34a;
-  color: #fff;
-  font-family: 'Figtree', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
+  /* Indicador "aguarda confirmação" no mobile — apenas visual, não clicável */
+  .m-pending-confirm {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    border: 2px dashed rgba(255,255,255,0.4);
+    background: rgba(0,0,0,0.2);
+    color: rgba(255,255,255,0.7) !important;
+    font-family: 'Figtree', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+    pointer-events: none;
+    user-select: none;
+  }
 
 /* Pré-agendamento — piscar suave */
 @keyframes preagendado-pulse {
