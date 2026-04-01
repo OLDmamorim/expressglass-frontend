@@ -861,7 +861,6 @@ function getServiceTime(serviceCode, vehicleType, calibration) {
   const key = code + '_' + vt;
   const base = SERVICE_TIMES[key] || SERVICE_TIMES[code + '_L'] || SERVICE_TIMES['PB_L'] || 90;
   const extra = calibration ? (SERVICE_TIMES['CALIB_EXTRA_' + vt] || SERVICE_TIMES['CALIB_EXTRA_L'] || 30) : 0;
-  console.log(`⏱️ getServiceTime: code=${code} vt=${vt} base=${base} calib=${calibration} extra=${extra} total=${base+extra} | SERVICE_TIMES.PB_L=${SERVICE_TIMES.PB_L}`);
   return base + extra;
 }
 
@@ -873,10 +872,9 @@ function buildDaySummary(dayDate, isMobile) {
   const canSeeUnconfirmed = (userRole === 'admin' || userRole === 'coordenador');
   let items = appointments.filter(a => a.date && a.date === iso)
     .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
-  // Técnicos: só contar serviços com localidade confirmada
-  if (!canSeeUnconfirmed) {
-    items = items.filter(a => !!a.locality);
-  }
+  // Resumo: só contar serviços com localidade (confirmados e prontos para rota)
+  // Pré-agendamentos sem localidade não entram no cálculo de tempo/km
+  items = items.filter(a => !!a.locality);
   if (items.length === 0) return '';
 
   // KM total
@@ -1160,6 +1158,8 @@ async function load(){
       if (a.date) {
         a.date = String(a.date).slice(0, 10); // fica só "YYYY-MM-DD"
       }
+      // Normalizar created_at → createdAt
+      if (!a.createdAt && a.created_at) a.createdAt = a.created_at;
     });
 
     // IDs e ordem estáveis
@@ -1201,6 +1201,7 @@ async function load(){
     if(locs && typeof locs==='object'){ 
       Object.assign(localityColors,locs); 
       window.LOCALITY_COLORS=localityColors;
+      window._localityList = Object.keys(locs); // para detecção automática pela morada
       for (const [k,v] of Object.entries(localityColors)) {
         if (!/^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(v)) localityColors[k] = '#3b82f6';
       }
@@ -1668,10 +1669,11 @@ function buildDesktopCard(a){
   const sub = loja
     ? [a.notes].filter(Boolean).join(' | ')
     : [a.locality, a.notes].filter(Boolean).join(' | ');
-  // SM com data mas sem localidade → piscar (só coord/admin)
+  // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
-  const needsLoc = !loja && a.date && !a.locality && canSeeUnconfirmed ? ' needs-locality' : '';
+  const isPreAgendado = a.confirmed === false;
+  const needsLoc = !loja && a.date && !a.locality && canSeeUnconfirmed && !isPreAgendado ? ' needs-locality' : '';
   const locWarning = needsLoc ? `
       <div class="needs-loc-msg">
         <div>⚠️ Falta localidade</div>
@@ -1684,16 +1686,14 @@ function buildDesktopCard(a){
         <div>Importado direto PHC, mantém?</div>
         <div>Confirma status vidro</div>
       </div>` : '';
-  const preAgendado = a.confirmed === false;
-
   // Para SM: botão confirmar só aparece com localidade preenchida
   // Para Loja: aparece sempre
-  const canConfirm = preAgendado && (loja || !!a.locality);
-  const needsLocMsg = preAgendado && !loja && !a.locality
+  const canConfirm = isPreAgendado && (loja || !!a.locality);
+  const needsLocMsg = isPreAgendado && !loja && !a.locality
     ? `<div style="font-size:11px;font-weight:700;color:#fef3c7;background:rgba(0,0,0,0.3);border-radius:6px;padding:4px 8px;margin-top:6px;">📍 Adicionar localidade e morada para confirmar</div>`
     : '';
 
-  const preAgendadoBadge = preAgendado ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : '';
+  const preAgendadoBadge = isPreAgendado ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : '';
   const confirmBtn = canConfirm
     ? `<button class="dc-confirm-btn" data-confirm="${a.id}">✅ Confirmar agendamento</button>`
     : needsLocMsg;
@@ -1707,7 +1707,7 @@ function buildDesktopCard(a){
     </div>` : '';
 
   return `
-    <div class="appointment desk-card${needsLoc}${preAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
+    <div class="appointment desk-card${needsLoc}${isPreAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
@@ -2129,7 +2129,8 @@ window.reloadAppointments = async function() {
       date: a.date ? String(a.date).slice(0,10) : null,
       address: a.address || a.morada || a.addr || null,
       sortIndex: a.sortIndex || 1,
-      id: a.id ?? (Date.now() + Math.random())
+      id: a.id ?? (Date.now() + Math.random()),
+      createdAt: a.createdAt || a.created_at || null
     }));
     renderAll();
   } catch(e) { console.error('Erro ao recarregar:', e); }
@@ -2881,13 +2882,10 @@ window.addEventListener('portalReady', bootApp, { once: true });
     }
 
     // ⚠️ Sem 'types' e sem 'fields' — assim apanha moradas *e* empresas/POIs
-   const ac = new google.maps.places.Autocomplete(input, {
-  // isto é obrigatório na versão atual para poderes ler name/formatted_address
-  fields: ['place_id', 'name', 'formatted_address']
-});
+    const ac = new google.maps.places.Autocomplete(input, {
+      fields: ['place_id', 'name', 'formatted_address', 'address_components']
+    });
 
-    // Restrição por país (PT). Usa o método suportado.
-    // Em versões recentes aceita string ou array; esta forma é compatível.
     if (ac.setComponentRestrictions) {
       ac.setComponentRestrictions({ country: ['pt'] });
     }
@@ -2899,7 +2897,45 @@ window.addEventListener('portalReady', bootApp, { once: true });
         .join(' - ');
       if (txt) {
         input.value = txt;
-        
+
+        // Extrair localidade dos address_components
+        if (place.address_components) {
+          // Tentar: locality → administrative_area_level_2 → postal_town
+          const types = ['locality', 'postal_town', 'administrative_area_level_2'];
+          let detectedLocality = null;
+          for (const type of types) {
+            const comp = place.address_components.find(c => c.types.includes(type));
+            if (comp) { detectedLocality = comp.long_name; break; }
+          }
+
+          if (detectedLocality) {
+            // Verificar se corresponde a alguma localidade conhecida
+            const localityField = document.getElementById('appointmentLocality');
+            const currentLocality = localityField?.value || '';
+            const known = window._localityList || [];
+            const match = known.find(l => 
+              l.toLowerCase() === detectedLocality.toLowerCase() ||
+              detectedLocality.toLowerCase().includes(l.toLowerCase()) ||
+              l.toLowerCase().includes(detectedLocality.toLowerCase())
+            );
+            const toSet = match || detectedLocality;
+
+            if (currentLocality && currentLocality !== toSet) {
+              showToast(`📍 Localidade actualizada: ${toSet}`, 'info');
+            } else if (!currentLocality) {
+              showToast(`📍 Localidade detectada: ${toSet}`, 'success');
+            }
+
+            if (toSet && typeof window.selectLocality === 'function') {
+              window.selectLocality(toSet);
+            } else if (localityField) {
+              localityField.value = toSet;
+            }
+          } else {
+            showToast('📍 Não foi possível detectar a localidade — preenche manualmente', 'warning');
+          }
+        }
+
         // Calcular distância automaticamente
         try {
           showToast('Calculando distância...', 'info');
@@ -2907,9 +2943,7 @@ window.addEventListener('portalReady', bootApp, { once: true });
           if (distanceInMeters !== Infinity && distanceInMeters > 0) {
             const calculatedKm = Math.round(distanceInMeters / 1000);
             const kmField = document.getElementById('appointmentKm');
-            if (kmField) {
-              kmField.value = calculatedKm;
-            }
+            if (kmField) kmField.value = calculatedKm;
             showToast(`Distância calculada: ${calculatedKm} km`, 'success');
           } else {
             showToast('Não foi possível calcular a distância', 'error');
