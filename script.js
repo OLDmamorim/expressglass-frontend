@@ -2048,11 +2048,9 @@ const telBtn = phone ? `
         ${chips ? `<div class="m-chips">${chips}</div>` : ''}
         ${notes}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
-        ${preAgendadoM && (isLoja() || !!a.locality)
-          ? `<button class="m-confirm-btn" data-confirm="${a.id}">✅ Confirmar agendamento</button>`
-          : preAgendadoM && !isLoja() && !a.locality
-            ? `<div style="font-size:11px;font-weight:700;color:#fef3c7;background:rgba(0,0,0,0.3);border-radius:6px;padding:5px 10px;margin-top:6px;">📍 Adicionar localidade e morada para confirmar</div>`
-            : ''
+        ${preAgendadoM
+          ? `<div class="m-pending-confirm">⏳ Aguarda confirmação do coordenador</div>`
+          : ''
         }
         ${isLoja() ? '' : buildKmRow(a)}
       </div>
