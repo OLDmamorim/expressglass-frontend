@@ -23,21 +23,11 @@
 
     <!-- Navigation Tabs -->
     <nav class="admin-nav">
-      <button class="nav-tab active" data-tab="portals">
-        🏢 Portais
-      </button>
-      <button class="nav-tab" data-tab="users">
-        👤 Utilizadores
-      </button>
-      <button class="nav-tab" data-tab="import">
-        📥 Importar Excel
-      </button>
-      <button class="nav-tab" data-tab="settings">
-        ⚙️ Configurações
-      </button>
-      <button class="nav-tab" data-tab="reports">
-        📊 Relatórios
-      </button>
+      <button class="nav-tab active" data-tab="portals">🏢 Portais</button>
+      <button class="nav-tab" data-tab="users">👤 Utilizadores</button>
+      <button class="nav-tab" data-tab="import">📥 Importar Excel</button>
+      <button class="nav-tab" data-tab="settings">⚙️ Configurações</button>
+      <button class="nav-tab" data-tab="reports">📊 Relatórios</button>
     </nav>
 
     <!-- Tab Content: Portais -->
@@ -46,7 +36,6 @@
         <h2>Gestão de Portais</h2>
         <button id="addPortalBtn" class="btn-primary">+ Novo Portal</button>
       </div>
-
       <div class="table-container">
         <table class="data-table">
           <thead>
@@ -60,9 +49,7 @@
             </tr>
           </thead>
           <tbody id="portalsTableBody">
-            <tr>
-              <td colspan="6" class="loading">A carregar...</td>
-            </tr>
+            <tr><td colspan="6" class="loading">A carregar...</td></tr>
           </tbody>
         </table>
       </div>
@@ -74,7 +61,6 @@
         <h2>Gestão de Utilizadores</h2>
         <button id="addUserBtn" class="btn-primary">+ Novo Utilizador</button>
       </div>
-
       <div class="table-container">
         <table class="data-table">
           <thead>
@@ -87,9 +73,7 @@
             </tr>
           </thead>
           <tbody id="usersTableBody">
-            <tr>
-              <td colspan="5" class="loading">A carregar...</td>
-            </tr>
+            <tr><td colspan="5" class="loading">A carregar...</td></tr>
           </tbody>
         </table>
       </div>
@@ -101,7 +85,6 @@
         <h2>Importar Serviços do Excel</h2>
       </div>
 
-      <!-- Backup Geral -->
       <div style="margin-bottom:24px;padding:16px 20px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
         <div>
           <div style="font-weight:700;font-size:15px;color:#15803d;">💾 Backup Geral</div>
@@ -170,89 +153,39 @@
 
     <!-- Tab Content: Configurações -->
     <div id="settingsTab" class="tab-content">
-      <div class="content-header">
-        <h2>Configurações</h2>
-      </div>
-
+      <div class="content-header"><h2>Configurações</h2></div>
       <div class="settings-section" style="max-width:700px;">
-        <!-- Tempos por tipo de serviço -->
         <div class="settings-card">
           <h3 style="margin-bottom:16px;">⏱️ Tempos de execução por tipo de serviço</h3>
-          
           <h4 style="margin:12px 0 8px;color:#2563eb;font-size:14px;">🚗 Ligeiros</h4>
           <div class="settings-grid">
-            <div class="settings-field">
-              <label>PB - Para-brisas</label>
-              <div class="input-suffix"><input type="number" id="timePB_L" min="0" step="5" value="90"><span>min</span></div>
-            </div>
-            <div class="settings-field">
-              <label>LT - Lateral</label>
-              <div class="input-suffix"><input type="number" id="timeLT_L" min="0" step="5" value="45"><span>min</span></div>
-            </div>
-            <div class="settings-field">
-              <label>OC - Óculo</label>
-              <div class="input-suffix"><input type="number" id="timeOC_L" min="0" step="5" value="60"><span>min</span></div>
-            </div>
-            <div class="settings-field">
-              <label>REP - Reparação</label>
-              <div class="input-suffix"><input type="number" id="timeREP_L" min="0" step="5" value="30"><span>min</span></div>
-            </div>
-            <div class="settings-field">
-              <label>POL - Polimento</label>
-              <div class="input-suffix"><input type="number" id="timePOL_L" min="0" step="5" value="45"><span>min</span></div>
-            </div>
+            <div class="settings-field"><label>PB - Para-brisas</label><div class="input-suffix"><input type="number" id="timePB_L" min="0" step="5" value="90"><span>min</span></div></div>
+            <div class="settings-field"><label>LT - Lateral</label><div class="input-suffix"><input type="number" id="timeLT_L" min="0" step="5" value="45"><span>min</span></div></div>
+            <div class="settings-field"><label>OC - Óculo</label><div class="input-suffix"><input type="number" id="timeOC_L" min="0" step="5" value="60"><span>min</span></div></div>
+            <div class="settings-field"><label>REP - Reparação</label><div class="input-suffix"><input type="number" id="timeREP_L" min="0" step="5" value="30"><span>min</span></div></div>
+            <div class="settings-field"><label>POL - Polimento</label><div class="input-suffix"><input type="number" id="timePOL_L" min="0" step="5" value="45"><span>min</span></div></div>
           </div>
-
           <h4 style="margin:20px 0 8px;color:#dc2626;font-size:14px;">🚛 Pesados</h4>
           <div class="settings-grid">
-            <div class="settings-field">
-              <label>PB - Para-brisas</label>
-              <div class="input-suffix"><input type="number" id="timePB_P" min="0" step="5" value="120"><span>min</span></div>
-            </div>
-            <div class="settings-field">
-              <label>LT - Lateral</label>
-              <div class="input-suffix"><input type="number" id="timeLT_P" min="0" step="5" value="60"><span>min</span></div>
-            </div>
-            <div class="settings-field">
-              <label>OC - Óculo</label>
-              <div class="input-suffix"><input type="number" id="timeOC_P" min="0" step="5" value="90"><span>min</span></div>
-            </div>
-            <div class="settings-field">
-              <label>REP - Reparação</label>
-              <div class="input-suffix"><input type="number" id="timeREP_P" min="0" step="5" value="45"><span>min</span></div>
-            </div>
-            <div class="settings-field">
-              <label>POL - Polimento</label>
-              <div class="input-suffix"><input type="number" id="timePOL_P" min="0" step="5" value="60"><span>min</span></div>
-            </div>
+            <div class="settings-field"><label>PB - Para-brisas</label><div class="input-suffix"><input type="number" id="timePB_P" min="0" step="5" value="120"><span>min</span></div></div>
+            <div class="settings-field"><label>LT - Lateral</label><div class="input-suffix"><input type="number" id="timeLT_P" min="0" step="5" value="60"><span>min</span></div></div>
+            <div class="settings-field"><label>OC - Óculo</label><div class="input-suffix"><input type="number" id="timeOC_P" min="0" step="5" value="90"><span>min</span></div></div>
+            <div class="settings-field"><label>REP - Reparação</label><div class="input-suffix"><input type="number" id="timeREP_P" min="0" step="5" value="45"><span>min</span></div></div>
+            <div class="settings-field"><label>POL - Polimento</label><div class="input-suffix"><input type="number" id="timePOL_P" min="0" step="5" value="60"><span>min</span></div></div>
           </div>
-
           <h4 style="margin:20px 0 8px;color:#7c3aed;font-size:14px;">📡 Calibragem ADAS — tempo extra</h4>
           <p style="font-size:12px;color:#6b7280;margin:-4px 0 10px;">Minutos adicionados ao tempo base quando o serviço requer calibragem ADAS.</p>
           <div class="settings-grid">
-            <div class="settings-field">
-              <label>🚗 Ligeiro + calibragem</label>
-              <div class="input-suffix"><input type="number" id="timeCALIB_EXTRA_L" min="0" step="5" value="30"><span>min extra</span></div>
-            </div>
-            <div class="settings-field">
-              <label>🚛 Pesado + calibragem</label>
-              <div class="input-suffix"><input type="number" id="timeCALIB_EXTRA_P" min="0" step="5" value="45"><span>min extra</span></div>
-            </div>
+            <div class="settings-field"><label>🚗 Ligeiro + calibragem</label><div class="input-suffix"><input type="number" id="timeCALIB_EXTRA_L" min="0" step="5" value="30"><span>min extra</span></div></div>
+            <div class="settings-field"><label>🚛 Pesado + calibragem</label><div class="input-suffix"><input type="number" id="timeCALIB_EXTRA_P" min="0" step="5" value="45"><span>min extra</span></div></div>
           </div>
         </div>
 
-        <!-- Parâmetros de rota -->
         <div class="settings-card">
           <h3 style="margin-bottom:16px;">🛣️ Parâmetros de rota</h3>
           <div class="settings-grid">
-            <div class="settings-field">
-              <label>Velocidade média</label>
-              <div class="input-suffix"><input type="number" id="avgSpeed" min="10" step="5" value="50"><span>km/h</span></div>
-            </div>
-            <div class="settings-field">
-              <label>Consumo combustível</label>
-              <div class="input-suffix"><input type="number" id="fuelConsumption" min="1" step="0.5" value="7.5"><span>L/100km</span></div>
-            </div>
+            <div class="settings-field"><label>Velocidade média</label><div class="input-suffix"><input type="number" id="avgSpeed" min="10" step="5" value="50"><span>km/h</span></div></div>
+            <div class="settings-field"><label>Consumo combustível</label><div class="input-suffix"><input type="number" id="fuelConsumption" min="1" step="0.5" value="7.5"><span>L/100km</span></div></div>
             <div class="settings-field">
               <label>Preço combustível</label>
               <div class="input-suffix"><input type="number" id="fuelPrice" min="0.5" step="0.05" value="1.65"><span>€/litro</span></div>
@@ -280,125 +213,77 @@
 
     <!-- Tab: Relatórios -->
     <div id="reportsTab" class="tab-content">
-    <h2 style="margin-bottom:20px;">📊 Relatórios</h2>
-
-    <!-- Filtros -->
-    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:28px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">
-      <div>
-        <label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Portal</label>
-        <select id="reportPortal" style="padding:9px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;min-width:200px;"></select>
-      </div>
-      <div>
-        <label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">De</label>
-        <input type="month" id="reportFrom" style="padding:9px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;">
-      </div>
-      <div>
-        <label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Até</label>
-        <input type="month" id="reportTo" style="padding:9px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;">
-      </div>
-      <button onclick="generateReport()" style="background:#2563eb;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;height:40px;">📊 Gerar Relatório</button>
-      <button onclick="downloadReportPDF()" id="btnDownloadPDF" style="background:#16a34a;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;height:40px;display:none;">📥 Download PDF</button>
-    </div>
-
-    <div id="reportLoading" style="display:none;text-align:center;padding:40px;color:#6b7280;font-size:18px;">⏳ A gerar relatório...</div>
-
-    <!-- Conteúdo -->
-    <div id="reportContent" style="display:none;">
-
-      <!-- Header -->
-      <div id="reportHeader" style="margin-bottom:24px;padding:24px 28px;background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);border-radius:14px;color:#fff;display:flex;justify-content:space-between;align-items:center;">
+      <h2 style="margin-bottom:20px;">📊 Relatórios</h2>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin-bottom:28px;padding:20px;background:#f8fafc;border-radius:12px;border:1px solid #e2e8f0;">
         <div>
-          <div style="font-size:11px;opacity:0.7;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">ExpressGlass — Relatório Operacional</div>
-          <div id="reportTitle" style="font-size:26px;font-weight:800;"></div>
-          <div id="reportPeriod" style="font-size:14px;opacity:0.75;margin-top:4px;"></div>
+          <label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Portal</label>
+          <select id="reportPortal" style="padding:9px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;min-width:200px;"></select>
         </div>
-        <div style="font-size:56px;opacity:0.4;">📊</div>
+        <div>
+          <label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">De</label>
+          <input type="month" id="reportFrom" style="padding:9px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;">
+        </div>
+        <div>
+          <label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Até</label>
+          <input type="month" id="reportTo" style="padding:9px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;">
+        </div>
+        <button onclick="generateReport()" style="background:#2563eb;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;height:40px;">📊 Gerar Relatório</button>
+        <button onclick="downloadReportPDF()" id="btnDownloadPDF" style="background:#16a34a;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;height:40px;display:none;">📥 Download PDF</button>
       </div>
 
-      <!-- KPIs -->
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;">
-        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px;text-align:center;">
-          <div id="kpiTotal" style="font-size:32px;font-weight:800;color:#16a34a;">—</div>
-          <div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Agendados</div>
-        </div>
-        <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:18px;text-align:center;">
-          <div id="kpiRealizados" style="font-size:32px;font-weight:800;color:#2563eb;">—</div>
-          <div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Realizados</div>
-        </div>
-        <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;padding:18px;text-align:center;">
-          <div id="kpiNaoRealizados" style="font-size:32px;font-weight:800;color:#dc2626;">—</div>
-          <div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Não realizados</div>
-        </div>
-        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:18px;text-align:center;">
-          <div id="kpiTaxa" style="font-size:32px;font-weight:800;color:#d97706;">—</div>
-          <div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Taxa realização</div>
-        </div>
-        <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:18px;text-align:center;">
-          <div id="kpiKm" style="font-size:32px;font-weight:800;color:#7c3aed;">—</div>
-          <div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Total km</div>
-        </div>
-        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:18px;text-align:center;">
-          <div id="kpiPendentes" style="font-size:32px;font-weight:800;color:#ea580c;">—</div>
-          <div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Pendentes</div>
-        </div>
-        <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:18px;text-align:center;">
-          <div id="kpiMediaDiaria" style="font-size:32px;font-weight:800;color:#0284c7;">—</div>
-          <div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Média diária</div>
-        </div>
-        <div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:12px;padding:18px;text-align:center;">
-          <div id="kpiTempoEstrada" style="font-size:28px;font-weight:800;color:#9333ea;">—</div>
-          <div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Tempo em estrada</div>
-        </div>
-        <div style="background:#fefce8;border:1px solid #fef08a;border-radius:12px;padding:18px;text-align:center;">
-          <div id="kpiCusto" style="font-size:28px;font-weight:800;color:#ca8a04;">—</div>
-          <div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Custo gasóleo</div>
-        </div>
-      </div>
+      <div id="reportLoading" style="display:none;text-align:center;padding:40px;color:#6b7280;font-size:18px;">⏳ A gerar relatório...</div>
 
-      <!-- Gráficos linha 1 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
-          <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">🗺️ Serviços por Localidade</div>
-          <canvas id="chartLocality"></canvas>
+      <div id="reportContent" style="display:none;">
+        <div id="reportHeader" style="margin-bottom:24px;padding:24px 28px;background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);border-radius:14px;color:#fff;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:11px;opacity:0.7;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">ExpressGlass — Relatório Operacional</div>
+            <div id="reportTitle" style="font-size:26px;font-weight:800;"></div>
+            <div id="reportPeriod" style="font-size:14px;opacity:0.75;margin-top:4px;"></div>
+          </div>
+          <div style="font-size:56px;opacity:0.4;">📊</div>
         </div>
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
-          <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">📅 Evolução Semanal</div>
-          <canvas id="chartWeekly"></canvas>
-        </div>
-      </div>
 
-      <!-- Gráficos linha 2 -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;">
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
-          <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">📆 Por Dia da Semana</div>
-          <canvas id="chartWeekday"></canvas>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:28px;">
+          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px;text-align:center;"><div id="kpiTotal" style="font-size:32px;font-weight:800;color:#16a34a;">—</div><div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Agendados</div></div>
+          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:18px;text-align:center;"><div id="kpiRealizados" style="font-size:32px;font-weight:800;color:#2563eb;">—</div><div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Realizados</div></div>
+          <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;padding:18px;text-align:center;"><div id="kpiNaoRealizados" style="font-size:32px;font-weight:800;color:#dc2626;">—</div><div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Não realizados</div></div>
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:18px;text-align:center;"><div id="kpiTaxa" style="font-size:32px;font-weight:800;color:#d97706;">—</div><div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Taxa realização</div></div>
+          <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:12px;padding:18px;text-align:center;"><div id="kpiKm" style="font-size:32px;font-weight:800;color:#7c3aed;">—</div><div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Total km</div></div>
+          <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:18px;text-align:center;"><div id="kpiPendentes" style="font-size:32px;font-weight:800;color:#ea580c;">—</div><div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Pendentes</div></div>
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:12px;padding:18px;text-align:center;"><div id="kpiMediaDiaria" style="font-size:32px;font-weight:800;color:#0284c7;">—</div><div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Média diária</div></div>
+          <div style="background:#fdf4ff;border:1px solid #e9d5ff;border-radius:12px;padding:18px;text-align:center;"><div id="kpiTempoEstrada" style="font-size:28px;font-weight:800;color:#9333ea;">—</div><div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Tempo em estrada</div></div>
+          <div style="background:#fefce8;border:1px solid #fef08a;border-radius:12px;padding:18px;text-align:center;"><div id="kpiCusto" style="font-size:28px;font-weight:800;color:#ca8a04;">—</div><div style="font-size:12px;font-weight:600;color:#6b7280;margin-top:4px;">Custo gasóleo</div></div>
         </div>
-        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;">
-          <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">🔧 Tipo de Serviço</div>
-          <canvas id="chartService"></canvas>
-        </div>
-      </div>
 
-      <!-- Tabela localidades -->
-      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:20px;">
-        <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">📍 Detalhe por Localidade</div>
-        <table style="width:100%;border-collapse:collapse;font-size:14px;">
-          <thead>
-            <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-              <th style="text-align:left;padding:10px 12px;font-weight:700;color:#374151;">Localidade</th>
-              <th style="text-align:center;padding:10px;font-weight:700;color:#374151;">Total</th>
-              <th style="text-align:center;padding:10px;font-weight:700;color:#374151;">Realizados</th>
-              <th style="text-align:center;padding:10px;font-weight:700;color:#374151;">Taxa</th>
-              <th style="text-align:center;padding:10px;font-weight:700;color:#374151;">KM</th>
-            </tr>
-          </thead>
-          <tbody id="reportLocalityTable"></tbody>
-        </table>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;"><div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">🗺️ Serviços por Localidade</div><canvas id="chartLocality"></canvas></div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;"><div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">📅 Evolução Semanal</div><canvas id="chartWeekly"></canvas></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;">
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;"><div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">📆 Por Dia da Semana</div><canvas id="chartWeekday"></canvas></div>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;"><div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">🔧 Tipo de Serviço</div><canvas id="chartService"></canvas></div>
+        </div>
+
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:20px;">
+          <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">📍 Detalhe por Localidade</div>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <thead>
+              <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+                <th style="text-align:left;padding:10px 12px;font-weight:700;color:#374151;">Localidade</th>
+                <th style="text-align:center;padding:10px;font-weight:700;color:#374151;">Total</th>
+                <th style="text-align:center;padding:10px;font-weight:700;color:#374151;">Realizados</th>
+                <th style="text-align:center;padding:10px;font-weight:700;color:#374151;">Taxa</th>
+                <th style="text-align:center;padding:10px;font-weight:700;color:#374151;">KM</th>
+              </tr>
+            </thead>
+            <tbody id="reportLocalityTable"></tbody>
+          </table>
+        </div>
       </div>
     </div>
-  </div>
   </div><!-- fim admin-container -->
 
+  <!-- Modal: Portal -->
   <div id="portalModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -410,13 +295,11 @@
           <label for="portalName">Nome do Portal *</label>
           <input type="text" id="portalName" required placeholder="Ex: SM Famalicão">
         </div>
-
         <div class="form-group">
           <label for="portalAddress">Morada de Partida *</label>
           <input type="text" id="portalAddress" required placeholder="Ex: Rua Principal 123, 4760-123 Famalicão">
           <small>Esta morada será usada para cálculo de rotas</small>
         </div>
-
         <div class="form-group">
           <label for="portalType">Tipo de Portal *</label>
           <select id="portalType" required onchange="togglePortalTypeFields()">
@@ -424,7 +307,6 @@
             <option value="loja">Loja</option>
           </select>
         </div>
-
         <div class="form-group">
           <label for="portalNmdos">Código Armazém (nmdos)</label>
           <select id="portalNmdos">
@@ -432,7 +314,6 @@
           </select>
           <small>Código da coluna B do Excel para associar serviços a este portal</small>
         </div>
-
         <div class="form-actions">
           <button type="button" class="btn-secondary modal-close">Cancelar</button>
           <button type="submit" class="btn-primary">Guardar</button>
@@ -466,13 +347,15 @@
 
         <div class="form-group">
           <label for="userRole">Role *</label>
-          <select id="userRole" required>
+          <select id="userRole" required onchange="onRoleChange()">
             <option value="user">Técnico (acesso a 1 portal)</option>
             <option value="coordenador">Coordenador (acesso a vários portais)</option>
+            <option value="comercial">Comercial (acesso a vários SM)</option>
             <option value="admin">Administrador</option>
           </select>
         </div>
 
+        <!-- Portal único (técnico) -->
         <div class="form-group" id="portalSelectGroup">
           <label for="userPortal">Portal *</label>
           <select id="userPortal" required>
@@ -480,10 +363,18 @@
           </select>
         </div>
 
+        <!-- Vários portais (coordenador) -->
         <div class="form-group" id="multiPortalGroup" style="display:none;">
           <label>Portais do Coordenador *</label>
           <div id="multiPortalCheckboxes" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;"></div>
           <small>Selecione os portais a que o coordenador terá acesso</small>
+        </div>
+
+        <!-- Vários SM (comercial) -->
+        <div class="form-group" id="comercialPortalGroup" style="display:none;">
+          <label>SM do Comercial *</label>
+          <div id="comercialPortalCheckboxes" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;"></div>
+          <small>Selecione os portais SM a que o comercial terá acesso</small>
         </div>
 
         <div class="form-actions">
