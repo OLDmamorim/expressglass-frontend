@@ -609,13 +609,13 @@
 
     // ===== ESTADO DE CADA SERVIÇO =====
     function getRowState(a) {
+      // Sem data → sempre pendente (não está na agenda)
       if (!a.date) return 'pending';
-      if (a.executed === true) return 'done';
-      // Tem data mas executed=false ou null → se data já passou é not done, senão pending
-      const today = new Date(); today.setHours(0,0,0,0);
-      const d = new Date(a.date + 'T00:00:00');
-      if (d > today) return 'pending';
-      return a.executed === false ? 'notdone' : 'pending';
+      // Com data: só realizado/não realizado se foi explicitamente marcado
+      if (a.executed === true)  return 'done';
+      if (a.executed === false) return 'notdone';
+      // Com data mas sem marcação → pendente (ainda não aconteceu ou não foi marcado)
+      return 'pending';
     }
 
     function stateLabel(state) {
