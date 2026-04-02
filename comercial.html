@@ -444,17 +444,12 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input type="text" id="searchInput" class="search-input" placeholder="Pesquisar matrícula..." oninput="filterTable()">
       </div>
-      <select id="stateFilter" class="filter-select" onchange="filterTable()">
-        <option value="">Todos os estados</option>
-        <option value="done">✅ Realizado</option>
-        <option value="notdone">❌ Não realizado</option>
-        <option value="pending">⏳ Pendente</option>
-      </select>
+
       <div class="summary-chips" id="summaryChips" style="display:none;">
-        <div class="chip chip-total"><span id="chipTotal">0</span> total</div>
-        <div class="chip chip-done"><span id="chipDone">0</span> realizados</div>
-        <div class="chip chip-notdone"><span id="chipNotDone">0</span> não realizados</div>
-        <div class="chip chip-pending"><span id="chipPending">0</span> pendentes</div>
+        <div class="chip chip-total"><span id="chipTotal">0</span> total por agendar</div>
+        <div class="chip chip-done" style="display:none"><span id="chipDone">0</span></div>
+        <div class="chip chip-notdone" style="display:none"><span id="chipNotDone">0</span></div>
+        <div class="chip chip-pending" style="display:none"><span id="chipPending">0</span></div>
       </div>
     </div>
 
@@ -473,9 +468,7 @@
             <tr>
               <th>Matrícula</th>
               <th>Carro</th>
-              <th>Data Serviço</th>
-              <th>Estado</th>
-              <th>Motivo</th>
+              <th>Data Entrada</th>
             </tr>
           </thead>
           <tbody id="comTableBody"></tbody>
@@ -639,13 +632,14 @@
 
       const tbody = document.getElementById('comTableBody');
 
-      // Ordenar: com data desc, depois sem data
-      const sorted = [...allAppointments].sort((a, b) => {
-        if (!a.date && !b.date) return 0;
-        if (!a.date) return 1;
-        if (!b.date) return -1;
-        return new Date(b.date) - new Date(a.date);
-      });
+      // Só por agendar (sem data = pendentes do Excel)
+      const sorted = [...allAppointments]
+        .filter(a => !a.date)
+        .sort((a, b) => {
+          const da = a.created_at || a.createdAt || '';
+          const db = b.created_at || b.createdAt || '';
+          return da.localeCompare(db); // mais antigos primeiro
+        });
 
       // Contadores
       let total = sorted.length, done = 0, notdone = 0, pending = 0;
@@ -661,7 +655,8 @@
         const reasonClass = reason ? 'reason-cell has-reason' : 'reason-cell';
         const reasonText = reason || '—';
 
-        return `<tr data-plate="${plate}" data-state="${state}">
+        const criacao = a.created_at || a.createdAt;
+        return `<tr data-plate="${plate}">
           <td>
             <div class="plate-badge">
               <span class="plate-flag">PT</span>
@@ -669,17 +664,15 @@
             </div>
           </td>
           <td class="car-cell">${(a.car || '—').toUpperCase()}</td>
-          <td>${fmtDate(a.date)}</td>
-          <td>${stateLabel(state)}</td>
-          <td class="${reasonClass}">${reasonText}</td>
+          <td>${fmtDate(criacao)}</td>
         </tr>`;
       }).join('');
 
-      // Chips
+      // Chips - todos são pendentes
       document.getElementById('chipTotal').textContent = total;
       document.getElementById('chipDone').textContent = done;
       document.getElementById('chipNotDone').textContent = notdone;
-      document.getElementById('chipPending').textContent = pending;
+      document.getElementById('chipPending').textContent = total;
       document.getElementById('summaryChips').style.display = total > 0 ? 'flex' : 'none';
 
       document.getElementById('comTable').style.display = total > 0 ? '' : 'none';
@@ -691,19 +684,13 @@
     // ===== FILTRO =====
     function filterTable() {
       const search = document.getElementById('searchInput').value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
-      const stateF = document.getElementById('stateFilter').value;
-
       let visible = 0;
       document.querySelectorAll('#comTableBody tr').forEach(tr => {
         const plate = (tr.dataset.plate || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
-        const state = tr.dataset.state || '';
-        const matchPlate = !search || plate.includes(search);
-        const matchState = !stateF || state === stateF;
-        const show = matchPlate && matchState;
+        const show = !search || plate.includes(search);
         tr.classList.toggle('filtered-out', !show);
         if (show) visible++;
       });
-
       document.getElementById('emptyResults').style.display =
         visible === 0 && allAppointments.length > 0 ? '' : 'none';
     }
