@@ -588,6 +588,43 @@
       setTimeout(()=>window.print(), 20);
     });
   </script>
+
+  <!-- ===== MODAL NÃO REALIZADO ===== -->
+  <div id="notDoneModal" class="modal" style="display:none;">
+    <div class="modal-content" style="max-width:420px;">
+      <div class="modal-header">
+        <h3>❌ Motivo — Não Realizado</h3>
+        <button class="close-btn" onclick="closeNotDoneModal()">✕</button>
+      </div>
+      <div style="padding:24px;display:flex;flex-direction:column;gap:12px;">
+        <p style="font-size:14px;color:#6b7280;margin-bottom:4px;">Selecione o motivo pelo qual o serviço não foi realizado:</p>
+        <label class="nd-option"><input type="radio" name="ndReason" value="Carro não disponível"> Carro não disponível</label>
+        <label class="nd-option"><input type="radio" name="ndReason" value="Vidro não partido"> Vidro não partido</label>
+        <label class="nd-option"><input type="radio" name="ndReason" value="Vidro errado"> Vidro errado</label>
+        <label class="nd-option"><input type="radio" name="ndReason" value="Falta de material"> Falta de material</label>
+        <label class="nd-option">
+          <input type="radio" name="ndReason" value="Outros"> Outros
+          <textarea id="ndOutrosText" placeholder="Descreva o motivo..." rows="2"
+            style="display:none;margin-top:8px;width:100%;padding:8px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;"></textarea>
+        </label>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button type="button" onclick="closeNotDoneModal()" class="btn secondary" style="flex:1;">Cancelar</button>
+          <button type="button" onclick="confirmNotDone()" class="btn primary" style="flex:1;">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <style>
+    .nd-option {
+      display:flex;flex-direction:column;padding:12px 14px;
+      border:1.5px solid #e2e8f0;border-radius:10px;cursor:pointer;
+      font-size:14px;font-weight:600;color:#374151;
+      transition:border-color .15s,background .15s;
+    }
+    .nd-option:has(input:checked){ border-color:#ef4444;background:#fff5f5;color:#dc2626; }
+    .nd-option input[type=radio]{ display:none; }
+  </style>
+
 </body>
 </html>
 
