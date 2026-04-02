@@ -33,8 +33,8 @@
     selectedIds = selectedIds || [];
     var container = document.getElementById('comercialPortalCheckboxes');
     if (!container) return;
-    var smPortals = (window.portals || []).filter(function(p) {
-      return (p.portal_type || 'sm') === 'sm';
+    var smPortals = (portals || []).filter(function(p) {
+      return p.portal_type !== 'loja';
     });
     if (!smPortals.length) {
       container.innerHTML = '<p style="color:#9ca3af;font-size:13px;padding:8px;">Nenhum portal SM disponivel.</p>';
