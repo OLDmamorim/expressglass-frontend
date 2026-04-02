@@ -444,37 +444,42 @@
         return;
       }
 
-      const portalIds = user.portalIds || [];
-      if (portalIds.length === 0) {
-        showToast('Sem portais atribuídos. Contacte o administrador.', 'error');
-        return;
+      let smPortals = [];
+
+      if (user.role === 'admin') {
+        // Admin: buscar todos os portais SM via API
+        try {
+          const resp = await fetch(`${API_BASE}/portals`, {
+            headers: { 'Authorization': 'Bearer ' + getToken() }
+          });
+          const data = await resp.json();
+          smPortals = (data.data || []).filter(p => p.portal_type === 'sm');
+        } catch (e) {
+          showToast('Erro ao carregar portais', 'error');
+          return;
+        }
+      } else {
+        // Comercial: portais vem do token (user.portals), igual ao coordenador
+        smPortals = (user.portals || []).filter(p =>
+          (p.portalType || p.portal_type) === 'sm'
+        );
+        if (smPortals.length === 0) {
+          showToast('Sem SM atribuidos. Contacte o administrador.', 'error');
+          return;
+        }
       }
 
-      // Carregar nomes dos portais
-      try {
-        const resp = await fetch(`${API_BASE}/portals`, {
-          headers: { 'Authorization': 'Bearer ' + getToken() }
-        });
-        const data = await resp.json();
-        const portals = (data.data || []).filter(p =>
-          (user.role === 'admin' || portalIds.includes(p.id)) && p.portal_type === 'sm'
-        );
+      const sel = document.getElementById('portalSelect');
+      smPortals.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name || 'SM ' + p.id;
+        sel.appendChild(opt);
+      });
 
-        const sel = document.getElementById('portalSelect');
-        portals.forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = p.id;
-          opt.textContent = p.name || `SM ${p.id}`;
-          sel.appendChild(opt);
-        });
-
-        // Se só tem um portal, selecionar automaticamente
-        if (portals.length === 1) {
-          sel.value = portals[0].id;
-          onPortalChange();
-        }
-      } catch (e) {
-        showToast('Erro ao carregar portais', 'error');
+      if (smPortals.length === 1) {
+        sel.value = smPortals[0].id;
+        onPortalChange();
       }
     }
 
