@@ -325,10 +325,99 @@
 
     /* ===== MOBILE ===== */
     @media (max-width: 640px) {
-      .com-table thead th:nth-child(2),
-      .com-table td:nth-child(2) { display: none; } /* esconder carro no mobile */
-      .header-logo { font-size: 17px; }
-      .portal-selector { min-width: 140px; font-size: 13px; }
+
+      /* Header: 2 linhas */
+      .page-header {
+        flex-direction: column;
+        height: auto;
+        padding: 12px 16px;
+        gap: 10px;
+        align-items: stretch;
+      }
+      .header-left { justify-content: space-between; }
+      .header-logo { font-size: 18px; }
+      .header-right {
+        justify-content: space-between;
+        width: 100%;
+      }
+      .portal-selector {
+        flex: 1;
+        min-width: 0;
+        font-size: 13px;
+        padding: 8px 10px;
+      }
+      .btn-logout { padding: 8px 14px; font-size: 12px; white-space: nowrap; }
+
+      /* Main: menos padding */
+      .main { padding: 12px 10px; }
+
+      /* Toolbar: coluna */
+      .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .search-wrap { max-width: 100%; }
+      .filter-select { width: 100%; }
+
+      /* Chips: grid 2x2 */
+      .summary-chips {
+        margin-left: 0;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        width: 100%;
+      }
+      .chip { justify-content: center; font-size: 12px; padding: 6px 8px; }
+
+      /* Tabela → Cards */
+      .table-card { border-radius: 12px; }
+
+      .com-table thead { display: none; }
+
+      .com-table tbody tr {
+        display: flex;
+        flex-direction: column;
+        padding: 14px;
+        border-bottom: 2px solid #f1f5f9;
+        gap: 8px;
+      }
+
+      .com-table td {
+        padding: 0;
+        display: block;
+      }
+
+      /* Linha 1: matrícula + estado lado a lado */
+      .com-table td:nth-child(1) { order: 1; }
+      .com-table td:nth-child(4) { order: 2; }
+      .com-table td:nth-child(3) { order: 3; } /* data */
+      .com-table td:nth-child(2) { order: 4; } /* carro */
+      .com-table td:nth-child(5) { order: 5; } /* motivo */
+
+      /* Row topo: matrícula + estado */
+      .com-table td:nth-child(1),
+      .com-table td:nth-child(4) {
+        display: inline-block;
+        vertical-align: middle;
+      }
+      .com-table tbody tr { position: relative; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }
+      .com-table td:nth-child(1) { flex: 0 0 auto; }
+      .com-table td:nth-child(4) { flex: 0 0 auto; margin-left: auto; }
+      .com-table td:nth-child(3) { flex: 0 0 100%; font-size: 13px; color: #64748b; }
+      .com-table td:nth-child(2) { flex: 0 0 100%; }
+      .com-table td:nth-child(5) { flex: 0 0 100%; }
+
+      .car-cell { font-size: 13px; color: #64748b; }
+      .date-cell { font-size: 13px; }
+      .date-cell .date-day { display: none; }
+
+      /* Motivo só aparece se tiver conteúdo */
+      .reason-cell:not(.has-reason) { display: none !important; }
+
+      .plate-badge { padding: 4px 10px; }
+      .plate-cell { font-size: 16px; }
     }
   </style>
 </head>
