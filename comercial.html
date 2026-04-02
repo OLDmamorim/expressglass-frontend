@@ -445,11 +445,17 @@
         <input type="text" id="searchInput" class="search-input" placeholder="Pesquisar matrícula..." oninput="filterTable()">
       </div>
 
+      <select id="stateFilter" class="filter-select" onchange="filterTable()">
+        <option value="">Todos os estados</option>
+        <option value="done">✅ Realizado</option>
+        <option value="notdone">❌ Não realizado</option>
+        <option value="pending">⏳ Pendente</option>
+      </select>
       <div class="summary-chips" id="summaryChips" style="display:none;">
-        <div class="chip chip-total"><span id="chipTotal">0</span> total por agendar</div>
-        <div class="chip chip-done" style="display:none"><span id="chipDone">0</span></div>
-        <div class="chip chip-notdone" style="display:none"><span id="chipNotDone">0</span></div>
-        <div class="chip chip-pending" style="display:none"><span id="chipPending">0</span></div>
+        <div class="chip chip-total"><span id="chipTotal">0</span> total</div>
+        <div class="chip chip-done"><span id="chipDone">0</span> realizados</div>
+        <div class="chip chip-notdone"><span id="chipNotDone">0</span> não realizados</div>
+        <div class="chip chip-pending"><span id="chipPending">0</span> pendentes</div>
       </div>
     </div>
 
@@ -468,7 +474,9 @@
             <tr>
               <th>Matrícula</th>
               <th>Carro</th>
-              <th>Data Entrada</th>
+              <th>Data Serviço</th>
+              <th>Estado</th>
+              <th>Motivo</th>
             </tr>
           </thead>
           <tbody id="comTableBody"></tbody>
@@ -602,12 +610,13 @@
 
     // ===== ESTADO DE CADA SERVIÇO =====
     function getRowState(a) {
-      // Sem data → sempre pendente (não está na agenda)
+      // Sem data → pendente (não está na agenda)
       if (!a.date) return 'pending';
-      // Com data: só realizado/não realizado se foi explicitamente marcado
-      if (a.executed === true)  return 'done';
-      if (a.executed === false) return 'notdone';
-      // Com data mas sem marcação → pendente (ainda não aconteceu ou não foi marcado)
+      // Realizado: técnico marcou explicitamente
+      if (a.executed === true) return 'done';
+      // Não realizado: só se tiver motivo (técnico escolheu motivo)
+      if (a.executed === false && a.not_done_reason) return 'notdone';
+      // Tudo o resto (agendado mas não marcado ainda) → pendente
       return 'pending';
     }
 
@@ -632,14 +641,13 @@
 
       const tbody = document.getElementById('comTableBody');
 
-      // Só por agendar (sem data = pendentes do Excel)
-      const sorted = [...allAppointments]
-        .filter(a => !a.date)
-        .sort((a, b) => {
-          const da = a.created_at || a.createdAt || '';
-          const db = b.created_at || b.createdAt || '';
-          return da.localeCompare(db); // mais antigos primeiro
-        });
+      // Todos os serviços: com data desc, sem data (pendentes) no fim
+      const sorted = [...allAppointments].sort((a, b) => {
+        if (!a.date && !b.date) return 0;
+        if (!a.date) return 1;
+        if (!b.date) return -1;
+        return new Date(b.date) - new Date(a.date);
+      });
 
       // Contadores
       let total = sorted.length, done = 0, notdone = 0, pending = 0;
@@ -655,8 +663,7 @@
         const reasonClass = reason ? 'reason-cell has-reason' : 'reason-cell';
         const reasonText = reason || '—';
 
-        const criacao = a.created_at || a.createdAt;
-        return `<tr data-plate="${plate}">
+        return `<tr data-plate="${plate}" data-state="${state}">
           <td>
             <div class="plate-badge">
               <span class="plate-flag">PT</span>
@@ -664,15 +671,17 @@
             </div>
           </td>
           <td class="car-cell">${(a.car || '—').toUpperCase()}</td>
-          <td>${fmtDate(criacao)}</td>
+          <td>${fmtDate(a.date)}</td>
+          <td>${stateLabel(state)}</td>
+          <td class="${reasonClass}">${reasonText}</td>
         </tr>`;
       }).join('');
 
-      // Chips - todos são pendentes
+      // Chips
       document.getElementById('chipTotal').textContent = total;
       document.getElementById('chipDone').textContent = done;
       document.getElementById('chipNotDone').textContent = notdone;
-      document.getElementById('chipPending').textContent = total;
+      document.getElementById('chipPending').textContent = pending;
       document.getElementById('summaryChips').style.display = total > 0 ? 'flex' : 'none';
 
       document.getElementById('comTable').style.display = total > 0 ? '' : 'none';
@@ -684,10 +693,14 @@
     // ===== FILTRO =====
     function filterTable() {
       const search = document.getElementById('searchInput').value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      const stateF = document.getElementById('stateFilter').value;
       let visible = 0;
       document.querySelectorAll('#comTableBody tr').forEach(tr => {
         const plate = (tr.dataset.plate || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
-        const show = !search || plate.includes(search);
+        const state = tr.dataset.state || '';
+        const matchPlate = !search || plate.includes(search);
+        const matchState = !stateF || state === stateF;
+        const show = matchPlate && matchState;
         tr.classList.toggle('filtered-out', !show);
         if (show) visible++;
       });
