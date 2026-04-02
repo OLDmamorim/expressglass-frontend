@@ -1292,16 +1292,60 @@ async function persistConfirmed(id, confirmed) {
 }
 
 
+let _notDoneTargetId = null;
+
 async function persistExecuted(id, executed) {
+  if (!executed) {
+    _notDoneTargetId = id;
+    openNotDoneModal();
+    return;
+  }
+  await _doSaveExecuted(id, true, null);
+}
+
+function openNotDoneModal() {
+  document.querySelectorAll('input[name="ndReason"]').forEach(r => {
+    r.checked = false;
+    r.onchange = () => {
+      document.getElementById('ndOutrosText').style.display = r.value === 'Outros' ? 'block' : 'none';
+    };
+  });
+  document.getElementById('ndOutrosText').style.display = 'none';
+  document.getElementById('ndOutrosText').value = '';
+  document.getElementById('notDoneModal').style.display = 'flex';
+}
+
+function closeNotDoneModal() {
+  document.getElementById('notDoneModal').style.display = 'none';
+  _notDoneTargetId = null;
+}
+
+async function confirmNotDone() {
+  const selected = document.querySelector('input[name="ndReason"]:checked');
+  if (!selected) { showToast('Selecione um motivo', 'error'); return; }
+  let reason = selected.value;
+  if (reason === 'Outros') {
+    const txt = document.getElementById('ndOutrosText').value.trim();
+    if (!txt) { showToast('Descreva o motivo', 'error'); return; }
+    reason = txt;
+  }
+  document.getElementById('notDoneModal').style.display = 'none';
+  await _doSaveExecuted(_notDoneTargetId, false, reason);
+  _notDoneTargetId = null;
+}
+
+async function _doSaveExecuted(id, executed, notDoneReason) {
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
-  const prev = appointments[i].executed;
+  const prev = { executed: appointments[i].executed, not_done_reason: appointments[i].not_done_reason };
   appointments[i].executed = executed;
+  appointments[i].not_done_reason = notDoneReason;
   renderAll();
   try {
-    await window.apiClient.updateAppointment(id, { ...appointments[i], executed });
+    await window.apiClient.updateAppointment(id, { ...appointments[i], executed, not_done_reason: notDoneReason });
   } catch (err) {
-    appointments[i].executed = prev;
+    appointments[i].executed = prev.executed;
+    appointments[i].not_done_reason = prev.not_done_reason;
     showToast('Falha ao gravar: ' + err.message, 'error');
     renderAll();
   }
