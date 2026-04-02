@@ -101,12 +101,12 @@
 
   window.renderUsers = function() {
     var tbody = document.getElementById('usersTableBody');
-    if (!window.users || !window.users.length) {
+    if (!users || !users.length) {
       tbody.innerHTML = '<tr><td colspan="5" class="loading">Nenhum utilizador criado</td></tr>';
       return;
     }
     var labels = { admin:'Admin', coordenador:'Coordenador', comercial:'Comercial', user:'Tecnico' };
-    var sorted = window.users.slice().sort(function(a,b) {
+    var sorted = users.slice().sort(function(a,b) {
       return (a.username||'').localeCompare(b.username||'','pt');
     });
     tbody.innerHTML = sorted.map(function(u) {
