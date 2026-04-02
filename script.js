@@ -384,24 +384,41 @@ async function optimizeDayServices(services) {
 
   const base = getBasePartida();
 
-  // Pré-calcular todas as distâncias necessárias (base→cada, cada→cada)
-  const addresses = services.map(s => getAddressFromItem(s));
-  const n = services.length;
+  // Verificar se há serviço marcado como "Primeiro serviço do dia"
+  const pinnedIdx = services.findIndex(s => s.first_of_day);
+  const hasPinned = pinnedIdx >= 0;
+  const pinned = hasPinned ? services[pinnedIdx] : null;
+  // Serviços a optimizar (sem o fixo se existir)
+  const toOptimize = hasPinned ? services.filter((_, i) => i !== pinnedIdx) : services;
 
-  // Matriz de distâncias e tempos: [from][to]
-  // índice 0 = base, 1..n = serviços
-  const dist = [];  // dist[i][j] = metros
-  const time = [];  // time[i][j] = minutos
+  // Se só há o fixo, apenas calcular km da base para ele
+  if (toOptimize.length === 0 && hasPinned) {
+    const idx = appointments.findIndex(a => a.id === pinned.id);
+    if (idx >= 0) {
+      appointments[idx].sortIndex = 1;
+      const r = await getDistanceAndTime(base, getAddressFromItem(pinned));
+      appointments[idx].km = r.distance !== Infinity ? Math.round(r.distance / 1000) : 0;
+      appointments[idx].travelTime = r.duration || 0;
+      appointments[idx]._optimized = true;
+    }
+    return;
+  }
 
-  // Inicializar matriz
+  // Ponto de partida para os restantes: se há fixo, partir dele; senão da base
+  const startPoint = hasPinned ? getAddressFromItem(pinned) : base;
+  const addresses = toOptimize.map(s => getAddressFromItem(s));
+  const n = toOptimize.length;
+
+  const dist = [];
+  const time = [];
   for (let i = 0; i <= n; i++) {
     dist.push(new Array(n + 1).fill(Infinity));
     time.push(new Array(n + 1).fill(0));
   }
 
-  // Calcular base → cada serviço
+  // Calcular startPoint → cada serviço
   for (let j = 0; j < n; j++) {
-    const r = await getDistanceAndTime(base, addresses[j]);
+    const r = await getDistanceAndTime(startPoint, addresses[j]);
     dist[0][j + 1] = r.distance;
     time[0][j + 1] = r.duration || 0;
   }
@@ -420,70 +437,68 @@ async function optimizeDayServices(services) {
   let bestTotal = Infinity;
 
   if (n <= 8) {
-    // Brute-force: testar todas as permutações — minimiza TEMPO (não distância)
     const permutations = getPermutations([...Array(n).keys()]);
     for (const perm of permutations) {
-      let total = time[0][perm[0] + 1]; // base → primeiro
+      let total = time[0][perm[0] + 1];
       for (let i = 0; i < perm.length - 1; i++) {
         total += time[perm[i] + 1][perm[i+1] + 1];
       }
-      if (total < bestTotal) {
-        bestTotal = total;
-        bestOrder = perm;
-      }
+      if (total < bestTotal) { bestTotal = total; bestOrder = perm; }
     }
   } else {
-    // Nearest-neighbor multi-start — minimiza TEMPO
     for (let start = 0; start < n; start++) {
       const visited = new Array(n).fill(false);
       const route = [start];
       visited[start] = true;
       let total = time[0][start + 1];
-
       while (route.length < n) {
         const last = route[route.length - 1];
         let nearest = -1, minT = Infinity;
         for (let j = 0; j < n; j++) {
-          if (!visited[j] && time[last + 1][j + 1] < minT) {
-            minT = time[last + 1][j + 1];
-            nearest = j;
-          }
+          if (!visited[j] && time[last + 1][j + 1] < minT) { minT = time[last + 1][j + 1]; nearest = j; }
         }
         if (nearest === -1) break;
         route.push(nearest);
         visited[nearest] = true;
         total += minT;
       }
-
-      if (total < bestTotal) {
-        bestTotal = total;
-        bestOrder = route;
-      }
+      if (total < bestTotal) { bestTotal = total; bestOrder = route; }
     }
   }
 
   if (!bestOrder) return;
 
-  const optimizedRoute = bestOrder.map(i => services[i]);
+  // Se há fixo: calcular km da base→fixo e atribuir sortIndex=1
+  if (hasPinned) {
+    const pinnedAppIdx = appointments.findIndex(a => a.id === pinned.id);
+    if (pinnedAppIdx >= 0) {
+      appointments[pinnedAppIdx].sortIndex = 1;
+      const r = await getDistanceAndTime(base, getAddressFromItem(pinned));
+      appointments[pinnedAppIdx].km = r.distance !== Infinity ? Math.round(r.distance / 1000) : 0;
+      appointments[pinnedAppIdx].travelTime = r.duration || 0;
+      appointments[pinnedAppIdx]._optimized = true;
+    }
+  }
 
-  // Persistir sortIndex e km/travelTime na ordem ótima
+  // Restantes: sortIndex começa em 2 se há fixo, 1 se não
+  const startSortIndex = hasPinned ? 2 : 1;
+  const optimizedRoute = bestOrder.map(i => toOptimize[i]);
+
   for (let i = 0; i < optimizedRoute.length; i++) {
     const service = optimizedRoute[i];
     const appointmentIndex = appointments.findIndex(a => a.id === service.id);
     if (appointmentIndex < 0) continue;
 
-    appointments[appointmentIndex].sortIndex = i + 1;
+    appointments[appointmentIndex].sortIndex = startSortIndex + i;
 
-    const fromIdx  = i === 0 ? 0 : bestOrder[i - 1] + 1;
-    const toIdx    = bestOrder[i] + 1;
-    const newKm    = dist[fromIdx][toIdx] !== Infinity ? Math.round(dist[fromIdx][toIdx] / 1000) : 0;
+    const fromIdx = i === 0 ? 0 : bestOrder[i - 1] + 1;
+    const toIdx   = bestOrder[i] + 1;
+    const newKm   = dist[fromIdx][toIdx] !== Infinity ? Math.round(dist[fromIdx][toIdx] / 1000) : 0;
     const travelMin = time[fromIdx][toIdx] || 0;
 
     appointments[appointmentIndex].km = newKm;
     appointments[appointmentIndex].travelTime = travelMin;
     appointments[appointmentIndex]._optimized = true;
-
-    console.log(`🗺️ Serviço ${i + 1} (${service.plate}): ${newKm}km, ${travelMin}min ${i === 0 ? 'da loja' : 'do anterior'}`);
   }
 }
 
@@ -1530,6 +1545,8 @@ function editAppointment(id) {
   }
   const calibCb = document.getElementById('appointmentCalibration');
   if (calibCb) calibCb.checked = !!(appointment.calibration);
+  const firstCb = document.getElementById('appointmentFirstOfDay');
+  if (firstCb) firstCb.checked = !!(appointment.first_of_day);
   document.getElementById('appointmentLocality').value = appointment.locality || '';
   document.getElementById('appointmentNotes').value = appointment.notes || '';
   document.getElementById('appointmentAddress').value = appointment.address || '';
@@ -1586,6 +1603,8 @@ function cancelEdit() {
   document.getElementById('appointmentForm').reset();
   const calibCb = document.getElementById('appointmentCalibration');
   if (calibCb) calibCb.checked = false;
+  const firstCb = document.getElementById('appointmentFirstOfDay');
+  if (firstCb) firstCb.checked = false;
   document.getElementById('modalTitle').textContent = 'Novo Agendamento';
   document.getElementById('deleteAppointment').classList.add('hidden');
   
@@ -1693,6 +1712,7 @@ function buildDesktopCard(a){
       <div class="dc-meta">
         <span class="dc-badge">${service}</span>
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
+        ${a.first_of_day ? '<span class="dc-calib-badge" style="background:#f59e0b;color:#fff;">⭐ 1.º SERVIÇO</span>' : ''}
         ${car ? `<span class="dc-car">${car}</span>` : ''}
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
@@ -1973,7 +1993,8 @@ const telBtn = phone ? `
     a.period ? `<span class="m-chip">${a.period}</span>` : '',
     a.service ? `<span class="m-chip">${a.service}</span>` : '',
     !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : '',
-    a.calibration ? `<span class="m-chip m-chip-calib">⊕ CALIB</span>` : ''
+    a.calibration ? `<span class="m-chip m-chip-calib">⊕ CALIB</span>` : '',
+    a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : ''
   ].filter(Boolean).join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
   const isAutoImported = a.auto_imported && a.date;
@@ -2401,6 +2422,7 @@ function bootApp() {
       status: (document.getElementById('appointmentStatus')?.value || 'NE'),
       vehicleType: (document.getElementById('appointmentVehicleType')?.value || localStorage.getItem('eg_last_vehicleType') || 'L'),
       calibration: document.getElementById('appointmentCalibration')?.checked || false,
+      first_of_day: document.getElementById('appointmentFirstOfDay')?.checked || false,
       // ===== ADICIONAR OS QUILÓMETROS CALCULADOS =====
       km: calculatedKm,
       confirmed: document.getElementById('appointmentConfirmed')?.value !== 'false'
