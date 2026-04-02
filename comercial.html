@@ -438,7 +438,7 @@
       const user = getUser();
       if (!user) { window.location.href = '/login.html'; return; }
 
-      if (user.role !== 'comercial') {
+      if (user.role !== 'comercial' && user.role !== 'admin') {
         showToast('Acesso negado', 'error');
         setTimeout(() => window.location.href = '/login.html', 1500);
         return;
@@ -457,7 +457,7 @@
         });
         const data = await resp.json();
         const portals = (data.data || []).filter(p =>
-          portalIds.includes(p.id) && p.portal_type === 'sm'
+          (user.role === 'admin' || portalIds.includes(p.id)) && p.portal_type === 'sm'
         );
 
         const sel = document.getElementById('portalSelect');
