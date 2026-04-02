@@ -1146,14 +1146,6 @@ async function load(){
   ? await window.apiClient.getAppointments()
   : [];
 
-    // 🔍 DEBUG: Verificar dados RAW da base de dados
-    console.log('🔍 LOAD DEBUG - Dados RAW da base de dados:');
-    appointments.forEach(a => {
-      if (a.date === '2025-09-26') {
-        console.log(`🔍 RAW - ${a.plate}: sortIndex=${a.sortindex || a.sortIndex}, km=${a.km}`);
-      }
-    });
-
     appointments.forEach(a => {
       if (a.date) {
         a.date = String(a.date).slice(0, 10); // fica só "YYYY-MM-DD"
@@ -1165,22 +1157,9 @@ async function load(){
     // IDs e ordem estáveis
     appointments.forEach(a=>{ 
       if(!a.id) a.id=Date.now()+Math.random(); 
-      
-      // 🔍 DEBUG: Verificar antes e depois
-      const beforeSortIndex = a.sortIndex || a.sortindex;
-      
-      // 🔧 CORREÇÃO: Só definir sortIndex=1 se for null/undefined, não se for 0 ou outro valor
+      // Normalizar sortindex (minúsculas BD) → sortIndex
       if(a.sortIndex === null || a.sortIndex === undefined) {
-        // Verificar se vem como 'sortindex' (minúsculo) da base de dados
-        if(a.sortindex !== null && a.sortindex !== undefined) {
-          a.sortIndex = a.sortindex;
-        } else {
-          a.sortIndex = 1;
-        }
-      }
-      
-      if (a.date === '2025-09-26') {
-        console.log(`🔍 LOAD - ${a.plate}: antes=${beforeSortIndex}, depois=${a.sortIndex}`);
+        a.sortIndex = (a.sortindex !== null && a.sortindex !== undefined) ? a.sortindex : 1;
       }
     });
     // 🔁 Normalização de morada e data de criação (compatibilidade com dados antigos)
@@ -2072,15 +2051,8 @@ async function renderMobileDay(){
       })
   );
 
-  // 🔍 DEBUG: Verificar dados carregados
-  console.log('🔍 MOBILE DEBUG - Items do dia:', itemsRaw.length);
-  itemsRaw.forEach(item => {
-    console.log(`🔍 Item ${item.plate}: sortIndex=${item.sortIndex}, km=${item.km}`);
-  });
-
   // Verificar se já existe ordem otimizada (sortIndex > 1 em algum item)
   const hasOptimizedOrder = itemsRaw.some(item => (item.sortIndex || 0) > 1);
-  console.log('🔍 MOBILE DEBUG - Tem ordem otimizada?', hasOptimizedOrder);
   
   let items;
   if (hasOptimizedOrder) {
@@ -2135,7 +2107,7 @@ window.reloadAppointments = async function() {
       ...a,
       date: a.date ? String(a.date).slice(0,10) : null,
       address: a.address || a.morada || a.addr || null,
-      sortIndex: a.sortIndex || 1,
+      sortIndex: a.sortIndex || a.sortindex || 1,
       id: a.id ?? (Date.now() + Math.random()),
       createdAt: a.createdAt || a.created_at || null
     }));
