@@ -10,7 +10,6 @@
 
   // Verificar validade do token
   const result = await authClient.verifyAuth();
-  
   if (!result.success) {
     alert('Sessão expirada. Por favor, faça login novamente.');
     authClient.logout();
@@ -24,6 +23,12 @@
   const urlParams = new URLSearchParams(window.location.search);
   if (user.role === 'admin' && !urlParams.has('view')) {
     window.location.href = '/admin.html';
+    return;
+  }
+
+  // === COMERCIAL: redirecionar para página própria ===
+  if (user.role === 'comercial') {
+    window.location.href = '/comercial.html';
     return;
   }
 
@@ -45,13 +50,13 @@
             portalType: p.portal_type || p.portalType || 'sm'
           };
         });
+
         window.coordPortals = allPortals;
-        
         const savedPortalId = sessionStorage.getItem('eg_active_portal');
-        const activePortal = savedPortalId 
+        const activePortal = savedPortalId
           ? allPortals.find(function(p) { return String(p.id) === savedPortalId; }) || allPortals[0]
           : allPortals[0];
-        
+
         window.activePortalId = activePortal.id;
         applyPortalConfig(activePortal);
         buildPortalSwitcher(allPortals, activePortal.id);
@@ -59,6 +64,7 @@
     } catch (e) {
       console.error('Erro ao carregar portais para admin:', e);
     }
+
     addLogoutButton();
     addAdminBackButton();
     console.log('✅ Admin: vista de agendas');
@@ -77,13 +83,12 @@
   // === COORDENADOR: guardar lista de portais e montar switcher ===
   if (user.role === 'coordenador' && user.portals && user.portals.length > 0) {
     window.coordPortals = user.portals;
-    
-    // Usar portal guardado na sessão ou o primeiro da lista
+
     const savedPortalId = sessionStorage.getItem('eg_active_portal');
-    const activePortal = savedPortalId 
+    const activePortal = savedPortalId
       ? user.portals.find(p => String(p.id) === savedPortalId) || user.portals[0]
       : user.portals[0];
-    
+
     window.activePortalId = activePortal.id;
     applyPortalConfig(activePortal);
     buildPortalSwitcher(user.portals, activePortal.id);
@@ -99,14 +104,12 @@
   const role = user.role;
   const canEdit = role === 'admin' || role === 'coordenador';
 
-  // Botão + (mobile) e Calcular Rotas — só para admin/coordenador
-  const addMobileBtn = document.getElementById('addServiceMobile');
-  const routeBtn = document.getElementById('calculateRoutes');
+  const addMobileBtn  = document.getElementById('addServiceMobile');
+  const routeBtn      = document.getElementById('calculateRoutes');
   const addDesktopBtn = document.getElementById('addServiceBtn');
-
-  if (addMobileBtn) addMobileBtn.style.display = canEdit ? 'flex' : 'none';
-  if (routeBtn) routeBtn.style.display = canEdit ? '' : 'none';
-  if (addDesktopBtn) addDesktopBtn.style.display = canEdit ? '' : 'none';
+  if (addMobileBtn)  addMobileBtn.style.display  = canEdit ? 'flex' : 'none';
+  if (routeBtn)      routeBtn.style.display       = canEdit ? '' : 'none';
+  if (addDesktopBtn) addDesktopBtn.style.display  = canEdit ? '' : 'none';
 
   console.log('✅ Portal inicializado com sucesso (' + (window.portalConfig?.portalType || 'sm') + ')');
   window.dispatchEvent(new CustomEvent('portalReady'));
@@ -114,16 +117,13 @@
 
 // === APLICAR CONFIGURAÇÃO DO PORTAL ===
 function applyPortalConfig(portalConfig) {
-  // Atualizar título da página
   document.title = portalConfig.name + ' - Expressglass';
-  
-  // Atualizar header
+
   const headerTitle = document.querySelector('.page-header h1');
   if (headerTitle) {
     headerTitle.textContent = 'AGENDAMENTO ' + portalConfig.name.toUpperCase();
   }
 
-  // Guardar configurações globalmente
   window.portalConfig = {
     id: portalConfig.id,
     name: portalConfig.name,
@@ -132,41 +132,34 @@ function applyPortalConfig(portalConfig) {
     portalType: portalConfig.portalType || 'sm'
   };
 
-  // Atualizar base de partida (só SM)
   if (window.BASES_PARTIDA && portalConfig.portalType !== 'loja') {
     window.basePartidaDoDia = portalConfig.departureAddress;
   }
 
-  // Atualizar dropdown de localidades (só SM)
   if (portalConfig.portalType !== 'loja') {
     updateLocalitiesDropdown();
   }
 
-  // Adaptar UI para Loja
   applyLojaMode(portalConfig.portalType === 'loja');
 }
 
 // === ADAPTAR UI PARA LOJA ===
 function applyLojaMode(isLoja) {
-  // Localidade
-  const locGroup = document.querySelector('#appointmentLocality')?.closest('.form-group') 
-                || document.querySelector('#localityAutocomplete')?.closest('.form-group');
+  const locGroup = document.querySelector('#appointmentLocality')?.closest('.form-group')
+    || document.querySelector('#localityAutocomplete')?.closest('.form-group');
   if (locGroup) locGroup.style.display = isLoja ? 'none' : '';
 
-  // Morada e KM
   const addressField = document.querySelector('#appointmentAddress')?.closest('.form-group');
   if (addressField) addressField.style.display = isLoja ? 'none' : '';
+
   const kmField = document.querySelector('#appointmentKm')?.closest('.form-group');
   if (kmField) kmField.style.display = isLoja ? 'none' : '';
 
-  // Botão de calcular rotas
   const routeBtn = document.querySelector('[onclick*="openSelectDayModal"]') || document.querySelector('[onclick*="calculateOptimalRoutes"]');
   if (routeBtn) routeBtn.style.display = isLoja ? 'none' : '';
 
-  // Campo de período (só Loja)
   const existingPeriod = document.getElementById('appointmentPeriod');
   const dateField = document.querySelector('#appointmentDate')?.closest('.form-group');
-  
   if (isLoja && dateField && !existingPeriod) {
     const periodGroup = document.createElement('div');
     periodGroup.className = 'form-group';
@@ -180,9 +173,8 @@ function applyLojaMode(isLoja) {
   }
 }
 
-// === SWITCHER DE PORTAIS (COORDENADOR) ===
+// === SWITCHER DE PORTAIS (COORDENADOR / ADMIN) ===
 function buildPortalSwitcher(portals, activeId) {
-  // Remover switcher antigo se existir
   const old = document.getElementById('portalSwitcher');
   if (old) old.remove();
 
@@ -217,7 +209,6 @@ function buildPortalSwitcher(portals, activeId) {
   wrapper.appendChild(label);
   wrapper.appendChild(select);
 
-  // Inserir logo após o header
   const header = document.querySelector('.page-header');
   if (header && header.nextSibling) {
     header.parentNode.insertBefore(wrapper, header.nextSibling);
@@ -226,25 +217,21 @@ function buildPortalSwitcher(portals, activeId) {
   }
 }
 
-// === TROCAR PORTAL (COORDENADOR) ===
+// === TROCAR PORTAL ===
 async function switchPortal(newPortalId) {
   var portal = window.coordPortals.find(function(p) { return p.id === newPortalId; });
   if (!portal) return;
 
-  // Guardar selecção na sessão
   sessionStorage.setItem('eg_active_portal', String(newPortalId));
   window.activePortalId = newPortalId;
 
-  // Limpar dados do portal anterior imediatamente
   if (typeof window.appointments !== 'undefined') {
     window.appointments = [];
     if (typeof renderAll === 'function') renderAll();
   }
 
-  // Aplicar nova configuração
   applyPortalConfig(portal);
 
-  // Recarregar agendamentos do novo portal
   try {
     if (typeof window.reloadAppointments === 'function') {
       await window.reloadAppointments();
@@ -273,7 +260,6 @@ function addLogoutButton() {
       window.location.href = '/login.html';
     }
   });
-
   headerActions.appendChild(logoutBtn);
 }
 
@@ -290,7 +276,6 @@ function addAdminBackButton() {
   backBtn.addEventListener('click', function() {
     window.location.href = '/admin.html';
   });
-
   headerActions.insertBefore(backBtn, headerActions.firstChild);
 }
 
@@ -301,7 +286,6 @@ function updateLocalitiesDropdown() {
 
   var localities = window.portalConfig.localities;
   var localityNames = Object.keys(localities).sort();
-
   localitySelect.innerHTML = '<option value="">Selecione a localidade</option>' +
     localityNames.map(function(name) { return '<option value="' + name + '">' + name + '</option>'; }).join('');
 
