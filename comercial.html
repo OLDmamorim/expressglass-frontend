@@ -202,11 +202,11 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      background: #1e293b;
-      color: white;
+      background: white;
+      color: #0f172a;
       padding: 5px 12px;
       border-radius: 8px;
-      border: 2px solid #334155;
+      border: 2px solid #1e293b;
     }
     .plate-badge .plate-flag {
       background: #1a56db;
@@ -537,7 +537,8 @@
 
     function fmtDate(dateStr) {
       if (!dateStr) return '<span style="color:#94a3b8;font-size:13px;">Sem data</span>';
-      const d = new Date(dateStr + 'T00:00:00');
+      const clean = String(dateStr).slice(0, 10);
+      const d = new Date(clean + 'T00:00:00');
       const day = d.toLocaleDateString('pt-PT', { weekday: 'short' });
       const dm  = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
       return `<div class="date-cell">${dm}<div class="date-day">${day}</div></div>`;
