@@ -2062,7 +2062,14 @@ async function renderMobileDay(){
   const itemsRaw = filterAppointments(
     appointments
       .filter(a => a.date === iso)
-      .sort((a,b)=> (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0))
+      .sort((a,b) => {
+        // Loja: ordenar por período (Manhã/Tarde) e depois sortIndex
+        // SM: ordenar apenas por sortIndex (rota optimizada)
+        if (isLoja()) {
+          return (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0);
+        }
+        return (a.sortIndex||0) - (b.sortIndex||0);
+      })
   );
 
   // 🔍 DEBUG: Verificar dados carregados
