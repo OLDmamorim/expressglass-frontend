@@ -1381,16 +1381,19 @@ function renderReport(data) {
         headers: { 'Authorization': 'Bearer ' + token }
       });
       const apptData = await resp2.json();
-      const appts = (apptData.data || []).filter(a =>
-        a.created_at && a.date >= period.from && a.date <= period.to
-      );
+      // Normalizar datas (podem vir como ISO ou YYYY-MM-DD)
+      const normDate = s => s ? String(s).slice(0, 10) : null;
+      const appts = (apptData.data || []).filter(a => {
+        const d = normDate(a.date);
+        return a.created_at && d && d >= normDate(period.from) && d <= normDate(period.to);
+      });
 
       // Calcular dias aberto para cada serviço (created_at → date)
       const diasList = appts.map(a => {
         const criacao = new Date(a.created_at); criacao.setHours(0,0,0,0);
-        const servico = new Date(a.date + 'T00:00:00');
+        const servico = new Date(normDate(a.date) + 'T00:00:00');
         return Math.max(0, Math.floor((servico - criacao) / 86400000));
-      }).filter(d => d >= 0);
+      }).filter(d => !isNaN(d) && d >= 0);
 
       // Buckets: 0-2, 3-6, 7-13, 14-29, 30+
       const buckets = [0,0,0,0,0];
