@@ -120,13 +120,17 @@ exports.handler = async (event) => {
       const id = (event.path || '').split('/').pop();
       const data = JSON.parse(event.body || '{}');
 
+      // Ler valores atuais para preservar executed e not_done_reason
       const checkResult = await pool.query(
-        'SELECT id FROM appointments WHERE id = $1 AND portal_id = $2',
+        'SELECT id, executed, not_done_reason FROM appointments WHERE id = $1 AND portal_id = $2',
         [id, portalId]
       );
       if (checkResult.rows.length === 0) {
         return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
       }
+      const existing = checkResult.rows[0];
+      const executedVal = data.executed !== undefined ? data.executed : existing.executed;
+      const notDoneReasonVal = data.not_done_reason !== undefined ? data.not_done_reason : existing.not_done_reason;
 
       const q = `
         UPDATE appointments SET
@@ -151,11 +155,11 @@ exports.handler = async (event) => {
         data.vehicleType || data.vehicle_type || 'L',
         data.travelTime || data.travel_time || null,
         data.auto_imported !== undefined ? data.auto_imported : false,
-        data.executed !== undefined ? data.executed : false,
+        executedVal,
         data.confirmed !== undefined ? data.confirmed : true,
         data.calibration === true,
         data.first_of_day === true,
-        data.not_done_reason || null,
+        notDoneReasonVal,
         new Date().toISOString(), id, portalId
       ];
       const { rows } = await pool.query(q, v);
