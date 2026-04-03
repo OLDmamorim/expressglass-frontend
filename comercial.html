@@ -642,12 +642,12 @@
 
       const tbody = document.getElementById('comTableBody');
 
-      // Todos os serviços: agendados (data desc) + pendentes no fim
+      // Ordenar: por data serviço asc (mais próximo primeiro), pendentes no fim
       const sorted = [...allAppointments].sort((a, b) => {
         if (!a.date && !b.date) return (a.created_at||'').localeCompare(b.created_at||'');
         if (!a.date) return 1;
         if (!b.date) return -1;
-        return new Date(b.date) - new Date(a.date);
+        return new Date(a.date) - new Date(b.date);
       });
 
       // Contadores
