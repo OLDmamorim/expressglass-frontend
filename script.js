@@ -1772,7 +1772,7 @@ function buildDesktopCard(a){
   })() : 0;
   const _diasBg = _diasAberto >= 8 ? '#dc2626' : _diasAberto >= 5 ? '#ea580c' : _diasAberto >= 3 ? '#d97706' : null;
   const diasAbertoBadge = _diasAberto > 0 && _diasBg ? `
-    <div style="margin:8px 0 4px;display:inline-flex;align-items:center;gap:6px;background:${_diasBg};color:#fff;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:800;letter-spacing:0.3px;">
+    <div style="margin:8px 0 4px;display:inline-flex;align-items:center;gap:6px;background:${_diasBg};color:#ffffff !important;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:800;letter-spacing:0.3px;-webkit-text-fill-color:#ffffff;">
       ⏱ ${_diasAberto} ${_diasAberto === 1 ? 'dia aberto' : 'dias aberto'}
     </div>` : '';
 
