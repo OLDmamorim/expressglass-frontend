@@ -1370,9 +1370,27 @@ function renderReport(data) {
     options: { indexAxis: 'y', responsive: true, plugins: { legend: { position: 'top' } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
   });
 
-  // Gráfico: Dias Aberto (distribuição)
-  // Calcular a partir dos dados byLocality + totals disponíveis
-  // Fazemos fetch dos appointments do período para calcular dias aberto
+  // Gráfico: Dias Aberto — criar imediatamente com dados vazios, actualizar com fetch
+  const _bucketsInit = [0,0,0,0,0];
+  reportCharts.weekly = new Chart(document.getElementById('chartWeekly'), {
+    type: 'bar',
+    data: {
+      labels: ['0-2 dias', '3-6 dias', '7-13 dias', '14-29 dias', '30+ dias'],
+      datasets: [{
+        label: 'Serviços',
+        data: _bucketsInit,
+        backgroundColor: ['#16a34a','#65a30d','#d97706','#ea580c','#dc2626'],
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+    }
+  });
+
+  // Carregar dados reais de forma assíncrona e actualizar gráfico
   (async () => {
     try {
       const token = authClient.getToken();
@@ -1381,54 +1399,37 @@ function renderReport(data) {
         headers: { 'Authorization': 'Bearer ' + token }
       });
       const apptData = await resp2.json();
-      // Normalizar datas (podem vir como ISO ou YYYY-MM-DD)
       const normDate = s => s ? String(s).slice(0, 10) : null;
       const appts = (apptData.data || []).filter(a => {
         const d = normDate(a.date);
         return a.created_at && d && d >= normDate(period.from) && d <= normDate(period.to);
       });
 
-      // Calcular dias aberto para cada serviço (created_at → date)
       const diasList = appts.map(a => {
         const criacao = new Date(a.created_at); criacao.setHours(0,0,0,0);
         const servico = new Date(normDate(a.date) + 'T00:00:00');
         return Math.max(0, Math.floor((servico - criacao) / 86400000));
       }).filter(d => !isNaN(d) && d >= 0);
 
-      // Buckets: 0-2, 3-6, 7-13, 14-29, 30+
       const buckets = [0,0,0,0,0];
       diasList.forEach(d => {
-        if (d <= 2) buckets[0]++;
-        else if (d <= 6) buckets[1]++;
+        if (d <= 2)       buckets[0]++;
+        else if (d <= 6)  buckets[1]++;
         else if (d <= 13) buckets[2]++;
         else if (d <= 29) buckets[3]++;
-        else buckets[4]++;
+        else              buckets[4]++;
       });
 
-      // Média de dias para execução
+      // Actualizar gráfico com dados reais
+      reportCharts.weekly.data.datasets[0].data = buckets;
+      reportCharts.weekly.update();
+
+      // Actualizar KPI média
       const media = diasList.length > 0
         ? (diasList.reduce((s,d) => s+d, 0) / diasList.length).toFixed(1)
         : '—';
-      document.getElementById('kpiMediaDiaria').textContent = media + ' dias';
-      document.querySelector('#kpiMediaDiaria').closest('div').querySelector('div:last-child').textContent = 'Média dias p/ execução';
+      document.getElementById('kpiMediaDiaria').textContent = media + (media !== '—' ? ' dias' : '');
 
-      reportCharts.weekly = new Chart(document.getElementById('chartWeekly'), {
-        type: 'bar',
-        data: {
-          labels: ['0-2 dias', '3-6 dias', '7-13 dias', '14-29 dias', '30+ dias'],
-          datasets: [{
-            label: 'Serviços',
-            data: buckets,
-            backgroundColor: ['#16a34a','#65a30d','#d97706','#ea580c','#dc2626'],
-            borderRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false }, title: { display: false } },
-          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-        }
-      });
     } catch(e) { console.warn('Erro ao gerar gráfico dias aberto:', e); }
   })();
 
