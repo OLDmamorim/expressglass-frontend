@@ -648,12 +648,17 @@
 
       const tbody = document.getElementById('comTableBody');
 
-      // Ordenar: por data serviço asc (mais próximo primeiro), pendentes no fim
+      // Ordenar: futuras asc, passadas desc, sem data no fim
+      const _today = new Date(); _today.setHours(0,0,0,0);
       const sorted = [...allAppointments].sort((a, b) => {
         if (!a.date && !b.date) return (a.created_at||'').localeCompare(b.created_at||'');
         if (!a.date) return 1;
         if (!b.date) return -1;
-        return new Date(a.date) - new Date(b.date);
+        const da = new Date(a.date), db = new Date(b.date);
+        const aFuture = da >= _today, bFuture = db >= _today;
+        if (aFuture && bFuture) return da - db;
+        if (!aFuture && !bFuture) return db - da;
+        return aFuture ? -1 : 1;
       });
 
       // Contadores
