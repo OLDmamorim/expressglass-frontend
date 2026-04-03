@@ -459,14 +459,14 @@
         <option value="">Todos os estados</option>
         <option value="done">✅ Realizado</option>
         <option value="notdone">❌ Não realizado</option>
-        <option value="pending">🔵 Pendente</option>
+        <option value="pending">🔵 Agendado</option>
         <option value="poragendar">🟠 Por agendar</option>
       </select>
       <div class="summary-chips" id="summaryChips" style="display:none;">
         <div class="chip chip-total"><span id="chipTotal">0</span> total</div>
         <div class="chip chip-done"><span id="chipDone">0</span> realizados</div>
         <div class="chip chip-notdone"><span id="chipNotDone">0</span> não realizados</div>
-        <div class="chip chip-pending"><span id="chipPending">0</span> pendentes</div>
+        <div class="chip chip-pending"><span id="chipPending">0</span> agendados</div>
         <div class="chip chip-poragendar"><span id="chipPoragendar">0</span> por agendar</div>
       </div>
     </div>
@@ -636,7 +636,7 @@
       if (state === 'done')       return '<span class="status-pill done"><span class="status-dot"></span>Realizado</span>';
       if (state === 'notdone')    return '<span class="status-pill notdone"><span class="status-dot"></span>Não realizado</span>';
       if (state === 'poragendar') return '<span class="status-pill poragendar"><span class="status-dot"></span>Por agendar</span>';
-      return '<span class="status-pill pending"><span class="status-dot"></span>Pendente</span>';
+      return '<span class="status-pill pending"><span class="status-dot"></span>Agendado</span>';
     }
 
     function fmtDate(dateStr) {
