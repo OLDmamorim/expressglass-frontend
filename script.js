@@ -212,6 +212,66 @@ function confirmCalculateRoutes() {
   calculateOptimalRoutesForDay(selectedDate);
 }
 
+// ===== OTIMIZAÇÃO DE ROTAS - TODOS OS DIAS A PARTIR DE HOJE =====
+async function calculateAllRoutesFromToday() {
+  try {
+    showProgressModal();
+    updateProgress(0, 'Iniciando otimização...', 'A verificar dias com serviços...');
+    await new Promise(r => setTimeout(r, 300));
+
+    const todayISO = localISO(new Date());
+
+    // Recolher todos os dias futuros (a partir de hoje) que têm serviços com morada
+    const daysWithServices = [...new Set(
+      appointments
+        .filter(a => a.date && a.date >= todayISO && getAddressFromItem(a))
+        .map(a => a.date)
+    )].sort();
+
+    if (daysWithServices.length === 0) {
+      updateProgress(100, 'Sem serviços', 'Não há dias com serviços e morada a partir de hoje.');
+      await new Promise(r => setTimeout(r, 1500));
+      hideProgressModal();
+      showToast('ℹ️ Não há serviços com morada a partir de hoje para otimizar.', 'info');
+      return;
+    }
+
+    let totalOptimized = 0;
+
+    for (let i = 0; i < daysWithServices.length; i++) {
+      const dateISO = daysWithServices[i];
+      const d = new Date(dateISO + 'T00:00:00');
+      const dayName = d.toLocaleDateString('pt-PT', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      const pct = Math.round(10 + (i / daysWithServices.length) * 80);
+
+      updateProgress(pct, `Otimizando ${dayName}`, `Dia ${i + 1} de ${daysWithServices.length}`);
+
+      const dayServices = appointments.filter(a =>
+        a.date === dateISO && getAddressFromItem(a)
+      );
+
+      if (dayServices.length >= 1) {
+        await optimizeDayServices(dayServices);
+        totalOptimized += dayServices.length;
+      }
+    }
+
+    updateProgress(95, 'A guardar...', 'Sincronizando com a base de dados...');
+    await saveOptimizedRoutes();
+
+    updateProgress(100, 'Concluído!', `${daysWithServices.length} dias otimizados (${totalOptimized} serviços)`);
+    await new Promise(r => setTimeout(r, 1500));
+    hideProgressModal();
+    renderAll();
+    showToast(`✅ Rotas otimizadas para ${daysWithServices.length} dias a partir de hoje!`, 'success');
+
+  } catch (error) {
+    console.error('Erro ao calcular rotas:', error);
+    hideProgressModal();
+    showToast('❌ Erro: ' + error.message, 'error');
+  }
+}
+
 // ===== OTIMIZAÇÃO DE ROTAS - DIA ESPECÍFICO =====
 async function calculateOptimalRoutesForDay(selectedDateISO) {
   try {
@@ -1292,60 +1352,16 @@ async function persistConfirmed(id, confirmed) {
 }
 
 
-let _notDoneTargetId = null;
-
 async function persistExecuted(id, executed) {
-  if (!executed) {
-    _notDoneTargetId = id;
-    openNotDoneModal();
-    return;
-  }
-  await _doSaveExecuted(id, true, null);
-}
-
-function openNotDoneModal() {
-  document.querySelectorAll('input[name="ndReason"]').forEach(r => {
-    r.checked = false;
-    r.onchange = () => {
-      document.getElementById('ndOutrosText').style.display = r.value === 'Outros' ? 'block' : 'none';
-    };
-  });
-  document.getElementById('ndOutrosText').style.display = 'none';
-  document.getElementById('ndOutrosText').value = '';
-  document.getElementById('notDoneModal').style.display = 'flex';
-}
-
-function closeNotDoneModal() {
-  document.getElementById('notDoneModal').style.display = 'none';
-  _notDoneTargetId = null;
-}
-
-async function confirmNotDone() {
-  const selected = document.querySelector('input[name="ndReason"]:checked');
-  if (!selected) { showToast('Selecione um motivo', 'error'); return; }
-  let reason = selected.value;
-  if (reason === 'Outros') {
-    const txt = document.getElementById('ndOutrosText').value.trim();
-    if (!txt) { showToast('Descreva o motivo', 'error'); return; }
-    reason = txt;
-  }
-  document.getElementById('notDoneModal').style.display = 'none';
-  await _doSaveExecuted(_notDoneTargetId, false, reason);
-  _notDoneTargetId = null;
-}
-
-async function _doSaveExecuted(id, executed, notDoneReason) {
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
-  const prev = { executed: appointments[i].executed, not_done_reason: appointments[i].not_done_reason };
+  const prev = appointments[i].executed;
   appointments[i].executed = executed;
-  appointments[i].not_done_reason = notDoneReason;
   renderAll();
   try {
-    await window.apiClient.updateAppointment(id, { ...appointments[i], executed, not_done_reason: notDoneReason });
+    await window.apiClient.updateAppointment(id, { ...appointments[i], executed });
   } catch (err) {
-    appointments[i].executed = prev.executed;
-    appointments[i].not_done_reason = prev.not_done_reason;
+    appointments[i].executed = prev;
     showToast('Falha ao gravar: ' + err.message, 'error');
     renderAll();
   }
@@ -2386,7 +2402,7 @@ function bootApp() {
   });
 
   // Botão Calcular Rotas - Abrir modal de seleção de dia
-  document.getElementById('calculateRoutes')?.addEventListener('click', openSelectDayModal);
+  document.getElementById('calculateRoutes')?.addEventListener('click', calculateAllRoutesFromToday);
 
   // ── Relatório semanal (mobile + desktop) ──
   const openRelatorio = () => {
