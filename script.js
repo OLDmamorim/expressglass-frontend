@@ -2081,7 +2081,7 @@ const telBtn = phone ? `
   const todayISO = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO;
 
-  const statusToggle = isPastOrToday ? `
+  const statusToggle = a.date ? `
     <div class="m-status-row">
       <button class="m-status-btn ${!isRealizado ? 'm-status-active-ne' : ''}" data-exec="false" data-id="${a.id}">
         <span class="m-status-dot m-dot-ne"></span>
