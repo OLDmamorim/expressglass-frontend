@@ -58,7 +58,8 @@ exports.handler = async (event) => {
           updatedAt: user.updated_at
         };
 
-        if (user.role === 'coordenador') {
+        // Coordenador e Comercial: carregar lista de portais
+        if (user.role === 'coordenador' || user.role === 'comercial') {
           const cp = await pool.query(
             'SELECT portal_id FROM coordinator_portals WHERE user_id = $1',
             [user.id]
@@ -98,7 +99,6 @@ exports.handler = async (event) => {
       }
 
       const passwordHash = await bcrypt.hash(data.password, 10);
-
       const query = `
         INSERT INTO users (username, password_hash, plain_password, portal_id, role, created_at, updated_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -117,7 +117,8 @@ exports.handler = async (event) => {
       const { rows } = await pool.query(query, values);
       const newUser = rows[0];
 
-      if (data.role === 'coordenador' && data.portal_ids && data.portal_ids.length > 0) {
+      // Coordenador e Comercial: guardar lista de portais
+      if ((data.role === 'coordenador' || data.role === 'comercial') && data.portal_ids && data.portal_ids.length > 0) {
         for (const pid of data.portal_ids) {
           await pool.query(
             'INSERT INTO coordinator_portals (user_id, portal_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
@@ -144,11 +145,11 @@ exports.handler = async (event) => {
       const values = [];
       let paramIndex = 1;
 
-      if (data.username) { updates.push('username = $' + paramIndex++); values.push(data.username.trim()); }
-      if (passwordHash) { updates.push('password_hash = $' + paramIndex++); values.push(passwordHash); }
-      if (data.password) { updates.push('plain_password = $' + paramIndex++); values.push(data.password); }
-      if (data.portal_id !== undefined) { updates.push('portal_id = $' + paramIndex++); values.push(data.portal_id || null); }
-      if (data.role) { updates.push('role = $' + paramIndex++); values.push(data.role); }
+      if (data.username)              { updates.push('username = $'       + paramIndex++); values.push(data.username.trim()); }
+      if (passwordHash)               { updates.push('password_hash = $'  + paramIndex++); values.push(passwordHash); }
+      if (data.password)              { updates.push('plain_password = $' + paramIndex++); values.push(data.password); }
+      if (data.portal_id !== undefined){ updates.push('portal_id = $'     + paramIndex++); values.push(data.portal_id || null); }
+      if (data.role)                  { updates.push('role = $'           + paramIndex++); values.push(data.role); }
 
       updates.push('updated_at = $' + paramIndex++);
       values.push(new Date().toISOString());
@@ -161,7 +162,8 @@ exports.handler = async (event) => {
         return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Utilizador não encontrado' }) };
       }
 
-      if (data.role === 'coordenador' && data.portal_ids) {
+      // Coordenador e Comercial: atualizar lista de portais
+      if ((data.role === 'coordenador' || data.role === 'comercial') && data.portal_ids) {
         await pool.query('DELETE FROM coordinator_portals WHERE user_id = $1', [id]);
         for (const pid of data.portal_ids) {
           await pool.query(
@@ -169,7 +171,7 @@ exports.handler = async (event) => {
             [id, pid]
           );
         }
-      } else if (data.role && data.role !== 'coordenador') {
+      } else if (data.role && data.role !== 'coordenador' && data.role !== 'comercial') {
         await pool.query('DELETE FROM coordinator_portals WHERE user_id = $1', [id]);
       }
 
