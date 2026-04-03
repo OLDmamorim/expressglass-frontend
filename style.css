@@ -1052,10 +1052,10 @@ table.schedule td.is-today {
   .m-title-text {
     padding: 6px 14px;
     color: #111 !important;
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 22px;
-    font-weight: 400;
-    letter-spacing: 4px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: 3px;
     text-shadow: none;
   }
 
