@@ -1352,19 +1352,90 @@ async function persistConfirmed(id, confirmed) {
 }
 
 
-async function persistExecuted(id, executed) {
+// ===== MODAL NÃO REALIZADO =====
+let _pendingNotDoneId = null;
+
+function _injectNotDoneModal() {
+  if (document.getElementById('notDoneModal')) return;
+  const modal = document.createElement('div');
+  modal.id = 'notDoneModal';
+  modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <h3 style="margin:0 0 6px;font-size:18px;font-weight:800;color:#1e293b;">Motivo — Não Realizado</h3>
+      <p style="margin:0 0 16px;font-size:13px;color:#64748b;">Selecione o motivo pelo qual o serviço não foi realizado:</p>
+      <div id="ndOptions" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+        <label class="nd-opt"><input type="radio" name="ndReason" value="Carro não disponível"> Carro não disponível</label>
+        <label class="nd-opt"><input type="radio" name="ndReason" value="Vidro não partido"> Vidro não partido</label>
+        <label class="nd-opt"><input type="radio" name="ndReason" value="Vidro errado"> Vidro errado</label>
+        <label class="nd-opt"><input type="radio" name="ndReason" value="Falta de material"> Falta de material</label>
+        <label class="nd-opt"><input type="radio" name="ndReason" value="__outro__">
+          Outro: <input type="text" id="ndOutroText" placeholder="descreva..." style="margin-left:6px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;flex:1;">
+        </label>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="closeNotDoneModal()" style="padding:10px 20px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-weight:600;cursor:pointer;">Cancelar</button>
+        <button onclick="confirmNotDone()" style="padding:10px 20px;border:none;border-radius:8px;background:#dc2626;color:#fff;font-weight:700;cursor:pointer;">Confirmar</button>
+      </div>
+    </div>`;
+  // Estilos inline para as opções
+  const style = document.createElement('style');
+  style.textContent = '.nd-opt{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;transition:border-color .15s;} .nd-opt:hover{border-color:#3b82f6;} .nd-opt input[type=radio]{width:16px;height:16px;accent-color:#dc2626;}';
+  document.head.appendChild(style);
+  document.body.appendChild(modal);
+}
+
+function openNotDoneModal(id) {
+  _injectNotDoneModal();
+  _pendingNotDoneId = id;
+  document.querySelectorAll('input[name="ndReason"]').forEach(r => r.checked = false);
+  const outro = document.getElementById('ndOutroText');
+  if (outro) outro.value = '';
+  const modal = document.getElementById('notDoneModal');
+  modal.style.display = 'flex';
+}
+
+function closeNotDoneModal() {
+  const modal = document.getElementById('notDoneModal');
+  if (modal) modal.style.display = 'none';
+  _pendingNotDoneId = null;
+}
+
+async function confirmNotDone() {
+  const selected = document.querySelector('input[name="ndReason"]:checked');
+  if (!selected) { showToast('Selecione um motivo', 'error'); return; }
+  let reason = selected.value;
+  if (reason === '__outro__') {
+    reason = (document.getElementById('ndOutroText')?.value || '').trim();
+    if (!reason) { showToast('Descreva o motivo', 'error'); return; }
+  }
+  closeNotDoneModal();
+  await _doSaveExecuted(_pendingNotDoneId, false, reason);
+}
+
+async function _doSaveExecuted(id, executed, reason) {
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
-  const prev = appointments[i].executed;
+  const prev = { executed: appointments[i].executed, not_done_reason: appointments[i].not_done_reason };
   appointments[i].executed = executed;
+  appointments[i].not_done_reason = reason || null;
   renderAll();
   try {
-    await window.apiClient.updateAppointment(id, { ...appointments[i], executed });
+    await window.apiClient.updateAppointment(id, { ...appointments[i], executed, not_done_reason: reason || null });
   } catch (err) {
-    appointments[i].executed = prev;
+    appointments[i].executed = prev.executed;
+    appointments[i].not_done_reason = prev.not_done_reason;
     showToast('Falha ao gravar: ' + err.message, 'error');
     renderAll();
   }
+}
+
+async function persistExecuted(id, executed) {
+  if (!executed) {
+    openNotDoneModal(id);
+    return;
+  }
+  await _doSaveExecuted(id, true, null);
 }
 // ---------- Exec Listeners (desktop) ----------
 function attachExecListeners(){
