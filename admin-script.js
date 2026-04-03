@@ -9,20 +9,43 @@
   }
 
   const result = await authClient.verifyAuth();
+  const user = authClient.getUser();
   
-  if (!result.success || !authClient.isAdmin()) {
-    alert('Acesso negado: apenas administradores');
+  if (!result.success || (user.role !== 'admin' && user.role !== 'coordenador')) {
+    alert('Acesso negado');
     authClient.logout();
     window.location.href = '/login.html';
     return;
   }
 
   // Mostrar nome do utilizador
-  document.getElementById('userInfo').textContent = authClient.getUser().username;
+  document.getElementById('userInfo').textContent = user.username;
 
-  // Carregar dados iniciais
-  loadPortals();
-  loadUsers();
+  // Coordenador: esconder tabs que não se aplicam
+  if (user.role === 'coordenador') {
+    ['portals','users','import'].forEach(tab => {
+      const btn = document.querySelector(`.nav-tab[data-tab="${tab}"]`);
+      const content = document.getElementById(`${tab}Tab`);
+      if (btn) btn.style.display = 'none';
+      if (content) content.style.display = 'none';
+    });
+    // Activar tab relatórios diretamente
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    const rTab = document.querySelector('.nav-tab[data-tab="reports"]');
+    const rContent = document.getElementById('reportsTab');
+    if (rTab) rTab.classList.add('active');
+    if (rContent) rContent.classList.add('active');
+  }
+
+  // Admin: carregar dados iniciais
+  if (user.role === 'admin') {
+    loadPortals();
+    loadUsers();
+  } else {
+    // Coordenador: carregar só portais para o select de relatórios
+    loadPortalsForReports();
+  }
 })();
 
 // ===== LOGOUT =====
@@ -48,6 +71,29 @@ navTabs.forEach(tab => {
     document.getElementById(`${targetTab}Tab`).classList.add('active');
   });
 });
+
+// ===== CARREGAR PORTAIS PARA RELATÓRIOS (coordenador) =====
+async function loadPortalsForReports() {
+  const user = authClient.getUser();
+  const portalIds = user.portalIds || [];
+  if (!portalIds.length) return;
+  try {
+    const resp = await authClient.authenticatedFetch('/.netlify/functions/portals');
+    const data = await resp.json();
+    if (data.success) {
+      portals = data.data.filter(p => portalIds.includes(p.id));
+      window._adminPortals = portals;
+      populateReportPortalSelect(portals);
+    }
+  } catch(e) { console.error('Erro ao carregar portais:', e); }
+}
+
+function populateReportPortalSelect(portalList) {
+  const sel = document.getElementById('reportPortal');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Selecionar portal</option>' +
+    portalList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+}
 
 // ===== GESTÃO DE PORTAIS =====
 let portals = [];
@@ -1324,22 +1370,64 @@ function renderReport(data) {
     options: { indexAxis: 'y', responsive: true, plugins: { legend: { position: 'top' } }, scales: { x: { beginAtZero: true, ticks: { precision: 0 } } } }
   });
 
-  // Gráfico: evolução semanal — corrigir Invalid Date
-  const weekLabels = byWeek.map(r => {
-    const d = new Date(r.week_start + 'T12:00:00');
-    return isNaN(d) ? r.week_start : d.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit'});
-  });
-  reportCharts.weekly = new Chart(document.getElementById('chartWeekly'), {
-    type: 'line',
-    data: {
-      labels: weekLabels,
-      datasets: [
-        { label: 'Agendados', data: byWeek.map(r=>parseInt(r.total)), borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', tension: 0.3, fill: true, pointRadius: 4 },
-        { label: 'Realizados', data: byWeek.map(r=>parseInt(r.realizados)), borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.08)', tension: 0.3, fill: true, pointRadius: 4 }
-      ]
-    },
-    options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
-  });
+  // Gráfico: Dias Aberto (distribuição)
+  // Calcular a partir dos dados byLocality + totals disponíveis
+  // Fazemos fetch dos appointments do período para calcular dias aberto
+  (async () => {
+    try {
+      const token = authClient.getToken();
+      const portalId = document.getElementById('reportPortal').value;
+      const resp2 = await fetch(`/.netlify/functions/appointments?portal_id=${portalId}`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const apptData = await resp2.json();
+      const appts = (apptData.data || []).filter(a =>
+        a.created_at && a.date >= period.from && a.date <= period.to
+      );
+
+      // Calcular dias aberto para cada serviço (created_at → date)
+      const diasList = appts.map(a => {
+        const criacao = new Date(a.created_at); criacao.setHours(0,0,0,0);
+        const servico = new Date(a.date + 'T00:00:00');
+        return Math.max(0, Math.floor((servico - criacao) / 86400000));
+      }).filter(d => d >= 0);
+
+      // Buckets: 0-2, 3-6, 7-13, 14-29, 30+
+      const buckets = [0,0,0,0,0];
+      diasList.forEach(d => {
+        if (d <= 2) buckets[0]++;
+        else if (d <= 6) buckets[1]++;
+        else if (d <= 13) buckets[2]++;
+        else if (d <= 29) buckets[3]++;
+        else buckets[4]++;
+      });
+
+      // Média de dias para execução
+      const media = diasList.length > 0
+        ? (diasList.reduce((s,d) => s+d, 0) / diasList.length).toFixed(1)
+        : '—';
+      document.getElementById('kpiMediaDiaria').textContent = media + ' dias';
+      document.querySelector('#kpiMediaDiaria').closest('div').querySelector('div:last-child').textContent = 'Média dias p/ execução';
+
+      reportCharts.weekly = new Chart(document.getElementById('chartWeekly'), {
+        type: 'bar',
+        data: {
+          labels: ['0-2 dias', '3-6 dias', '7-13 dias', '14-29 dias', '30+ dias'],
+          datasets: [{
+            label: 'Serviços',
+            data: buckets,
+            backgroundColor: ['#16a34a','#65a30d','#d97706','#ea580c','#dc2626'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false }, title: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    } catch(e) { console.warn('Erro ao gerar gráfico dias aberto:', e); }
+  })();
 
   // Gráfico: por dia da semana (bar)
   const dowNames = ['Segunda','Terça','Quarta','Quinta','Sexta','Sábado','Domingo'];
