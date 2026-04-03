@@ -2093,6 +2093,18 @@ const telBtn = phone ? `
       </button>
     </div>` : '';
 
+  // Dias aberto mobile
+  const _mDiasAberto = a.createdAt ? (() => {
+    const d = new Date(a.createdAt); d.setHours(0,0,0,0);
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    return Math.floor((hoje - d) / 86400000);
+  })() : 0;
+  const _mDiasBg = _mDiasAberto >= 8 ? '#dc2626' : _mDiasAberto >= 5 ? '#ea580c' : _mDiasAberto >= 3 ? '#d97706' : null;
+  const mDiasAbertoBadge = _mDiasAberto > 0 && _mDiasBg ? `
+    <div style="margin:6px 14px 4px;display:inline-flex;align-items:center;gap:6px;background:${_mDiasBg};color:#ffffff;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:800;-webkit-text-fill-color:#ffffff;">
+      ⏱ ${_mDiasAberto} ${_mDiasAberto === 1 ? 'dia aberto' : 'dias aberto'}
+    </div>` : '';
+
   return `
     <div class="appointment m-card${preAgendadoM ? ' pre-agendado' : ''}" data-id="${a.id}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; position:relative;">
@@ -2112,6 +2124,7 @@ const telBtn = phone ? `
         ${isLoja() ? '' : buildKmRow(a)}
       </div>
       ${statusToggle}
+      ${mDiasAbertoBadge}
       ${phcFooter}
     </div>
   `;
