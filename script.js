@@ -2101,8 +2101,10 @@ const telBtn = phone ? `
   })() : 0;
   const _mDiasBg = _mDiasAberto >= 8 ? '#dc2626' : _mDiasAberto >= 5 ? '#ea580c' : _mDiasAberto >= 3 ? '#d97706' : null;
   const mDiasAbertoBadge = _mDiasAberto > 0 && _mDiasBg ? `
-    <div style="margin:6px 14px 4px;display:inline-flex;align-items:center;gap:6px;background:${_mDiasBg};color:#ffffff;padding:5px 12px;border-radius:20px;font-size:13px;font-weight:800;-webkit-text-fill-color:#ffffff;">
-      ⏱ ${_mDiasAberto} ${_mDiasAberto === 1 ? 'dia aberto' : 'dias aberto'}
+    <div style="margin:6px 0 4px;display:flex;justify-content:center;">
+      <span style="display:inline-flex;align-items:center;gap:6px;background:${_mDiasBg};color:#ffffff;padding:5px 16px;border-radius:20px;font-size:13px;font-weight:800;-webkit-text-fill-color:#ffffff;">
+        ⏱ ${_mDiasAberto} ${_mDiasAberto === 1 ? 'dia aberto' : 'dias aberto'}
+      </span>
     </div>` : '';
 
   return `
