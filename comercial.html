@@ -146,10 +146,11 @@
       font-size: 13px;
       font-weight: 700;
     }
-    .chip-total   { background: #e2e8f0; color: #475569; }
-    .chip-done    { background: #dcfce7; color: #16a34a; }
-    .chip-notdone { background: #fee2e2; color: #dc2626; }
-    .chip-pending { background: #fef3c7; color: #d97706; }
+    .chip-total      { background: #e2e8f0; color: #475569; }
+    .chip-done       { background: #dcfce7; color: #16a34a; }
+    .chip-notdone    { background: #fee2e2; color: #dc2626; }
+    .chip-pending    { background: #eff6ff; color: #2563eb; }
+    .chip-poragendar { background: #fff7ed; color: #ea580c; }
 
     /* ===== TABLE ===== */
     .table-card {
@@ -249,9 +250,10 @@
       font-weight: 700;
       white-space: nowrap;
     }
-    .status-pill.done    { background: #dcfce7; color: #16a34a; }
-    .status-pill.notdone { background: #fee2e2; color: #dc2626; }
-    .status-pill.pending { background: #fef3c7; color: #d97706; }
+    .status-pill.done       { background: #dcfce7; color: #16a34a; }
+    .status-pill.notdone    { background: #fee2e2; color: #dc2626; }
+    .status-pill.pending    { background: #eff6ff; color: #2563eb; }
+    .status-pill.poragendar { background: #fff7ed; color: #ea580c; }
 
     .status-dot {
       width: 8px;
@@ -259,9 +261,10 @@
       border-radius: 50%;
       flex-shrink: 0;
     }
-    .done .status-dot    { background: #16a34a; }
-    .notdone .status-dot { background: #dc2626; }
-    .pending .status-dot { background: #d97706; }
+    .done .status-dot       { background: #16a34a; }
+    .notdone .status-dot    { background: #dc2626; }
+    .pending .status-dot    { background: #2563eb; }
+    .poragendar .status-dot { background: #ea580c; }
 
     /* Coluna motivo */
     .reason-cell {
@@ -456,13 +459,15 @@
         <option value="">Todos os estados</option>
         <option value="done">✅ Realizado</option>
         <option value="notdone">❌ Não realizado</option>
-        <option value="pending">⏳ Pendente</option>
+        <option value="pending">🔵 Pendente</option>
+        <option value="poragendar">🟠 Por agendar</option>
       </select>
       <div class="summary-chips" id="summaryChips" style="display:none;">
         <div class="chip chip-total"><span id="chipTotal">0</span> total</div>
         <div class="chip chip-done"><span id="chipDone">0</span> realizados</div>
         <div class="chip chip-notdone"><span id="chipNotDone">0</span> não realizados</div>
         <div class="chip chip-pending"><span id="chipPending">0</span> pendentes</div>
+        <div class="chip chip-poragendar"><span id="chipPoragendar">0</span> por agendar</div>
       </div>
     </div>
 
@@ -617,19 +622,20 @@
 
     // ===== ESTADO DE CADA SERVIÇO =====
     function getRowState(a) {
-      // Sem data → pendente (não está na agenda)
-      if (!a.date) return 'pending';
+      // Sem data → por agendar
+      if (!a.date) return 'poragendar';
       // Realizado: técnico marcou explicitamente
       if (a.executed === true) return 'done';
-      // Não realizado: só se tiver motivo (técnico escolheu motivo)
+      // Não realizado: só se tiver motivo
       if (a.executed === false && a.not_done_reason) return 'notdone';
-      // Tudo o resto (agendado mas não marcado ainda) → pendente
+      // Agendado mas não marcado ainda → pendente
       return 'pending';
     }
 
     function stateLabel(state) {
-      if (state === 'done')    return '<span class="status-pill done"><span class="status-dot"></span>Realizado</span>';
-      if (state === 'notdone') return '<span class="status-pill notdone"><span class="status-dot"></span>Não realizado</span>';
+      if (state === 'done')       return '<span class="status-pill done"><span class="status-dot"></span>Realizado</span>';
+      if (state === 'notdone')    return '<span class="status-pill notdone"><span class="status-dot"></span>Não realizado</span>';
+      if (state === 'poragendar') return '<span class="status-pill poragendar"><span class="status-dot"></span>Por agendar</span>';
       return '<span class="status-pill pending"><span class="status-dot"></span>Pendente</span>';
     }
 
@@ -662,12 +668,13 @@
       });
 
       // Contadores
-      let total = sorted.length, done = 0, notdone = 0, pending = 0;
+      let total = sorted.length, done = 0, notdone = 0, pending = 0, poragendar = 0;
 
       tbody.innerHTML = sorted.map(a => {
         const state = getRowState(a);
-        if (state === 'done')    done++;
-        else if (state === 'notdone') notdone++;
+        if (state === 'done')          done++;
+        else if (state === 'notdone')  notdone++;
+        else if (state === 'poragendar') poragendar++;
         else pending++;
 
         const plate = (a.plate || '').toUpperCase();
@@ -694,6 +701,7 @@
       document.getElementById('chipDone').textContent = done;
       document.getElementById('chipNotDone').textContent = notdone;
       document.getElementById('chipPending').textContent = pending;
+      document.getElementById('chipPoragendar').textContent = poragendar;
       document.getElementById('summaryChips').style.display = total > 0 ? 'flex' : 'none';
 
       document.getElementById('comTable').style.display = total > 0 ? '' : 'none';
