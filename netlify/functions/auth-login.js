@@ -8,9 +8,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// Chave secreta para JWT (deve estar nas variáveis de ambiente)
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
-const JWT_EXPIRES_IN = '7d'; // Token válido por 7 dias
+const JWT_EXPIRES_IN = '7d';
 
 exports.handler = async (event) => {
   const headers = {
@@ -20,34 +19,18 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json'
   };
 
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
-  }
-
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ success: false, error: 'Método não permitido' })
-    };
+    return { statusCode: 405, headers, body: JSON.stringify({ success: false, error: 'Método não permitido' }) };
   }
 
   try {
     const { username, password } = JSON.parse(event.body || '{}');
 
-    // Validar dados de entrada
     if (!username || !password) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ 
-          success: false, 
-          error: 'Username e password são obrigatórios' 
-        })
-      };
+      return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Username e password são obrigatórios' }) };
     }
 
-    // Buscar utilizador na base de dados
     const query = `
       SELECT u.id, u.username, u.password_hash, u.portal_id, u.role,
              p.name as portal_name, p.departure_address, p.localities, p.portal_type
@@ -55,37 +38,18 @@ exports.handler = async (event) => {
       LEFT JOIN portals p ON u.portal_id = p.id
       WHERE u.username = $1
     `;
-    
     const { rows } = await pool.query(query, [username]);
 
     if (rows.length === 0) {
-      return {
-        statusCode: 401,
-        headers,
-        body: JSON.stringify({ 
-          success: false, 
-          error: 'Credenciais inválidas' 
-        })
-      };
+      return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Credenciais inválidas' }) };
     }
 
     const user = rows[0];
-
-    // Verificar password
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
-
     if (!isValidPassword) {
-      return {
-        statusCode: 401,
-        headers,
-        body: JSON.stringify({ 
-          success: false, 
-          error: 'Credenciais inválidas' 
-        })
-      };
+      return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Credenciais inválidas' }) };
     }
 
-    // Gerar token JWT
     const tokenPayload = {
       userId: user.id,
       username: user.username,
@@ -94,9 +58,9 @@ exports.handler = async (event) => {
       role: user.role
     };
 
-    // Se coordenador, buscar todos os portais atribuídos
-    let coordPortals = [];
-    if (user.role === 'coordenador') {
+    // Coordenador E Comercial: buscar portais atribuídos
+    let multiPortals = [];
+    if (user.role === 'coordenador' || user.role === 'comercial') {
       const cp = await pool.query(`
         SELECT p.id, p.name, p.departure_address, p.localities, p.portal_type
         FROM coordinator_portals cp
@@ -104,20 +68,20 @@ exports.handler = async (event) => {
         WHERE cp.user_id = $1
         ORDER BY p.name
       `, [user.id]);
-      coordPortals = cp.rows.map(p => ({
+
+      multiPortals = cp.rows.map(p => ({
         id: p.id,
         name: p.name,
         departureAddress: p.departure_address,
         localities: p.localities,
         portalType: p.portal_type || 'sm'
       }));
-      // Incluir IDs no token para validação no backend
-      tokenPayload.portalIds = coordPortals.map(p => p.id);
+
+      tokenPayload.portalIds = multiPortals.map(p => p.id);
     }
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
-    // Preparar dados do utilizador (sem password)
     const userData = {
       id: user.id,
       username: user.username,
@@ -128,12 +92,12 @@ exports.handler = async (event) => {
         departureAddress: user.departure_address,
         localities: user.localities,
         portalType: user.portal_type || 'sm'
-      } : (coordPortals.length > 0 ? coordPortals[0] : null)
+      } : (multiPortals.length > 0 ? multiPortals[0] : null)
     };
 
-    // Adicionar lista de portais para coordenadores
-    if (user.role === 'coordenador' && coordPortals.length > 0) {
-      userData.portals = coordPortals;
+    // Adicionar lista de portais para coordenador e comercial
+    if ((user.role === 'coordenador' || user.role === 'comercial') && multiPortals.length > 0) {
+      userData.portals = multiPortals;
     }
 
     console.log(`✅ Login bem-sucedido: ${username} (${user.role})`);
@@ -141,22 +105,11 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        success: true,
-        token,
-        user: userData
-      })
+      body: JSON.stringify({ success: true, token, user: userData })
     };
 
   } catch (error) {
     console.error('❌ Erro no login:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        success: false, 
-        error: 'Erro interno do servidor' 
-      })
-    };
+    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: 'Erro interno do servidor' }) };
   }
 };
