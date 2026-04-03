@@ -1764,6 +1764,19 @@ function buildDesktopCard(a){
       <button class="dc-exec-btn ${a.executed ? 'dc-exec-st' : ''}" data-exec="true" data-id="${a.id}">✓ Realizado</button>
     </div>` : '';
 
+  // Dias aberto (desde createdAt)
+  const _diasAberto = a.createdAt ? (() => {
+    const d = new Date(a.createdAt); d.setHours(0,0,0,0);
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    return Math.floor((hoje - d) / 86400000);
+  })() : 0;
+  const _diasColor = _diasAberto >= 8 ? '#dc2626' : _diasAberto >= 5 ? '#ea580c' : _diasAberto >= 3 ? '#d97706' : null;
+  const diasAbertoBadge = _diasAberto > 0 && _diasColor ? `
+    <div style="margin-top:6px;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:${_diasColor};opacity:0.95;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      ${_diasAberto} ${_diasAberto === 1 ? 'dia aberto' : 'dias aberto'}
+    </div>` : '';
+
   return `
     <div class="appointment desk-card${needsLoc}${isPreAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
@@ -1785,6 +1798,7 @@ function buildDesktopCard(a){
         <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
       </div>
       ${execBadge}
+      ${diasAbertoBadge}
       <div class="card-actions">
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
