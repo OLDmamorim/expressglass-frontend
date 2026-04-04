@@ -1708,8 +1708,13 @@ function ensureCommercialSection() {
         '</select>' +
       '</div>';
 
-    // Inserir no fim do form (os botões podem estar fora)
-    form.appendChild(section);
+    // Inserir antes do appointmentConfirmed (último do form)
+    const confirmed = document.getElementById('appointmentConfirmed');
+    if (confirmed && confirmed.parentNode === form) {
+      form.insertBefore(section, confirmed);
+    } else {
+      form.appendChild(section);
+    }
 
     document.getElementById('hasCommercial').addEventListener('change', function() {
       document.getElementById('commercialSelectWrap').style.display = this.checked ? 'block' : 'none';
