@@ -1708,8 +1708,8 @@ function ensureCommercialSection() {
         '</select>' +
       '</div>';
 
-    const saveBtn = form.querySelector('button[type="submit"]') || form.lastElementChild;
-    form.insertBefore(section, saveBtn);
+    // Inserir no fim do form (os botões podem estar fora)
+    form.appendChild(section);
 
     document.getElementById('hasCommercial').addEventListener('change', function() {
       document.getElementById('commercialSelectWrap').style.display = this.checked ? 'block' : 'none';
