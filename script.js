@@ -1739,6 +1739,9 @@ function editAppointment(id) {
     commSel.value = appointment.commercial_user_id || '';
   }
 
+  // Garantir secção comercial
+  ensureCommercialSection();
+
   // Alterar modal para modo edição
   document.getElementById('modalTitle').textContent = 'Editar Agendamento';
   document.getElementById('deleteAppointment').classList.remove('hidden');
@@ -1774,6 +1777,7 @@ function cancelEdit() {
   if (calibCb) calibCb.checked = false;
   const firstCb = document.getElementById('appointmentFirstOfDay');
   if (firstCb) firstCb.checked = false;
+  ensureCommercialSection();
   document.getElementById('modalTitle').textContent = 'Novo Agendamento';
   document.getElementById('deleteAppointment').classList.add('hidden');
   
@@ -2558,11 +2562,13 @@ function bootApp() {
   document.getElementById('closeModal')?.addEventListener('click', cancelEdit);
 
   // Injetar secção "Encaminhado por comercial" no modal
-  (function injectCommercialSection() {
+  // Injetar secção comercial ao abrir o modal
+  function ensureCommercialSection() {
     const form = document.getElementById('appointmentForm');
-    if (!form || document.getElementById('commercialSection')) return;
+    if (!form) return;
     const userRole = window.authClient?.getUser()?.role;
     if (userRole !== 'coordenador' && userRole !== 'admin') return;
+    if (document.getElementById('commercialSection')) return;
 
     const section = document.createElement('div');
     section.id = 'commercialSection';
@@ -2578,19 +2584,16 @@ function bootApp() {
         '</select>' +
       '</div>';
 
-    // Inserir antes do último botão de submit
     const saveBtn = form.querySelector('button[type="submit"]') || form.lastElementChild;
     form.insertBefore(section, saveBtn);
 
-    // Toggle select quando checkbox muda
     document.getElementById('hasCommercial').addEventListener('change', function() {
       document.getElementById('commercialSelectWrap').style.display = this.checked ? 'block' : 'none';
       if (!this.checked) document.getElementById('appointmentCommercial').value = '';
     });
 
-    // Carregar lista de comerciais
     loadComerciais();
-  })();
+  }
   document.getElementById('deleteAppointment')?.addEventListener('click', function() {
     if (editingId) deleteAppointment(editingId);
   });
