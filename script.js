@@ -1894,8 +1894,8 @@ function buildDesktopCard(a){
   const isPastOrToday = a.date && a.date <= todayISO2;
   const execBadge = isPastOrToday ? `
     <div class="dc-exec-row" data-id="${a.id}">
-      <button class="dc-exec-btn ${!a.executed ? 'dc-exec-ne' : ''}" data-exec="false" data-id="${a.id}">✗ N. Realizado</button>
-      <button class="dc-exec-btn ${a.executed ? 'dc-exec-st' : ''}" data-exec="true" data-id="${a.id}">✓ Realizado</button>
+      <button class="dc-exec-btn ${a.executed === false && a.not_done_reason ? 'dc-exec-ne' : ''}" data-exec="false" data-id="${a.id}">✗ N. Realizado</button>
+      <button class="dc-exec-btn ${a.executed === true ? 'dc-exec-st' : ''}" data-exec="true" data-id="${a.id}">✓ Realizado</button>
     </div>` : '';
 
   // Dias aberto (desde createdAt)
@@ -2211,14 +2211,15 @@ const telBtn = phone ? `
         <div>Confirma status vidro</div>
       </div>` : '';
 
-  const isRealizado = !!a.executed;
+  const isRealizado = a.executed === true;
+  const isNaoRealizado = a.executed === false && !!a.not_done_reason;
   const preAgendadoM = a.confirmed === false;
   const todayISO = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO;
 
   const statusToggle = a.date ? `
     <div class="m-status-row">
-      <button class="m-status-btn ${!isRealizado ? 'm-status-active-ne' : ''}" data-exec="false" data-id="${a.id}">
+      <button class="m-status-btn ${isNaoRealizado ? 'm-status-active-ne' : ''}" data-exec="false" data-id="${a.id}">
         <span class="m-status-dot m-dot-ne"></span>
         N. Realizado
       </button>
