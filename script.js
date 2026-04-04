@@ -1352,6 +1352,21 @@ async function persistConfirmed(id, confirmed) {
 }
 
 
+// ===== CARREGAR COMERCIAIS PARA MODAL =====
+async function loadComerciais() {
+  try {
+    const resp = await authClient.authenticatedFetch('/.netlify/functions/users');
+    const data = await resp.json();
+    if (!data.success) return;
+    const comerciais = data.data.filter(u => u.role === 'comercial');
+    const sel = document.getElementById('appointmentCommercial');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Selecionar comercial...</option>' +
+      comerciais.map(u => `<option value="${u.id}">${u.username}</option>`).join('');
+    window._comerciaisList = comerciais;
+  } catch(e) { console.warn('Erro ao carregar comerciais:', e); }
+}
+
 // ===== MODAL NÃO REALIZADO =====
 let _pendingNotDoneId = null;
 
@@ -1422,6 +1437,17 @@ async function _doSaveExecuted(id, executed, reason) {
   renderAll();
   try {
     await window.apiClient.updateAppointment(id, { ...appointments[i], executed, not_done_reason: reason || null });
+
+    // Notificar comercial via Telegram se estiver atribuído
+    if (appointments[i].commercial_user_id) {
+      try {
+        await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointment_id: id })
+        });
+      } catch(ne) { console.warn('Notificação comercial falhou:', ne); }
+    }
   } catch (err) {
     appointments[i].executed = prev.executed;
     appointments[i].not_done_reason = prev.not_done_reason;
@@ -1701,6 +1727,18 @@ function editAppointment(id) {
     }
   }
 
+  // Campo comercial
+  const commSel = document.getElementById('appointmentCommercial');
+  if (commSel) {
+    const hasComm = !!appointment.commercial_user_id;
+    const hasCb = document.getElementById('hasCommercial');
+    if (hasCb) {
+      hasCb.checked = hasComm;
+      document.getElementById('commercialSelectWrap').style.display = hasComm ? 'block' : 'none';
+    }
+    commSel.value = appointment.commercial_user_id || '';
+  }
+
   // Alterar modal para modo edição
   document.getElementById('modalTitle').textContent = 'Editar Agendamento';
   document.getElementById('deleteAppointment').classList.remove('hidden');
@@ -1856,6 +1894,7 @@ function buildDesktopCard(a){
         <span class="dc-badge">${service}</span>
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
         ${a.first_of_day ? '<span class="dc-calib-badge" style="background:#f59e0b;color:#fff;">⭐ 1.º SERVIÇO</span>' : ''}
+        ${a.commercial_user_id ? '<span class="dc-calib-badge" style="background:#7c3aed;color:#fff;animation:blink 1.5s infinite;">🤝 COMERCIAL</span>' : ''}
         ${car ? `<span class="dc-car">${car}</span>` : ''}
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
@@ -2188,6 +2227,7 @@ const telBtn = phone ? `
         <div class="m-title"><span class="m-title-text">${plate}</span></div>
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips">${chips}</div>` : ''}
+        ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed;color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
         ${preAgendadoM
@@ -2516,6 +2556,41 @@ function bootApp() {
   // Event listeners para edição
   document.getElementById('cancelForm')?.addEventListener('click', cancelEdit);
   document.getElementById('closeModal')?.addEventListener('click', cancelEdit);
+
+  // Injetar secção "Encaminhado por comercial" no modal
+  (function injectCommercialSection() {
+    const form = document.getElementById('appointmentForm');
+    if (!form || document.getElementById('commercialSection')) return;
+    const userRole = window.authClient?.getUser()?.role;
+    if (userRole !== 'coordenador' && userRole !== 'admin') return;
+
+    const section = document.createElement('div');
+    section.id = 'commercialSection';
+    section.style.cssText = 'border-top:1px solid #f1f5f9;padding-top:14px;margin-top:14px;';
+    section.innerHTML =
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:14px;margin-bottom:10px;">' +
+        '<input type="checkbox" id="hasCommercial" style="width:16px;height:16px;accent-color:#f59e0b;"> ' +
+        'Encaminhado por comercial' +
+      '</label>' +
+      '<div id="commercialSelectWrap" style="display:none;">' +
+        '<select id="appointmentCommercial" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;">' +
+          '<option value="">Selecionar comercial...</option>' +
+        '</select>' +
+      '</div>';
+
+    // Inserir antes do último botão de submit
+    const saveBtn = form.querySelector('button[type="submit"]') || form.lastElementChild;
+    form.insertBefore(section, saveBtn);
+
+    // Toggle select quando checkbox muda
+    document.getElementById('hasCommercial').addEventListener('change', function() {
+      document.getElementById('commercialSelectWrap').style.display = this.checked ? 'block' : 'none';
+      if (!this.checked) document.getElementById('appointmentCommercial').value = '';
+    });
+
+    // Carregar lista de comerciais
+    loadComerciais();
+  })();
   document.getElementById('deleteAppointment')?.addEventListener('click', function() {
     if (editingId) deleteAppointment(editingId);
   });
@@ -2583,7 +2658,10 @@ function bootApp() {
       first_of_day: document.getElementById('appointmentFirstOfDay')?.checked || false,
       // ===== ADICIONAR OS QUILÓMETROS CALCULADOS =====
       km: calculatedKm,
-      confirmed: document.getElementById('appointmentConfirmed')?.value !== 'false'
+      confirmed: document.getElementById('appointmentConfirmed')?.value !== 'false',
+      commercial_user_id: document.getElementById('appointmentCommercial')?.value
+        ? parseInt(document.getElementById('appointmentCommercial').value)
+        : null
     };
   }
 
