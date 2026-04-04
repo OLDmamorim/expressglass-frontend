@@ -58,7 +58,8 @@ exports.handler = async (event) => {
         SELECT id, date, period, plate, car, service, locality, status,
                notes, address, extra, phone, km, sortIndex, "glassOrdered",
                vehicle_type, travel_time, auto_imported, executed, confirmed,
-               calibration, first_of_day, not_done_reason, created_at, updated_at
+               calibration, first_of_day, not_done_reason, commercial_user_id,
+               created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -140,8 +141,9 @@ exports.handler = async (event) => {
           km = $12, sortIndex = $13, "glassOrdered" = $14,
           vehicle_type = $15, travel_time = $16, auto_imported = $17,
           executed = $18, confirmed = $19, calibration = $20,
-          first_of_day = $21, not_done_reason = $22, updated_at = $23
-        WHERE id = $24 AND portal_id = $25
+          first_of_day = $21, not_done_reason = $22, commercial_user_id = $23,
+          updated_at = $24
+        WHERE id = $25 AND portal_id = $26
         RETURNING *
       `;
       const v = [
@@ -160,6 +162,7 @@ exports.handler = async (event) => {
         data.calibration === true,
         data.first_of_day === true,
         notDoneReasonVal,
+        data.commercial_user_id !== undefined ? (data.commercial_user_id || null) : existing.commercial_user_id,
         new Date().toISOString(), id, portalId
       ];
       const { rows } = await pool.query(q, v);
