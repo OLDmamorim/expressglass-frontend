@@ -15,21 +15,23 @@
   }
 
   function injectComercialGroup() {
-    if (document.getElementById('comercialPortalGroup')) return;
     var multiGroup = document.getElementById('multiPortalGroup');
     if (!multiGroup) return;
-    var div = document.createElement('div');
-    div.className = 'form-group';
-    div.id = 'comercialPortalGroup';
-    div.style.display = 'none';
-    div.innerHTML =
-      '<label>SM do Comercial *</label>' +
-      '<div id="comercialPortalCheckboxes" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;"></div>' +
-      '<small>Selecione os portais SM a que o comercial tera acesso</small>';
-    multiGroup.parentNode.insertBefore(div, multiGroup.nextSibling);
 
-    // Campo Telegram Chat ID
+    if (!document.getElementById('comercialPortalGroup')) {
+      var div = document.createElement('div');
+      div.className = 'form-group';
+      div.id = 'comercialPortalGroup';
+      div.style.display = 'none';
+      div.innerHTML =
+        '<label>SM do Comercial *</label>' +
+        '<div id="comercialPortalCheckboxes" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;"></div>' +
+        '<small>Selecione os portais SM a que o comercial tera acesso</small>';
+      multiGroup.parentNode.insertBefore(div, multiGroup.nextSibling);
+    }
+
     if (!document.getElementById('telegramChatIdGroup')) {
+      var comGroup = document.getElementById('comercialPortalGroup');
       var tDiv = document.createElement('div');
       tDiv.className = 'form-group';
       tDiv.id = 'telegramChatIdGroup';
@@ -37,7 +39,7 @@
       tDiv.innerHTML = '<label>Telegram Chat ID</label>' +
         '<input type="text" id="userTelegramChatId" placeholder="Ex: 123456789" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;">' +
         '<small>ID numérico do Telegram do comercial (para notificações automáticas)</small>';
-      div.parentNode.insertBefore(tDiv, div.nextSibling);
+      comGroup.parentNode.insertBefore(tDiv, comGroup.nextSibling);
     }
   }
 
