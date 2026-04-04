@@ -138,7 +138,7 @@
   };
 
   window.editUser = function(id) {
-    var user = (window.users||[]).find(function(u){ return u.id === id; });
+    var user = (users||[]).find(function(u){ return u.id === id; });
     if (!user) return;
     window.editingUserId = id;
     document.getElementById('userModalTitle').textContent = 'Editar Utilizador';
