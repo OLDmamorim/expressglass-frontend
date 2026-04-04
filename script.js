@@ -1685,6 +1685,41 @@ async function recalcKmForBucket(bucket) {
 
 // ===== FUNÇÕES DE EDIÇÃO E ELIMINAÇÃO =====
 
+// ===== SECÇÃO COMERCIAL NO MODAL =====
+function ensureCommercialSection() {
+  try {
+    const form = document.getElementById('appointmentForm');
+    if (!form) return;
+    const userRole = window.authClient?.getUser?.()?.role;
+    if (userRole !== 'coordenador' && userRole !== 'admin') return;
+    if (document.getElementById('commercialSection')) return;
+
+    const section = document.createElement('div');
+    section.id = 'commercialSection';
+    section.style.cssText = 'border-top:1px solid #f1f5f9;padding-top:14px;margin-top:14px;';
+    section.innerHTML =
+      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:14px;margin-bottom:10px;">' +
+        '<input type="checkbox" id="hasCommercial" style="width:16px;height:16px;accent-color:#f59e0b;"> ' +
+        'Encaminhado por comercial' +
+      '</label>' +
+      '<div id="commercialSelectWrap" style="display:none;">' +
+        '<select id="appointmentCommercial" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;">' +
+          '<option value="">Selecionar comercial...</option>' +
+        '</select>' +
+      '</div>';
+
+    const saveBtn = form.querySelector('button[type="submit"]') || form.lastElementChild;
+    form.insertBefore(section, saveBtn);
+
+    document.getElementById('hasCommercial').addEventListener('change', function() {
+      document.getElementById('commercialSelectWrap').style.display = this.checked ? 'block' : 'none';
+      if (!this.checked) document.getElementById('appointmentCommercial').value = '';
+    });
+
+    loadComerciais();
+  } catch(e) { console.warn('ensureCommercialSection:', e); }
+}
+
 function editAppointment(id) {
   const appointment = appointments.find(a => String(a.id) === String(id));
   if (!appointment) {
@@ -2565,40 +2600,7 @@ function bootApp() {
   document.getElementById('closeModal')?.addEventListener('click', cancelEdit);
 
   // Injetar secção "Encaminhado por comercial" no modal
-  // Injetar secção comercial ao abrir o modal
-  function ensureCommercialSection() {
-    try {
-    const form = document.getElementById('appointmentForm');
-    if (!form) return;
-    const userRole = window.authClient?.getUser?.()?.role;
-    if (userRole !== 'coordenador' && userRole !== 'admin') return;
-    if (document.getElementById('commercialSection')) return;
 
-    const section = document.createElement('div');
-    section.id = 'commercialSection';
-    section.style.cssText = 'border-top:1px solid #f1f5f9;padding-top:14px;margin-top:14px;';
-    section.innerHTML =
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:14px;margin-bottom:10px;">' +
-        '<input type="checkbox" id="hasCommercial" style="width:16px;height:16px;accent-color:#f59e0b;"> ' +
-        'Encaminhado por comercial' +
-      '</label>' +
-      '<div id="commercialSelectWrap" style="display:none;">' +
-        '<select id="appointmentCommercial" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;">' +
-          '<option value="">Selecionar comercial...</option>' +
-        '</select>' +
-      '</div>';
-
-    const saveBtn = form.querySelector('button[type="submit"]') || form.lastElementChild;
-    form.insertBefore(section, saveBtn);
-
-    document.getElementById('hasCommercial').addEventListener('change', function() {
-      document.getElementById('commercialSelectWrap').style.display = this.checked ? 'block' : 'none';
-      if (!this.checked) document.getElementById('appointmentCommercial').value = '';
-    });
-
-    loadComerciais();
-    } catch(e) { console.warn('ensureCommercialSection:', e); }
-  }
   document.getElementById('deleteAppointment')?.addEventListener('click', function() {
     if (editingId) deleteAppointment(editingId);
   });
