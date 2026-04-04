@@ -1687,46 +1687,21 @@ async function recalcKmForBucket(bucket) {
 
 // ===== SECÇÃO COMERCIAL NO MODAL =====
 function ensureCommercialSection() {
-  try {
-    const form = document.getElementById('appointmentForm');
-    if (!form) return;
-    const userRole = window.authClient?.getUser?.()?.role;
-    if (userRole !== 'coordenador' && userRole !== 'admin') return;
-    // Remover versão anterior se existir
-    const old = document.getElementById('commercialSection');
-    if (old) old.remove();
-
-    const section = document.createElement('div');
-    section.id = 'commercialSection';
-    section.style.cssText = 'border-top:1px solid #f1f5f9;padding-top:14px;margin-top:14px;';
-    section.innerHTML =
-      '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:14px;margin-bottom:10px;">' +
-        '<input type="checkbox" id="hasCommercial" style="width:16px;height:16px;accent-color:#f59e0b;"> ' +
-        'Encaminhado por comercial' +
-      '</label>' +
-      '<div id="commercialSelectWrap" style="display:none;">' +
-        '<select id="appointmentCommercial" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;">' +
-          '<option value="">Selecionar comercial...</option>' +
-        '</select>' +
-      '</div>';
-
-    // Inserir antes do penúltimo elemento do form
-    const children = Array.from(form.children);
-    const last = children[children.length - 1];
-    if (last) {
-      form.insertBefore(section, last);
-    } else {
-      form.appendChild(section);
-    }
-
-    document.getElementById('hasCommercial').addEventListener('change', function() {
+  const section = document.getElementById('commercialSection');
+  if (!section) return;
+  const role = window.authClient?.getUser?.()?.role;
+  section.style.display = (role === 'coordenador' || role === 'admin') ? 'block' : 'none';
+  const cb = document.getElementById('hasCommercial');
+  if (cb && !cb._listenerAdded) {
+    cb.addEventListener('change', function() {
       document.getElementById('commercialSelectWrap').style.display = this.checked ? 'block' : 'none';
       if (!this.checked) document.getElementById('appointmentCommercial').value = '';
     });
-
+    cb._listenerAdded = true;
     loadComerciais();
-  } catch(e) { console.warn('ensureCommercialSection:', e); }
+  }
 }
+
 
 function editAppointment(id) {
   const appointment = appointments.find(a => String(a.id) === String(id));
