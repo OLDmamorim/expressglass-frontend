@@ -1708,10 +1708,11 @@ function ensureCommercialSection() {
         '</select>' +
       '</div>';
 
-    // Inserir antes do appointmentConfirmed (último do form)
-    const confirmed = document.getElementById('appointmentConfirmed');
-    if (confirmed && confirmed.parentNode === form) {
-      form.insertBefore(section, confirmed);
+    // Inserir antes do penúltimo elemento do form
+    const children = Array.from(form.children);
+    const last = children[children.length - 1];
+    if (last) {
+      form.insertBefore(section, last);
     } else {
       form.appendChild(section);
     }
