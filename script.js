@@ -1355,7 +1355,10 @@ async function persistConfirmed(id, confirmed) {
 // ===== CARREGAR COMERCIAIS PARA MODAL =====
 async function loadComerciais() {
   try {
-    const resp = await authClient.authenticatedFetch('/.netlify/functions/users');
+    const fetcher = window.authClient?.authenticatedFetch?.bind(window.authClient)
+      || window.apiClient?.fetch?.bind(window.apiClient);
+    if (!fetcher) return;
+    const resp = await fetcher('/.netlify/functions/users');
     const data = await resp.json();
     if (!data.success) return;
     const comerciais = data.data.filter(u => u.role === 'comercial');
@@ -2564,9 +2567,10 @@ function bootApp() {
   // Injetar secção "Encaminhado por comercial" no modal
   // Injetar secção comercial ao abrir o modal
   function ensureCommercialSection() {
+    try {
     const form = document.getElementById('appointmentForm');
     if (!form) return;
-    const userRole = window.authClient?.getUser()?.role;
+    const userRole = window.authClient?.getUser?.()?.role;
     if (userRole !== 'coordenador' && userRole !== 'admin') return;
     if (document.getElementById('commercialSection')) return;
 
@@ -2593,6 +2597,7 @@ function bootApp() {
     });
 
     loadComerciais();
+    } catch(e) { console.warn('ensureCommercialSection:', e); }
   }
   document.getElementById('deleteAppointment')?.addEventListener('click', function() {
     if (editingId) deleteAppointment(editingId);
