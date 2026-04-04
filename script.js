@@ -1692,7 +1692,9 @@ function ensureCommercialSection() {
     if (!form) return;
     const userRole = window.authClient?.getUser?.()?.role;
     if (userRole !== 'coordenador' && userRole !== 'admin') return;
-    if (document.getElementById('commercialSection')) return;
+    // Remover versão anterior se existir
+    const old = document.getElementById('commercialSection');
+    if (old) old.remove();
 
     const section = document.createElement('div');
     section.id = 'commercialSection';
