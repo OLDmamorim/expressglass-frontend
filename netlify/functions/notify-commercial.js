@@ -13,10 +13,7 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 function sendTelegram(chatId, text) {
   return new Promise((resolve) => {
-    if (!TELEGRAM_BOT_TOKEN) {
-      console.warn('TELEGRAM_BOT_TOKEN não configurado');
-      return resolve(false);
-    }
+    if (!TELEGRAM_BOT_TOKEN) return resolve({ ok: false, error: 'No token' });
     const body = JSON.stringify({ chat_id: String(chatId), text, parse_mode: 'HTML' });
     const options = {
       hostname: 'api.telegram.org',
@@ -28,14 +25,11 @@ function sendTelegram(chatId, text) {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          console.log('Telegram response:', JSON.stringify(parsed));
-          resolve(parsed.ok === true);
-        } catch(e) { resolve(false); }
+        try { resolve(JSON.parse(data)); }
+        catch(e) { resolve({ ok: false, error: 'parse error', raw: data }); }
       });
     });
-    req.on('error', (e) => { console.error('Telegram error:', e); resolve(false); });
+    req.on('error', (e) => resolve({ ok: false, error: e.message }));
     req.write(body);
     req.end();
   });
@@ -50,9 +44,7 @@ exports.handler = async (event) => {
   };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: JSON.stringify({ success: false, error: 'Método não permitido' }) };
-  }
+  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: '{}' };
 
   try {
     const authHeader = event.headers.authorization || event.headers.Authorization;
@@ -60,9 +52,7 @@ exports.handler = async (event) => {
     jwt.verify(authHeader.substring(7), JWT_SECRET);
 
     const { appointment_id } = JSON.parse(event.body || '{}');
-    if (!appointment_id) {
-      return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'appointment_id em falta' }) };
-    }
+    if (!appointment_id) return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'appointment_id em falta' }) };
 
     const { rows } = await pool.query(`
       SELECT a.plate, a.car, a.date, a.executed, a.not_done_reason,
@@ -74,38 +64,26 @@ exports.handler = async (event) => {
       WHERE a.id = $1
     `, [appointment_id]);
 
-    if (!rows.length) {
-      return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
-    }
+    if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Não encontrado' }) };
 
     const appt = rows[0];
-    console.log('Appt data:', JSON.stringify({ commercial_user_id: appt.commercial_user_id, telegram_chat_id: appt.telegram_chat_id, executed: appt.executed }));
-    console.log('Token disponível:', !!TELEGRAM_BOT_TOKEN);
 
-    if (!appt.commercial_user_id) {
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, sent: false, reason: 'Sem comercial atribuído' }) };
-    }
-    if (!appt.telegram_chat_id) {
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, sent: false, reason: 'Comercial sem Telegram configurado' }) };
-    }
+    if (!appt.commercial_user_id) return { statusCode: 200, headers, body: JSON.stringify({ success: true, sent: false, reason: 'Sem comercial' }) };
+    if (!appt.telegram_chat_id) return { statusCode: 200, headers, body: JSON.stringify({ success: true, sent: false, reason: 'Sem telegram_chat_id' }) };
 
     const dataStr = appt.date
       ? new Date(appt.date + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })
       : '—';
 
-    let msg = '';
-    if (appt.executed === true) {
-      msg = `✅ <b>Serviço Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}\n🏪 ${appt.portal_name || '—'}`;
-    } else {
-      msg = `❌ <b>Serviço Não Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}\n🏪 ${appt.portal_name || '—'}\n📝 Motivo: ${appt.not_done_reason || '—'}`;
-    }
+    const msg = appt.executed === true
+      ? `✅ <b>Serviço Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}\n🏪 ${appt.portal_name || '—'}`
+      : `❌ <b>Serviço Não Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}\n🏪 ${appt.portal_name || '—'}\n📝 Motivo: ${appt.not_done_reason || '—'}`;
 
-    const sent = await sendTelegram(appt.telegram_chat_id, msg);
-    console.log(`Notificação ${appt.commercial_name}: ${sent ? 'enviada' : 'falhou'}`);
-    return { statusCode: 200, headers, body: JSON.stringify({ success: true, sent }) };
+    const tgResult = await sendTelegram(appt.telegram_chat_id, msg);
+
+    return { statusCode: 200, headers, body: JSON.stringify({ success: true, sent: tgResult.ok === true, tg: tgResult }) };
 
   } catch (error) {
-    console.error('Erro notify-commercial:', error);
     return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
   }
 };
