@@ -27,6 +27,18 @@
       '<div id="comercialPortalCheckboxes" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;"></div>' +
       '<small>Selecione os portais SM a que o comercial tera acesso</small>';
     multiGroup.parentNode.insertBefore(div, multiGroup.nextSibling);
+
+    // Campo Telegram Chat ID
+    if (!document.getElementById('telegramChatIdGroup')) {
+      var tDiv = document.createElement('div');
+      tDiv.className = 'form-group';
+      tDiv.id = 'telegramChatIdGroup';
+      tDiv.style.display = 'none';
+      tDiv.innerHTML = '<label>Telegram Chat ID</label>' +
+        '<input type="text" id="userTelegramChatId" placeholder="Ex: 123456789" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;">' +
+        '<small>ID numérico do Telegram do comercial (para notificações automáticas)</small>';
+      div.parentNode.insertBefore(tDiv, div.nextSibling);
+    }
   }
 
   function populateComercialPortalCheckboxes(selectedIds) {
@@ -62,6 +74,8 @@
     if (multiGroup)   multiGroup.style.display   = 'none';
     if (comGroup)     comGroup.style.display     = 'none';
     if (portalSelect) portalSelect.required      = false;
+    var tgGroup = document.getElementById('telegramChatIdGroup');
+    if (tgGroup) tgGroup.style.display = 'none';
 
     if (role === 'coordenador') {
       if (multiGroup) multiGroup.style.display = 'block';
@@ -69,6 +83,7 @@
     } else if (role === 'comercial') {
       if (comGroup) comGroup.style.display = 'block';
       populateComercialPortalCheckboxes();
+      if (tgGroup) tgGroup.style.display = 'block';
     } else if (role !== 'admin') {
       if (portalGroup)  portalGroup.style.display = 'block';
       if (portalSelect) portalSelect.required     = true;
@@ -139,6 +154,8 @@
       populateMultiPortalCheckboxes(user.portalIds);
     if (user.role === 'comercial' && user.portalIds)
       populateComercialPortalCheckboxes(user.portalIds);
+    var tgInput = document.getElementById('userTelegramChatId');
+    if (tgInput) tgInput.value = user.telegramChatId || '';
     if (typeof openModal === 'function') openModal('userModal');
   };
 
@@ -177,6 +194,8 @@
         if (!ids.length) { if (typeof showToast==='function') showToast('Selecione pelo menos um SM','error'); return; }
         userData.portal_id  = ids[0];
         userData.portal_ids = ids;
+        var tgVal = (document.getElementById('userTelegramChatId') || {}).value;
+        userData.telegram_chat_id = tgVal ? tgVal.trim() : null;
       }
 
       try {
