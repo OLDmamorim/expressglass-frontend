@@ -1427,9 +1427,8 @@ async function confirmNotDone() {
     reason = (document.getElementById('ndOutroText')?.value || '').trim();
     if (!reason) { showToast('Descreva o motivo', 'error'); return; }
   }
-  const idToSave = _pendingNotDoneId;  // capturar antes de closeNotDoneModal o anular
   closeNotDoneModal();
-  await _doSaveExecuted(idToSave, false, reason);
+  await _doSaveExecuted(_pendingNotDoneId, false, reason);
 }
 
 async function _doSaveExecuted(id, executed, reason) {
@@ -1920,7 +1919,7 @@ function buildDesktopCard(a){
         <span class="dc-badge">${service}</span>
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
         ${a.first_of_day ? '<span class="dc-calib-badge" style="background:#f59e0b;color:#fff;">⭐ 1.º SERVIÇO</span>' : ''}
-        ${a.commercial_user_id ? '<span class="dc-calib-badge" style="background:#7c3aed;color:#fff;animation:blink 1.5s infinite;">🤝 COMERCIAL</span>' : ''}
+        ${a.commercial_user_id ? '<span class="dc-calib-badge" style="background:#7c3aed !important;color:#fff !important;animation:blink 1.5s infinite;">🤝 COMERCIAL</span>' : ''}
         ${car ? `<span class="dc-car">${car}</span>` : ''}
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
@@ -2254,7 +2253,7 @@ const telBtn = phone ? `
         <div class="m-title"><span class="m-title-text">${plate}</span></div>
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips">${chips}</div>` : ''}
-        ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed;color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
+        ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
         ${preAgendadoM
