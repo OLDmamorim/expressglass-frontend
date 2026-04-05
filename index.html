@@ -109,6 +109,8 @@
     .toggle-card--star:has(input:checked) { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
     .toggle-card--star:has(input:checked) .toggle-card-ui { background: #f59e0b; border-color: #d97706; }
     .toggle-card-label { flex: 1; line-height: 1.3; }
+    .toggle-card--commercial:has(input:checked) { border-color:#7c3aed; background:#f5f3ff; color:#5b21b6; }
+    .toggle-card--commercial:has(input:checked) .toggle-card-ui { background:#7c3aed; border-color:#6d28d9; }
   </style>
 
   <script
@@ -350,13 +352,16 @@
           </div>
 
           <!-- LINHA 6: Encaminhado por comercial -->
-          <div class="form-group" id="commercialSection" style="margin-bottom:12px;">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:14px;margin-bottom:8px;">
-              <input type="checkbox" id="hasCommercial" style="width:16px;height:16px;accent-color:#f59e0b;"
+          <div id="commercialSection" style="margin-bottom:12px;">
+            <label class="toggle-card toggle-card--commercial" for="hasCommercial" style="width:100%;box-sizing:border-box;">
+              <input type="checkbox" id="hasCommercial"
                 onchange="document.getElementById('commercialSelectWrap').style.display=this.checked?'block':'none';if(!this.checked)document.getElementById('appointmentCommercial').value='';if(this.checked&&typeof loadComerciais==='function')loadComerciais();">
-              Encaminhado por comercial
+              <span class="toggle-card-ui">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </span>
+              <span class="toggle-card-label">🤝 Encaminhado por comercial</span>
             </label>
-            <div id="commercialSelectWrap" style="display:none;">
+            <div id="commercialSelectWrap" style="display:none;margin-top:8px;">
               <select id="appointmentCommercial" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;font-family:inherit;">
                 <option value="">Selecionar comercial...</option>
               </select>
