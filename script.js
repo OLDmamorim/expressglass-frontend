@@ -2686,7 +2686,7 @@ function bootApp() {
       // campos base
       date,
       plate:  get('appointmentPlate').toUpperCase(),
-      car:    get('appointmentCar'),
+      car:    get('appointmentCar').toUpperCase(),
       service:get('appointmentService'),
       locality:get('appointmentLocality'),
       notes:  get('appointmentNotes'),
@@ -2831,7 +2831,7 @@ cancelEdit?.();
 
   // garante que o botão "Guardar" submete o form
   form.addEventListener('submit', onSubmit);
-  if (saveBtn) saveBtn.addEventListener('click', onSubmit);
+  // Não registar click no saveBtn — é type="submit" e já dispara o submit event
 })();
 
   
@@ -3167,6 +3167,22 @@ window.addEventListener('portalReady', bootApp, { once: true });
   }
 })();
 
+
+// === Maiúsculas automáticas no campo Modelo do Carro ===
+(function() {
+  function applyCarUppercase() {
+    const carInput = document.getElementById('appointmentCar');
+    if (!carInput || carInput._upperCaseListenerAdded) return;
+    carInput.addEventListener('input', function() {
+      const pos = this.selectionStart;
+      this.value = this.value.toUpperCase();
+      this.setSelectionRange(pos, pos);
+    });
+    carInput._upperCaseListenerAdded = true;
+  }
+  if (document.readyState === 'complete') applyCarUppercase();
+  else window.addEventListener('load', applyCarUppercase);
+})();
 
 // === Autocomplete de Morada (Google Places) ===
 (function initAddressAutocomplete(){
