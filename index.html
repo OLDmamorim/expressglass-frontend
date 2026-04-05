@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt">
 <head>
@@ -24,14 +23,11 @@
     }
   </script>
 
-  <!-- >>>>>> APENAS PRINT (não afeta ecrã) <<<<<< -->
   <style>
-    /* Secções de impressão começam ocultas no ecrã */
     .print-unscheduled-section,
     .print-today-section,
     .print-tomorrow-section { display: none; }
 
-    /* Tabelas de impressão (base) */
     .print-unscheduled-table,
     .print-today-table,
     .print-tomorrow-table { width: 100%; border-collapse: collapse; }
@@ -46,65 +42,78 @@
       .print-unscheduled-section,
       .print-today-section,
       .print-tomorrow-section { display: block; }
-
       .print-break-before { break-before: page; page-break-before: always; }
       thead { display: table-header-group; }
       tfoot { display: table-footer-group; }
       tr, th, td { break-inside: avoid; page-break-inside: avoid; }
-
-      .print-today-table,
-      .print-tomorrow-table{
+      .print-today-table, .print-tomorrow-table {
         width:100% !important; border-collapse:collapse !important; table-layout:fixed !important;
       }
-
       .print-today-table th:nth-child(1),    .print-today-table td:nth-child(1),
-      .print-tomorrow-table th:nth-child(1), .print-tomorrow-table td:nth-child(1){ width: 8%; }  /* Período */
+      .print-tomorrow-table th:nth-child(1), .print-tomorrow-table td:nth-child(1){ width: 8%; }
       .print-today-table th:nth-child(2),    .print-today-table td:nth-child(2),
-      .print-tomorrow-table th:nth-child(2), .print-tomorrow-table td:nth-child(2){ width:12%; }  /* Matrícula */
+      .print-tomorrow-table th:nth-child(2), .print-tomorrow-table td:nth-child(2){ width:12%; }
       .print-today-table th:nth-child(3),    .print-today-table td:nth-child(3),
-      .print-tomorrow-table th:nth-child(3), .print-tomorrow-table td:nth-child(3){ width:16%; }  /* Carro */
+      .print-tomorrow-table th:nth-child(3), .print-tomorrow-table td:nth-child(3){ width:16%; }
       .print-today-table th:nth-child(4),    .print-today-table td:nth-child(4),
-      .print-tomorrow-table th:nth-child(4), .print-tomorrow-table td:nth-child(4){ width:10%; }  /* Serviço */
+      .print-tomorrow-table th:nth-child(4), .print-tomorrow-table td:nth-child(4){ width:10%; }
       .print-today-table th:nth-child(5),    .print-today-table td:nth-child(5),
-      .print-tomorrow-table th:nth-child(5), .print-tomorrow-table td:nth-child(5){ width:14%; }  /* Localidade */
+      .print-tomorrow-table th:nth-child(5), .print-tomorrow-table td:nth-child(5){ width:14%; }
       .print-today-table th:nth-child(6),    .print-today-table td:nth-child(6),
-      .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; }  /* Estado */
+      .print-tomorrow-table th:nth-child(6), .print-tomorrow-table td:nth-child(6){ width: 8%; }
       .print-today-table th:nth-child(7),    .print-today-table td:nth-child(7),
-      .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:24%; }  /* Observações */
+      .print-tomorrow-table th:nth-child(7), .print-tomorrow-table td:nth-child(7){ width:24%; }
       .print-today-table th:nth-child(8),    .print-tomorrow-table td:nth-child(8),
-      .print-tomorrow-table td:nth-child(8){ width:8%; }   /* Outros */
-
+      .print-tomorrow-table td:nth-child(8){ width:8%; }
       .print-today-table th, .print-tomorrow-table th,
       .print-tomorrow-table td, .print-today-table td{
         border:1px solid #000 !important; padding:4px 6px !important; font-size:12px !important;
         vertical-align:top !important; white-space:normal !important;
       }
-
       .print-today-table thead, .print-tomorrow-table thead{ display: table-header-group !important; }
     }
 
-    /* ===== ECRÃ (NÃO PRINT): Ajustes de colunas na tabela principal ===== */
     .services-table { table-layout: fixed; width: 100%; }
     .services-table th, .services-table td{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    /* Data */        .services-table th:nth-child(1), .services-table td:nth-child(1){ width: 8%; }
-    /* Período */     .services-table th:nth-child(2), .services-table td:nth-child(2){ width: 9%; }
-    /* Matrícula */   .services-table th:nth-child(3), .services-table td:nth-child(3){ width: 10%; }
-    /* Carro */       .services-table th:nth-child(4), .services-table td:nth-child(4){ width: 16%; }
-    /* Serviço */     .services-table th:nth-child(5), .services-table td:nth-child(5){ width: 10%; }
-    /* Localidade */  .services-table th:nth-child(6), .services-table td:nth-child(6){ width: 13%; }
-    /* Observações */ .services-table th:nth-child(7), .services-table td:nth-child(7){ width: 24%; }
-    /* Estado */      .services-table th:nth-child(8), .services-table td:nth-child(8){ width: 8%; }
-    /* Dias */        .services-table th:nth-child(9), .services-table td:nth-child(9){ width: 6%; }
+    .services-table th:nth-child(1), .services-table td:nth-child(1){ width: 8%; }
+    .services-table th:nth-child(2), .services-table td:nth-child(2){ width: 9%; }
+    .services-table th:nth-child(3), .services-table td:nth-child(3){ width: 10%; }
+    .services-table th:nth-child(4), .services-table td:nth-child(4){ width: 16%; }
+    .services-table th:nth-child(5), .services-table td:nth-child(5){ width: 10%; }
+    .services-table th:nth-child(6), .services-table td:nth-child(6){ width: 13%; }
+    .services-table th:nth-child(7), .services-table td:nth-child(7){ width: 24%; }
+    .services-table th:nth-child(8), .services-table td:nth-child(8){ width: 8%; }
+    .services-table th:nth-child(9), .services-table td:nth-child(9){ width: 6%; }
     .table-wrapper{ overflow-x:auto; }
     @media (max-width:1100px){ .services-table{ min-width:1100px; } }
 
-    /* ===== MOBILE CARDS — substituído por style.css redesign ===== */
+    /* ===== TOGGLE CARDS (Calibragem / Primeiro serviço) ===== */
+    .toggle-card {
+      display: flex; flex: 1; align-items: center; gap: 12px;
+      padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 12px;
+      cursor: pointer; font-size: 14px; font-weight: 600; color: #374151;
+      background: #f9fafb; transition: border-color .15s, background .15s;
+      user-select: none; min-height: 60px;
+    }
+    .toggle-card input[type=checkbox] { display: none; }
+    .toggle-card-ui {
+      flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px;
+      background: #e5e7eb; border: 2px solid #d1d5db;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .15s, border-color .15s;
+    }
+    .toggle-card-ui svg { opacity: 0; transition: opacity .15s; stroke: #fff; }
+    .toggle-card:has(input:checked) { border-color: #3b82f6; background: #eff6ff; color: #1d4ed8; }
+    .toggle-card:has(input:checked) .toggle-card-ui { background: #3b82f6; border-color: #2563eb; }
+    .toggle-card:has(input:checked) .toggle-card-ui svg { opacity: 1; }
+    .toggle-card--star:has(input:checked) { border-color: #f59e0b; background: #fffbeb; color: #92400e; }
+    .toggle-card--star:has(input:checked) .toggle-card-ui { background: #f59e0b; border-color: #d97706; }
+    .toggle-card-label { flex: 1; line-height: 1.3; }
   </style>
-  <!-- /PRINT -->
-  <script
-  src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvVgXxjF7NkHsvm9z-O_6ApJ1kKBM0G6U&libraries=places&v=weekly&loading=async"
-  async defer></script>
 
+  <script
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBvVgXxjF7NkHsvm9z-O_6ApJ1kKBM0G6U&libraries=places&v=weekly&loading=async"
+    async defer></script>
 </head>
 <body class="page-sm-braga">
   <div class="page">
@@ -123,7 +132,6 @@
       </div>
     </header>
 
-    <!-- Barra de pesquisa -->
     <div id="searchBar" class="search-bar hidden">
       <input type="text" id="searchInput" placeholder="Pesquisar por matrícula, carro ou localidade..." />
       <button id="clearSearch" class="search-clear">✕</button>
@@ -143,12 +151,10 @@
       </div>
     </div>
 
-    <!-- Calendário (desktop) -->
     <div class="schedule-container print-page-1">
       <table id="schedule" class="schedule"></table>
     </div>
 
-    <!-- Serviços por agendar (desktop) -->
     <section class="unscheduled-container">
       <div class="unscheduled-header">
         <h3>SERVIÇOS POR AGENDAR <span id="unscheduledCount" class="count-badge">0</span></h3>
@@ -168,8 +174,6 @@
           <option value="ST">ST - Serviço Terminado</option>
         </select>
       </div>
-      
-      <!-- Vista em tabela -->
       <div id="unscheduledTable" class="unscheduled-table-container">
         <table class="unscheduled-table">
           <thead>
@@ -188,7 +192,6 @@
       </div>
     </section>
 
-    <!-- Vista diária (mobile) -->
     <section id="mobileDayView" class="mobile-day-container">
       <div class="mobile-day-header">
         <div class="m-nav-row">
@@ -225,7 +228,6 @@
       </div>
     </div>
 
-    <!-- Tabela de serviços a realizar -->
     <section class="services-table-container print-page-2">
       <h3 id="servicesTableTitle">SERVIÇOS A REALIZAR</h3>
       <div class="services-summary">
@@ -236,16 +238,9 @@
         <table id="servicesTable" class="services-table">
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Período</th>
-              <th>Matrícula</th>
-              <th>Carro</th>
-              <th>Serviço</th>
-              <th>Localidade</th>
-              <th>Observações</th>
-              <th>Estado</th>
-              <th>Dias</th>
-              <th class="no-print">Ações</th>
+              <th>Data</th><th>Período</th><th>Matrícula</th><th>Carro</th>
+              <th>Serviço</th><th>Localidade</th><th>Observações</th>
+              <th>Estado</th><th>Dias</th><th class="no-print">Ações</th>
             </tr>
           </thead>
           <tbody id="servicesTableBody"></tbody>
@@ -253,7 +248,7 @@
       </div>
     </section>
 
-    <!-- Formulário de agendamento -->
+    <!-- Modal de agendamento -->
     <div id="appointmentModal" class="modal">
       <div class="modal-content">
         <div class="modal-header">
@@ -261,21 +256,15 @@
           <button id="closeModal" class="close-btn">✕</button>
         </div>
         <form id="appointmentForm" class="appointment-form">
-          <!-- MATRÍCULA EM PRIMEIRO LUGAR -->
+
+          <!-- LINHA 1: Matrícula + Modelo -->
           <div class="form-row">
             <div class="form-group">
               <label for="appointmentPlate">Matrícula *</label>
-              <input
-                type="text"
-                id="appointmentPlate"
-                placeholder="XX-XX-XX"
-                maxlength="8"
-                inputmode="text"
-                autocomplete="off"
-                required
+              <input type="text" id="appointmentPlate" placeholder="XX-XX-XX" maxlength="8"
+                inputmode="text" autocomplete="off" required
                 pattern="^[A-Za-z0-9]{2}-[A-Za-z0-9]{2}-[A-Za-z0-9]{2}$"
-                title="Use o formato XX-XX-XX (algarismos/letras)"
-              />
+                title="Use o formato XX-XX-XX (algarismos/letras)" />
               <small class="form-hint">Formato: XX-XX-XX</small>
             </div>
             <div class="form-group">
@@ -284,92 +273,87 @@
             </div>
           </div>
 
-          <!-- DATA EM SEGUNDO LUGAR -->
+          <!-- LINHA 2: Data + Localidade -->
           <div class="form-row">
             <div class="form-group">
               <label for="appointmentDate">Data</label>
               <input type="date" id="appointmentDate" autocomplete="off"/>
             </div>
+            <div class="form-group">
+              <label for="appointmentLocality">Localidade *</label>
+              <input type="hidden" id="appointmentLocality" required>
+              <div class="locality-autocomplete" id="localityAutocomplete">
+                <div class="locality-selected" id="localitySelected" onclick="window.toggleLocalityDropdown()">
+                  <span class="dot" id="selectedLocalityDot"></span>
+                  <span id="selectedLocalityText">Selecione a localidade</span>
+                  <svg width="12" height="12" viewBox="0 0 12 12" style="margin-left:auto;opacity:.5"><path d="M3 5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                </div>
+                <div id="localityDropdown">
+                  <input type="text" id="localitySearch" placeholder="Escreva para filtrar..." autocomplete="off">
+                  <div id="localityOptions"></div>
+                </div>
+              </div>
+            </div>
           </div>
 
+          <!-- LINHA 3: Tipo de Serviço + Status do Vidro -->
           <div class="form-row">
             <div class="form-group">
-            <label for="appointmentLocality">Localidade *</label>
-  <input type="hidden" id="appointmentLocality" required>
-  <div class="locality-autocomplete" id="localityAutocomplete">
-    <div class="locality-selected" id="localitySelected" onclick="window.toggleLocalityDropdown()">
-      <span class="dot" id="selectedLocalityDot"></span>
-      <span id="selectedLocalityText">Selecione a localidade</span>
-      <svg width="12" height="12" viewBox="0 0 12 12" style="margin-left:auto;opacity:.5"><path d="M3 5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </div>
-    <div id="localityDropdown">
-      <input type="text" id="localitySearch" placeholder="Escreva para filtrar..." autocomplete="off">
-      <div id="localityOptions"></div>
-    </div>
-  </div>
-</div>
+              <label for="appointmentService">Tipo de Serviço *</label>
+              <select id="appointmentService" required>
+                <option value="">Selecione o tipo de serviço</option>
+                <option value="PB">PB - Para-brisas</option>
+                <option value="LT">LT - Lateral</option>
+                <option value="OC">OC - Óculo</option>
+                <option value="REP">REP - Reparação</option>
+                <option value="POL">POL - Polimento</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="appointmentStatus">Status do Vidro *</label>
+              <select id="appointmentStatus" required>
+                <option value="NE">N/E - Não Executado</option>
+                <option value="VE">V/E - Vidro Encomendado</option>
+                <option value="ST">ST - Serviço Terminado</option>
+              </select>
+            </div>
+          </div>
 
+          <!-- LINHA 4: Tipo de Veículo -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="appointmentVehicleType">Tipo de Veículo</label>
+              <select id="appointmentVehicleType">
+                <option value="L">🚗 Ligeiro</option>
+                <option value="P">🚛 Pesado</option>
+              </select>
+            </div>
+            <div class="form-group"></div>
+          </div>
 
+          <!-- LINHA 5: Dois quadrados — Calibragem + Primeiro serviço do dia -->
+          <div class="form-row" style="gap:12px;margin-bottom:16px;">
+            <label class="toggle-card" for="appointmentCalibration">
+              <input type="checkbox" id="appointmentCalibration" />
+              <span class="toggle-card-ui">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </span>
+              <span class="toggle-card-label">Requer calibragem ADAS</span>
+            </label>
+            <label class="toggle-card toggle-card--star" for="appointmentFirstOfDay">
+              <input type="checkbox" id="appointmentFirstOfDay" />
+              <span class="toggle-card-ui">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </span>
+              <span class="toggle-card-label">⭐ Primeiro serviço do dia</span>
+            </label>
+          </div>
 
-        <div class="form-row">
-  <!-- Tipo de Serviço -->
-  <div class="form-group">
-    <label for="appointmentService">Tipo de Serviço *</label>
-    <select id="appointmentService" required>
-      <option value="">Selecione o tipo de serviço</option>
-      <option value="PB">PB - Para-brisas</option>
-      <option value="LT">LT - Lateral</option>
-      <option value="OC">OC - Óculo</option>
-      <option value="REP">REP - Reparação</option>
-      <option value="POL">POL - Polimento</option>
-    </select>
-  </div>
-
-  <!-- 2ª coluna: Status do Vidro -->
-  <div class="form-group">
-    <label for="appointmentStatus">Status do Vidro *</label>
-    <select id="appointmentStatus" required>
-      <option value="NE">N/E - Não Executado</option>
-      <option value="VE">V/E - Vidro Encomendado</option>
-      <option value="ST">ST - Serviço Terminado</option>
-    </select>
-  </div>
-</div>
-
-<div class="form-row">
-  <!-- Tipo de Veículo -->
-  <div class="form-group">
-    <label for="appointmentVehicleType">Tipo de Veículo</label>
-    <select id="appointmentVehicleType">
-      <option value="L">🚗 Ligeiro</option>
-      <option value="P">🚛 Pesado</option>
-    </select>
-  </div>
-
-  <!-- Calibragem ADAS -->
-  <div class="form-group calib-group">
-    <label>Calibragem</label>
-    <label class="calib-toggle" for="appointmentCalibration">
-      <input type="checkbox" id="appointmentCalibration" />
-      <span class="calib-toggle-ui">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      </span>
-      <span class="calib-toggle-label">Requer calibragem ADAS</span>
-    </label>
-    <label class="calib-toggle" for="appointmentFirstOfDay" style="margin-top:8px;">
-      <input type="checkbox" id="appointmentFirstOfDay" />
-      <span class="calib-toggle-ui" style="background:#f59e0b;border-color:#d97706;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      </span>
-      <span class="calib-toggle-label">⭐ Primeiro serviço do dia</span>
-    </label>
-  </div>
-</div>
-
-          <!-- Encaminhado por comercial -->
-          <div class="form-group" id="commercialSection" style="margin-bottom:4px;">
+          <!-- LINHA 6: Encaminhado por comercial -->
+          <div class="form-group" id="commercialSection" style="margin-bottom:12px;">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:14px;margin-bottom:8px;">
-              <input type="checkbox" id="hasCommercial" style="width:16px;height:16px;accent-color:#f59e0b;" onchange="document.getElementById('commercialSelectWrap').style.display=this.checked?'block':'none';if(!this.checked)document.getElementById('appointmentCommercial').value='';if(this.checked&&typeof loadComerciais==='function')loadComerciais();">
+              <input type="checkbox" id="hasCommercial" style="width:16px;height:16px;accent-color:#f59e0b;"
+                onchange="document.getElementById('commercialSelectWrap').style.display=this.checked?'block':'none';if(!this.checked)document.getElementById('appointmentCommercial').value='';if(this.checked&&typeof loadComerciais==='function')loadComerciais();">
               Encaminhado por comercial
             </label>
             <div id="commercialSelectWrap" style="display:none;">
@@ -379,11 +363,7 @@
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="appointmentNotes">Observações</label>
-            <textarea id="appointmentNotes" placeholder="Informações adicionais (não aparece no calendário)" rows="3"></textarea>
-          </div>
-
+          <!-- LINHA 7: Morada + Distância -->
           <div class="form-row">
             <div class="form-group">
               <label for="appointmentAddress">Morada (opcional)</label>
@@ -392,11 +372,12 @@
             </div>
             <div class="form-group">
               <label for="appointmentKm">Distância (km)</label>
-              <input type="number" id="appointmentKm" placeholder="Calculado automaticamente" readonly style="background-color: #f3f4f6;" />
+              <input type="number" id="appointmentKm" placeholder="Calculado automaticamente" readonly style="background-color:#f3f4f6;" />
               <small class="form-hint">Calculado automaticamente com base na morada</small>
             </div>
           </div>
 
+          <!-- LINHA 8: Contacto + Outros dados -->
           <div class="form-row">
             <div class="form-group">
               <label for="appointmentPhone">Contacto (opcional)</label>
@@ -409,17 +390,21 @@
             </div>
           </div>
 
-          <!-- Selector Pré-agendamento / Confirmado -->
+          <!-- LINHA 9: Observações -->
+          <div class="form-group">
+            <label for="appointmentNotes">Observações</label>
+            <textarea id="appointmentNotes" placeholder="Informações adicionais (não aparece no calendário)" rows="3"></textarea>
+          </div>
+
+          <!-- LINHA 10: Estado do Agendamento -->
           <div class="form-group" style="margin-bottom:20px;">
             <label style="font-weight:700;font-size:13px;color:#374151;margin-bottom:8px;display:block;">Estado do Agendamento *</label>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-              <button type="button" id="btnPreAgendado"
-                onclick="setConfirmed(false)"
+              <button type="button" id="btnPreAgendado" onclick="setConfirmed(false)"
                 style="padding:14px 10px;border-radius:10px;border:2px solid #f59e0b;background:#fef3c7;color:#92400e;font-weight:800;font-size:14px;cursor:pointer;transition:all .15s;">
                 ⏳ Pré-agendamento
               </button>
-              <button type="button" id="btnConfirmado"
-                onclick="setConfirmed(true)"
+              <button type="button" id="btnConfirmado" onclick="setConfirmed(true)"
                 style="padding:14px 10px;border-radius:10px;border:2px solid #d1d5db;background:#f9fafb;color:#6b7280;font-weight:800;font-size:14px;cursor:pointer;transition:all .15s;">
                 ✅ Agendamento Confirmado
               </button>
@@ -427,11 +412,13 @@
             <input type="hidden" id="appointmentConfirmed" value="true">
           </div>
 
+          <!-- AÇÕES -->
           <div class="form-actions">
             <button type="button" id="cancelForm" class="btn secondary">Cancelar</button>
             <button type="button" id="deleteAppointment" class="btn danger hidden">Eliminar</button>
             <button type="submit" class="btn primary">Guardar</button>
           </div>
+
         </form>
       </div>
     </div>
@@ -454,98 +441,52 @@
           <h3>🗺️ Otimizando Rotas</h3>
         </div>
         <div class="progress-content" style="padding: 20px;">
-          <div id="progressText" style="margin-bottom: 15px; font-size: 16px; text-align: center;">
-            Analisando serviços...
-          </div>
+          <div id="progressText" style="margin-bottom: 15px; font-size: 16px; text-align: center;">Analisando serviços...</div>
           <div class="progress-bar-container" style="background: #e5e7eb; border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 15px;">
             <div id="progressBar" style="background: linear-gradient(90deg, #3b82f6, #1d4ed8); height: 100%; width: 0%; transition: width 0.3s ease; border-radius: 10px;"></div>
           </div>
-          <div id="progressPercentage" style="text-align: center; font-weight: bold; color: #3b82f6;">
-            0%
-          </div>
-          <div id="progressDetails" style="margin-top: 15px; font-size: 14px; color: #6b7280; text-align: center;">
-            Preparando otimização...
-          </div>
+          <div id="progressPercentage" style="text-align: center; font-weight: bold; color: #3b82f6;">0%</div>
+          <div id="progressDetails" style="margin-top: 15px; font-size: 14px; color: #6b7280; text-align: center;">Preparando otimização...</div>
         </div>
       </div>
     </div>
 
-    <!-- Toast notifications -->
     <div id="toastContainer" class="toast-container"></div>
 
     <!-- PRINT: Por agendar -->
     <div class="print-unscheduled-section">
       <h2>SERVIÇOS POR AGENDAR</h2>
       <table class="print-unscheduled-table">
-        <thead>
-          <tr>
-            <th>Matrícula</th>
-            <th>Modelo do Carro</th>
-            <th>Serviço</th>
-            <th>Localidade</th>
-            <th>Estado</th>
-            <th>Observações</th>
-            <th>Outros Dados</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th></tr></thead>
         <tbody id="printUnscheduledTableBody"></tbody>
       </table>
     </div>
 
-    <!-- PRINT HOJE -->
     <div class="print-today-section print-break-before">
       <h2 id="printTodayTitle">SERVIÇOS DE HOJE</h2>
       <div class="print-today-date" id="printTodayDate"></div>
       <table class="print-today-table">
-        <thead>
-          <tr>
-            <th>Período</th>
-            <th>Matrícula</th>
-            <th>Modelo do Carro</th>
-            <th>Serviço</th>
-            <th>Localidade</th>
-            <th>Estado</th>
-            <th>Observações</th>
-            <th>Outros Dados</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Período</th><th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th></tr></thead>
         <tbody id="printTodayTableBody"></tbody>
       </table>
-      <div class="print-today-empty" id="printTodayEmpty" style="display:none;">
-        <p>Não há serviços agendados para hoje.</p>
-      </div>
+      <div class="print-today-empty" id="printTodayEmpty" style="display:none;"><p>Não há serviços agendados para hoje.</p></div>
     </div>
 
-    <!-- PRINT: Amanhã -->
     <div class="print-tomorrow-section print-break-before">
       <h2 id="printTomorrowTitle">SERVIÇOS DE AMANHÃ</h2>
       <div class="print-tomorrow-date" id="printTomorrowDate"></div>
       <table class="print-tomorrow-table">
-        <thead>
-          <tr>
-            <th>Período</th>
-            <th>Matrícula</th>
-            <th>Modelo do Carro</th>
-            <th>Serviço</th>
-            <th>Localidade</th>
-            <th>Estado</th>
-            <th>Observações</th>
-            <th>Outros Dados</th>
-          </tr>
-        </thead>
+        <thead><tr><th>Período</th><th>Matrícula</th><th>Modelo do Carro</th><th>Serviço</th><th>Localidade</th><th>Estado</th><th>Observações</th><th>Outros Dados</th></tr></thead>
         <tbody id="printTomorrowTableBody"></tbody>
       </table>
-      <div class="print-tomorrow-empty" id="printTomorrowEmpty" style="display: none;">
-        <p>Não há serviços agendados para amanhã.</p>
-      </div>
+      <div class="print-tomorrow-empty" id="printTomorrowEmpty" style="display: none;"><p>Não há serviços agendados para amanhã.</p></div>
     </div>
 
   </div>
 
-  <!-- Scripts principais -->
   <script src="auth-client.js"></script>
 
-  <!-- Modal de backup — fora da .page para evitar clipping -->
+  <!-- Modal de backup -->
   <div id="backupModal" class="modal">
     <div class="modal-content" style="max-width:480px;">
       <div class="modal-header">
@@ -571,24 +512,18 @@
       </div>
     </div>
   </div>
+
   <script src="portal-init.js?v=2026-04-01"></script>
   <script src="api.js?v=2026-04-01"></script>
   <script src="script.js?v=2026-04-02"></script>
-  
-  <!-- Biblioteca SheetJS para leitura de Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  
-  <!-- Sistema de Importação Excel -->
   <script src="excel-templates.js"></script>
   <script src="template-personalizado.js"></script>
   <script src="template-expressglass-completo.js"></script>
   <script src="excel-import.js"></script>
   <script src="excel-import-ui.js"></script>
-  
-  <!-- Sistema de Alerta de Vidros -->
   <script src="glass-alert.js"></script>
 
-  <!-- >>>>>> SCRIPT DE IMPRESSÃO (garantir preenchimento antes de imprimir) <<<<<< -->
   <script>
     function fillPrintSectionsSafely(){
       try{ if (typeof renderAll === 'function') renderAll(); }catch(e){}
@@ -601,7 +536,7 @@
     });
   </script>
 
-  <!-- ===== MODAL NÃO REALIZADO ===== -->
+  <!-- Modal Não Realizado -->
   <div id="notDoneModal" class="modal" style="display:none;">
     <div class="modal-content" style="max-width:420px;">
       <div class="modal-header">
@@ -647,20 +582,16 @@
       <h3>🗺️ Selecionar Dia para Calcular Rotas</h3>
       <button class="close-btn" onclick="closeSelectDayModal()">&times;</button>
     </div>
-    
     <div class="modal-body" style="padding: 24px;">
       <p style="margin-bottom: 20px; color: #6b7280;">Selecione o dia para o qual pretende otimizar as rotas:</p>
-      
       <div class="form-group">
         <label for="routeCalculationDate" style="display: block; margin-bottom: 8px; font-weight: 600;">Data</label>
         <input type="date" id="routeCalculationDate" style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;" />
       </div>
-      
       <div style="margin-top: 20px; padding: 12px; background: #fef3c7; border-radius: 6px; font-size: 13px; color: #92400e;">
         <strong>⚠️ Nota:</strong> Apenas serão otimizados os serviços do dia selecionado que tenham morada preenchida.
       </div>
     </div>
-    
     <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; justify-content: flex-end;">
       <button onclick="closeSelectDayModal()" class="action-btn" style="background: #6b7280;">Cancelar</button>
       <button onclick="confirmCalculateRoutes()" class="action-btn primary" style="background: #3b82f6;">🗺️ Calcular Rotas</button>
@@ -668,14 +599,13 @@
   </div>
 </div>
 
-<!-- MODAL DE ALERTA DE VIDROS A ENCOMENDAR -->
+<!-- MODAL DE ALERTA DE VIDROS -->
 <div id="glassAlertModal" class="modal" style="display: none;">
   <div class="modal-content" style="max-width: 800px; max-height: 90vh;">
     <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white;">
       <h2 style="margin: 0; color: white;">⚠️ Vidros a Encomendar</h2>
       <button class="close-btn" onclick="closeGlassAlertModal()" style="color: white;">&times;</button>
     </div>
-    
     <div class="modal-body" style="padding: 20px; overflow-y: auto; max-height: calc(90vh - 200px);">
       <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin-bottom: 20px; border-radius: 6px;">
         <p style="margin: 0; font-size: 14px; color: #92400e;">
@@ -683,136 +613,47 @@
           Marque como "Encomendado" à medida que fizer as encomendas.
         </p>
       </div>
-      
-      <div id="glassAlertList" style="margin-top: 20px;">
-        <!-- Lista será preenchida dinamicamente -->
-      </div>
-      
+      <div id="glassAlertList" style="margin-top: 20px;"></div>
       <div id="glassAlertEmpty" style="display: none; text-align: center; padding: 40px; color: #6b7280;">
         <div style="font-size: 48px; margin-bottom: 16px;">✅</div>
         <p style="font-size: 16px; font-weight: 600; margin: 0;">Todos os vidros estão encomendados!</p>
         <p style="font-size: 14px; margin-top: 8px;">Não há vidros pendentes para os próximos 3 dias.</p>
       </div>
     </div>
-    
     <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid #e5e7eb; display: flex; gap: 12px; justify-content: space-between; align-items: center;">
-      <div style="font-size: 13px; color: #6b7280;">
-        <span id="glassAlertPendingCount">0</span> vidro(s) pendente(s)
-      </div>
+      <div style="font-size: 13px; color: #6b7280;"><span id="glassAlertPendingCount">0</span> vidro(s) pendente(s)</div>
       <div style="display: flex; gap: 12px;">
-        <button onclick="printGlassAlert()" class="action-btn" style="background: #6b7280;">
-          🖨️ Imprimir
-        </button>
-        <button onclick="closeGlassAlertModal()" class="action-btn primary" style="background: #3b82f6;">
-          Fechar
-        </button>
+        <button onclick="printGlassAlert()" class="action-btn" style="background: #6b7280;">🖨️ Imprimir</button>
+        <button onclick="closeGlassAlertModal()" class="action-btn primary" style="background: #3b82f6;">Fechar</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- SEÇÃO DE IMPRESSÃO DE VIDROS (oculta) -->
+<!-- SEÇÃO DE IMPRESSÃO DE VIDROS -->
 <div id="glassPrintSection" style="display: none;">
   <style media="print">
-    /* Resetar tudo para garantir isolamento */
-    @page { 
-      margin: 20mm; 
-      size: A4 portrait;
-    }
-    
-    /* Ocultar TUDO exceto glassPrintSection */
-    body > *:not(#glassPrintSection) {
-      display: none !important;
-      visibility: hidden !important;
-    }
-    
-    #glassPrintSection {
-      display: block !important;
-      visibility: visible !important;
-      position: static !important;
-    }
-    
-    body { 
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-    }
-    
-    .glass-print-header { 
-      text-align: center; 
-      margin-bottom: 30px; 
-      page-break-inside: avoid;
-    }
-    
-    .glass-print-header h1 { 
-      margin: 0 0 10px 0; 
-      font-size: 24px;
-      font-weight: bold;
-    }
-    
-    .glass-print-header p { 
-      margin: 5px 0; 
-      color: #666;
-      font-size: 14px;
-    }
-    
-    .glass-print-table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      margin-top: 20px;
-    }
-    
-    .glass-print-table th, 
-    .glass-print-table td { 
-      border: 1px solid #333; 
-      padding: 8px 6px; 
-      text-align: left;
-      font-size: 12px;
-    }
-    
-    .glass-print-table th { 
-      background: #e5e7eb !important; 
-      font-weight: bold;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    
-    .glass-print-table tr:nth-child(even) { 
-      background: #f9fafb !important;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    
-    .glass-print-checkbox { 
-      width: 18px; 
-      height: 18px; 
-      border: 2px solid #000; 
-      display: inline-block;
-      vertical-align: middle;
-    }
+    @page { margin: 20mm; size: A4 portrait; }
+    body > *:not(#glassPrintSection) { display: none !important; visibility: hidden !important; }
+    #glassPrintSection { display: block !important; visibility: visible !important; position: static !important; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    .glass-print-header { text-align: center; margin-bottom: 30px; page-break-inside: avoid; }
+    .glass-print-header h1 { margin: 0 0 10px 0; font-size: 24px; font-weight: bold; }
+    .glass-print-header p { margin: 5px 0; color: #666; font-size: 14px; }
+    .glass-print-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .glass-print-table th, .glass-print-table td { border: 1px solid #333; padding: 8px 6px; text-align: left; font-size: 12px; }
+    .glass-print-table th { background: #e5e7eb !important; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .glass-print-table tr:nth-child(even) { background: #f9fafb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .glass-print-checkbox { width: 18px; height: 18px; border: 2px solid #000; display: inline-block; vertical-align: middle; }
   </style>
-  
   <div class="glass-print-header">
     <h1>⚠️ Vidros a Encomendar</h1>
     <p id="glassPrintDate"></p>
     <p>Próximos 3 dias</p>
   </div>
-  
   <table class="glass-print-table" id="glassPrintTable">
-    <thead>
-      <tr>
-        <th>Data</th>
-        <th>Matrícula</th>
-        <th>Carro</th>
-        <th>Serviço</th>
-        <th>Localidade</th>
-        <th>Observações</th>
-        <th style="width: 80px;">Encomendado</th>
-      </tr>
-    </thead>
-    <tbody id="glassPrintTableBody">
-      <!-- Linhas serão preenchidas dinamicamente -->
-    </tbody>
+    <thead><tr><th>Data</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Observações</th><th style="width: 80px;">Encomendado</th></tr></thead>
+    <tbody id="glassPrintTableBody"></tbody>
   </table>
 </div>
 
@@ -823,28 +664,21 @@
       <h2>📊 Importar Serviços do Excel</h2>
       <button class="close-btn" onclick="closeExcelImportModal()">&times;</button>
     </div>
-    
     <div class="modal-body">
-      <!-- PASSO 1: UPLOAD DO FICHEIRO -->
       <div id="step1" class="import-step">
         <h3>1️⃣ Carregar Ficheiro Excel</h3>
-        
         <div class="upload-area" id="uploadArea">
           <div class="upload-content">
             <div class="upload-icon">📁</div>
             <p><strong>Arraste o ficheiro Excel aqui</strong></p>
             <p>ou</p>
-            <button type="button" class="btn btn-primary" onclick="document.getElementById('excelFile').click()">
-              Escolher Ficheiro
-            </button>
+            <button type="button" class="btn btn-primary" onclick="document.getElementById('excelFile').click()">Escolher Ficheiro</button>
             <input type="file" id="excelFile" accept=".xlsx,.xls" style="display: none;">
           </div>
         </div>
-        
         <div class="template-download">
           <p>📋 Não tem um ficheiro? <button type="button" class="btn-link" onclick="downloadTemplate()">Descarregar Template</button></p>
         </div>
-        
         <div id="fileInfo" style="display: none;">
           <div class="file-info">
             <h4>✅ Ficheiro Carregado</h4>
@@ -852,108 +686,39 @@
             <p><strong>Linhas:</strong> <span id="rowCount"></span></p>
             <p><strong>Colunas:</strong> <span id="columnCount"></span></p>
           </div>
-          
-          <button type="button" class="btn btn-primary" onclick="goToStep2()">
-            Continuar para Mapeamento →
-          </button>
+          <button type="button" class="btn btn-primary" onclick="goToStep2()">Continuar para Mapeamento →</button>
         </div>
       </div>
-      
-      <!-- PASSO 2: MAPEAMENTO DE COLUNAS -->
       <div id="step2" class="import-step" style="display: none;">
         <h3>2️⃣ Mapear Colunas</h3>
         <p>Associe as colunas do Excel aos campos do sistema:</p>
-        
         <div class="mapping-grid">
-          <div class="mapping-row">
-            <label>Matrícula *</label>
-            <select id="mapPlate" class="mapping-select">
-              <option value="">-- Selecionar Coluna --</option>
-            </select>
-          </div>
-          
-          <div class="mapping-row">
-            <label>Modelo do Carro *</label>
-            <select id="mapCar" class="mapping-select">
-              <option value="">-- Selecionar Coluna --</option>
-            </select>
-          </div>
-          
-          <div class="mapping-row">
-            <label>Tipo de Serviço *</label>
-            <select id="mapService" class="mapping-select">
-              <option value="">-- Selecionar Coluna --</option>
-            </select>
-          </div>
-          
-          <div class="mapping-row">
-            <label>Localidade *</label>
-            <select id="mapLocality" class="mapping-select">
-              <option value="">-- Selecionar Coluna --</option>
-            </select>
-          </div>
-          
-          <div class="mapping-row">
-            <label>Observações</label>
-            <select id="mapNotes" class="mapping-select">
-              <option value="">-- Selecionar Coluna --</option>
-            </select>
-          </div>
-          
-          <div class="mapping-row">
-            <label>Morada</label>
-            <select id="mapAddress" class="mapping-select">
-              <option value="">-- Selecionar Coluna --</option>
-            </select>
-          </div>
-          
-          <div class="mapping-row">
-            <label>Contacto</label>
-            <select id="mapPhone" class="mapping-select">
-              <option value="">-- Selecionar Coluna --</option>
-            </select>
-          </div>
-          
-          <div class="mapping-row">
-            <label>Outros Dados</label>
-            <select id="mapExtra" class="mapping-select">
-              <option value="">-- Selecionar Coluna --</option>
-            </select>
-          </div>
+          <div class="mapping-row"><label>Matrícula *</label><select id="mapPlate" class="mapping-select"><option value="">-- Selecionar Coluna --</option></select></div>
+          <div class="mapping-row"><label>Modelo do Carro *</label><select id="mapCar" class="mapping-select"><option value="">-- Selecionar Coluna --</option></select></div>
+          <div class="mapping-row"><label>Tipo de Serviço *</label><select id="mapService" class="mapping-select"><option value="">-- Selecionar Coluna --</option></select></div>
+          <div class="mapping-row"><label>Localidade *</label><select id="mapLocality" class="mapping-select"><option value="">-- Selecionar Coluna --</option></select></div>
+          <div class="mapping-row"><label>Observações</label><select id="mapNotes" class="mapping-select"><option value="">-- Selecionar Coluna --</option></select></div>
+          <div class="mapping-row"><label>Morada</label><select id="mapAddress" class="mapping-select"><option value="">-- Selecionar Coluna --</option></select></div>
+          <div class="mapping-row"><label>Contacto</label><select id="mapPhone" class="mapping-select"><option value="">-- Selecionar Coluna --</option></select></div>
+          <div class="mapping-row"><label>Outros Dados</label><select id="mapExtra" class="mapping-select"><option value="">-- Selecionar Coluna --</option></select></div>
         </div>
-        
         <div class="step-actions">
-          <button type="button" class="btn btn-secondary" onclick="goToStep1()">
-            ← Voltar
-          </button>
-          <button type="button" class="btn btn-primary" onclick="goToStep3()">
-            Pré-visualizar Dados →
-          </button>
+          <button type="button" class="btn btn-secondary" onclick="goToStep1()">← Voltar</button>
+          <button type="button" class="btn btn-primary" onclick="goToStep3()">Pré-visualizar Dados →</button>
         </div>
       </div>
-      
-      <!-- PASSO 3: PRÉ-VISUALIZAÇÃO -->
       <div id="step3" class="import-step" style="display: none;">
         <h3>3️⃣ Pré-visualização dos Dados</h3>
-        
         <div id="validationSummary" class="validation-summary">
           <div class="summary-stats">
-            <div class="stat-item success">
-              <span class="stat-number" id="validCount">0</span>
-              <span class="stat-label">Válidos</span>
-            </div>
-            <div class="stat-item error">
-              <span class="stat-number" id="errorCount">0</span>
-              <span class="stat-label">Erros</span>
-            </div>
+            <div class="stat-item success"><span class="stat-number" id="validCount">0</span><span class="stat-label">Válidos</span></div>
+            <div class="stat-item error"><span class="stat-number" id="errorCount">0</span><span class="stat-label">Erros</span></div>
           </div>
         </div>
-        
         <div id="errorsList" style="display: none;">
           <h4>❌ Erros Encontrados</h4>
           <div class="errors-container" id="errorsContainer"></div>
         </div>
-        
         <div id="previewTable">
           <h4>✅ Dados Válidos (Primeiros 10)</h4>
           <div class="table-container">
@@ -963,47 +728,25 @@
             </table>
           </div>
         </div>
-        
         <div class="step-actions">
-          <button type="button" class="btn btn-secondary" onclick="goToStep2()">
-            ← Voltar
-          </button>
-          <button type="button" class="btn btn-success" onclick="importData()" id="importBtn">
-            📥 Importar Dados
-          </button>
+          <button type="button" class="btn btn-secondary" onclick="goToStep2()">← Voltar</button>
+          <button type="button" class="btn btn-success" onclick="importData()" id="importBtn">📥 Importar Dados</button>
         </div>
       </div>
-      
-      <!-- PASSO 4: RESULTADO DA IMPORTAÇÃO -->
       <div id="step4" class="import-step" style="display: none;">
         <h3>4️⃣ Resultado da Importação</h3>
-        
         <div id="importResults" class="import-results">
           <div class="result-summary">
-            <div class="result-item success">
-              <span class="result-number" id="successCount">0</span>
-              <span class="result-label">Importados</span>
-            </div>
-            <div class="result-item error">
-              <span class="result-number" id="failCount">0</span>
-              <span class="result-label">Falharam</span>
-            </div>
+            <div class="result-item success"><span class="result-number" id="successCount">0</span><span class="result-label">Importados</span></div>
+            <div class="result-item error"><span class="result-number" id="failCount">0</span><span class="result-label">Falharam</span></div>
           </div>
-          
           <div id="importDetails" class="import-details"></div>
         </div>
-        
         <div class="step-actions">
-          <button type="button" class="btn btn-primary" onclick="finishImport()">
-            ✅ Concluir
-          </button>
-          <button type="button" class="btn btn-secondary" onclick="startNewImport()">
-            🔄 Nova Importação
-          </button>
+          <button type="button" class="btn btn-primary" onclick="finishImport()">✅ Concluir</button>
+          <button type="button" class="btn btn-secondary" onclick="startNewImport()">🔄 Nova Importação</button>
         </div>
       </div>
-      
-      <!-- LOADING -->
       <div id="loadingStep" class="import-step loading-step" style="display: none;">
         <div class="loading-content">
           <div class="spinner"></div>
@@ -1016,245 +759,44 @@
 </div>
 
 <style>
-/* ESTILOS DO MODAL DE IMPORTAÇÃO */
-.import-step {
-  padding: 20px 0;
-}
-
-.upload-area {
-  border: 2px dashed #ccc;
-  border-radius: 10px;
-  padding: 40px;
-  text-align: center;
-  margin: 20px 0;
-  transition: border-color 0.3s;
-}
-
-.upload-area.dragover {
-  border-color: #007bff;
-  background-color: #f8f9fa;
-}
-
-.upload-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.upload-icon {
-  font-size: 48px;
-  margin-bottom: 10px;
-}
-
-.file-info {
-  background: #e8f5e8;
-  border: 1px solid #28a745;
-  border-radius: 5px;
-  padding: 15px;
-  margin: 15px 0;
-}
-
-.template-download {
-  text-align: center;
-  margin: 15px 0;
-}
-
-.btn-link {
-  background: none;
-  border: none;
-  color: #007bff;
-  text-decoration: underline;
-  cursor: pointer;
-}
-
-.mapping-grid {
-  display: grid;
-  gap: 15px;
-  margin: 20px 0;
-}
-
-.mapping-row {
-  display: grid;
-  grid-template-columns: 200px 1fr;
-  align-items: center;
-  gap: 15px;
-}
-
-.mapping-row label {
-  font-weight: bold;
-}
-
-.mapping-select {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.validation-summary {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 20px;
-  margin: 20px 0;
-}
-
-.summary-stats {
-  display: flex;
-  justify-content: center;
-  gap: 40px;
-}
-
-.stat-item {
-  text-align: center;
-}
-
-.stat-number {
-  display: block;
-  font-size: 32px;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.stat-item.success .stat-number {
-  color: #28a745;
-}
-
-.stat-item.error .stat-number {
-  color: #dc3545;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #666;
-}
-
-.errors-container {
-  max-height: 200px;
-  overflow-y: auto;
-  background: #fff3cd;
-  border: 1px solid #ffeaa7;
-  border-radius: 4px;
-  padding: 15px;
-}
-
-.error-item {
-  margin-bottom: 10px;
-  padding: 8px;
-  background: #f8d7da;
-  border-radius: 4px;
-  font-size: 14px;
-}
-
-.preview-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 15px 0;
-}
-
-.preview-table th,
-.preview-table td {
-  border: 1px solid #ddd;
-  padding: 8px 12px;
-  text-align: left;
-  font-size: 14px;
-}
-
-.preview-table th {
-  background: #f8f9fa;
-  font-weight: bold;
-}
-
-.table-container {
-  max-height: 300px;
-  overflow: auto;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.step-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
-}
-
-.import-results {
-  text-align: center;
-}
-
-.result-summary {
-  display: flex;
-  justify-content: center;
-  gap: 40px;
-  margin: 30px 0;
-}
-
-.result-item {
-  text-align: center;
-}
-
-.result-number {
-  display: block;
-  font-size: 48px;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-
-.result-item.success .result-number {
-  color: #28a745;
-}
-
-.result-item.error .result-number {
-  color: #dc3545;
-}
-
-.result-label {
-  font-size: 16px;
-  color: #666;
-}
-
-.import-details {
-  max-height: 300px;
-  overflow-y: auto;
-  text-align: left;
-  margin: 20px 0;
-}
-
-.loading-step {
-  text-align: center;
-  padding: 60px 20px;
-}
-
-.loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-}
-
-.spinner {
-  width: 50px;
-  height: 50px;
-  border: 5px solid #f3f3f3;
-  border-top: 5px solid #007bff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-#loadingText {
-  margin: 0;
-  color: #007bff;
-}
-
-#loadingSubtext {
-  margin: 0;
-  color: #666;
-}
+.import-step { padding: 20px 0; }
+.upload-area { border: 2px dashed #ccc; border-radius: 10px; padding: 40px; text-align: center; margin: 20px 0; transition: border-color 0.3s; }
+.upload-area.dragover { border-color: #007bff; background-color: #f8f9fa; }
+.upload-content { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.upload-icon { font-size: 48px; margin-bottom: 10px; }
+.file-info { background: #e8f5e8; border: 1px solid #28a745; border-radius: 5px; padding: 15px; margin: 15px 0; }
+.template-download { text-align: center; margin: 15px 0; }
+.btn-link { background: none; border: none; color: #007bff; text-decoration: underline; cursor: pointer; }
+.mapping-grid { display: grid; gap: 15px; margin: 20px 0; }
+.mapping-row { display: grid; grid-template-columns: 200px 1fr; align-items: center; gap: 15px; }
+.mapping-row label { font-weight: bold; }
+.mapping-select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+.validation-summary { background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0; }
+.summary-stats { display: flex; justify-content: center; gap: 40px; }
+.stat-item { text-align: center; }
+.stat-number { display: block; font-size: 32px; font-weight: bold; margin-bottom: 5px; }
+.stat-item.success .stat-number { color: #28a745; }
+.stat-item.error .stat-number { color: #dc3545; }
+.stat-label { font-size: 14px; color: #666; }
+.errors-container { max-height: 200px; overflow-y: auto; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 15px; }
+.error-item { margin-bottom: 10px; padding: 8px; background: #f8d7da; border-radius: 4px; font-size: 14px; }
+.preview-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+.preview-table th, .preview-table td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; font-size: 14px; }
+.preview-table th { background: #f8f9fa; font-weight: bold; }
+.table-container { max-height: 300px; overflow: auto; border: 1px solid #ddd; border-radius: 4px; }
+.step-actions { display: flex; justify-content: space-between; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; }
+.import-results { text-align: center; }
+.result-summary { display: flex; justify-content: center; gap: 40px; margin: 30px 0; }
+.result-item { text-align: center; }
+.result-number { display: block; font-size: 48px; font-weight: bold; margin-bottom: 10px; }
+.result-item.success .result-number { color: #28a745; }
+.result-item.error .result-number { color: #dc3545; }
+.result-label { font-size: 16px; color: #666; }
+.import-details { max-height: 300px; overflow-y: auto; text-align: left; margin: 20px 0; }
+.loading-step { text-align: center; padding: 60px 20px; }
+.loading-content { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.spinner { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #007bff; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+#loadingText { margin: 0; color: #007bff; }
+#loadingSubtext { margin: 0; color: #666; }
 </style>
