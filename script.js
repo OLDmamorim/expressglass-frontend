@@ -1748,20 +1748,32 @@ function editAppointment(id) {
     }
   }
 
-  // Campo comercial
-  const commSel = document.getElementById('appointmentCommercial');
-  if (commSel) {
-    const hasComm = !!appointment.commercial_user_id;
+  // Garantir secção comercial (pode chamar loadComerciais async na primeira vez)
+  ensureCommercialSection();
+
+  // Campo comercial — definir APÓS loadComerciais() para não ser apagado pelo innerHTML
+  if (appointment.commercial_user_id) {
+    loadComerciais().then(() => {
+      const commSel = document.getElementById('appointmentCommercial');
+      if (!commSel) return;
+      const hasCb = document.getElementById('hasCommercial');
+      if (hasCb) {
+        hasCb.checked = true;
+        const wrap = document.getElementById('commercialSelectWrap');
+        if (wrap) wrap.style.display = 'block';
+      }
+      commSel.value = appointment.commercial_user_id;
+    });
+  } else {
+    const commSel = document.getElementById('appointmentCommercial');
+    if (commSel) commSel.value = '';
     const hasCb = document.getElementById('hasCommercial');
     if (hasCb) {
-      hasCb.checked = hasComm;
-      document.getElementById('commercialSelectWrap').style.display = hasComm ? 'block' : 'none';
+      hasCb.checked = false;
+      const wrap = document.getElementById('commercialSelectWrap');
+      if (wrap) wrap.style.display = 'none';
     }
-    commSel.value = appointment.commercial_user_id || '';
   }
-
-  // Garantir secção comercial
-  ensureCommercialSection();
 
   // Alterar modal para modo edição
   document.getElementById('modalTitle').textContent = 'Editar Agendamento';
