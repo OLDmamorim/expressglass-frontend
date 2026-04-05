@@ -1427,42 +1427,41 @@ async function confirmNotDone() {
     reason = (document.getElementById('ndOutroText')?.value || '').trim();
     if (!reason) { showToast('Descreva o motivo', 'error'); return; }
   }
+  const idToSave = _pendingNotDoneId;
   closeNotDoneModal();
-  await _doSaveExecuted(_pendingNotDoneId, false, reason);
+  await _doSaveExecuted(idToSave, false, reason);
 }
 
 
 // ===== ANIMAÇÕES REALIZADO / NÃO REALIZADO =====
-function fireEmojis(originEl, emojis) {
-  const count = 18;
-  const rect = originEl
-    ? originEl.getBoundingClientRect()
-    : { left: window.innerWidth/2, top: window.innerHeight/2, width:0, height:0 };
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top  + rect.height / 2;
+function fireEmojis(emojis) {
+  const count = 22;
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
   for (let i = 0; i < count; i++) {
     const el = document.createElement('div');
     el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-    el.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;font-size:${22+Math.random()*16}px;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);will-change:transform,opacity;`;
+    const size = 28 + Math.random() * 22;
+    el.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;font-size:${size}px;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);will-change:transform,opacity;`;
     document.body.appendChild(el);
     const angle = Math.random() * 2 * Math.PI;
-    const dist  = 80 + Math.random() * 160;
+    const dist  = 100 + Math.random() * 200;
     const dx = Math.cos(angle) * dist;
-    const dy = Math.sin(angle) * dist - 60;
-    const dur = 700 + Math.random() * 400;
+    const dy = Math.sin(angle) * dist - 80;
+    const dur = 1400 + Math.random() * 800;
     el.animate([
-      { transform:'translate(-50%,-50%) scale(0.4)', opacity:1 },
-      { transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(1.1)`, opacity:1, offset:0.6 },
-      { transform:`translate(calc(-50% + ${dx*1.1}px),calc(-50% + ${dy+80}px)) scale(0.8)`, opacity:0 }
+      { transform:'translate(-50%,-50%) scale(0.2)', opacity:1 },
+      { transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(1.3)`, opacity:1, offset:0.55 },
+      { transform:`translate(calc(-50% + ${dx*1.15}px),calc(-50% + ${dy+120}px)) scale(0.9)`, opacity:0 }
     ], { duration:dur, easing:'cubic-bezier(0.22,1,0.36,1)', fill:'forwards' })
       .finished.then(() => el.remove());
   }
 }
-function fireRealizadoEmojis(el) {
-  fireEmojis(el, ['✅','🎉','⭐','💪','🙌','🏆','👏','✨','🔥']);
+function fireRealizadoEmojis() {
+  fireEmojis(['✅','🎉','⭐','💪','🙌','🏆','👏','✨','🔥','🥳']);
 }
-function fireNaoRealizadoEmojis(el) {
-  fireEmojis(el, ['😢','😔','💔','😞','🥺','😿','💧','😩']);
+function fireNaoRealizadoEmojis() {
+  fireEmojis(['😢','😔','💔','😞','🥺','😿','💧','😩','😭','🫤']);
 }
 
 async function _doSaveExecuted(id, executed, reason) {
@@ -1472,14 +1471,7 @@ async function _doSaveExecuted(id, executed, reason) {
   appointments[i].executed = executed;
   appointments[i].not_done_reason = reason || null;
   renderAll();
-  // Animação feedback
-  try {
-    const originBtn = document.querySelector(executed
-      ? '[data-exec="true"][data-id="' + id + '"]'
-      : '[data-exec="false"][data-id="' + id + '"]');
-    if (executed) fireRealizadoEmojis(originBtn);
-    else fireNaoRealizadoEmojis(originBtn);
-  } catch(ae) {}
+  if (executed) fireRealizadoEmojis(); else fireNaoRealizadoEmojis();
   try {
     await window.apiClient.updateAppointment(id, { ...appointments[i], executed, not_done_reason: reason || null });
 
@@ -1790,20 +1782,32 @@ function editAppointment(id) {
     }
   }
 
-  // Campo comercial
-  const commSel = document.getElementById('appointmentCommercial');
-  if (commSel) {
-    const hasComm = !!appointment.commercial_user_id;
+  // Garantir secção comercial (pode chamar loadComerciais async na primeira vez)
+  ensureCommercialSection();
+
+  // Campo comercial — definir APÓS loadComerciais() para não ser apagado pelo innerHTML
+  if (appointment.commercial_user_id) {
+    loadComerciais().then(() => {
+      const commSel = document.getElementById('appointmentCommercial');
+      if (!commSel) return;
+      const hasCb = document.getElementById('hasCommercial');
+      if (hasCb) {
+        hasCb.checked = true;
+        const wrap = document.getElementById('commercialSelectWrap');
+        if (wrap) wrap.style.display = 'block';
+      }
+      commSel.value = appointment.commercial_user_id;
+    });
+  } else {
+    const commSel = document.getElementById('appointmentCommercial');
+    if (commSel) commSel.value = '';
     const hasCb = document.getElementById('hasCommercial');
     if (hasCb) {
-      hasCb.checked = hasComm;
-      document.getElementById('commercialSelectWrap').style.display = hasComm ? 'block' : 'none';
+      hasCb.checked = false;
+      const wrap = document.getElementById('commercialSelectWrap');
+      if (wrap) wrap.style.display = 'none';
     }
-    commSel.value = appointment.commercial_user_id || '';
   }
-
-  // Garantir secção comercial
-  ensureCommercialSection();
 
   // Alterar modal para modo edição
   document.getElementById('modalTitle').textContent = 'Editar Agendamento';
@@ -1961,7 +1965,7 @@ function buildDesktopCard(a){
         <span class="dc-badge">${service}</span>
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
         ${a.first_of_day ? '<span class="dc-calib-badge" style="background:#f59e0b;color:#fff;">⭐ 1.º SERVIÇO</span>' : ''}
-        ${a.commercial_user_id ? '<span class="dc-calib-badge" style="background:#7c3aed;color:#fff;animation:blink 1.5s infinite;">🤝 COMERCIAL</span>' : ''}
+        ${a.commercial_user_id ? '<span class="dc-calib-badge" style="background:#7c3aed !important;color:#fff !important;animation:blink 1.5s infinite;">🤝 COMERCIAL</span>' : ''}
         ${car ? `<span class="dc-car">${car}</span>` : ''}
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
@@ -2295,7 +2299,7 @@ const telBtn = phone ? `
         <div class="m-title"><span class="m-title-text">${plate}</span></div>
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips">${chips}</div>` : ''}
-        ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed;color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
+        ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
         ${preAgendadoM
@@ -3173,8 +3177,8 @@ window.addEventListener('portalReady', bootApp, { once: true });
 
         // Extrair localidade dos address_components
         if (place.address_components) {
-          // Tentar: locality → administrative_area_level_2 → postal_town
-          const types = ['locality', 'postal_town', 'administrative_area_level_2'];
+          // Tentar: concelho (level_2) → postal_town → locality (evitar freguesias)
+          const types = ['administrative_area_level_2', 'postal_town', 'locality'];
           let detectedLocality = null;
           for (const type of types) {
             const comp = place.address_components.find(c => c.types.includes(type));
