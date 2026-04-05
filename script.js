@@ -1427,8 +1427,9 @@ async function confirmNotDone() {
     reason = (document.getElementById('ndOutroText')?.value || '').trim();
     if (!reason) { showToast('Descreva o motivo', 'error'); return; }
   }
+  const idToSave = _pendingNotDoneId;  // capturar antes de closeNotDoneModal o anular
   closeNotDoneModal();
-  await _doSaveExecuted(_pendingNotDoneId, false, reason);
+  await _doSaveExecuted(idToSave, false, reason);
 }
 
 async function _doSaveExecuted(id, executed, reason) {
@@ -1748,32 +1749,20 @@ function editAppointment(id) {
     }
   }
 
-  // Garantir secção comercial (pode chamar loadComerciais async na primeira vez)
-  ensureCommercialSection();
-
-  // Campo comercial — definir APÓS loadComerciais() para não ser apagado pelo innerHTML
-  if (appointment.commercial_user_id) {
-    loadComerciais().then(() => {
-      const commSel = document.getElementById('appointmentCommercial');
-      if (!commSel) return;
-      const hasCb = document.getElementById('hasCommercial');
-      if (hasCb) {
-        hasCb.checked = true;
-        const wrap = document.getElementById('commercialSelectWrap');
-        if (wrap) wrap.style.display = 'block';
-      }
-      commSel.value = appointment.commercial_user_id;
-    });
-  } else {
-    const commSel = document.getElementById('appointmentCommercial');
-    if (commSel) commSel.value = '';
+  // Campo comercial
+  const commSel = document.getElementById('appointmentCommercial');
+  if (commSel) {
+    const hasComm = !!appointment.commercial_user_id;
     const hasCb = document.getElementById('hasCommercial');
     if (hasCb) {
-      hasCb.checked = false;
-      const wrap = document.getElementById('commercialSelectWrap');
-      if (wrap) wrap.style.display = 'none';
+      hasCb.checked = hasComm;
+      document.getElementById('commercialSelectWrap').style.display = hasComm ? 'block' : 'none';
     }
+    commSel.value = appointment.commercial_user_id || '';
   }
+
+  // Garantir secção comercial
+  ensureCommercialSection();
 
   // Alterar modal para modo edição
   document.getElementById('modalTitle').textContent = 'Editar Agendamento';
