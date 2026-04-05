@@ -1424,7 +1424,7 @@ async function confirmNotDone() {
   if (!selected) { showToast('Selecione um motivo', 'error'); return; }
   let reason = selected.value;
   if (reason === '__outro__') {
-    reason = (document.getElementById('ndOutroText')?.value || '').trim();
+    reason = (document.getElementById('ndOutrosText')?.value || '').trim();
     if (!reason) { showToast('Descreva o motivo', 'error'); return; }
   }
   const idToSave = _pendingNotDoneId;

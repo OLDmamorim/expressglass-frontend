@@ -555,7 +555,7 @@
         <label class="nd-option"><input type="radio" name="ndReason" value="Vidro errado"> Vidro errado</label>
         <label class="nd-option"><input type="radio" name="ndReason" value="Falta de material"> Falta de material</label>
         <label class="nd-option">
-          <input type="radio" name="ndReason" value="Outros"> Outros
+          <input type="radio" name="ndReason" value="__outro__" onchange="document.getElementById('ndOutrosText').style.display=this.checked?'block':'none';"> Outros
           <textarea id="ndOutrosText" placeholder="Descreva o motivo..." rows="2"
             style="display:none;margin-top:8px;width:100%;padding:8px;border:1.5px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;resize:vertical;"></textarea>
         </label>
