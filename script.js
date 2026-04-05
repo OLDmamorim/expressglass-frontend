@@ -1431,6 +1431,40 @@ async function confirmNotDone() {
   await _doSaveExecuted(_pendingNotDoneId, false, reason);
 }
 
+
+// ===== ANIMAÇÕES REALIZADO / NÃO REALIZADO =====
+function fireEmojis(originEl, emojis) {
+  const count = 18;
+  const rect = originEl
+    ? originEl.getBoundingClientRect()
+    : { left: window.innerWidth/2, top: window.innerHeight/2, width:0, height:0 };
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top  + rect.height / 2;
+  for (let i = 0; i < count; i++) {
+    const el = document.createElement('div');
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;font-size:${22+Math.random()*16}px;pointer-events:none;z-index:99999;transform:translate(-50%,-50%);will-change:transform,opacity;`;
+    document.body.appendChild(el);
+    const angle = Math.random() * 2 * Math.PI;
+    const dist  = 80 + Math.random() * 160;
+    const dx = Math.cos(angle) * dist;
+    const dy = Math.sin(angle) * dist - 60;
+    const dur = 700 + Math.random() * 400;
+    el.animate([
+      { transform:'translate(-50%,-50%) scale(0.4)', opacity:1 },
+      { transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(1.1)`, opacity:1, offset:0.6 },
+      { transform:`translate(calc(-50% + ${dx*1.1}px),calc(-50% + ${dy+80}px)) scale(0.8)`, opacity:0 }
+    ], { duration:dur, easing:'cubic-bezier(0.22,1,0.36,1)', fill:'forwards' })
+      .finished.then(() => el.remove());
+  }
+}
+function fireRealizadoEmojis(el) {
+  fireEmojis(el, ['✅','🎉','⭐','💪','🙌','🏆','👏','✨','🔥']);
+}
+function fireNaoRealizadoEmojis(el) {
+  fireEmojis(el, ['😢','😔','💔','😞','🥺','😿','💧','😩']);
+}
+
 async function _doSaveExecuted(id, executed, reason) {
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
@@ -1438,6 +1472,14 @@ async function _doSaveExecuted(id, executed, reason) {
   appointments[i].executed = executed;
   appointments[i].not_done_reason = reason || null;
   renderAll();
+  // Animação feedback
+  try {
+    const originBtn = document.querySelector(executed
+      ? '[data-exec="true"][data-id="' + id + '"]'
+      : '[data-exec="false"][data-id="' + id + '"]');
+    if (executed) fireRealizadoEmojis(originBtn);
+    else fireNaoRealizadoEmojis(originBtn);
+  } catch(ae) {}
   try {
     await window.apiClient.updateAppointment(id, { ...appointments[i], executed, not_done_reason: reason || null });
 
@@ -3131,8 +3173,8 @@ window.addEventListener('portalReady', bootApp, { once: true });
 
         // Extrair localidade dos address_components
         if (place.address_components) {
-          // Tentar: concelho (level_2) → postal_town → locality (evitar freguesias)
-          const types = ['administrative_area_level_2', 'postal_town', 'locality'];
+          // Tentar: locality → administrative_area_level_2 → postal_town
+          const types = ['locality', 'postal_town', 'administrative_area_level_2'];
           let detectedLocality = null;
           for (const type of types) {
             const comp = place.address_components.find(c => c.types.includes(type));
