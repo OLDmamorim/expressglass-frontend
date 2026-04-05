@@ -55,7 +55,7 @@ exports.handler = async (event) => {
     if (!appointment_id) return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'appointment_id em falta' }) };
 
     const { rows } = await pool.query(`
-      SELECT a.plate, a.car, a.date, a.executed, a.not_done_reason,
+      SELECT a.plate, a.car, a.date, a.period, a.locality, a.address, a.executed, a.not_done_reason,
              a.commercial_user_id, u.username AS commercial_name,
              u.telegram_chat_id, p.name AS portal_name
       FROM appointments a
@@ -71,13 +71,28 @@ exports.handler = async (event) => {
     if (!appt.commercial_user_id) return { statusCode: 200, headers, body: JSON.stringify({ success: true, sent: false, reason: 'Sem comercial' }) };
     if (!appt.telegram_chat_id) return { statusCode: 200, headers, body: JSON.stringify({ success: true, sent: false, reason: 'Sem telegram_chat_id' }) };
 
-    const dataStr = appt.date
-      ? new Date(appt.date + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' })
-      : '—';
+    // Data — o campo vem como objecto Date do PostgreSQL, não como string
+    let dataStr = '—';
+    if (appt.date) {
+      const d = new Date(appt.date);
+      if (!isNaN(d.getTime())) {
+        // Usar UTC para evitar desvios de timezone
+        const dia = String(d.getUTCDate()).padStart(2, '0');
+        const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const ano = d.getUTCFullYear();
+        dataStr = `${dia}/${mes}/${ano}`;
+      }
+    }
+
+    // Período (Manhã / Tarde)
+    const periodoStr = appt.period ? ` (${appt.period})` : '';
+
+    // Local (morada do serviço)
+    const localStr = appt.address || appt.locality || appt.portal_name || '—';
 
     const msg = appt.executed === true
-      ? `✅ <b>Serviço Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}\n🏪 ${appt.portal_name || '—'}`
-      : `❌ <b>Serviço Não Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}\n🏪 ${appt.portal_name || '—'}\n📝 Motivo: ${appt.not_done_reason || '—'}`;
+      ? `✅ <b>Serviço Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}`
+      : `❌ <b>Serviço Não Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}\n📝 Motivo: ${appt.not_done_reason || '—'}`;
 
     const tgResult = await sendTelegram(appt.telegram_chat_id, msg);
 
@@ -87,3 +102,4 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
   }
 };
+
