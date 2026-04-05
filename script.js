@@ -1448,11 +1448,12 @@ function fireEmojis(emojis) {
     const dist  = 100 + Math.random() * 200;
     const dx = Math.cos(angle) * dist;
     const dy = Math.sin(angle) * dist - 80;
-    const dur = 1400 + Math.random() * 800;
+    const dur = 2800 + Math.random() * 1200;
     el.animate([
       { transform:'translate(-50%,-50%) scale(0.2)', opacity:1 },
-      { transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(1.3)`, opacity:1, offset:0.55 },
-      { transform:`translate(calc(-50% + ${dx*1.15}px),calc(-50% + ${dy+120}px)) scale(0.9)`, opacity:0 }
+      { transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(1.4)`, opacity:1, offset:0.5 },
+      { transform:`translate(calc(-50% + ${dx*1.05}px),calc(-50% + ${dy+40}px)) scale(1.2)`, opacity:1, offset:0.75 },
+      { transform:`translate(calc(-50% + ${dx*1.15}px),calc(-50% + ${dy+160}px)) scale(0.8)`, opacity:0 }
     ], { duration:dur, easing:'cubic-bezier(0.22,1,0.36,1)', fill:'forwards' })
       .finished.then(() => el.remove());
   }
