@@ -86,13 +86,17 @@ exports.handler = async (event) => {
 
     // Período (Manhã / Tarde)
     const periodoStr = appt.period ? ` (${appt.period})` : '';
-
-    // Local (morada do serviço)
     const localStr = appt.address || appt.locality || appt.portal_name || '—';
+    const notifType = (JSON.parse(event.body || '{}').type) || 'executed';
 
-    const msg = appt.executed === true
-      ? `✅ <b>Serviço Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}`
-      : `❌ <b>Serviço Não Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}\n📝 Motivo: ${appt.not_done_reason || '—'}`;
+    let msg = '';
+    if (notifType === 'scheduled') {
+      msg = `📅 <b>Serviço Agendado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📆 ${dataStr}${periodoStr}\n📍 ${localStr}\n🏪 ${appt.portal_name || '—'}\n\n<i>Este serviço foi encaminhado por si e está agendado.</i>`;
+    } else if (appt.executed === true) {
+      msg = `✅ <b>Serviço Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}`;
+    } else {
+      msg = `❌ <b>Serviço Não Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}\n📝 Motivo: ${appt.not_done_reason || '—'}`;
+    }
 
     const tgResult = await sendTelegram(appt.telegram_chat_id, msg);
 
