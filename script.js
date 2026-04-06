@@ -1465,6 +1465,25 @@ function fireNaoRealizadoEmojis() {
   fireEmojis(['😢','😔','💔','😞','🥺','😿','💧','😩','😭','🫤']);
 }
 
+
+// ===== PRIMEIRO SERVIÇO DO DIA — só um por dia =====
+async function enforceSingleFirstOfDay(newId, date) {
+  if (!date) return;
+  // Encontrar outros agendamentos do mesmo dia com first_of_day=true
+  const others = appointments.filter(a =>
+    String(a.id) !== String(newId) &&
+    a.date === date &&
+    a.first_of_day === true
+  );
+  for (const a of others) {
+    try {
+      a.first_of_day = false;
+      await window.apiClient.updateAppointment(a.id, { ...a, first_of_day: false });
+    } catch(e) { console.warn('Erro ao limpar first_of_day:', e); }
+  }
+  if (others.length > 0) renderAll();
+}
+
 async function _doSaveExecuted(id, executed, reason) {
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
@@ -2727,6 +2746,7 @@ function bootApp() {
         const idx = appointments.findIndex(a => String(a.id) === String(editingId));
         if (idx >= 0) appointments[idx] = { ...appointments[idx], ...updated, ...payload };
         showToast('Agendamento atualizado', 'success');
+        if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(editingId, payload.date);
         // Notificar comercial se agendamento confirmado com comercial atribuído
         if (payload.commercial_user_id && payload.confirmed) {
           const apptId = updated?.id || editingId;
@@ -2789,6 +2809,7 @@ cancelEdit?.();
         const item = { id: created?.id || (Date.now()+Math.random()), sortIndex: 1, ...payload, ...created };
         appointments.push(item);
         showToast('Agendamento criado', 'success');
+        if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(item.id, payload.date);
         // Notificar comercial se agendamento confirmado com comercial atribuído
         if (payload.commercial_user_id && payload.confirmed) {
           const apptId = created?.id || item.id;
