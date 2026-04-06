@@ -2633,6 +2633,7 @@ function bootApp() {
 
   // Botão Calcular Rotas - Abrir modal de seleção de dia
   document.getElementById('calculateRoutes')?.addEventListener('click', calculateAllRoutesFromToday);
+  document.getElementById('calculateRoutesMobile')?.addEventListener('click', calculateAllRoutesFromToday);
 
   // ── Relatório semanal (mobile + desktop) ──
   const openRelatorio = () => {
