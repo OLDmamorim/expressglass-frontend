@@ -2588,6 +2588,120 @@ function buildRelatorio() {
     </div>`;
   });
 
+
+  // ===== SECÇÃO COMERCIAL =====
+  const comercialAppts = weekAppts.filter(a => !!a.commercial_user_id);
+
+  if (!loja && comercialAppts.length > 0) {
+    // Agrupar por comercial
+    const byComercial = {};
+    comercialAppts.forEach(a => {
+      const key = a.commercial_user_id;
+      if (!byComercial[key]) byComercial[key] = { name: a.commercial_name || `Comercial #${key}`, items: [] };
+      byComercial[key].items.push(a);
+    });
+
+    // Agrupar por localidade
+    const byLocality = {};
+    comercialAppts.forEach(a => {
+      const loc = a.locality || 'Sem localidade';
+      if (!byLocality[loc]) byLocality[loc] = { total: 0, realized: 0 };
+      byLocality[loc].total++;
+      if (a.executed) byLocality[loc].realized++;
+    });
+
+    const totalCom   = comercialAppts.length;
+    const realCom    = comercialAppts.filter(a => a.executed === true).length;
+    const notDoneCom = comercialAppts.filter(a => a.executed === false && !!a.not_done_reason).length;
+    const pendCom    = totalCom - realCom - notDoneCom;
+    const taxaCom    = totalCom > 0 ? Math.round((realCom / totalCom) * 100) : 0;
+
+    // Tempo médio criação → execução
+    const tempos = comercialAppts
+      .filter(a => a.date && a.createdAt)
+      .map(a => {
+        const criado = new Date(a.createdAt); criado.setHours(0,0,0,0);
+        const exec   = new Date(a.date);      exec.setHours(0,0,0,0);
+        return Math.max(0, Math.round((exec - criado) / 86400000));
+      });
+    const tempoMedio = tempos.length > 0
+      ? Math.round(tempos.reduce((s, v) => s + v, 0) / tempos.length)
+      : null;
+
+    html += `
+      <div style="border-top:2px solid #7c3aed;padding-top:16px;margin-top:16px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#7c3aed;margin-bottom:12px;">🤝 Serviços Comerciais</div>
+
+        <!-- KPIs principais -->
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px;">
+          <div class="rel-stat" style="border-left:3px solid #7c3aed;">
+            <div class="rel-n" style="color:#7c3aed;">${totalCom}</div>
+            <div class="rel-l">Total encaminhados</div>
+          </div>
+          <div class="rel-stat rel-stat-green">
+            <div class="rel-n">${realCom}</div>
+            <div class="rel-l">Realizados</div>
+          </div>
+          <div class="rel-stat rel-stat-red">
+            <div class="rel-n">${notDoneCom}</div>
+            <div class="rel-l">Não realizados</div>
+          </div>
+          <div class="rel-stat" style="border-left:3px solid #f59e0b;">
+            <div class="rel-n" style="color:#d97706;">${pendCom}</div>
+            <div class="rel-l">Pendentes</div>
+          </div>
+        </div>
+
+        <!-- Taxa de conversão + tempo médio -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+          <div style="background:#f5f3ff;border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:24px;font-weight:800;color:#7c3aed;">${taxaCom}%</div>
+            <div style="font-size:11px;color:#6b7280;font-weight:600;margin-top:2px;">Taxa de realização</div>
+            <div style="height:4px;background:#e5e7eb;border-radius:2px;margin-top:8px;">
+              <div style="height:4px;background:#7c3aed;border-radius:2px;width:${taxaCom}%;"></div>
+            </div>
+          </div>
+          <div style="background:#f0fdf4;border-radius:10px;padding:12px;text-align:center;">
+            <div style="font-size:24px;font-weight:800;color:#16a34a;">${tempoMedio !== null ? tempoMedio + 'd' : '—'}</div>
+            <div style="font-size:11px;color:#6b7280;font-weight:600;margin-top:2px;">Tempo médio criação→exec.</div>
+          </div>
+        </div>
+
+        <!-- Por comercial -->
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#6b7280;margin-bottom:8px;">Por comercial</div>
+        ${Object.values(byComercial).sort((a,b) => b.items.length - a.items.length).map(c => {
+          const r = c.items.filter(a => a.executed === true).length;
+          const n = c.items.filter(a => a.executed === false && !!a.not_done_reason).length;
+          const p = c.items.length - r - n;
+          const tx = Math.round((r / c.items.length) * 100);
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;">
+            <span style="font-weight:700;color:#374151;">${c.name}</span>
+            <span style="display:flex;gap:8px;align-items:center;">
+              <span style="color:#7c3aed;font-weight:700;">${c.items.length}</span>
+              <span style="color:#16a34a;font-weight:700;">${r}✓</span>
+              <span style="color:#dc2626;font-weight:700;">${n}✗</span>
+              ${p > 0 ? `<span style="color:#d97706;font-weight:700;">${p}⏳</span>` : ''}
+              <span style="background:#f5f3ff;color:#7c3aed;padding:2px 6px;border-radius:8px;font-size:11px;font-weight:800;">${tx}%</span>
+            </span>
+          </div>`;
+        }).join('')}
+
+        <!-- Por localidade -->
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#6b7280;margin:12px 0 8px;">Por localidade</div>
+        ${Object.entries(byLocality).sort((a,b) => b[1].total - a[1].total).map(([loc, d]) => {
+          const pct = Math.round((d.realized / d.total) * 100);
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px;">
+            <span style="color:#374151;">${loc}</span>
+            <span style="display:flex;gap:8px;align-items:center;">
+              <span style="color:#7c3aed;font-weight:700;">${d.total}</span>
+              <span style="color:#16a34a;">${d.realized}✓</span>
+              <span style="background:#f5f3ff;color:#7c3aed;padding:2px 6px;border-radius:8px;font-size:11px;font-weight:700;">${pct}%</span>
+            </span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
   html += `</div></div>`;
   el.innerHTML = html;
 }
@@ -2645,6 +2759,7 @@ function bootApp() {
 
   // Botão Calcular Rotas - Abrir modal de seleção de dia
   document.getElementById('calculateRoutes')?.addEventListener('click', calculateAllRoutesFromToday);
+  document.getElementById('calculateRoutesMobile')?.addEventListener('click', calculateAllRoutesFromToday);
   document.getElementById('calculateRoutesMobile')?.addEventListener('click', calculateAllRoutesFromToday);
 
   // ── Relatório semanal (mobile + desktop) ──
@@ -2760,6 +2875,11 @@ function bootApp() {
         if (idx >= 0) appointments[idx] = { ...appointments[idx], ...updated, ...payload };
         showToast('Agendamento atualizado', 'success');
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(editingId, payload.date);
+        if (payload.commercial_user_id && payload.confirmed) {
+          const apptId = updated?.id || editingId;
+          try { await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ appointment_id: apptId, type:'scheduled' }) }); } catch(ne) {}
+        }
+        if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(editingId, payload.date);
         // Notificar comercial se agendamento confirmado com comercial atribuído
         if (payload.commercial_user_id && payload.confirmed) {
           const apptId = updated?.id || editingId;
@@ -2822,6 +2942,11 @@ cancelEdit?.();
         const item = { id: created?.id || (Date.now()+Math.random()), sortIndex: 1, ...payload, ...created };
         appointments.push(item);
         showToast('Agendamento criado', 'success');
+        if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(item.id, payload.date);
+        if (payload.commercial_user_id && payload.confirmed) {
+          const apptId = created?.id || item.id;
+          try { await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ appointment_id: apptId, type:'scheduled' }) }); } catch(ne) {}
+        }
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(item.id, payload.date);
         // Notificar comercial se agendamento confirmado com comercial atribuído
         if (payload.commercial_user_id && payload.confirmed) {
