@@ -2418,7 +2418,20 @@ async function renderMobileDay(){
   const summary = buildDaySummary(currentMobileDay, true);
   const allServices = items.map(buildMobileCard).join('');
 
-  list.innerHTML = (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
+  // Botão Rota — só se houver serviços com morada
+  const temMoradas = items.some(a => !!a.address);
+  const rotaBtn = (!isLoja() && temMoradas) ? `
+    <button onclick="openRotaDoDia()"
+      style="width:100%;margin:0 0 12px;padding:13px;border:none;border-radius:14px;
+             background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;
+             font-size:15px;font-weight:800;letter-spacing:0.3px;cursor:pointer;
+             display:flex;align-items:center;justify-content:center;gap:8px;
+             box-shadow:0 4px 12px rgba(22,163,74,0.35);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"></path></svg>
+      🗺️ Ver Rota do Dia
+    </button>` : '';
+
+  list.innerHTML = (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
 }
 
@@ -2475,6 +2488,31 @@ window.reloadAppointments = async function() {
 })();
 
 // ===== RELATÓRIO SEMANAL =====
+
+// ===== ROTA DO DIA — abre Google Maps com toda a rota =====
+function openRotaDoDia() {
+  const iso = localISO(currentMobileDay);
+  const items = appointments
+    .filter(a => a.date === iso && !!a.address)
+    .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
+
+  if (items.length === 0) {
+    showToast('Sem serviços com morada para este dia', 'error');
+    return;
+  }
+
+  const base = getBasePartida();
+  const waypoints = items.map(a => encodeURIComponent(a.address));
+
+  // Google Maps: origem/wp1/wp2/.../destino
+  // Máximo 10 waypoints no URL
+  const maxWp = Math.min(waypoints.length, 9);
+  const wps = waypoints.slice(0, maxWp);
+
+  const url = `https://www.google.com/maps/dir/${encodeURIComponent(base)}/${wps.join('/')}/${encodeURIComponent(base)}`;
+  window.open(url, '_blank');
+}
+
 function buildRelatorio() {
   const el = document.getElementById('relatorioContent');
   if (!el) return;
@@ -2769,7 +2807,6 @@ function bootApp() {
 
   // Botão Calcular Rotas - Abrir modal de seleção de dia
   document.getElementById('calculateRoutes')?.addEventListener('click', calculateAllRoutesFromToday);
-  document.getElementById('calculateRoutesMobile')?.addEventListener('click', calculateAllRoutesFromToday);
   document.getElementById('calculateRoutesMobile')?.addEventListener('click', calculateAllRoutesFromToday);
 
   // ── Relatório semanal (mobile + desktop) ──
