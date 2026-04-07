@@ -1958,11 +1958,16 @@ function buildDesktopCard(a){
 
   const todayISO2 = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO2;
+  const motivoDesktop = (a.executed === false && a.not_done_reason) ? `
+    <div style="margin:4px 0 0;padding:5px 10px;background:rgba(220,38,38,0.12);border-left:3px solid #dc2626;border-radius:5px;font-size:11px;font-weight:700;color:#dc2626;">
+      ❌ ${a.not_done_reason}
+    </div>` : '';
+
   const execBadge = isPastOrToday ? `
     <div class="dc-exec-row" data-id="${a.id}">
       <button class="dc-exec-btn ${a.executed === false && a.not_done_reason ? 'dc-exec-ne' : ''}" data-exec="false" data-id="${a.id}">✗ N. Realizado</button>
       <button class="dc-exec-btn ${a.executed === true ? 'dc-exec-st' : ''}" data-exec="true" data-id="${a.id}">✓ Realizado</button>
-    </div>` : '';
+    </div>${motivoDesktop}` : '';
 
   // Dias aberto (desde createdAt)
   const _diasAberto = a.createdAt ? (() => {
@@ -2283,6 +2288,11 @@ const telBtn = phone ? `
   const todayISO = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO;
 
+  const motivoBadge = isNaoRealizado && a.not_done_reason ? `
+    <div style="margin:6px 8px 0;padding:7px 12px;background:rgba(220,38,38,0.15);border-left:3px solid #dc2626;border-radius:6px;font-size:12px;font-weight:700;color:#dc2626;display:flex;align-items:center;gap:6px;">
+      ❌ <span style="color:inherit;">${a.not_done_reason}</span>
+    </div>` : '';
+
   const statusToggle = a.date ? `
     <div class="m-status-row">
       <button class="m-status-btn ${isNaoRealizado ? 'm-status-active-ne' : ''}" data-exec="false" data-id="${a.id}">
@@ -2293,7 +2303,7 @@ const telBtn = phone ? `
         <span class="m-status-dot m-dot-st"></span>
         Realizado
       </button>
-    </div>` : '';
+    </div>${motivoBadge}` : '';
 
   // Dias aberto mobile
   const _mDiasAberto = a.createdAt ? (() => {
