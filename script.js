@@ -2506,9 +2506,16 @@ function openRotaDoDia() {
   }
 
   // Abrir modal
+  if (!document.getElementById('rotaModal')) { _buildRotaModal(); }
   const modal = document.getElementById('rotaModal');
-  if (!modal) { _buildRotaModal(); }
-  document.getElementById('rotaModal').style.display = 'flex';
+  modal.style.display = 'flex';
+  // Definir altura do mapa em pixels reais
+  const mapDiv = document.getElementById('rotaMapDiv');
+  if (mapDiv) {
+    const navH = 120; // header + botão
+    mapDiv.style.height = (window.innerHeight - navH) + 'px';
+    mapDiv.style.width = window.innerWidth + 'px';
+  }
 
   // Preencher lista de paragens
   const base = getBasePartida();
