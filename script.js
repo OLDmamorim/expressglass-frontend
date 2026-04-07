@@ -2543,20 +2543,26 @@ function openRotaDoDia() {
   document.getElementById('rotaNavBtn').onclick = () => window.open(mapsUrl, '_blank');
 
   // Inicializar mapa
-  setTimeout(() => _initRotaMap(base, items), 100);
+  setTimeout(() => {
+    _initRotaMap(base, items);
+    // Forçar Google Maps a recalcular tamanho
+    setTimeout(() => {
+      if (_rotaMap) google.maps.event.trigger(_rotaMap, 'resize');
+    }, 300);
+  }, 150);
 }
 
 function _buildRotaModal() {
   const modal = document.createElement('div');
   modal.id = 'rotaModal';
-  modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:#0f172a;flex-direction:column;';
+  modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:#0f172a;flex-direction:column;height:100%;width:100%;';
   modal.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#1e293b;flex-shrink:0;">
       <div id="rotaTitle" style="color:#fff;font-size:16px;font-weight:800;"></div>
       <button onclick="document.getElementById('rotaModal').style.display='none'"
         style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
     </div>
-    <div id="rotaMapDiv" style="flex:1;min-height:0;position:relative;"></div>
+    <div id="rotaMapDiv" style="flex:1;min-height:0;height:calc(100vh - 120px);width:100%;"></div>
     <div style="background:#1e293b;flex-shrink:0;padding:10px 12px;">
       <button id="rotaNavBtn"
         style="width:100%;padding:13px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
@@ -2586,6 +2592,8 @@ function _initRotaMap(base, items) {
   const mapDiv = document.getElementById('rotaMapDiv');
   if (!mapDiv) return;
 
+  // Sempre recriar o mapa para garantir que usa o div correto
+  _rotaMap = null;
   if (!_rotaMap) {
     _rotaMap = new google.maps.Map(mapDiv, {
       zoom: 10,
