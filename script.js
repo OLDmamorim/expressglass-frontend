@@ -2490,10 +2490,6 @@ window.reloadAppointments = async function() {
 // ===== RELATÓRIO SEMANAL =====
 
 // ===== ROTA DO DIA — abre Google Maps com toda a rota =====
-// Guardar referência ao mapa para não reinicializar
-let _rotaMap = null;
-let _rotaDirectionsRenderer = null;
-
 function openRotaDoDia() {
   const iso = localISO(currentMobileDay);
   const items = appointments
@@ -2505,136 +2501,11 @@ function openRotaDoDia() {
     return;
   }
 
-  // Abrir modal
-  if (!document.getElementById('rotaModal')) { _buildRotaModal(); }
-  const modal = document.getElementById('rotaModal');
-  modal.style.display = 'flex';
-  // Definir altura do mapa em pixels reais
-  const mapDiv = document.getElementById('rotaMapDiv');
-  if (mapDiv) {
-    const navH = 120; // header + botão
-    mapDiv.style.height = (window.innerHeight - navH) + 'px';
-    mapDiv.style.width = window.innerWidth + 'px';
-  }
-
-  // Preencher lista de paragens
   const base = getBasePartida();
-  const label = currentMobileDay.toLocaleDateString('pt-PT', { weekday:'long', day:'2-digit', month:'2-digit' });
-  document.getElementById('rotaTitle').textContent = `🗺️ Rota — ${label.charAt(0).toUpperCase() + label.slice(1)}`;
-
-  const listEl = document.getElementById('rotaParagens');
-  listEl.innerHTML = [
-    `<div class="rota-stop rota-stop-base">
-      <span class="rota-num">🏠</span>
-      <div class="rota-info"><div class="rota-label">Partida</div><div class="rota-addr">${base}</div></div>
-    </div>`,
-    ...items.map((a, i) => `
-      <div class="rota-stop">
-        <span class="rota-num">${i+1}</span>
-        <div class="rota-info">
-          <div class="rota-label">${(a.plate||'').toUpperCase()} — ${a.car||''}</div>
-          <div class="rota-addr">${a.address}</div>
-          ${a.locality ? `<div class="rota-loc">📍 ${a.locality}</div>` : ''}
-        </div>
-      </div>`),
-    `<div class="rota-stop rota-stop-base">
-      <span class="rota-num">🏠</span>
-      <div class="rota-info"><div class="rota-label">Regresso</div><div class="rota-addr">${base}</div></div>
-    </div>`
-  ].join('');
-
-  // Botão navegação externa
   const maxWp = Math.min(items.length, 9);
   const wps = items.slice(0, maxWp).map(a => encodeURIComponent(a.address));
-  const mapsUrl = `https://www.google.com/maps/dir/${encodeURIComponent(base)}/${wps.join('/')}/${encodeURIComponent(base)}`;
-  document.getElementById('rotaNavBtn').onclick = () => window.open(mapsUrl, '_blank');
-
-  // Inicializar mapa
-  setTimeout(() => {
-    _initRotaMap(base, items);
-    // Forçar Google Maps a recalcular tamanho
-    setTimeout(() => {
-      if (_rotaMap) google.maps.event.trigger(_rotaMap, 'resize');
-    }, 300);
-  }, 150);
-}
-
-function _buildRotaModal() {
-  const modal = document.createElement('div');
-  modal.id = 'rotaModal';
-  modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:#0f172a;flex-direction:column;height:100%;width:100%;';
-  modal.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#1e293b;flex-shrink:0;">
-      <div id="rotaTitle" style="color:#fff;font-size:16px;font-weight:800;"></div>
-      <button onclick="document.getElementById('rotaModal').style.display='none'"
-        style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
-    </div>
-    <div id="rotaMapDiv" style="flex:1;min-height:0;height:calc(100vh - 120px);width:100%;"></div>
-    <div style="background:#1e293b;flex-shrink:0;padding:10px 12px;">
-      <button id="rotaNavBtn"
-        style="width:100%;padding:13px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"></path></svg>
-        Navegar com Google Maps
-      </button>
-    </div>`;
-
-  // CSS das paragens
-  const style = document.createElement('style');
-  style.textContent = `
-    .rota-stop { display:flex; align-items:flex-start; gap:10px; padding:8px 10px; background:rgba(255,255,255,0.05); border-radius:10px; }
-    .rota-stop-base { background:rgba(59,130,246,0.15); }
-    .rota-num { flex-shrink:0; width:28px; height:28px; background:#3b82f6; color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; }
-    .rota-stop-base .rota-num { background:#1e293b; font-size:16px; }
-    .rota-info { flex:1; min-width:0; }
-    .rota-label { color:#f1f5f9; font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .rota-addr { color:#94a3b8; font-size:11px; margin-top:2px; }
-    .rota-loc { color:#64748b; font-size:11px; }
-  `;
-  document.head.appendChild(style);
-  document.body.appendChild(modal);
-}
-
-function _initRotaMap(base, items) {
-  if (!(window.google && google.maps)) return;
-  const mapDiv = document.getElementById('rotaMapDiv');
-  if (!mapDiv) return;
-
-  // Sempre recriar o mapa para garantir que usa o div correto
-  _rotaMap = null;
-  if (!_rotaMap) {
-    _rotaMap = new google.maps.Map(mapDiv, {
-      zoom: 10,
-      center: { lat: 41.5, lng: -8.4 },
-      disableDefaultUI: true,
-      zoomControl: true,
-      gestureHandling: 'greedy',
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-    });
-    _rotaDirectionsRenderer = new google.maps.DirectionsRenderer({
-      map: _rotaMap,
-      suppressMarkers: false,
-      polylineOptions: { strokeColor: '#3b82f6', strokeWeight: 5 }
-    });
-  }
-
-  const directionsService = new google.maps.DirectionsService();
-  const waypoints = items.slice(0, 8).map(a => ({ location: a.address, stopover: true }));
-
-  directionsService.route({
-    origin: base,
-    destination: base,
-    waypoints,
-    travelMode: google.maps.TravelMode.DRIVING,
-    optimizeWaypoints: false
-  }, (result, status) => {
-    if (status === 'OK') {
-      _rotaDirectionsRenderer.setDirections(result);
-    } else {
-      showToast('Não foi possível calcular a rota no mapa', 'warning');
-    }
-  });
+  const url = `https://www.google.com/maps/dir/${encodeURIComponent(base)}/${wps.join('/')}/${encodeURIComponent(base)}`;
+  window.open(url, '_blank');
 }
 
 function buildRelatorio() {
