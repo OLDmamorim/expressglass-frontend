@@ -2556,16 +2556,13 @@ function _buildRotaModal() {
       <button onclick="document.getElementById('rotaModal').style.display='none'"
         style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
     </div>
-    <div id="rotaMapDiv" style="flex:1;min-height:0;"></div>
-    <div style="background:#1e293b;flex-shrink:0;max-height:40vh;overflow-y:auto;">
-      <div id="rotaParagens" style="padding:8px 12px;display:flex;flex-direction:column;gap:6px;"></div>
-      <div style="padding:10px 12px;">
-        <button id="rotaNavBtn"
-          style="width:100%;padding:13px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"></path></svg>
-          Navegar com Google Maps
-        </button>
-      </div>
+    <div id="rotaMapDiv" style="flex:1;min-height:0;position:relative;"></div>
+    <div style="background:#1e293b;flex-shrink:0;padding:10px 12px;">
+      <button id="rotaNavBtn"
+        style="width:100%;padding:13px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"></path></svg>
+        Navegar com Google Maps
+      </button>
     </div>`;
 
   // CSS das paragens
