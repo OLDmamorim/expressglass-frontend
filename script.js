@@ -559,6 +559,13 @@ async function optimizeDayServices(services) {
     appointments[appointmentIndex].km = newKm;
     appointments[appointmentIndex].travelTime = travelMin;
     appointments[appointmentIndex]._optimized = true;
+
+    // No último serviço, guardar também km de regresso à base
+    if (i === optimizedRoute.length - 1) {
+      const lastIdx = bestOrder[i] + 1;
+      const returnDist = dist[lastIdx] ? dist[lastIdx][0] : Infinity;
+      appointments[appointmentIndex]._returnKm = returnDist !== Infinity ? Math.round(returnDist / 1000) : Math.round(newKm * 0.8);
+    }
   }
 }
 
@@ -990,8 +997,15 @@ function buildDaySummary(dayDate, isMobile) {
     totalTravelMin = Math.round((totalKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
   }
 
-  // Regresso: usar km do último serviço se otimizado, senão estimar 15% do total
-  const returnKm = hasKm ? (hasOptimized ? Math.round(lastServiceKm * 0.8) : Math.round(totalKm * 0.12)) : 0;
+  // Regresso: usar km real guardado no último serviço se disponível
+  const lastItem = items[items.length - 1];
+  const returnKm = hasKm
+    ? (hasOptimized && lastItem?._returnKm
+        ? lastItem._returnKm
+        : hasOptimized
+          ? Math.round(lastServiceKm * 0.8)
+          : Math.round(totalKm * 0.12))
+    : 0;
   const returnMin = hasGoogleTime ? Math.round(totalTravelMin * 0.15) : Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
   const totalKmWithReturn = totalKm + returnKm;
 
