@@ -36,9 +36,11 @@
       tDiv.className = 'form-group';
       tDiv.id = 'telegramChatIdGroup';
       tDiv.style.display = 'none';
-      tDiv.innerHTML = '<label>Telegram Chat ID</label>' +
-        '<input type="text" id="userTelegramChatId" placeholder="Ex: 123456789" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;">' +
-        '<small>ID numérico do Telegram do comercial (para notificações automáticas)</small>';
+      tDiv.innerHTML = '<label>Telegram Chat ID (principal)</label>' +
+        '<input type="text" id="userTelegramChatId" placeholder="Ex: 123456789" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:8px;">' +
+        '<label style="margin-top:8px;display:block;">Telegram Chat ID (secundário)</label>' +
+        '<input type="text" id="userTelegramChatId2" placeholder="Ex: 987654321 (opcional)" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;">' +
+        '<small>IDs numéricos do Telegram — as notificações chegam a ambos</small>';
       comGroup.parentNode.insertBefore(tDiv, comGroup.nextSibling);
     }
   }
@@ -158,6 +160,8 @@
       populateComercialPortalCheckboxes(user.portalIds);
     var tgInput = document.getElementById('userTelegramChatId');
     if (tgInput) tgInput.value = user.telegramChatId || '';
+    var tgInput2 = document.getElementById('userTelegramChatId2');
+    if (tgInput2) tgInput2.value = user.telegramChatId2 || '';
     if (typeof openModal === 'function') openModal('userModal');
   };
 
@@ -198,6 +202,8 @@
         userData.portal_ids = ids;
         var tgVal = (document.getElementById('userTelegramChatId') || {}).value;
         userData.telegram_chat_id = tgVal ? tgVal.trim() : null;
+        var tgVal2 = (document.getElementById('userTelegramChatId2') || {}).value;
+        userData.telegram_chat_id_2 = tgVal2 ? tgVal2.trim() : null;
       }
 
       try {
