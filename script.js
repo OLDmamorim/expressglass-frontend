@@ -2535,10 +2535,168 @@ function openRotaDoDia() {
   }
 
   const base = getBasePartida();
+  const label = currentMobileDay.toLocaleDateString('pt-PT', { weekday:'long', day:'2-digit', month:'2-digit' });
+  const title = label.charAt(0).toUpperCase() + label.slice(1);
+
+  // Construir URL de fallback para Google Maps
   const maxWp = Math.min(items.length, 9);
   const wps = items.slice(0, maxWp).map(a => encodeURIComponent(a.address));
-  const url = `https://www.google.com/maps/dir/${encodeURIComponent(base)}/${wps.join('/')}/${encodeURIComponent(base)}`;
-  window.open(url, '_blank');
+  const mapsUrl = `https://www.google.com/maps/dir/${encodeURIComponent(base)}/${wps.join('/')}/${encodeURIComponent(base)}`;
+
+  // Criar modal
+  let modal = document.getElementById('rotaMapModal');
+  if (modal) modal.remove();
+
+  modal = document.createElement('div');
+  modal.id = 'rotaMapModal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;display:flex;flex-direction:column;';
+
+  const H = window.innerHeight;
+  const mapH = H - 56 - 60; // header + footer
+
+  modal.innerHTML = `
+    <div style="height:56px;background:#1e293b;display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;">
+      <button onclick="document.getElementById('rotaMapModal').remove()"
+        style="background:rgba(255,255,255,0.1);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0;">✕</button>
+      <div style="color:#fff;font-size:15px;font-weight:800;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">🗺️ ${title}</div>
+      <div id="rotaLoadingLabel" style="color:#94a3b8;font-size:12px;white-space:nowrap;">A calcular rota...</div>
+    </div>
+    <div id="rotaMapDiv" style="width:100%;height:${mapH}px;flex-shrink:0;"></div>
+    <div style="height:60px;background:#1e293b;display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0;">
+      <div id="rotaInfoBar" style="flex:1;color:#94a3b8;font-size:12px;"></div>
+      <button onclick="window.open('${mapsUrl}','_blank')"
+        style="background:linear-gradient(135deg,#3b82f6,#1d4ed8);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"></path></svg>
+        Navegar
+      </button>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  // Inicializar mapa APÓS o browser pintar o modal
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      _initRotaMapNow(base, items, mapsUrl);
+    });
+  });
+}
+
+function _initRotaMapNow(base, items, mapsUrl) {
+  const mapDiv = document.getElementById('rotaMapDiv');
+  if (!mapDiv || !(window.google && google.maps)) {
+    document.getElementById('rotaLoadingLabel').textContent = 'Google Maps indisponível';
+    return;
+  }
+
+  // Forçar dimensões explícitas
+  const rect = mapDiv.getBoundingClientRect();
+  mapDiv.style.width = rect.width + 'px';
+  mapDiv.style.height = rect.height + 'px';
+
+  const map = new google.maps.Map(mapDiv, {
+    zoom: 10,
+    center: { lat: 41.5, lng: -8.4 },
+    disableDefaultUI: true,
+    zoomControl: true,
+    gestureHandling: 'greedy',
+    styles: [
+      { featureType:'poi', stylers:[{visibility:'off'}] },
+      { featureType:'transit', stylers:[{visibility:'off'}] }
+    ]
+  });
+
+  const renderer = new google.maps.DirectionsRenderer({
+    map,
+    suppressMarkers: true,
+    polylineOptions: {
+      strokeColor: '#3b82f6',
+      strokeWeight: 5,
+      strokeOpacity: 0.9
+    }
+  });
+
+  const service = new google.maps.DirectionsService();
+  const waypoints = items.slice(0, 8).map(a => ({ location: a.address, stopover: true }));
+
+  service.route({
+    origin: base,
+    destination: base,
+    waypoints,
+    travelMode: google.maps.TravelMode.DRIVING,
+    optimizeWaypoints: false
+  }, (result, status) => {
+    const loadLabel = document.getElementById('rotaLoadingLabel');
+    const infoBar = document.getElementById('rotaInfoBar');
+
+    if (status !== 'OK') {
+      if (loadLabel) loadLabel.textContent = 'Erro ao traçar rota';
+      return;
+    }
+
+    renderer.setDirections(result);
+    if (loadLabel) loadLabel.textContent = '';
+
+    // Calcular totais
+    const legs = result.routes[0].legs;
+    const totalDist = legs.reduce((s, l) => s + l.distance.value, 0);
+    const totalTime = legs.reduce((s, l) => s + l.duration.value, 0);
+    const km = Math.round(totalDist / 1000);
+    const h = Math.floor(totalTime / 3600);
+    const m = Math.floor((totalTime % 3600) / 60);
+    if (infoBar) infoBar.textContent = `${km} km · ${h}h${String(m).padStart(2,'0')}min`;
+
+    // Pins personalizados numerados
+    const bounds = new google.maps.LatLngBounds();
+
+    // Pin de base (casa)
+    const basePos = result.routes[0].legs[0].start_location;
+    bounds.extend(basePos);
+    new google.maps.Marker({
+      position: basePos,
+      map,
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 10,
+        fillColor: '#1e293b',
+        fillOpacity: 1,
+        strokeColor: '#fff',
+        strokeWeight: 2
+      },
+      label: { text: '🏠', fontSize: '14px' },
+      title: 'Base de partida'
+    });
+
+    // Pins dos serviços
+    legs.slice(0, legs.length - 1).forEach((leg, i) => {
+      const pos = leg.end_location;
+      bounds.extend(pos);
+      const a = items[i];
+      new google.maps.Marker({
+        position: pos,
+        map,
+        icon: {
+          path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z',
+          fillColor: '#3b82f6',
+          fillOpacity: 1,
+          strokeColor: '#fff',
+          strokeWeight: 1.5,
+          scale: 1.6,
+          anchor: new google.maps.Point(12, 22)
+        },
+        label: {
+          text: String(i + 1),
+          color: '#fff',
+          fontSize: '11px',
+          fontWeight: 'bold'
+        },
+        title: `${a.plate} — ${a.locality || a.address}`
+      });
+    });
+
+    map.fitBounds(bounds, { top: 20, right: 20, bottom: 20, left: 20 });
+    google.maps.event.trigger(map, 'resize');
+    map.fitBounds(bounds, { top: 20, right: 20, bottom: 20, left: 20 });
+  });
 }
 
 function buildRelatorio() {
