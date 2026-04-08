@@ -30,19 +30,7 @@
       multiGroup.parentNode.insertBefore(div, multiGroup.nextSibling);
     }
 
-    if (!document.getElementById('telegramChatIdGroup')) {
-      var comGroup = document.getElementById('comercialPortalGroup');
-      var tDiv = document.createElement('div');
-      tDiv.className = 'form-group';
-      tDiv.id = 'telegramChatIdGroup';
-      tDiv.style.display = 'none';
-      tDiv.innerHTML = '<label>Telegram Chat ID (principal)</label>' +
-        '<input type="text" id="userTelegramChatId" placeholder="Ex: 123456789" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:8px;">' +
-        '<label style="margin-top:8px;display:block;">Telegram Chat ID (secundário)</label>' +
-        '<input type="text" id="userTelegramChatId2" placeholder="Ex: 987654321 (opcional)" style="width:100%;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;">' +
-        '<small>IDs numéricos do Telegram — as notificações chegam a ambos</small>';
-      comGroup.parentNode.insertBefore(tDiv, comGroup.nextSibling);
-    }
+    // telegramChatIdGroup já existe no admin.html
   }
 
   function populateComercialPortalCheckboxes(selectedIds) {
