@@ -1985,12 +1985,14 @@ function buildDesktopCard(a){
 
   const todayISO2 = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO2;
+  const _roleDesk = window.authClient?.getUser?.()?.role || '';
+  const canExecDesk = isPastOrToday || _roleDesk === 'admin' || _roleDesk === 'coordenador';
   const motivoDesktop = (a.executed === false && a.not_done_reason) ? `
     <div style="margin:4px 0 0;padding:5px 10px;background:rgba(220,38,38,0.12);border-left:3px solid #dc2626;border-radius:5px;font-size:11px;font-weight:700;color:#dc2626;">
       ❌ ${a.not_done_reason}
     </div>` : '';
 
-  const execBadge = isPastOrToday ? `
+  const execBadge = (canExecDesk && !isPreAgendado && a.date) ? `
     <div class="dc-exec-row" data-id="${a.id}">
       <button class="dc-exec-btn ${a.executed === false && a.not_done_reason ? 'dc-exec-ne' : ''}" data-exec="false" data-id="${a.id}">✗ N. Realizado</button>
       <button class="dc-exec-btn ${a.executed === true ? 'dc-exec-st' : ''}" data-exec="true" data-id="${a.id}">✓ Realizado</button>
@@ -2492,7 +2494,7 @@ window.reloadAppointments = async function() {
 // Auto-refresh a cada 30s — mantém vistas sincronizadas entre utilizadores
 // Só corre se a página está visível (não gasta bateria em background)
 (function startPolling() {
-  const INTERVAL = 30000; // 30 segundos
+  const INTERVAL = 60000; // 60 segundos
   let timer = null;
 
   function poll() {
@@ -2513,6 +2515,9 @@ window.reloadAppointments = async function() {
 
   // Inicia após o portalReady (dados já carregados)
   window.addEventListener('portalReady', () => setTimeout(start, 5000), { once: true });
+
+  // Fallback: arrancar mesmo que portalReady não dispare
+  setTimeout(() => { if (!timer) setTimeout(start, 2000); }, 8000);
 })();
 
 // ===== RELATÓRIO SEMANAL =====
