@@ -45,6 +45,10 @@
     const fetcher = window.authClient?.authenticatedFetch?.bind(window.authClient);
     if (!fetcher) throw new Error('Não autenticado');
 
+    // Tentar extrair localidade da última mensagem para o contexto
+    const lastMsg = userMsg.toLowerCase();
+    ctx.lastLocality = lastMsg.replace(/para-brisas|parabrisa|lateral|óculo|reparação|vidro|serviço|agendar|marcar|,.*$/gi, '').trim();
+
     const response = await fetcher('/.netlify/functions/agenda-ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
