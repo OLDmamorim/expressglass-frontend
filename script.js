@@ -952,18 +952,27 @@ function buildDaySummary(dayDate, isMobile) {
   items = items.filter(a => !!a.locality);
   if (items.length === 0) return '';
 
+  // Detetar se as rotas foram otimizadas (leg distances) ou são distâncias individuais à base
+  const hasOptimized = items.some(a => (a.sortIndex || 0) > 1);
+
   // KM total
   let totalKm = 0;
   let hasKm = false;
-  let lastServiceKm = 0; // KM do último serviço (para estimar regresso)
+  let lastServiceKm = 0;
   items.forEach((a, i) => {
     const km = getKmValue(a);
     if (km != null && km > 0) {
       totalKm += km;
       hasKm = true;
-      if (i === 0) lastServiceKm = km; // Primeiro = mais longe da base
+      if (i === items.length - 1) lastServiceKm = km; // último serviço para estimar regresso
     }
   });
+
+  // Se não otimizado: km individuais à base — aplicar fator de correção de rota encadeada
+  // Fator médio empírico: rota real ≈ 1.45x a soma das distâncias individuais
+  if (!hasOptimized && hasKm && items.length > 1) {
+    totalKm = Math.round(totalKm * 1.45);
+  }
 
   // Tempo de viagem total (do Google Maps, guardado em cada serviço)
   let totalTravelMin = 0;
@@ -981,8 +990,8 @@ function buildDaySummary(dayDate, isMobile) {
     totalTravelMin = Math.round((totalKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
   }
 
-  // Estimar regresso: metade do KM do primeiro serviço (na rota otimizada, último serviço está perto)
-  const returnKm = hasKm ? Math.round(lastServiceKm * 0.5) : 0;
+  // Regresso: usar km do último serviço se otimizado, senão estimar 15% do total
+  const returnKm = hasKm ? (hasOptimized ? Math.round(lastServiceKm * 0.8) : Math.round(totalKm * 0.12)) : 0;
   const returnMin = hasGoogleTime ? Math.round(totalTravelMin * 0.15) : Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
   const totalKmWithReturn = totalKm + returnKm;
 
@@ -2559,13 +2568,15 @@ function buildRelatorio() {
 
       if (!items.length) return;
 
-      // KM com regresso (igual ao buildDaySummary)
+      // KM com regresso
+      const dayHasOptimized = items.some(a => (a.sortIndex || 0) > 1);
       let dayKm = 0, hasKm = false, lastKm = 0;
       items.forEach((a, i) => {
         const km = getKmValue(a);
-        if (km != null && km > 0) { dayKm += km; hasKm = true; if (i === 0) lastKm = km; }
+        if (km != null && km > 0) { dayKm += km; hasKm = true; if (i === items.length-1) lastKm = km; }
       });
-      const returnKm = hasKm ? Math.round(lastKm * 0.5) : 0;
+      if (!dayHasOptimized && hasKm && items.length > 1) dayKm = Math.round(dayKm * 1.45);
+      const returnKm = hasKm ? (dayHasOptimized ? Math.round(lastKm * 0.8) : Math.round(dayKm * 0.12)) : 0;
       totalKm += dayKm + returnKm;
 
       // Tempo de viagem (Google Maps ou estimativa)
