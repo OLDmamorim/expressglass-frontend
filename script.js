@@ -2831,6 +2831,16 @@ function bootApp() {
   // Botão Calcular Rotas - Abrir modal de seleção de dia
   document.getElementById('calculateRoutes')?.addEventListener('click', calculateAllRoutesFromToday);
   document.getElementById('calculateRoutesMobile')?.addEventListener('click', calculateAllRoutesFromToday);
+  document.getElementById('btnRotaDoDiaDesk')?.addEventListener('click', () => {
+    // Desktop: usar hoje, ou pedir ao utilizador que selecione o dia
+    const today = new Date(); today.setHours(0,0,0,0);
+    // Temporariamente definir currentMobileDay para hoje e chamar openRotaDoDia
+    const prev = currentMobileDay;
+    currentMobileDay = today;
+    openRotaDoDia();
+    currentMobileDay = prev;
+  });
+  document.getElementById('calculateRoutesMobile')?.addEventListener('click', calculateAllRoutesFromToday);
 
   // ── Relatório semanal (mobile + desktop) ──
   const openRelatorio = () => {
