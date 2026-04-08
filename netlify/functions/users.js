@@ -32,35 +32,13 @@ exports.handler = async (event) => {
   }
 
   try {
-    // GET: admin vê tudo; coordenador só vê comerciais (para o dropdown)
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    if (!authHeader?.startsWith('Bearer ')) throw new Error('Não autenticado');
-    const decoded = jwt.verify(authHeader.substring(7), JWT_SECRET);
-    const isAdmin = decoded.role === 'admin';
-    const isCoordenador = decoded.role === 'coordenador';
-
-    if (!isAdmin && !isCoordenador) throw new Error('Acesso negado');
+    verifyAdmin(event);
 
     // ---------- GET ----------
     if (event.httpMethod === 'GET') {
-      // Coordenador: só lista comerciais (sem dados sensíveis)
-      if (isCoordenador) {
-        const { rows } = await pool.query(
-          `SELECT u.id, u.username, u.role, u.telegram_chat_id
-           FROM users u
-           WHERE u.role = 'comercial'
-           ORDER BY u.username ASC`
-        );
-        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows.map(u => ({
-          id: u.id, username: u.username, role: u.role,
-          telegramChatId: u.telegram_chat_id || null
-        })) }) };
-      }
-
-      // Admin: query completa
       const query = `
         SELECT u.id, u.username, u.plain_password, u.portal_id, u.role, u.created_at, u.updated_at,
-               u.telegram_chat_id, p.name as portal_name
+               u.telegram_chat_id, u.telegram_chat_id_2, p.name as portal_name
         FROM users u
         LEFT JOIN portals p ON u.portal_id = p.id
         ORDER BY u.username ASC
@@ -77,6 +55,7 @@ exports.handler = async (event) => {
           portalName: user.portal_name,
           role: user.role,
           telegramChatId: user.telegram_chat_id || null,
+          telegramChatId2: user.telegram_chat_id_2 || null,
           createdAt: user.created_at,
           updatedAt: user.updated_at
         };
@@ -104,9 +83,6 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: users }) };
     }
 
-    // ---------- POST/PUT/DELETE: apenas admin ----------
-    if (!isAdmin) throw new Error('Acesso negado: apenas administradores');
-
     // ---------- POST ----------
     if (event.httpMethod === 'POST') {
       const data = JSON.parse(event.body || '{}');
@@ -126,8 +102,8 @@ exports.handler = async (event) => {
 
       const passwordHash = await bcrypt.hash(data.password, 10);
       const query = `
-        INSERT INTO users (username, password_hash, plain_password, portal_id, role, telegram_chat_id, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO users (username, password_hash, plain_password, portal_id, role, telegram_chat_id, telegram_chat_id_2, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, username, portal_id, role
       `;
       const values = [
@@ -137,6 +113,7 @@ exports.handler = async (event) => {
         data.portal_id || null,
         data.role || 'user',
         data.telegram_chat_id || null,
+        data.telegram_chat_id_2 || null,
         new Date().toISOString(),
         new Date().toISOString()
       ];
@@ -178,6 +155,7 @@ exports.handler = async (event) => {
       if (data.portal_id !== undefined){ updates.push('portal_id = $'        + paramIndex++); values.push(data.portal_id || null); }
       if (data.role)                  { updates.push('role = $'              + paramIndex++); values.push(data.role); }
       if (data.telegram_chat_id !== undefined) { updates.push('telegram_chat_id = $' + paramIndex++); values.push(data.telegram_chat_id || null); }
+      if (data.telegram_chat_id_2 !== undefined) { updates.push('telegram_chat_id_2 = $' + paramIndex++); values.push(data.telegram_chat_id_2 || null); }
 
       updates.push('updated_at = $' + paramIndex++);
       values.push(new Date().toISOString());

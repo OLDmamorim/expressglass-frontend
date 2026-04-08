@@ -57,7 +57,7 @@ exports.handler = async (event) => {
     const { rows } = await pool.query(`
       SELECT a.plate, a.car, a.date, a.period, a.locality, a.address, a.executed, a.not_done_reason,
              a.commercial_user_id, u.username AS commercial_name,
-             u.telegram_chat_id, p.name AS portal_name, p.type AS portal_type
+             u.telegram_chat_id, u.telegram_chat_id_2, p.name AS portal_name, p.type AS portal_type
       FROM appointments a
       LEFT JOIN users u ON u.id = a.commercial_user_id
       LEFT JOIN portals p ON p.id = a.portal_id
@@ -105,6 +105,11 @@ exports.handler = async (event) => {
     }
 
     const tgResult = await sendTelegram(appt.telegram_chat_id, msg);
+
+    // Enviar também para o segundo Telegram se configurado
+    if (appt.telegram_chat_id_2) {
+      await sendTelegram(appt.telegram_chat_id_2, msg).catch(() => {});
+    }
 
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, sent: tgResult.ok === true, tg: tgResult }) };
 
