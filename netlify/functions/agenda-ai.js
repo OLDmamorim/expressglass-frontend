@@ -63,23 +63,38 @@ exports.handler = async (event) => {
     const { messages, context } = JSON.parse(event.body || '{}');
     if (!messages || !messages.length) throw new Error('Mensagens em falta');
 
+    const days = context?.days || [];
+    const today = context?.today || new Date().toISOString().slice(0,10);
+
+    // Pré-calcular: dias com a mesma localidade e dias disponíveis (< 5 serviços)
+    const diasComLocalidade = days.filter(d =>
+      d.localities && d.localities.toLowerCase().includes((context?.lastLocality || '').toLowerCase()) && d.count < 5
+    );
+    const diasDisponiveis = days.filter(d => d.count < 5);
+    const diasCheios = days.filter(d => d.count >= 5);
+
     const systemPrompt = `És um assistente especializado em otimização de rotas para a ExpressGlass, empresa de substituição de vidros automóveis em Portugal.
-O teu objetivo é ajudar o coordenador a decidir o melhor dia para agendar um novo serviço numa determinada localidade, tendo em conta:
-- Os serviços já agendados nos próximos 14 dias
-- A proximidade geográfica entre localidades (usa o teu conhecimento sobre Portugal)
-- A carga de trabalho por dia (máximo recomendado: 6-7 serviços/dia)
-- A eficiência da rota (agrupar serviços próximos no mesmo dia)
+
+REGRAS OBRIGATÓRIAS (seguir sempre por esta ordem de prioridade):
+1. NUNCA sugeres um dia com 5 ou mais serviços já agendados — é o máximo absoluto.
+2. PRIMEIRO tenta sugerir um dia que já tenha serviços na mesma localidade ou localidade próxima — agrupa para eficiência de rota.
+3. Se não houver dia com essa localidade disponível (com menos de 5 serviços), sugere o dia com menos serviços nos próximos 14 dias.
+4. Indica sempre o número de serviços que o dia já tem e quantos ficaria a ter.
+5. Se todos os dias estiverem cheios (5+ serviços), diz isso claramente e sugere a semana seguinte.
 
 Portal: ${context?.portal || 'SM'}
 Base de partida: ${context?.base || '—'}
-Data atual: ${context?.today || new Date().toISOString().slice(0,10)}
+Data atual: ${today}
 
-Agenda dos próximos 14 dias:
-${context?.days?.length ? context.days.map(d =>
-  `- ${d.weekday} ${d.date}: ${d.count} serviço(s) — Localidades: ${d.localities || '—'} — KM estimado: ${d.totalKm}km`
-).join('\n') : 'Sem serviços agendados.'}
+AGENDA DOS PRÓXIMOS 14 DIAS:
+${days.length ? days.map(d => {
+  const cheio = d.count >= 5 ? ' ⛔ CHEIO' : d.count >= 4 ? ' ⚠️ quase cheio' : '';
+  return `- ${d.weekday} ${d.date}: ${d.count}/5 serviços${cheio} — Localidades: ${d.localities || '—'}`;
+}).join('\n') : 'Sem serviços agendados — qualquer dia está disponível.'}
 
-Responde sempre em português europeu, de forma concisa e direta (máximo 3-4 linhas). Sugere sempre um dia específico com justificação clara. Se a pergunta for fora do âmbito de agendamentos, redireciona educadamente.`;
+${diasCheios.length ? `DIAS CHEIOS (não sugerir): ${diasCheios.map(d => d.date).join(', ')}` : ''}
+
+Responde em português europeu, de forma concisa (máximo 4 linhas). Sê direto: diz o dia, quantos serviços já tem, e porquê é a melhor opção.`;
 
     const result = await callAnthropic(systemPrompt, messages);
 
