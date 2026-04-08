@@ -315,6 +315,15 @@
           </select>
           <small>Código da coluna B do Excel para associar serviços a este portal</small>
         </div>
+        <!-- Telegram (comercial) -->
+        <div class="form-group" id="telegramChatIdGroup" style="display:none;">
+          <label>Telegram Chat ID (principal)</label>
+          <input type="text" id="userTelegramChatId" placeholder="Ex: 123456789" style="margin-bottom:8px;">
+          <label style="margin-top:4px;display:block;">Telegram Chat ID (secundário)</label>
+          <input type="text" id="userTelegramChatId2" placeholder="Ex: 987654321 (opcional)">
+          <small>As notificações chegam a ambos os IDs</small>
+        </div>
+
         <div class="form-actions">
           <button type="button" class="btn-secondary modal-close">Cancelar</button>
           <button type="submit" class="btn-primary">Guardar</button>
@@ -325,7 +334,7 @@
 
   <!-- Modal: Utilizador -->
   <div id="userModal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content" style="overflow-y:auto;max-height:90vh;">
       <div class="modal-header">
         <h3 id="userModalTitle">Novo Utilizador</h3>
         <button class="modal-close">&times;</button>
@@ -376,6 +385,15 @@
           <label>SM do Comercial *</label>
           <div id="comercialPortalCheckboxes" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;"></div>
           <small>Selecione os portais SM a que o comercial terá acesso</small>
+        </div>
+
+        <!-- Telegram (comercial) -->
+        <div class="form-group" id="telegramChatIdGroup" style="display:none;">
+          <label>Telegram Chat ID (principal)</label>
+          <input type="text" id="userTelegramChatId" placeholder="Ex: 123456789" style="margin-bottom:8px;">
+          <label style="margin-top:4px;display:block;">Telegram Chat ID (secundário)</label>
+          <input type="text" id="userTelegramChatId2" placeholder="Ex: 987654321 (opcional)">
+          <small>As notificações chegam a ambos os IDs</small>
         </div>
 
         <div class="form-actions">
