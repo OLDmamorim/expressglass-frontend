@@ -2618,12 +2618,13 @@ function _initRotaMapNow(base, items, mapsUrl) {
   const service = new google.maps.DirectionsService();
   const waypoints = items.slice(0, 8).map(a => ({ location: a.address, stopover: true }));
 
+  // Usar optimizeWaypoints para rota mais eficiente
   service.route({
     origin: base,
     destination: base,
     waypoints,
     travelMode: google.maps.TravelMode.DRIVING,
-    optimizeWaypoints: false
+    optimizeWaypoints: true
   }, (result, status) => {
     const loadLabel = document.getElementById('rotaLoadingLabel');
     const infoBar = document.getElementById('rotaInfoBar');
@@ -2633,69 +2634,136 @@ function _initRotaMapNow(base, items, mapsUrl) {
       return;
     }
 
-    renderer.setDirections(result);
-    if (loadLabel) loadLabel.textContent = '';
+    // Esconder renderer padrão — vamos desenhar a linha manualmente com animação
+    renderer.setMap(null);
+
+    const route = result.routes[0];
+    const legs = route.legs;
+    const order = route.waypoint_order; // ordem otimizada
+    const orderedItems = order.map(i => items[i]);
 
     // Calcular totais
-    const legs = result.routes[0].legs;
     const totalDist = legs.reduce((s, l) => s + l.distance.value, 0);
     const totalTime = legs.reduce((s, l) => s + l.duration.value, 0);
     const km = Math.round(totalDist / 1000);
     const h = Math.floor(totalTime / 3600);
     const m = Math.floor((totalTime % 3600) / 60);
-    if (infoBar) infoBar.textContent = `${km} km · ${h}h${String(m).padStart(2,'0')}min`;
+    if (loadLabel) loadLabel.textContent = '';
+    if (infoBar) infoBar.textContent = `${km} km · ${h}h${String(m).padStart(2,'0')}min · ${orderedItems.length} paragens`;
 
-    // Pins personalizados numerados
-    const bounds = new google.maps.LatLngBounds();
-
-    // Pin de base (casa)
-    const basePos = result.routes[0].legs[0].start_location;
-    bounds.extend(basePos);
-    new google.maps.Marker({
-      position: basePos,
-      map,
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 10,
-        fillColor: '#1e293b',
-        fillOpacity: 1,
-        strokeColor: '#fff',
-        strokeWeight: 2
-      },
-      label: { text: '🏠', fontSize: '14px' },
-      title: 'Base de partida'
-    });
-
-    // Pins dos serviços
-    legs.slice(0, legs.length - 1).forEach((leg, i) => {
-      const pos = leg.end_location;
-      bounds.extend(pos);
-      const a = items[i];
-      new google.maps.Marker({
-        position: pos,
-        map,
-        icon: {
-          path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z',
-          fillColor: '#3b82f6',
-          fillOpacity: 1,
-          strokeColor: '#fff',
-          strokeWeight: 1.5,
-          scale: 1.6,
-          anchor: new google.maps.Point(12, 22)
-        },
-        label: {
-          text: String(i + 1),
-          color: '#fff',
-          fontSize: '11px',
-          fontWeight: 'bold'
-        },
-        title: `${a.plate} — ${a.locality || a.address}`
+    // Extrair todos os pontos da rota
+    const allPoints = [];
+    legs.forEach(leg => {
+      leg.steps.forEach(step => {
+        step.path.forEach(pt => allPoints.push(pt));
       });
     });
 
-    map.fitBounds(bounds, { top: 20, right: 20, bottom: 20, left: 20 });
+    // Bounds
+    const bounds = new google.maps.LatLngBounds();
+    allPoints.forEach(p => bounds.extend(p));
+
+    // Ajustar mapa antes de animar
+    map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
     google.maps.event.trigger(map, 'resize');
-    map.fitBounds(bounds, { top: 20, right: 20, bottom: 20, left: 20 });
+
+    // Animação da linha — desenho progressivo
+    const polyline = new google.maps.Polyline({
+      map,
+      path: [],
+      strokeColor: '#3b82f6',
+      strokeWeight: 5,
+      strokeOpacity: 0.9,
+      geodesic: true
+    });
+
+    let idx = 0;
+    const total = allPoints.length;
+    const step = Math.max(1, Math.floor(total / 120)); // ~120 frames
+
+    function animateLine() {
+      if (idx >= total) {
+        polyline.setPath(allPoints);
+        drawPins();
+        return;
+      }
+      polyline.setPath(allPoints.slice(0, idx));
+      idx += step;
+      requestAnimationFrame(animateLine);
+    }
+    animateLine();
+
+    function drawPins() {
+      const mkOpts = {
+        clickable: false,
+        optimized: true
+      };
+
+      // Pin base partida
+      const basePos = legs[0].start_location;
+      new google.maps.Marker({
+        ...mkOpts,
+        position: basePos,
+        map,
+        zIndex: 10,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 14,
+          fillColor: '#0f172a',
+          fillOpacity: 1,
+          strokeColor: '#fff',
+          strokeWeight: 2.5
+        },
+        label: { text: '⌂', color: '#fff', fontSize: '13px', fontWeight: 'bold' },
+        title: 'Base de partida'
+      });
+
+      // Pins serviços numerados (ordem otimizada)
+      legs.slice(0, legs.length - 1).forEach((leg, i) => {
+        const pos = leg.end_location;
+        const a = orderedItems[i];
+        new google.maps.Marker({
+          ...mkOpts,
+          position: pos,
+          map,
+          zIndex: 20 + i,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 16,
+            fillColor: '#3b82f6',
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 2.5
+          },
+          label: {
+            text: String(i + 1),
+            color: '#fff',
+            fontSize: '12px',
+            fontWeight: 'bold'
+          },
+          title: a ? `${a.plate} — ${a.locality || ''}` : ''
+        });
+      });
+
+      // Pin regresso
+      const lastPos = legs[legs.length - 1].end_location;
+      new google.maps.Marker({
+        ...mkOpts,
+        position: lastPos,
+        map,
+        zIndex: 5,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 10,
+          fillColor: '#16a34a',
+          fillOpacity: 1,
+          strokeColor: '#fff',
+          strokeWeight: 2
+        },
+        label: { text: '✓', color: '#fff', fontSize: '10px', fontWeight: 'bold' },
+        title: 'Regresso à base'
+      });
+    }
   });
 }
 
