@@ -1,0 +1,24 @@
+# index.html — nunca em cache (sempre buscar versão mais recente)
+/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
+  Pragma: no-cache
+  Expires: 0
+
+# admin.html — idem
+/admin.html
+  Cache-Control: no-cache, no-store, must-revalidate
+  Pragma: no-cache
+  Expires: 0
+
+# comercial.html — idem
+/comercial.html
+  Cache-Control: no-cache, no-store, must-revalidate
+  Pragma: no-cache
+  Expires: 0
+
+# Ficheiros JS e CSS — cache de 1 dia (o ?v= força atualização quando muda)
+/*.js
+  Cache-Control: public, max-age=86400
+
+/*.css
+  Cache-Control: public, max-age=86400
