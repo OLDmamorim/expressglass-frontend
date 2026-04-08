@@ -528,6 +528,12 @@ async function optimizeDayServices(services) {
 
   if (!bestOrder) return;
 
+  // Calcular distância do último serviço de regresso à base
+  const lastServiceAddr = addresses[bestOrder[bestOrder.length - 1]];
+  const returnResult = await getDistanceAndTime(lastServiceAddr, base);
+  const returnKmReal = returnResult.distance !== Infinity ? Math.round(returnResult.distance / 1000) : 0;
+  const returnTimeReal = returnResult.duration || 0;
+
   // Se há fixo: calcular km da base→fixo e atribuir sortIndex=1
   if (hasPinned) {
     const pinnedAppIdx = appointments.findIndex(a => a.id === pinned.id);
@@ -560,11 +566,10 @@ async function optimizeDayServices(services) {
     appointments[appointmentIndex].travelTime = travelMin;
     appointments[appointmentIndex]._optimized = true;
 
-    // No último serviço, guardar também km de regresso à base
+    // No último serviço, guardar km e tempo de regresso real à base
     if (i === optimizedRoute.length - 1) {
-      const lastIdx = bestOrder[i] + 1;
-      const returnDist = dist[lastIdx] ? dist[lastIdx][0] : Infinity;
-      appointments[appointmentIndex]._returnKm = returnDist !== Infinity ? Math.round(returnDist / 1000) : Math.round(newKm * 0.8);
+      appointments[appointmentIndex].return_km = returnKmReal;
+      appointments[appointmentIndex].return_time = returnTimeReal;
     }
   }
 }
@@ -997,16 +1002,14 @@ function buildDaySummary(dayDate, isMobile) {
     totalTravelMin = Math.round((totalKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
   }
 
-  // Regresso: usar km real guardado no último serviço se disponível
+  // Regresso: usar km e tempo reais calculados durante otimização
   const lastItem = items[items.length - 1];
   const returnKm = hasKm
-    ? (hasOptimized && lastItem?._returnKm
-        ? lastItem._returnKm
-        : hasOptimized
-          ? Math.round(lastServiceKm * 0.8)
-          : Math.round(totalKm * 0.12))
+    ? (lastItem?.return_km || (hasOptimized ? Math.round(lastServiceKm * 0.8) : Math.round(totalKm * 0.12)))
     : 0;
-  const returnMin = hasGoogleTime ? Math.round(totalTravelMin * 0.15) : Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
+  const returnMin = lastItem?.return_time
+    ? lastItem.return_time
+    : (hasGoogleTime ? Math.round(totalTravelMin * 0.15) : Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60));
   const totalKmWithReturn = totalKm + returnKm;
 
   // Tempo de execução (por tipo de serviço × veículo)
