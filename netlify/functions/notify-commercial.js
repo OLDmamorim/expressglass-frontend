@@ -57,7 +57,7 @@ exports.handler = async (event) => {
     const { rows } = await pool.query(`
       SELECT a.plate, a.car, a.date, a.period, a.locality, a.address, a.executed, a.not_done_reason,
              a.commercial_user_id, u.username AS commercial_name,
-             u.telegram_chat_id, p.name AS portal_name
+             u.telegram_chat_id, p.name AS portal_name, p.type AS portal_type
       FROM appointments a
       LEFT JOIN users u ON u.id = a.commercial_user_id
       LEFT JOIN portals p ON p.id = a.portal_id
@@ -86,12 +86,18 @@ exports.handler = async (event) => {
 
     // Período (Manhã / Tarde)
     const periodoStr = appt.period ? ` (${appt.period})` : '';
-    const localStr = appt.address || appt.locality || appt.portal_name || '—';
+    // Para lojas: mostrar "Loja <nome>" em vez da morada
+    const isLoja = appt.portal_type === 'loja';
+    const localStr = isLoja
+      ? `Loja ${appt.portal_name || '—'}`
+      : (appt.address || appt.locality || appt.portal_name || '—');
     const notifType = (JSON.parse(event.body || '{}').type) || 'executed';
 
     let msg = '';
     if (notifType === 'scheduled') {
-      msg = `📅 <b>Serviço Agendado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📆 ${dataStr}${periodoStr}\n📍 ${localStr}\n🏪 ${appt.portal_name || '—'}\n\n<i>Este serviço foi encaminhado por si e está agendado.</i>`;
+      msg = isLoja
+        ? `📅 <b>Serviço Agendado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📆 ${dataStr}${periodoStr}\n🏪 ${appt.portal_name || '—'}\n\n<i>Este serviço foi encaminhado por si e está agendado.</i>`
+        : `📅 <b>Serviço Agendado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📆 ${dataStr}${periodoStr}\n📍 ${localStr}\n🏪 ${appt.portal_name || '—'}\n\n<i>Este serviço foi encaminhado por si e está agendado.</i>`;
     } else if (appt.executed === true) {
       msg = `✅ <b>Serviço Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}`;
     } else {
