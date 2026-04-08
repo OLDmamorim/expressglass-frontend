@@ -1964,7 +1964,8 @@ function buildDesktopCard(a){
         <div style="font-size:11px;opacity:0.8;margin-top:2px;">Confirma agendamento?</div>
       </div>` : '';
   // Auto-importado do PHC com data
-  const isAutoImported = a.auto_imported && a.date;
+  // Footer PHC: só mostrar se auto_imported E status ainda é NE (não confirmado)
+  const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
   const phcFooter = isAutoImported ? `
       <div class="phc-import-footer">
         <div>Importado direto PHC, mantém?</div>
@@ -2301,7 +2302,8 @@ const telBtn = phone ? `
     a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : ''
   ].filter(Boolean).join('');
   const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
-  const isAutoImported = a.auto_imported && a.date;
+  // Footer PHC: só mostrar se auto_imported E status ainda é NE
+  const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
   const phcFooter = isAutoImported ? `
       <div class="phc-import-footer">
         <div>Importado direto PHC, mantém?</div>
