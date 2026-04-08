@@ -40,40 +40,21 @@
 
   async function askBot(userMsg) {
     const ctx = getBotContext();
-
-    const systemPrompt = `És um assistente especializado em otimização de rotas para a ExpressGlass, empresa de substituição de vidros automóveis em Portugal.
-O teu objetivo é ajudar o coordenador a decidir o melhor dia para agendar um novo serviço numa determinada localidade, tendo em conta:
-- Os serviços já agendados nos próximos 14 dias
-- A proximidade geográfica entre localidades (usa o teu conhecimento sobre Portugal)
-- A carga de trabalho por dia (máximo recomendado: 6-7 serviços/dia)
-- A eficiência da rota (agrupar serviços próximos no mesmo dia)
-
-Portal: ${ctx.portal}
-Base de partida: ${ctx.base}
-Data atual: ${ctx.today}
-
-Agenda dos próximos 14 dias:
-${ctx.days.length === 0 ? 'Sem serviços agendados.' : ctx.days.map(d =>
-  `- ${d.weekday} ${d.date}: ${d.count} serviço(s) — Localidades: ${d.localities || '—'} — KM total estimado: ${d.totalKm}km`
-).join('\n')}
-
-Responde sempre em português europeu, de forma concisa e direta. Sugere sempre um dia específico com justificação clara. Se o coordenador perguntar algo fora do âmbito de agendamentos, redireciona educadamente.`;
-
     _botHistory.push({ role: 'user', content: userMsg });
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const fetcher = window.authClient?.authenticatedFetch?.bind(window.authClient);
+    if (!fetcher) throw new Error('Não autenticado');
+
+    const response = await fetcher('/.netlify/functions/agenda-ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: _botHistory
-      })
+      body: JSON.stringify({ messages: _botHistory, context: ctx })
     });
 
     const data = await response.json();
-    const reply = data.content?.[0]?.text || 'Erro ao obter resposta.';
+    if (!data.success) throw new Error(data.error || 'Erro do servidor');
+
+    const reply = data.reply;
     _botHistory.push({ role: 'assistant', content: reply });
 
     // Limitar histórico a 10 mensagens
