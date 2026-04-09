@@ -94,7 +94,11 @@ exports.handler = async (event) => {
     const notifType = (JSON.parse(event.body || '{}').type) || 'executed';
 
     let msg = '';
-    if (notifType === 'scheduled') {
+    if (notifType === 'pre-agendado') {
+      msg = isLoja
+        ? `⏳ <b>Pré-agendamento</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📆 ${dataStr}${periodoStr}\n🏪 ${appt.portal_name || '—'}\n\n<i>Este serviço ainda aguarda confirmação do coordenador.</i>`
+        : `⏳ <b>Pré-agendamento</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📆 ${dataStr}${periodoStr}\n📍 ${localStr}\n🏪 ${appt.portal_name || '—'}\n\n<i>Este serviço ainda aguarda confirmação do coordenador.</i>`;
+    } else if (notifType === 'scheduled') {
       msg = isLoja
         ? `📅 <b>Serviço Agendado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📆 ${dataStr}${periodoStr}\n🏪 ${appt.portal_name || '—'}\n\n<i>Este serviço foi encaminhado por si e está agendado.</i>`
         : `📅 <b>Serviço Agendado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📆 ${dataStr}${periodoStr}\n📍 ${localStr}\n🏪 ${appt.portal_name || '—'}\n\n<i>Este serviço foi encaminhado por si e está agendado.</i>`;
