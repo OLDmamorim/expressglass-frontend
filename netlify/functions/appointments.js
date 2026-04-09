@@ -59,7 +59,7 @@ exports.handler = async (event) => {
                notes, address, extra, phone, km, sortIndex, "glassOrdered",
                vehicle_type, travel_time, auto_imported, executed, confirmed,
                calibration, first_of_day, not_done_reason, commercial_user_id,
-               return_km, return_time, created_at, updated_at
+               return_km, return_time, client_name, created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -93,9 +93,9 @@ exports.handler = async (event) => {
           date, period, plate, car, service, locality, status,
           notes, address, extra, phone, km, sortIndex, "glassOrdered",
           vehicle_type, travel_time, confirmed, calibration, first_of_day,
-          not_done_reason, commercial_user_id, return_km, return_time, portal_id, created_at, updated_at
+          not_done_reason, commercial_user_id, return_km, return_time, client_name, portal_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27
         ) RETURNING *
       `;
       const v = [
@@ -113,6 +113,7 @@ exports.handler = async (event) => {
         data.commercial_user_id ? parseInt(data.commercial_user_id) : null,
         data.return_km != null ? parseInt(data.return_km) : null,
         data.return_time != null ? parseInt(data.return_time) : null,
+        data.client_name || null,
         portalId, createdAt, new Date().toISOString()
       ];
       const { rows } = await pool.query(q, v);
@@ -145,8 +146,8 @@ exports.handler = async (event) => {
           vehicle_type = $15, travel_time = $16, auto_imported = $17,
           executed = $18, confirmed = $19, calibration = $20,
           first_of_day = $21, not_done_reason = $22, commercial_user_id = $23,
-          return_km = $24, return_time = $25, updated_at = $26
-        WHERE id = $27 AND portal_id = $28
+          return_km = $24, return_time = $25, client_name = $26, updated_at = $27
+        WHERE id = $28 AND portal_id = $29
         RETURNING *
       `;
       const v = [
@@ -168,6 +169,7 @@ exports.handler = async (event) => {
         data.commercial_user_id !== undefined ? (data.commercial_user_id || null) : existing.commercial_user_id,
         data.return_km != null ? parseInt(data.return_km) : null,
         data.return_time != null ? parseInt(data.return_time) : null,
+        data.client_name !== undefined ? (data.client_name || null) : null,
         new Date().toISOString(), id, portalId
       ];
       const { rows } = await pool.query(q, v);
