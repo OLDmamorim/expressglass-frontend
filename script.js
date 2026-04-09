@@ -38,9 +38,44 @@ function getGoogleApiKey() {
 }
 
 // ===== FUNÇÃO PARA CALCULAR DISTÂNCIA (versão Google JS API – sem CORS) =====
+// ===== CACHE DE DISTÂNCIAS — evitar chamadas repetidas à Distance Matrix API =====
+const _distCache = (() => {
+  // Carregar cache do localStorage (persiste entre sessões)
+  try {
+    const saved = localStorage.getItem('eg_dist_cache');
+    return saved ? JSON.parse(saved) : {};
+  } catch(e) { return {}; }
+})();
+
+function _distCacheKey(from, to) {
+  return `${from.trim().toLowerCase()}|||${to.trim().toLowerCase()}`;
+}
+
+function _distCacheGet(from, to) {
+  return _distCache[_distCacheKey(from, to)] || null;
+}
+
+function _distCacheSet(from, to, value) {
+  const key = _distCacheKey(from, to);
+  _distCache[key] = value;
+  // Guardar no localStorage (max 200 entradas para não crescer indefinidamente)
+  try {
+    const keys = Object.keys(_distCache);
+    if (keys.length > 200) {
+      // Remover as mais antigas (primeiras 50)
+      keys.slice(0, 50).forEach(k => delete _distCache[k]);
+    }
+    localStorage.setItem('eg_dist_cache', JSON.stringify(_distCache));
+  } catch(e) {}
+}
+
 function getDistance(from, to) {
   return new Promise((resolve) => {
     try {
+      // Verificar cache primeiro
+      const cached = _distCacheGet(from, to);
+      if (cached !== null) { resolve(cached.distance); return; }
+
       if (!window.google || !google.maps || !google.maps.DistanceMatrixService) {
         console.warn("Google Maps JS API não carregada.");
         resolve(Infinity);
@@ -60,7 +95,9 @@ function getDistance(from, to) {
             res?.rows?.[0]?.elements?.[0]?.status === "OK" &&
             res.rows[0].elements[0].distance?.value != null
           ) {
-            resolve(res.rows[0].elements[0].distance.value); // metros
+            const dist = res.rows[0].elements[0].distance.value;
+            _distCacheSet(from, to, { distance: dist, duration: 0 });
+            resolve(dist); // metros
           } else {
             console.warn("DistanceMatrix falhou:", status, res?.rows?.[0]?.elements?.[0]?.status);
             resolve(Infinity);
@@ -78,6 +115,10 @@ function getDistance(from, to) {
 function getDistanceAndTime(from, to) {
   return new Promise((resolve) => {
     try {
+      // Verificar cache primeiro
+      const cached = _distCacheGet(from, to);
+      if (cached !== null) { resolve(cached); return; }
+
       if (!window.google || !google.maps || !google.maps.DistanceMatrixService) {
         resolve({ distance: Infinity, duration: 0 });
         return;
@@ -96,10 +137,12 @@ function getDistanceAndTime(from, to) {
             res?.rows?.[0]?.elements?.[0]?.status === "OK" &&
             res.rows[0].elements[0].distance?.value != null
           ) {
-            resolve({
+            const result = {
               distance: res.rows[0].elements[0].distance.value, // metros
               duration: Math.round((res.rows[0].elements[0].duration?.value || 0) / 60) // minutos
-            });
+            };
+            _distCacheSet(from, to, result);
+            resolve(result);
           } else {
             resolve({ distance: Infinity, duration: 0 });
           }
