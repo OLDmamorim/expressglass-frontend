@@ -1854,6 +1854,7 @@ function editAppointment(id) {
   document.getElementById('appointmentNotes').value = appointment.notes || '';
   document.getElementById('appointmentAddress').value = appointment.address || '';
   document.getElementById('appointmentPhone').value = appointment.phone || '';
+  if (document.getElementById('appointmentClientName')) document.getElementById('appointmentClientName').value = appointment.client_name || '';
   document.getElementById('appointmentExtra').value = appointment.extra || '';
   
   // Preencher campo de quilómetros se existir
@@ -1995,9 +1996,10 @@ function buildDesktopCard(a){
   const plate = (a.plate || '').toUpperCase();
   const service = a.service || 'PB';
   const car = (a.car || '').toUpperCase();
+  const clientNameStr = a.client_name ? a.client_name : '';
   const sub = loja
-    ? [a.notes].filter(Boolean).join(' | ')
-    : [a.locality, a.notes].filter(Boolean).join(' | ');
+    ? [clientNameStr, a.notes].filter(Boolean).join(' | ')
+    : [a.locality, clientNameStr, a.notes].filter(Boolean).join(' | ');
   // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
@@ -2983,7 +2985,8 @@ function bootApp() {
       confirmed: document.getElementById('appointmentConfirmed')?.value !== 'false',
       commercial_user_id: document.getElementById('appointmentCommercial')?.value
         ? parseInt(document.getElementById('appointmentCommercial').value)
-        : null
+        : null,
+      client_name: (document.getElementById('appointmentClientName')?.value || '').trim() || null
     };
   }
 

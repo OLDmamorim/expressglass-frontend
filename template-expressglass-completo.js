@@ -87,8 +87,10 @@ class ExpressglassFileProcessor {
     // Contacto (coluna 25)
     result.phone = row[25] || '';
     
-    // Extra - Segurado (coluna 10)
-    result.extra = row[10] || '';
+    // Eurocode (coluna 14)
+    result.extra = row[14] || '';
+    // Nome do cliente (coluna 4)
+    result.client_name = row[4] || '';
     
     // Dados adicionais específicos
     result.clientName = row[4] || '';

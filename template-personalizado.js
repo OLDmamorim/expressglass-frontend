@@ -17,10 +17,11 @@ const templatePersonalizado = {
     car: '11,12',    // Coluna L + Coluna M (Marca + Modelo)
     service: null,   // Será preenchido pelo operador
     locality: null,  // Será preenchido pelo operador
-    notes: 13,       // Coluna N (Ref)
+    notes: 9,        // Coluna J (Obs)
     address: null,   // Será preenchido pelo operador
     phone: 25,       // Coluna Z (U_contsega)
-    extra: 10        // Coluna K (Segurado)
+    extra: 14,       // Coluna O (Eurocode)
+    client_name: 4   // Coluna E (Nome)
   }
 };
 
@@ -90,8 +91,9 @@ class ProcessadorPersonalizado {
     const matricula = row[8] || '';
     const marca = (row[11] || '').trim();
     const modelo = (row[12] || '').trim();
-    const observacoes = row[13] || '';
-    const outrosDados = row[10] || '';
+    const observacoes = row[9] || '';
+    const eurocode = row[14] || '';
+    const nomeCliente = row[4] || '';
 
     if (!matricula || matricula.trim() === '') {
       throw new Error('Matrícula é obrigatória (coluna I)');
@@ -170,7 +172,8 @@ class ProcessadorPersonalizado {
       notes: observacoes,
       address: '',
       phone: contacto,
-      extra: outrosDados,
+      extra: eurocode,
+      client_name: nomeCliente,
       status: 'NE',
       date: dateISO,           // ← dataserviço (col F)
       period: period,          // ← Manhã ou Tarde (col U)
