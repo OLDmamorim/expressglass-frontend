@@ -57,7 +57,7 @@ exports.handler = async (event) => {
     const { rows } = await pool.query(`
       SELECT a.plate, a.car, a.date, a.period, a.locality, a.address, a.executed, a.not_done_reason,
              a.commercial_user_id, u.username AS commercial_name,
-             u.telegram_chat_id, u.telegram_chat_id_2, p.name AS portal_name, p.type AS portal_type
+             u.telegram_chat_id, u.telegram_chat_id_2, p.name AS portal_name, p.portal_type AS portal_type
       FROM appointments a
       LEFT JOIN users u ON u.id = a.commercial_user_id
       LEFT JOIN portals p ON p.id = a.portal_id
