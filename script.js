@@ -3012,21 +3012,17 @@ function bootApp() {
         if (idx >= 0) appointments[idx] = { ...appointments[idx], ...updated, ...payload };
         showToast('Agendamento atualizado', 'success');
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(editingId, payload.date);
-        if (payload.commercial_user_id) {
-          const apptId = updated?.id || editingId;
-          const nType = payload.confirmed ? 'scheduled' : 'pre-agendado';
-          try { await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ appointment_id: apptId, type: nType }) }); } catch(ne) {}
-        }
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(editingId, payload.date);
-        // Notificar comercial se agendamento confirmado com comercial atribuído
+        // Notificar comercial apenas se mudou data OU confirmação
         if (payload.commercial_user_id) {
-          const apptId = updated?.id || editingId;
-          try {
-            await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', {
-              method: 'POST', headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({ appointment_id: apptId, type: payload.confirmed ? 'scheduled' : 'pre-agendado' })
-            });
-          } catch(ne) { console.warn('Notif. comercial agendamento:', ne); }
+          const prev = appointments.find(a => String(a.id) === String(editingId));
+          const dateChanged = prev && payload.date && prev.date !== payload.date;
+          const confirmedChanged = prev && payload.confirmed !== prev.confirmed && payload.confirmed === true;
+          if (dateChanged || confirmedChanged) {
+            const apptId = updated?.id || editingId;
+            const nType = payload.confirmed ? 'scheduled' : 'pre-agendado';
+            try { await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ appointment_id: apptId, type: nType }) }); } catch(ne) {}
+          }
         }
       } else {
         // CREATE
@@ -3081,20 +3077,12 @@ cancelEdit?.();
         appointments.push(item);
         showToast('Agendamento criado', 'success');
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(item.id, payload.date);
-        if (payload.commercial_user_id) {
-          const apptId = created?.id || item.id;
-          try { await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ appointment_id: apptId, type:'scheduled' }) }); } catch(ne) {}
-        }
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(item.id, payload.date);
-        // Notificar comercial se agendamento confirmado com comercial atribuído
-        if (payload.commercial_user_id) {
+        // Notificar comercial ao criar (sempre que tem comercial e data)
+        if (payload.commercial_user_id && payload.date) {
           const apptId = created?.id || item.id;
-          try {
-            await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', {
-              method: 'POST', headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({ appointment_id: apptId, type: payload.confirmed ? 'scheduled' : 'pre-agendado' })
-            });
-          } catch(ne) { console.warn('Notif. comercial agendamento:', ne); }
+          const nType = payload.confirmed ? 'scheduled' : 'pre-agendado';
+          try { await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ appointment_id: apptId, type: nType }) }); } catch(ne) {}
         }
       }
 
