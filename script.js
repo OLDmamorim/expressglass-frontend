@@ -1998,8 +1998,8 @@ function buildDesktopCard(a){
   const car = (a.car || '').toUpperCase();
   const clientNameStr = a.client_name ? a.client_name : '';
   const sub = loja
-    ? [clientNameStr, a.notes].filter(Boolean).join(' | ')
-    : [a.locality, clientNameStr, a.notes].filter(Boolean).join(' | ');
+    ? [clientNameStr, a.extra, a.notes].filter(Boolean).join(' | ')
+    : [a.locality, clientNameStr, a.extra, a.notes].filter(Boolean).join(' | ');
   // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
@@ -2350,7 +2350,7 @@ const telBtn = phone ? `
     a.calibration ? `<span class="m-chip m-chip-calib">⊕ CALIB</span>` : '',
     a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : ''
   ].filter(Boolean).join('');
-  const notes = a.notes ? `<div class="m-info">${a.notes}</div>` : '';
+  const notes = [a.extra, a.notes].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
   const phcFooter = isAutoImported ? `
