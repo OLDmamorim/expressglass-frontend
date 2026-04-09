@@ -32,10 +32,31 @@ exports.handler = async (event) => {
   }
 
   try {
-    verifyAdmin(event);
+    // GET: admin vê tudo; coordenador só vê comerciais (para o dropdown)
+    const authHeader = event.headers.authorization || event.headers.Authorization;
+    if (!authHeader?.startsWith('Bearer ')) throw new Error('Não autenticado');
+    const decoded = jwt.verify(authHeader.substring(7), JWT_SECRET);
+    const isAdmin = decoded.role === 'admin';
+    const isCoordenador = decoded.role === 'coordenador';
+    if (!isAdmin && !isCoordenador) throw new Error('Acesso negado');
 
     // ---------- GET ----------
     if (event.httpMethod === 'GET') {
+      // Coordenador: só lista comerciais para o dropdown
+      if (isCoordenador) {
+        const { rows } = await pool.query(
+          `SELECT u.id, u.username, u.role, u.telegram_chat_id
+           FROM users u
+           WHERE u.role = 'comercial'
+           ORDER BY u.username ASC`
+        );
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows.map(u => ({
+          id: u.id, username: u.username, role: u.role,
+          telegramChatId: u.telegram_chat_id || null
+        })) }) };
+      }
+
+      // Admin: query completa
       const query = `
         SELECT u.id, u.username, u.plain_password, u.portal_id, u.role, u.created_at, u.updated_at,
                u.telegram_chat_id, u.telegram_chat_id_2, p.name as portal_name
@@ -82,6 +103,9 @@ exports.handler = async (event) => {
 
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: users }) };
     }
+
+    // ---------- POST/PUT/DELETE: apenas admin ----------
+    if (!isAdmin) throw new Error('Acesso negado: apenas administradores');
 
     // ---------- POST ----------
     if (event.httpMethod === 'POST') {
