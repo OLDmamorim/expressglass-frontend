@@ -3009,15 +3009,15 @@ function bootApp() {
         const updated = await window.apiClient.updateAppointment(editingId, payload);
         // aplica no array local
         const idx = appointments.findIndex(a => String(a.id) === String(editingId));
+        // Guardar estado anterior ANTES de atualizar
+        const prevAppt = idx >= 0 ? { ...appointments[idx] } : null;
         if (idx >= 0) appointments[idx] = { ...appointments[idx], ...updated, ...payload };
         showToast('Agendamento atualizado', 'success');
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(editingId, payload.date);
-        if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(editingId, payload.date);
         // Notificar comercial apenas se mudou data OU confirmação
-        if (payload.commercial_user_id) {
-          const prev = appointments.find(a => String(a.id) === String(editingId));
-          const dateChanged = prev && payload.date && prev.date !== payload.date;
-          const confirmedChanged = prev && payload.confirmed !== prev.confirmed && payload.confirmed === true;
+        if (payload.commercial_user_id && prevAppt) {
+          const dateChanged = payload.date && prevAppt.date !== payload.date;
+          const confirmedChanged = prevAppt.confirmed !== payload.confirmed && payload.confirmed === true;
           if (dateChanged || confirmedChanged) {
             const apptId = updated?.id || editingId;
             const nType = payload.confirmed ? 'scheduled' : 'pre-agendado';
@@ -3076,7 +3076,6 @@ cancelEdit?.();
         const item = { id: created?.id || (Date.now()+Math.random()), sortIndex: 1, ...payload, ...created };
         appointments.push(item);
         showToast('Agendamento criado', 'success');
-        if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(item.id, payload.date);
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(item.id, payload.date);
         // Notificar comercial ao criar (sempre que tem comercial e data)
         if (payload.commercial_user_id && payload.date) {
