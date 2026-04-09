@@ -3662,10 +3662,13 @@ function filterServicesByPlate(searchTerm) {
   if (!box) {
     box = document.createElement('div');
     box.id = 'plateSearchResults';
-    box.style.cssText = 'position:absolute;z-index:999;background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);max-height:320px;overflow-y:auto;width:420px;margin-top:4px;';
-    const searchEl = document.getElementById('searchPlate');
-    if (searchEl) searchEl.parentElement.style.position = 'relative';
-    searchEl?.parentElement?.appendChild(box);
+    document.body.appendChild(box);
+  }
+  // Posicionar relativo ao campo de pesquisa
+  const searchEl = document.getElementById('searchPlate');
+  if (searchEl) {
+    const rect = searchEl.getBoundingClientRect();
+    box.style.cssText = `position:fixed;z-index:9999;background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.18);max-height:380px;overflow-y:auto;width:${Math.max(rect.width, 360)}px;top:${rect.bottom + 4}px;left:${rect.left}px;`;
   }
 
   if (!matches.length) {
