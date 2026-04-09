@@ -1007,9 +1007,11 @@ function buildDaySummary(dayDate, isMobile) {
   const returnKm = hasKm
     ? (lastItem?.return_km || (hasOptimized ? Math.round(lastServiceKm * 0.8) : Math.round(totalKm * 0.12)))
     : 0;
+  // Tempo de regresso: usar o valor real calculado durante otimização
+  // Fallback: estimar com base no km de regresso e velocidade média
   const returnMin = lastItem?.return_time
     ? lastItem.return_time
-    : (hasGoogleTime ? Math.round(totalTravelMin * 0.15) : Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60));
+    : Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
   const totalKmWithReturn = totalKm + returnKm;
 
   // Tempo de execução (por tipo de serviço × veículo)
@@ -2608,7 +2610,8 @@ function buildRelatorio() {
       let dayTravel = 0, hasGoogle = false;
       items.forEach(a => { const tt = a.travelTime || a.travel_time || 0; if (tt > 0) { dayTravel += tt; hasGoogle = true; } });
       if (!hasGoogle && hasKm) dayTravel = Math.round((dayKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
-      const returnMin = hasGoogle ? Math.round(dayTravel * 0.15) : Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
+      // Tempo de regresso com base no km e velocidade média (mais preciso que % do total)
+      const returnMin = Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
       totalTravelMin += dayTravel + returnMin;
 
       // Tempo de execução
