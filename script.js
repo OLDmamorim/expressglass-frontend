@@ -3631,20 +3631,110 @@ function formatPlateInput(input) {
 // Filtrar serviços por matrícula
 function filterServicesByPlate(searchTerm) {
   const normalizedSearch = searchTerm.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-  
-  // Filtrar linhas da tabela
+
+  // Filtrar linhas da tabela "por agendar"
   const rows = document.querySelectorAll('#unscheduledTableBody tr');
   rows.forEach(row => {
     const plate = row.getAttribute('data-plate') || '';
     const normalizedPlate = plate.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-    
     if (normalizedSearch === '' || normalizedPlate.includes(normalizedSearch)) {
       row.classList.remove('filtered-out');
     } else {
       row.classList.add('filtered-out');
     }
   });
+
+  // Se há termo de pesquisa, mostrar também resultados de toda a agenda
+  const resultBox = document.getElementById('plateSearchResults');
+  if (normalizedSearch.length < 2) {
+    if (resultBox) resultBox.remove();
+    return;
+  }
+
+  // Procurar em todos os agendamentos
+  const matches = (window.appointments || []).filter(a => {
+    const p = (a.plate || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    return p.includes(normalizedSearch);
+  }).slice(0, 10);
+
+  // Mostrar resultados numa caixa abaixo da pesquisa
+  let box = document.getElementById('plateSearchResults');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'plateSearchResults';
+    box.style.cssText = 'position:absolute;z-index:999;background:#fff;border:1.5px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);max-height:320px;overflow-y:auto;width:420px;margin-top:4px;';
+    const searchEl = document.getElementById('searchPlate');
+    if (searchEl) searchEl.parentElement.style.position = 'relative';
+    searchEl?.parentElement?.appendChild(box);
+  }
+
+  if (!matches.length) {
+    box.innerHTML = '<div style="padding:12px 16px;color:#9ca3af;font-size:13px;">Nenhum resultado encontrado</div>';
+    return;
+  }
+
+  box.innerHTML = matches.map(a => {
+    const dateStr = a.date ? new Date(a.date + 'T12:00:00').toLocaleDateString('pt-PT', {day:'2-digit', month:'2-digit', year:'numeric'}) : '— sem data —';
+    const statusColor = {'NE':'#6b7280','VE':'#f59e0b','ST':'#10b981'}[a.status] || '#6b7280';
+    return `<div onclick="window._jumpToAppointment('${a.id}')" style="padding:10px 16px;border-bottom:1px solid #f1f5f9;cursor:pointer;display:flex;align-items:center;gap:12px;" 
+      onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+      <div style="font-weight:800;font-size:14px;min-width:80px;">${a.plate || '—'}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:#374151;">${(a.car||'').toUpperCase()}</div>
+        <div style="font-size:11px;color:#9ca3af;">${dateStr} · ${a.locality || '—'}</div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:${statusColor};background:${statusColor}20;padding:2px 8px;border-radius:6px;">${a.status||'—'}</div>
+    </div>`;
+  }).join('') + (matches.length >= 10 ? '<div style="padding:8px 16px;font-size:12px;color:#9ca3af;text-align:center;">Mostrando primeiros 10 resultados</div>' : '');
+
+  // Fechar ao clicar fora
+  setTimeout(() => {
+    document.addEventListener('click', function closeBox(e) {
+      if (!box.contains(e.target) && e.target.id !== 'searchPlate') {
+        box.remove();
+        document.removeEventListener('click', closeBox);
+      }
+    });
+  }, 100);
 }
+
+window._jumpToAppointment = function(id) {
+  // Fechar caixa de resultados
+  document.getElementById('plateSearchResults')?.remove();
+  document.getElementById('searchPlate').value = '';
+
+  const a = (window.appointments || []).find(ap => String(ap.id) === String(id));
+  if (!a) return;
+
+  if (a.date) {
+    // Serviço agendado — navegar para a semana/dia certo
+    const d = new Date(a.date + 'T12:00:00');
+    // Desktop: ir para a semana
+    currentMonday = getMonday(d);
+    currentMobileDay = d;
+    renderAll();
+    // Destacar o card após render
+    setTimeout(() => {
+      const card = document.querySelector(`[data-id="${id}"]`);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        card.style.outline = '3px solid #f59e0b';
+        card.style.outlineOffset = '2px';
+        setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 2500);
+      }
+    }, 300);
+  } else {
+    // Serviço por agendar — já está na lista
+    setTimeout(() => {
+      const row = document.querySelector(`#unscheduledTableBody tr[data-id="${id}"]`);
+      if (row) {
+        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        row.style.background = '#fef3c7';
+        setTimeout(() => { row.style.background = ''; }, 2500);
+      }
+    }, 100);
+  }
+};
 
 // Vista em tabela é agora a única vista disponível
 
