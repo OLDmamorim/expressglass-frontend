@@ -115,6 +115,52 @@ exports.handler = async (event) => {
       WHERE portal_id = $1 AND date BETWEEN $2 AND $3
     `, [portalId, dateFrom, dateTo]);
 
+    // 9. Serviços por comercial
+    const { rows: byComercial } = await pool.query(`
+      SELECT
+        u.username AS comercial_name,
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE a.executed = true) AS realizados,
+        COUNT(*) FILTER (WHERE a.executed = false AND a.not_done_reason IS NOT NULL) AS nao_realizados,
+        COUNT(*) FILTER (WHERE a.executed IS NULL) AS pendentes,
+        ROUND(AVG(
+          CASE WHEN a.date IS NOT NULL AND a.created_at IS NOT NULL
+          THEN EXTRACT(EPOCH FROM (a.date::timestamp - a.created_at)) / 86400
+          ELSE NULL END
+        )::numeric, 1) AS media_dias
+      FROM appointments a
+      JOIN users u ON u.id = a.commercial_user_id
+      WHERE a.portal_id = $1 AND a.date BETWEEN $2 AND $3
+        AND a.commercial_user_id IS NOT NULL
+      GROUP BY u.username
+      ORDER BY total DESC
+    `, [portalId, dateFrom, dateTo]);
+
+    // 10. Motivos de não realização
+    const { rows: byMotivo } = await pool.query(`
+      SELECT
+        not_done_reason AS motivo,
+        COUNT(*) AS total
+      FROM appointments
+      WHERE portal_id = $1 AND date BETWEEN $2 AND $3
+        AND executed = false AND not_done_reason IS NOT NULL
+      GROUP BY not_done_reason
+      ORDER BY total DESC
+    `, [portalId, dateFrom, dateTo]);
+
+    // 11. Tempo de execução por tipo de serviço
+    const { rows: byServiceTime } = await pool.query(`
+      SELECT
+        COALESCE(service, 'PB') AS service,
+        COUNT(*) AS total,
+        COUNT(*) FILTER (WHERE executed = true) AS realizados,
+        COUNT(*) FILTER (WHERE calibration = true) AS com_calibragem
+      FROM appointments
+      WHERE portal_id = $1 AND date BETWEEN $2 AND $3
+      GROUP BY service
+      ORDER BY total DESC
+    `, [portalId, dateFrom, dateTo]);
+
     return {
       statusCode: 200,
       headers,
@@ -130,7 +176,10 @@ exports.handler = async (event) => {
         byLocality,
         byWeekday,
         byWeek,
-        byService
+        byService,
+        byComercial,
+        byMotivo,
+        byServiceTime
       })
     };
   } catch(e) {
