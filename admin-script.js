@@ -1307,7 +1307,7 @@ async function generateReport() {
 }
 
 function renderReport(data) {
-  const { portal, period, totals, byLocality, byWeekday, byWeek, byService } = data;
+  const { portal, period, totals, byLocality, byWeekday, byWeek, byService, byComercial, byMotivo, byServiceTime } = data;
 
   // Header
   document.getElementById('reportTitle').textContent = portal.name || 'Portal';
@@ -1471,6 +1471,98 @@ function renderReport(data) {
       <td style="text-align:center;padding:10px;color:#7c3aed;font-weight:600;">${parseInt(r.km)||0} km</td>
     </tr>`;
   }).join('');
+
+  // ===== SECÇÃO COMERCIAL =====
+  const comercialSection = document.getElementById('reportComercialSection');
+  if (comercialSection) {
+    if (byComercial && byComercial.length > 0) {
+      const totalCom = byComercial.reduce((s, r) => s + parseInt(r.total), 0);
+      const realizCom = byComercial.reduce((s, r) => s + parseInt(r.realizados), 0);
+      const taxaCom = totalCom > 0 ? Math.round((realizCom / totalCom) * 100) : 0;
+
+      comercialSection.innerHTML = `
+        <div style="border-top:2px solid #7c3aed;padding-top:24px;margin-top:32px;">
+          <h3 style="font-size:16px;font-weight:700;color:#7c3aed;margin-bottom:16px;">🤝 Serviços Encaminhados por Comercial</h3>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;">
+            <div style="background:#f5f3ff;border-radius:12px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:800;color:#7c3aed;">${totalCom}</div>
+              <div style="font-size:12px;color:#6b7280;margin-top:4px;">Total encaminhados</div>
+            </div>
+            <div style="background:#f0fdf4;border-radius:12px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:800;color:#16a34a;">${realizCom}</div>
+              <div style="font-size:12px;color:#6b7280;margin-top:4px;">Realizados</div>
+            </div>
+            <div style="background:#fefce8;border-radius:12px;padding:16px;text-align:center;">
+              <div style="font-size:28px;font-weight:800;color:#d97706;">${taxaCom}%</div>
+              <div style="font-size:12px;color:#6b7280;margin-top:4px;">Taxa realização</div>
+            </div>
+          </div>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <thead>
+              <tr style="background:#f5f3ff;">
+                <th style="padding:10px 12px;text-align:left;font-weight:700;color:#7c3aed;">Comercial</th>
+                <th style="padding:10px;text-align:center;font-weight:700;color:#374151;">Total</th>
+                <th style="padding:10px;text-align:center;font-weight:700;color:#16a34a;">Realizados</th>
+                <th style="padding:10px;text-align:center;font-weight:700;color:#dc2626;">Não real.</th>
+                <th style="padding:10px;text-align:center;font-weight:700;color:#d97706;">Pendentes</th>
+                <th style="padding:10px;text-align:center;font-weight:700;color:#374151;">Taxa</th>
+                <th style="padding:10px;text-align:center;font-weight:700;color:#374151;">Média dias</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${byComercial.map((r, i) => {
+                const t = parseInt(r.total), rl = parseInt(r.realizados);
+                const nr = parseInt(r.nao_realizados), p = parseInt(r.pendentes);
+                const tx = t > 0 ? Math.round((rl/t)*100) : 0;
+                const txColor = tx>=80?'#16a34a':tx>=50?'#d97706':'#dc2626';
+                const md = r.media_dias ? parseFloat(r.media_dias).toFixed(1) + ' dias' : '—';
+                return `<tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
+                  <td style="padding:10px 12px;font-weight:700;color:#374151;">${r.comercial_name}</td>
+                  <td style="text-align:center;padding:10px;font-weight:700;color:#7c3aed;">${t}</td>
+                  <td style="text-align:center;padding:10px;color:#16a34a;font-weight:700;">${rl}</td>
+                  <td style="text-align:center;padding:10px;color:#dc2626;font-weight:700;">${nr}</td>
+                  <td style="text-align:center;padding:10px;color:#d97706;font-weight:700;">${p}</td>
+                  <td style="text-align:center;padding:10px;"><span style="background:${txColor}15;color:${txColor};font-weight:700;padding:2px 10px;border-radius:20px;">${tx}%</span></td>
+                  <td style="text-align:center;padding:10px;color:#6b7280;">${md}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      comercialSection.style.display = 'block';
+    } else {
+      comercialSection.style.display = 'none';
+    }
+  }
+
+  // ===== MOTIVOS DE NÃO REALIZAÇÃO =====
+  const motivosSection = document.getElementById('reportMotivosSection');
+  if (motivosSection) {
+    if (byMotivo && byMotivo.length > 0) {
+      motivosSection.innerHTML = `
+        <div style="border-top:2px solid #dc2626;padding-top:24px;margin-top:32px;">
+          <h3 style="font-size:16px;font-weight:700;color:#dc2626;margin-bottom:16px;">❌ Motivos de Não Realização</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <thead>
+              <tr style="background:#fef2f2;">
+                <th style="padding:10px 12px;text-align:left;font-weight:700;color:#dc2626;">Motivo</th>
+                <th style="padding:10px;text-align:center;font-weight:700;color:#374151;">Ocorrências</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${byMotivo.map((r, i) => `
+                <tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
+                  <td style="padding:10px 12px;color:#374151;">${r.motivo}</td>
+                  <td style="text-align:center;padding:10px;"><span style="background:#fef2f2;color:#dc2626;font-weight:700;padding:2px 12px;border-radius:20px;">${r.total}×</span></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+      motivosSection.style.display = 'block';
+    } else {
+      motivosSection.style.display = 'none';
+    }
+  }
 
   document.getElementById('reportContent').style.display = 'block';
   document.getElementById('btnDownloadPDF').style.display = 'inline-block';
