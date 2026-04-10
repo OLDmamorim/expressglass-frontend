@@ -1307,7 +1307,7 @@ async function generateReport() {
 }
 
 function renderReport(data) {
-  const { portal, period, totals, byLocality, byWeekday, byWeek, byService, byComercial, byMotivo, byServiceTime } = data;
+  const { portal, period, totals, byLocality, byWeekday, byWeek, byService, byComercial, byMotivo } = data;
 
   // Header
   document.getElementById('reportTitle').textContent = portal.name || 'Portal';
@@ -1479,7 +1479,6 @@ function renderReport(data) {
       const totalCom = byComercial.reduce((s, r) => s + parseInt(r.total), 0);
       const realizCom = byComercial.reduce((s, r) => s + parseInt(r.realizados), 0);
       const taxaCom = totalCom > 0 ? Math.round((realizCom / totalCom) * 100) : 0;
-
       comercialSection.innerHTML = `
         <div style="border-top:2px solid #7c3aed;padding-top:24px;margin-top:32px;">
           <h3 style="font-size:16px;font-weight:700;color:#7c3aed;margin-bottom:16px;">🤝 Serviços Encaminhados por Comercial</h3>
@@ -1501,12 +1500,12 @@ function renderReport(data) {
             <thead>
               <tr style="background:#f5f3ff;">
                 <th style="padding:10px 12px;text-align:left;font-weight:700;color:#7c3aed;">Comercial</th>
-                <th style="padding:10px;text-align:center;font-weight:700;color:#374151;">Total</th>
+                <th style="padding:10px;text-align:center;font-weight:700;">Total</th>
                 <th style="padding:10px;text-align:center;font-weight:700;color:#16a34a;">Realizados</th>
                 <th style="padding:10px;text-align:center;font-weight:700;color:#dc2626;">Não real.</th>
                 <th style="padding:10px;text-align:center;font-weight:700;color:#d97706;">Pendentes</th>
-                <th style="padding:10px;text-align:center;font-weight:700;color:#374151;">Taxa</th>
-                <th style="padding:10px;text-align:center;font-weight:700;color:#374151;">Média dias</th>
+                <th style="padding:10px;text-align:center;font-weight:700;">Taxa</th>
+                <th style="padding:10px;text-align:center;font-weight:700;">Média dias</th>
               </tr>
             </thead>
             <tbody>
@@ -1517,7 +1516,7 @@ function renderReport(data) {
                 const txColor = tx>=80?'#16a34a':tx>=50?'#d97706':'#dc2626';
                 const md = r.media_dias ? parseFloat(r.media_dias).toFixed(1) + ' dias' : '—';
                 return `<tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
-                  <td style="padding:10px 12px;font-weight:700;color:#374151;">${r.comercial_name}</td>
+                  <td style="padding:10px 12px;font-weight:700;">${r.comercial_name}</td>
                   <td style="text-align:center;padding:10px;font-weight:700;color:#7c3aed;">${t}</td>
                   <td style="text-align:center;padding:10px;color:#16a34a;font-weight:700;">${rl}</td>
                   <td style="text-align:center;padding:10px;color:#dc2626;font-weight:700;">${nr}</td>
@@ -1546,7 +1545,7 @@ function renderReport(data) {
             <thead>
               <tr style="background:#fef2f2;">
                 <th style="padding:10px 12px;text-align:left;font-weight:700;color:#dc2626;">Motivo</th>
-                <th style="padding:10px;text-align:center;font-weight:700;color:#374151;">Ocorrências</th>
+                <th style="padding:10px;text-align:center;font-weight:700;">Ocorrências</th>
               </tr>
             </thead>
             <tbody>
