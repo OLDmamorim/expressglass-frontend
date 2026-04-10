@@ -1310,9 +1310,20 @@ function renderReport(data) {
   const { portal, period, totals, byLocality, byWeekday, byWeek, byService, byComercial, byMotivo } = data;
 
   // Header
-  document.getElementById('reportTitle').textContent = portal.name || 'Portal';
+  const portalDisplayName = portal.name || 'Portal';
+  document.getElementById('reportTitle').textContent = portalDisplayName;
+
+  // Título da página com portal + período
   const fmtDate = d => new Date(d+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
+  const fromDate = new Date(period.from + 'T12:00:00');
+  const toDate = new Date(period.to + 'T12:00:00');
+  const sameMonth = fromDate.getMonth() === toDate.getMonth() && fromDate.getFullYear() === toDate.getFullYear();
+  const periodLabel = sameMonth
+    ? fromDate.toLocaleDateString('pt-PT', {month:'long', year:'numeric'})
+    : `${fmtDate(period.from)} → ${fmtDate(period.to)}`;
   document.getElementById('reportPeriod').textContent = `${fmtDate(period.from)} → ${fmtDate(period.to)}`;
+  // Atualizar título do documento para impressão
+  document.title = `${portalDisplayName} — ${periodLabel.charAt(0).toUpperCase() + periodLabel.slice(1)} | ExpressGlass`;
 
   // KPIs calculados
   const total = parseInt(totals.total_agendados)||0;
@@ -1529,6 +1540,7 @@ function renderReport(data) {
           </table>
         </div>`;
       comercialSection.style.display = 'block';
+      comercialSection.style.visibility = 'visible';
     } else {
       comercialSection.style.display = 'none';
     }
@@ -1558,6 +1570,7 @@ function renderReport(data) {
           </table>
         </div>`;
       motivosSection.style.display = 'block';
+      motivosSection.style.visibility = 'visible';
     } else {
       motivosSection.style.display = 'none';
     }

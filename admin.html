@@ -416,15 +416,20 @@
       body * { visibility: hidden; }
       #reportsTab, #reportsTab * { visibility: visible; }
       #reportsTab { position: absolute; left: 0; top: 0; width: 100%; }
-      button, .nav-tabs, #reportLoading { display: none !important; }
+      button, .nav-tabs, #reportLoading, .report-controls { display: none !important; }
       #reportContent { display: block !important; }
+      #reportComercialSection { display: block !important; }
+      #reportMotivosSection { display: block !important; }
       .tab-content { display: block !important; }
-      canvas { max-width: 100%; }
-      @page { margin: 15mm; size: A4 landscape; }
+      canvas { max-width: 100%; height: auto !important; }
+      .report-charts-grid { grid-template-columns: 1fr !important; }
+      .chart-card { break-inside: avoid; page-break-inside: avoid; margin-bottom: 20px; }
+      .kpi-grid { break-inside: avoid; }
+      @page { margin: 12mm; size: A4 portrait; }
     }
   </style>
   <script src="auth-client.js"></script>
-  <script src="admin-script.js?v=2026-04-10"></script>
-  <script src="admin-comercial-patch.js?v=2026-04-10"></script>
+  <script src="admin-script.js"></script>
+  <script src="admin-comercial-patch.js"></script>
 </body>
 </html>
