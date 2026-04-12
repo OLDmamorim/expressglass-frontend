@@ -2350,7 +2350,7 @@ const telBtn = phone ? `
     a.calibration ? `<span class="m-chip m-chip-calib">⊕ CALIB</span>` : '',
     a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : ''
   ].filter(Boolean).join('');
-  const notes = [a.extra, a.notes].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
+  const notes = [a.client_name, a.extra, a.notes].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
   const phcFooter = isAutoImported ? `
@@ -2588,6 +2588,92 @@ function openRotaDoDia() {
   window.open(url, '_blank');
 }
 
+
+
+// ===== POWERING EG KPIs =====
+let _poweringKpis = null;
+let _poweringKpisLoaded = false;
+
+async function loadPoweringKpis() {
+  if (!isLoja()) return;
+  const lojaId = window.portalConfig?.poweringLojaId;
+  if (!lojaId) return; // portal sem lojaId configurado
+
+  try {
+    const now = new Date();
+    const url = `/.netlify/functions/powering-kpis?loja_id=${lojaId}&mes=${now.getMonth()+1}&ano=${now.getFullYear()}`;
+    const resp = await window.authClient.authenticatedFetch(url);
+    const data = await resp.json();
+    if (data.success && data.kpis) {
+      _poweringKpis = data.kpis;
+      _poweringKpisLoaded = true;
+      renderPoweringBanner();
+    }
+  } catch(e) {
+    console.warn('PoweringEG KPIs não disponíveis:', e.message);
+  }
+}
+
+function renderPoweringBanner() {
+  const k = _poweringKpis;
+  if (!k) return;
+
+  // Desktop — inserir antes da tabela
+  const existing = document.getElementById('poweringKpiBanner');
+  if (existing) existing.remove();
+
+  const desvioCor = parseFloat(k.desvioPct) >= 0 ? '#16a34a' : '#dc2626';
+  const desvioBg = parseFloat(k.desvioPct) >= 0 ? '#f0fdf4' : '#fef2f2';
+  const desvioIcon = parseFloat(k.desvioPct) >= 0 ? '↑' : '↓';
+
+  const mesNome = new Date(k.ano, k.mes-1, 1).toLocaleDateString('pt-PT', {month:'long', year:'numeric'});
+
+  const banner = document.createElement('div');
+  banner.id = 'poweringKpiBanner';
+  banner.style.cssText = 'margin:0 0 0 0;background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;';
+  banner.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">
+      📊 ${mesNome}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <div style="background:#eff6ff;border-radius:8px;padding:5px 12px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:#2563eb;line-height:1;">${k.servicos}</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:1px;">Serviços</div>
+      </div>
+      <div style="background:#f5f3ff;border-radius:8px;padding:5px 12px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:#7c3aed;line-height:1;">${k.objetivo}</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:1px;">Objetivo</div>
+      </div>
+      <div style="background:${desvioBg};border-radius:8px;padding:5px 12px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:${desvioCor};line-height:1;">${desvioIcon}${Math.abs(k.desvioPct)}%</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:1px;">Desvio diário</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:8px;padding:5px 12px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:#16a34a;line-height:1;">${k.taxaRep}%</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:1px;">Taxa rep.</div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:120px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-bottom:3px;">
+        <span>Progresso mensal</span>
+        <span>${k.progressoPct}%</span>
+      </div>
+      <div style="height:6px;background:#e5e7eb;border-radius:3px;">
+        <div style="height:6px;background:linear-gradient(90deg,#3b82f6,#7c3aed);border-radius:3px;width:${Math.min(k.progressoPct,100)}%;transition:width 0.6s ease;"></div>
+      </div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:3px;">Dia ${k.diasPassados} de ${k.diasUteisTotais} úteis</div>
+    </div>`;
+
+  // Inserir antes do schedule ou da toolbar mobile
+  const schedule = document.getElementById('schedule');
+  if (schedule) {
+    schedule.parentElement.insertBefore(banner, schedule);
+  } else {
+    const mobileHeader = document.getElementById('mobileHeader') || document.querySelector('.mobile-day-header');
+    if (mobileHeader) mobileHeader.after(banner);
+    else document.querySelector('main, #app, body').prepend(banner);
+  }
+}
 
 function buildRelatorio() {
   const el = document.getElementById('relatorioContent');
@@ -2829,6 +2915,59 @@ function buildRelatorio() {
       </div>`;
   }
 
+  // ===== SECÇÃO TEMPO DE EXECUÇÃO POR TIPO DE SERVIÇO =====
+  const apptsConcluidos = weekAppts.filter(a => a.executed === true);
+
+  if (apptsConcluidos.length > 0) {
+    const serviceLabels = { PB: 'Para-brisas', LT: 'Lateral', OC: 'Óculo', REP: 'Reparação', POL: 'Polimento' };
+    const byService = {};
+
+    apptsConcluidos.forEach(a => {
+      const svc = a.service || 'PB';
+      if (!byService[svc]) byService[svc] = { count: 0, totalMin: 0 };
+      byService[svc].count++;
+      byService[svc].totalMin += getServiceTime(svc, a.vehicle_type || a.vehicleType, a.calibration);
+    });
+
+    html += `
+      <div style="border-top:2px solid #0ea5e9;padding-top:16px;margin-top:16px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#0ea5e9;margin-bottom:12px;">⏱️ Tempo de Execução por Tipo</div>
+        ${Object.entries(byService).sort((a,b) => b[1].count - a[1].count).map(([svc, d]) => {
+          const avgMin = Math.round(d.totalMin / d.count);
+          const h = Math.floor(avgMin / 60);
+          const m = avgMin % 60;
+          const timeStr = h > 0 ? `${h}h${String(m).padStart(2,'0')}` : `${m}min`;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;">
+            <span style="font-weight:700;color:#374151;">${serviceLabels[svc] || svc}</span>
+            <span style="display:flex;gap:12px;align-items:center;">
+              <span style="color:#6b7280;font-size:12px;">${d.count} serviço${d.count !== 1 ? 's' : ''}</span>
+              <span style="background:#e0f2fe;color:#0ea5e9;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:800;">${timeStr}/serviço</span>
+            </span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  // ===== MOTIVOS DE NÃO REALIZAÇÃO =====
+  const naoRealizados = weekAppts.filter(a => a.executed === false && !!a.not_done_reason);
+  if (naoRealizados.length > 0) {
+    const byMotivo = {};
+    naoRealizados.forEach(a => {
+      const m = a.not_done_reason;
+      byMotivo[m] = (byMotivo[m] || 0) + 1;
+    });
+    html += `
+      <div style="border-top:2px solid #dc2626;padding-top:16px;margin-top:16px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#dc2626;margin-bottom:12px;">❌ Motivos de Não Realização</div>
+        ${Object.entries(byMotivo).sort((a,b) => b[1]-a[1]).map(([motivo, count]) =>
+          `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px;">
+            <span style="color:#374151;">${motivo}</span>
+            <span style="background:#fef2f2;color:#dc2626;padding:2px 10px;border-radius:8px;font-size:12px;font-weight:800;">${count}×</span>
+          </div>`
+        ).join('')}
+      </div>`;
+  }
+
   html += `</div></div>`;
   el.innerHTML = html;
 }
@@ -2853,6 +2992,7 @@ function bootApp() {
   (async () => {
     try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
     try { await load(); } catch(e){ console.error('load() falhou', e); }
+    try { await loadPoweringKpis(); } catch(e){ console.warn('PoweringEG falhou', e); }
     try { buildLocalityOptions?.(); } catch(e){}
     renderAll();
   document.querySelector('.locality-select')?.addEventListener('click', toggleLocalityDropdown);
