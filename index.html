@@ -580,60 +580,82 @@
   (function() {
     const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
+    function getActivePortalId() {
+      // 1. JWT token (técnicos — portalId não-null)
+      try {
+        const t = window.authClient?.getToken?.();
+        if (t) {
+          const p = JSON.parse(atob(t.split('.')[1]));
+          if (p.portalId) return p.portalId;
+        }
+      } catch(e) {}
+      // 2. Globais comuns definidas pelo portal-init / script
+      if (window.currentPortalId) return window.currentPortalId;
+      if (window.activePortalId)  return window.activePortalId;
+      if (window.portalId)        return window.portalId;
+      // 3. URL query string (?portal_id=X)
+      const urlParam = new URLSearchParams(window.location.search).get('portal_id');
+      if (urlParam) return parseInt(urlParam);
+      return null;
+    }
+
     async function loadPoweringKpis() {
       try {
-        // Obter token JWT do authClient
-        const token = window.authClient?.getToken?.() || window.authClient?.token || localStorage.getItem('auth_token') || '';
+        const token = window.authClient?.getToken?.() || '';
         if (!token) return;
 
-        const res = await fetch('/.netlify/functions/powering-kpis', {
+        const portalId = getActivePortalId();
+        if (!portalId) return;
+
+        const url = '/.netlify/functions/powering-kpis?portalId=' + portalId;
+        const res = await fetch(url, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
         if (!res.ok) return;
         const data = await res.json();
 
-        if (!data.success || !data.kpis) return; // sem mapeamento ou sem dados
+        if (!data.success || !data.kpis) return;
 
         const k = data.kpis;
         const banner = document.getElementById('poweringKpiBanner');
         if (!banner) return;
 
-        // Preencher valores
         document.getElementById('pegServicos').textContent = k.servicos !== null ? k.servicos : '—';
         document.getElementById('pegObjetivo').textContent = k.objetivo !== null ? k.objetivo : '—';
-        document.getElementById('pegTaxa').textContent = k.taxa !== null ? k.taxa + '%' : '—';
+        document.getElementById('pegTaxa').textContent     = k.taxa !== null ? k.taxa + '%' : '—';
 
-        // Desvio com cor
         if (k.desvio !== null) {
-          const desvioEl = document.getElementById('pegDesvio');
+          const desvioEl   = document.getElementById('pegDesvio');
           const desvioWrap = document.getElementById('pegDesvioWrap');
           const sinal = k.desvio >= 0 ? '+' : '';
-          desvioEl.textContent = sinal + k.desvio + ' (' + (k.desvio >= 0 ? '+' : '') + k.desvioPercent + '%)';
+          desvioEl.textContent = sinal + k.desvio + ' (' + sinal + k.desvioPercent + '%)';
           desvioEl.style.color = k.desvio >= 0 ? '#4ade80' : '#f87171';
           desvioWrap.style.display = 'flex';
         }
 
-        // Mês/Ano e nome da loja
         if (k.nomeLoja) document.getElementById('pegBannerTitle').textContent = '📊 ' + k.nomeLoja;
         document.getElementById('pegMesAno').textContent = MESES[(k.mes || 1) - 1] + ' ' + k.ano;
-
-        // Mostrar banner
         banner.style.display = 'block';
-      } catch (e) {
-        // Silencioso — banner simplesmente não aparece
+      } catch(e) {
+        // silencioso
       }
     }
 
-    // Esperar que o authClient esteja pronto antes de carregar KPIs
+    // Esperar authClient + portalId
     function waitForAuth(attempts) {
       if (attempts <= 0) return;
-      if (window.authClient && (window.authClient.getToken?.() || window.authClient.token)) {
+      const token = window.authClient?.getToken?.();
+      const pid   = getActivePortalId();
+      if (token && pid) {
         loadPoweringKpis();
       } else {
         setTimeout(() => waitForAuth(attempts - 1), 500);
       }
     }
-    waitForAuth(20); // tenta durante 10 segundos (20 × 500ms)
+
+    // Também reagir a mudança de portal (coordenador/admin trocam no dropdown)
+    window.addEventListener('portalChanged', () => loadPoweringKpis());
+    waitForAuth(20);
   })();
   </script>
 
