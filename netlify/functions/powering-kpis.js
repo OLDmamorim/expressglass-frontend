@@ -12,6 +12,7 @@ function httpsGet(path) {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${POWERING_EG_API_KEY}`,
+        'X-API-Key': POWERING_EG_API_KEY,
         'Content-Type': 'application/json'
       }
     };
