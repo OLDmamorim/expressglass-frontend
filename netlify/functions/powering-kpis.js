@@ -63,6 +63,19 @@ exports.handler = async (event) => {
     }
   }
 
+  // Acao auxiliar: ver resultados brutos de uma loja (debug)
+  if (params.action === 'resultados' && params.lojaId) {
+    try {
+      const now = new Date();
+      const mes = params.mes ? parseInt(params.mes) : now.getMonth() + 1;
+      const ano = params.ano ? parseInt(params.ano) : now.getFullYear();
+      const result = await httpsGet(`/api/external/resultados?mes=${mes}&ano=${ano}&lojaId=${params.lojaId}`);
+      return { statusCode: 200, headers, body: JSON.stringify(result) };
+    } catch (err) {
+      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: err.message }) };
+    }
+  }
+
   // Obter lojaId: via query param direto OU via JWT -> BD
   let lojaId = params.lojaId ? parseInt(params.lojaId) : null;
   const portalIdParam = params.portalId ? parseInt(params.portalId) : null;
