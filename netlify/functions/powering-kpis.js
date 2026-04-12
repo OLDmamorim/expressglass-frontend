@@ -131,23 +131,25 @@ exports.handler = async (event) => {
     }
 
     const loja = resultado.resultados[0];
-    const servicos = loja.totalServicos ?? null;
-    const objetivo = loja.objetivoMensal ?? null;
-    const taxa     = loja.taxaReparacao != null ? Math.round(loja.taxaReparacao * 10000) / 100 : null; // 0.3485 → 34.85%
-    const desvio   = loja.desvioObjetivoAcumulado ?? (servicos !== null && objetivo !== null ? servicos - objetivo : null);
+    const servicos  = loja.totalServicos ?? null;
+    const objetivo  = loja.objetivoMensal ?? null;
+    const objDia    = loja.objetivoDiaAtual ?? null;
+    const taxa      = loja.taxaReparacao != null ? Math.round(loja.taxaReparacao * 10000) / 100 : null;
+    // Desvio diário percentual (ex: -0.031 → -3.1%)
+    const desvioPct = loja.desvioPercentualDia != null
+      ? Math.round(loja.desvioPercentualDia * 10000) / 100
+      : null;
 
     const kpis = {
       servicos,
       objetivo,
+      objDia:   objDia != null ? Math.round(objDia * 10) / 10 : null,
       taxa,
-      nps:       loja.nps ?? null,
+      nps:      loja.nps ?? null,
       mes,
       ano,
-      nomeLoja:  loja.lojaNome ?? null,
-      desvio,
-      desvioPercent: (objetivo && objetivo > 0 && desvio !== null)
-        ? Math.round((desvio / objetivo) * 100)
-        : null,
+      nomeLoja: loja.lojaNome ?? null,
+      desvioPct,  // % desvio diário (bate com o PoweringEG "Desvio Obj. Diário")
     };
 
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis, mes, ano }) };
