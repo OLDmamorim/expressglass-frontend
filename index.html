@@ -135,31 +135,28 @@
     </header>
 
     <!-- Banner KPI PoweringEG -->
-    <div id="poweringKpiBanner" style="display:none;background:linear-gradient(135deg,#1e3a5f 0%,#0f2944 100%);color:#fff;padding:10px 16px;font-family:inherit;border-bottom:2px solid #f59e0b;">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;max-width:100%;">
-        <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px;">
-          <span>📊</span>
-          <span id="pegBannerTitle">PoweringEG</span>
+    <div id="poweringKpiBanner" style="display:none;background:#0f2944;padding:8px 10px 6px;border-bottom:2px solid #f59e0b;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span id="pegBannerTitle" style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:0.8px;text-transform:uppercase;">📊 PoweringEG</span>
+        <span id="pegMesAno" style="font-size:10px;color:#64748b;font-weight:600;">—</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+        <div style="background:#1e3a5f;border-radius:8px;padding:6px 8px;text-align:center;">
+          <div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Serviços</div>
+          <div id="pegServicos" style="font-size:20px;font-weight:800;color:#4ade80;line-height:1;">—</div>
         </div>
-        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:11px;opacity:0.7;font-weight:600;">SERVIÇOS</span>
-            <span id="pegServicos" style="font-size:18px;font-weight:800;color:#4ade80;">—</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:11px;opacity:0.7;font-weight:600;">OBJETIVO</span>
-            <span id="pegObjetivo" style="font-size:18px;font-weight:800;color:#93c5fd;">—</span>
-          </div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <span style="font-size:11px;opacity:0.7;font-weight:600;">TX. REP.</span>
-            <span id="pegTaxa" style="font-size:18px;font-weight:800;color:#fbbf24;">—</span>
-          </div>
-          <div id="pegDesvioWrap" style="display:none;display:flex;align-items:center;gap:6px;">
-            <span style="font-size:11px;opacity:0.7;font-weight:600;">DESVIO DIA</span>
-            <span id="pegDesvio" style="font-size:18px;font-weight:800;">—</span>
-          </div>
+        <div style="background:#1e3a5f;border-radius:8px;padding:6px 8px;text-align:center;">
+          <div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Objetivo</div>
+          <div id="pegObjetivo" style="font-size:20px;font-weight:800;color:#93c5fd;line-height:1;">—</div>
         </div>
-        <div style="font-size:10px;opacity:0.5;" id="pegMesAno">—</div>
+        <div style="background:#1e3a5f;border-radius:8px;padding:6px 8px;text-align:center;">
+          <div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Tx. Rep.</div>
+          <div id="pegTaxa" style="font-size:20px;font-weight:800;color:#fbbf24;line-height:1;">—</div>
+        </div>
+        <div style="background:#1e3a5f;border-radius:8px;padding:6px 8px;text-align:center;">
+          <div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Desvio Dia</div>
+          <div id="pegDesvio" style="font-size:20px;font-weight:800;color:#94a3b8;line-height:1;">—</div>
+        </div>
       </div>
     </div>
 
@@ -629,13 +626,11 @@
         document.getElementById('pegObjetivo').textContent = k.objetivo !== null ? k.objetivo : '—';
         document.getElementById('pegTaxa').textContent     = k.taxa !== null ? k.taxa + '%' : '—';
 
+        const desvioEl = document.getElementById('pegDesvio');
         if (k.desvioPct !== null) {
-          const desvioEl   = document.getElementById('pegDesvio');
-          const desvioWrap = document.getElementById('pegDesvioWrap');
           const sinal = k.desvioPct >= 0 ? '+' : '';
           desvioEl.textContent = sinal + k.desvioPct + '%';
           desvioEl.style.color = k.desvioPct >= 0 ? '#4ade80' : '#f87171';
-          desvioWrap.style.display = 'flex';
         }
 
         if (k.nomeLoja) document.getElementById('pegBannerTitle').textContent = '📊 ' + k.nomeLoja.toUpperCase();
