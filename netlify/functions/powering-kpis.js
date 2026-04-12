@@ -1,3 +1,4 @@
+
 // netlify/functions/powering-kpis.js
 const https = require('https');
 const { Pool } = require('pg');
@@ -134,10 +135,10 @@ exports.handler = async (event) => {
     const servicos  = loja.totalServicos ?? null;
     const objetivo  = loja.objetivoMensal ?? null;
     const objDia    = loja.objetivoDiaAtual ?? null;
-    const taxa      = loja.taxaReparacao != null ? Math.round(loja.taxaReparacao * 10000) / 100 : null;
+    const taxa      = loja.taxaReparacao != null ? Math.round(loja.taxaReparacao * 1000) / 10 : null;
     // Desvio diário percentual (ex: -0.031 → -3.1%)
     const desvioPct = loja.desvioPercentualDia != null
-      ? Math.round(loja.desvioPercentualDia * 10000) / 100
+      ? Math.round(loja.desvioPercentualDia * 1000) / 10
       : null;
 
     const kpis = {
