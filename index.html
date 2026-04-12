@@ -155,7 +155,7 @@
             <span id="pegTaxa" style="font-size:18px;font-weight:800;color:#fbbf24;">—</span>
           </div>
           <div id="pegDesvioWrap" style="display:none;display:flex;align-items:center;gap:6px;">
-            <span style="font-size:11px;opacity:0.7;font-weight:600;">DESVIO</span>
+            <span style="font-size:11px;opacity:0.7;font-weight:600;">DESVIO DIA</span>
             <span id="pegDesvio" style="font-size:18px;font-weight:800;">—</span>
           </div>
         </div>
@@ -629,12 +629,12 @@
         document.getElementById('pegObjetivo').textContent = k.objetivo !== null ? k.objetivo : '—';
         document.getElementById('pegTaxa').textContent     = k.taxa !== null ? k.taxa + '%' : '—';
 
-        if (k.desvio !== null) {
+        if (k.desvioPct !== null) {
           const desvioEl   = document.getElementById('pegDesvio');
           const desvioWrap = document.getElementById('pegDesvioWrap');
-          const sinal = k.desvio >= 0 ? '+' : '';
-          desvioEl.textContent = sinal + k.desvio + ' (' + sinal + k.desvioPercent + '%)';
-          desvioEl.style.color = k.desvio >= 0 ? '#4ade80' : '#f87171';
+          const sinal = k.desvioPct >= 0 ? '+' : '';
+          desvioEl.textContent = sinal + k.desvioPct + '%';
+          desvioEl.style.color = k.desvioPct >= 0 ? '#4ade80' : '#f87171';
           desvioWrap.style.display = 'flex';
         }
 
