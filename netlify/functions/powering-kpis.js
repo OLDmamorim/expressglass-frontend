@@ -1,20 +1,17 @@
 // netlify/functions/powering-kpis.js
-// Proxy seguro para a API do PoweringEG — a API key fica no servidor
 const https = require('https');
-const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
-const POWERING_API_KEY = process.env.POWERING_EG_API_KEY;
-const POWERING_BASE = 'poweringeg-3c9mozlh.manus.space';
+const POWERING_EG_API_KEY = process.env.POWERING_EG_API_KEY;
+const POWERING_EG_BASE = 'poweringeg-3c9mozlh.manus.space';
 
-function fetchPowering(path) {
+function httpsGet(path) {
   return new Promise((resolve, reject) => {
     const options = {
-      hostname: POWERING_BASE,
-      path: `/api/external${path}`,
+      hostname: POWERING_EG_BASE,
+      path,
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${POWERING_API_KEY}`,
+        'Authorization': `Bearer ${POWERING_EG_API_KEY}`,
         'Content-Type': 'application/json'
       }
     };
@@ -23,7 +20,7 @@ function fetchPowering(path) {
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
         try { resolve(JSON.parse(data)); }
-        catch(e) { reject(new Error('Erro a parsear resposta PoweringEG')); }
+        catch (e) { reject(new Error('Invalid JSON: ' + data)); }
       });
     });
     req.on('error', reject);
@@ -40,79 +37,74 @@ exports.handler = async (event) => {
   };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-  if (event.httpMethod !== 'GET') return { statusCode: 405, headers, body: '{}' };
+
+  if (!POWERING_EG_API_KEY) {
+    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: 'POWERING_EG_API_KEY não configurada' }) };
+  }
+
+  const { lojaId, action } = event.queryStringParameters || {};
+
+  // Ação auxiliar: listar todas as lojas (para fazer o mapeamento portal → lojaId)
+  if (action === 'lojas') {
+    try {
+      const result = await httpsGet('/api/external/lojas');
+      return { statusCode: 200, headers, body: JSON.stringify(result) };
+    } catch (err) {
+      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: err.message }) };
+    }
+  }
+
+  if (!lojaId) {
+    return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'lojaId obrigatório' }) };
+  }
 
   try {
-    // Verificar autenticação
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    if (!authHeader?.startsWith('Bearer ')) throw new Error('Não autenticado');
-    jwt.verify(authHeader.substring(7), JWT_SECRET);
-
-    if (!POWERING_API_KEY) {
-      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: 'POWERING_EG_API_KEY não configurada' }) };
-    }
-
-    const params = event.queryStringParameters || {};
-    const lojaId = params.loja_id;
     const now = new Date();
-    const mes = parseInt(params.mes || now.getMonth() + 1);
-    const ano = parseInt(params.ano || now.getFullYear());
+    const mes = now.getMonth() + 1;
+    const ano = now.getFullYear();
 
-    // Buscar resultados mensais da loja
-    const path = lojaId
-      ? `/resultados?mes=${mes}&ano=${ano}&lojaId=${lojaId}`
-      : `/resultados?mes=${mes}&ano=${ano}`;
+    // Buscar resultados do mês atual para esta loja
+    const resultado = await httpsGet(`/api/external/resultados?mes=${mes}&ano=${ano}&lojaId=${lojaId}`);
 
-    const data = await fetchPowering(path);
-
-    if (!data.success && !data.data) {
-      return { statusCode: 200, headers, body: JSON.stringify({ success: false, error: data.error || 'Sem dados' }) };
+    if (!resultado.success || !resultado.data || resultado.data.length === 0) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, kpis: null, mes, ano })
+      };
     }
 
-    // Normalizar — pode vir como array ou objeto único
-    const results = Array.isArray(data.data) ? data.data : [data.data];
-    const loja = lojaId ? results.find(r => String(r.lojaId || r.id) === String(lojaId)) || results[0] : results[0];
+    const loja = resultado.data[0];
 
-    if (!loja) {
-      return { statusCode: 200, headers, body: JSON.stringify({ success: false, error: 'Loja não encontrada' }) };
+    // Normalizar campos — o PoweringEG pode usar nomes diferentes
+    const kpis = {
+      servicos:   loja.servicos_realizados ?? loja.servicos ?? loja.realizados ?? null,
+      objetivo:   loja.objetivo ?? loja.meta ?? loja.target ?? null,
+      taxa:       loja.taxa_reparacao ?? loja.taxa ?? loja.conversion_rate ?? null,
+      nps:        loja.nps ?? null,
+      mes,
+      ano,
+      nomeLoja:   loja.nome ?? loja.name ?? loja.loja ?? null,
+    };
+
+    // Calcular desvio se temos serviços e objetivo
+    if (kpis.servicos !== null && kpis.objetivo !== null && kpis.objetivo > 0) {
+      kpis.desvio = kpis.servicos - kpis.objetivo;
+      kpis.desvioPercent = Math.round(((kpis.servicos / kpis.objetivo) * 100) - 100);
     }
-
-    // Calcular KPIs do dia atual
-    const diasUteisTotais = loja.diasUteis || loja.dias_uteis || 21;
-    const diasPassados = loja.diasPassados || loja.dias_passados || Math.min(now.getDate(), diasUteisTotais);
-    const servicos = parseInt(loja.servicos || loja.totalServicos || 0);
-    const objetivo = parseInt(loja.objetivo || loja.meta || 0);
-    const taxaRep = parseFloat(loja.taxaReposicao || loja.taxa_reposicao || loja.taxaRep || 0);
-
-    // Objetivo diário e desvio
-    const objetivoDiario = diasUteisTotais > 0 ? (objetivo / diasUteisTotais) : 0;
-    const realDiario = diasPassados > 0 ? (servicos / diasPassados) : 0;
-    const desvioPct = objetivoDiario > 0 ? (((realDiario - objetivoDiario) / objetivoDiario) * 100).toFixed(1) : null;
-    const progressoPct = objetivo > 0 ? Math.round((servicos / objetivo) * 100) : 0;
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        success: true,
-        kpis: {
-          servicos,
-          objetivo,
-          taxaRep: taxaRep.toFixed(1),
-          desvioPct,
-          progressoPct,
-          diasPassados,
-          diasUteisTotais,
-          mes,
-          ano,
-          nomeLoja: loja.nome || loja.name || '',
-        },
-        raw: loja
-      })
+      body: JSON.stringify({ success: true, kpis, mes, ano })
     };
 
-  } catch (error) {
-    console.error('powering-kpis error:', error.message);
-    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+  } catch (err) {
+    console.error('PoweringEG KPI error:', err);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ success: false, error: err.message })
+    };
   }
 };
