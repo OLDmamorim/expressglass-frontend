@@ -134,6 +134,35 @@
       </div>
     </header>
 
+    <!-- Banner KPI PoweringEG -->
+    <div id="poweringKpiBanner" style="display:none;background:linear-gradient(135deg,#1e3a5f 0%,#0f2944 100%);color:#fff;padding:10px 16px;font-family:inherit;border-bottom:2px solid #f59e0b;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;max-width:100%;">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px;">
+          <span>📊</span>
+          <span id="pegBannerTitle">PoweringEG</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:11px;opacity:0.7;font-weight:600;">SERVIÇOS</span>
+            <span id="pegServicos" style="font-size:18px;font-weight:800;color:#4ade80;">—</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:11px;opacity:0.7;font-weight:600;">OBJETIVO</span>
+            <span id="pegObjetivo" style="font-size:18px;font-weight:800;color:#93c5fd;">—</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:11px;opacity:0.7;font-weight:600;">TX. REP.</span>
+            <span id="pegTaxa" style="font-size:18px;font-weight:800;color:#fbbf24;">—</span>
+          </div>
+          <div id="pegDesvioWrap" style="display:none;display:flex;align-items:center;gap:6px;">
+            <span style="font-size:11px;opacity:0.7;font-weight:600;">DESVIO</span>
+            <span id="pegDesvio" style="font-size:18px;font-weight:800;">—</span>
+          </div>
+        </div>
+        <div style="font-size:10px;opacity:0.5;" id="pegMesAno">—</div>
+      </div>
+    </div>
+
     <div id="searchBar" class="search-bar hidden">
       <input type="text" id="searchInput" placeholder="Pesquisar por matrícula, carro ou localidade..." />
       <button id="clearSearch" class="search-clear">✕</button>
@@ -545,6 +574,68 @@
   <script src="excel-import-ui.js?v=2026-04-09"></script>
   <script src="glass-alert.js?v=2026-04-09"></script>
   <script src="agenda-bot.js?v=2026-04-09"></script>
+
+  <script>
+  // ── Banner KPI PoweringEG ──
+  (function() {
+    const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+    async function loadPoweringKpis() {
+      try {
+        // Obter token JWT do authClient
+        const token = window.authClient?.getToken?.() || window.authClient?.token || localStorage.getItem('auth_token') || '';
+        if (!token) return;
+
+        const res = await fetch('/.netlify/functions/powering-kpis', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        if (!data.success || !data.kpis) return; // sem mapeamento ou sem dados
+
+        const k = data.kpis;
+        const banner = document.getElementById('poweringKpiBanner');
+        if (!banner) return;
+
+        // Preencher valores
+        document.getElementById('pegServicos').textContent = k.servicos !== null ? k.servicos : '—';
+        document.getElementById('pegObjetivo').textContent = k.objetivo !== null ? k.objetivo : '—';
+        document.getElementById('pegTaxa').textContent = k.taxa !== null ? k.taxa + '%' : '—';
+
+        // Desvio com cor
+        if (k.desvio !== null) {
+          const desvioEl = document.getElementById('pegDesvio');
+          const desvioWrap = document.getElementById('pegDesvioWrap');
+          const sinal = k.desvio >= 0 ? '+' : '';
+          desvioEl.textContent = sinal + k.desvio + ' (' + (k.desvio >= 0 ? '+' : '') + k.desvioPercent + '%)';
+          desvioEl.style.color = k.desvio >= 0 ? '#4ade80' : '#f87171';
+          desvioWrap.style.display = 'flex';
+        }
+
+        // Mês/Ano e nome da loja
+        if (k.nomeLoja) document.getElementById('pegBannerTitle').textContent = '📊 ' + k.nomeLoja;
+        document.getElementById('pegMesAno').textContent = MESES[(k.mes || 1) - 1] + ' ' + k.ano;
+
+        // Mostrar banner
+        banner.style.display = 'block';
+      } catch (e) {
+        // Silencioso — banner simplesmente não aparece
+      }
+    }
+
+    // Esperar que o authClient esteja pronto antes de carregar KPIs
+    function waitForAuth(attempts) {
+      if (attempts <= 0) return;
+      if (window.authClient && (window.authClient.getToken?.() || window.authClient.token)) {
+        loadPoweringKpis();
+      } else {
+        setTimeout(() => waitForAuth(attempts - 1), 500);
+      }
+    }
+    waitForAuth(20); // tenta durante 10 segundos (20 × 500ms)
+  })();
+  </script>
 
   <script>
     function fillPrintSectionsSafely(){
