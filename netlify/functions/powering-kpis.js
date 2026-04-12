@@ -65,36 +65,43 @@ exports.handler = async (event) => {
 
   // Obter lojaId: via query param direto OU via JWT -> BD
   let lojaId = params.lojaId ? parseInt(params.lojaId) : null;
+  const portalIdParam = params.portalId ? parseInt(params.portalId) : null;
 
   if (!lojaId) {
-    const authHeader = event.headers.authorization || event.headers.Authorization || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    // Tentar via portalId query param (coordenadores/admin que trocam portal)
+    const portalIdToLookup = portalIdParam || null;
 
-    if (!token) {
-      return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'lojaId ou token obrigatorio' }) };
+    // Ou via JWT
+    let portalId = portalIdToLookup;
+    if (!portalId) {
+      const authHeader = event.headers.authorization || event.headers.Authorization || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+      if (!token) {
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'lojaId ou portalId obrigatorio' }) };
+      }
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        portalId = decoded.portal_id || decoded.portalId;
+      } catch(err) {
+        return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Token invalido' }) };
+      }
+    }
+
+    if (!portalId) {
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis: null, reason: 'sem_portal' }) };
     }
 
     try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      const portalId = decoded.portal_id || decoded.portalId;
-
-      if (!portalId) {
-        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'portal_id nao encontrado no token' }) };
-      }
-
       const result = await pool.query(
         'SELECT powering_eg_loja_id FROM portals WHERE id = $1',
         [portalId]
       );
-
       if (!result.rows.length || !result.rows[0].powering_eg_loja_id) {
-        // Portal sem mapeamento - banner nao aparece (silencioso)
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis: null, reason: 'sem_mapeamento' }) };
       }
-
       lojaId = result.rows[0].powering_eg_loja_id;
-    } catch (err) {
-      return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Token invalido' }) };
+    } catch(err) {
+      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: 'DB error: ' + err.message }) };
     }
   }
 
