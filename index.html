@@ -599,13 +599,15 @@
       return null;
     }
 
-    async function loadPoweringKpis() {
+    async function loadPoweringKpis(portalId, token) {
       try {
-        const token = window.authClient?.getToken?.() || '';
-        if (!token) return;
+        if (!token || !portalId) return;
 
-        const portalId = getActivePortalId();
-        if (!portalId) return;
+        // Reset banner enquanto carrega
+        document.getElementById('pegServicos').textContent = '…';
+        document.getElementById('pegObjetivo').textContent = '…';
+        document.getElementById('pegTaxa').textContent     = '…';
+        document.getElementById('pegDesvioWrap').style.display = 'none';
 
         const url = '/.netlify/functions/powering-kpis?portalId=' + portalId;
         const res = await fetch(url, {
@@ -614,7 +616,10 @@
         if (!res.ok) return;
         const data = await res.json();
 
-        if (!data.success || !data.kpis) return;
+        if (!data.success || !data.kpis) {
+          document.getElementById('poweringKpiBanner').style.display = 'none';
+          return;
+        }
 
         const k = data.kpis;
         const banner = document.getElementById('poweringKpiBanner');
@@ -633,7 +638,7 @@
           desvioWrap.style.display = 'flex';
         }
 
-        if (k.nomeLoja) document.getElementById('pegBannerTitle').textContent = '📊 ' + k.nomeLoja;
+        if (k.nomeLoja) document.getElementById('pegBannerTitle').textContent = '📊 ' + k.nomeLoja.toUpperCase();
         document.getElementById('pegMesAno').textContent = MESES[(k.mes || 1) - 1] + ' ' + k.ano;
         banner.style.display = 'block';
       } catch(e) {
@@ -642,19 +647,38 @@
     }
 
     // Esperar authClient + portalId
+    let _lastPortalId = null;
+
     function waitForAuth(attempts) {
       if (attempts <= 0) return;
       const token = window.authClient?.getToken?.();
       const pid   = getActivePortalId();
       if (token && pid) {
-        loadPoweringKpis();
+        _lastPortalId = pid;
+        loadPoweringKpis(pid, token);
+        startPolling(token);
       } else {
         setTimeout(() => waitForAuth(attempts - 1), 500);
       }
     }
 
-    // Também reagir a mudança de portal (coordenador/admin trocam no dropdown)
-    window.addEventListener('portalChanged', () => loadPoweringKpis());
+    // Detetar troca de portal pelo coordenador (polling leve)
+    function startPolling(token) {
+      setInterval(() => {
+        const pid = getActivePortalId();
+        if (pid && pid !== _lastPortalId) {
+          _lastPortalId = pid;
+          loadPoweringKpis(pid, token);
+        }
+      }, 1000);
+    }
+
+    window.addEventListener('portalChanged', () => {
+      const token = window.authClient?.getToken?.();
+      const pid = getActivePortalId();
+      if (token && pid) { _lastPortalId = pid; loadPoweringKpis(pid, token); }
+    });
+
     waitForAuth(20);
   })();
   </script>
