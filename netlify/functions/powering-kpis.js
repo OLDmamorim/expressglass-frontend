@@ -126,26 +126,27 @@ exports.handler = async (event) => {
 
     const resultado = await httpsGet(`/api/external/resultados?mes=${mes}&ano=${ano}&lojaId=${lojaId}`);
 
-    if (!resultado.success || !resultado.data || resultado.data.length === 0) {
+    if (!resultado.resultados || resultado.resultados.length === 0) {
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis: null, mes, ano }) };
     }
 
-    const loja = resultado.data[0];
-    const servicos = loja.servicos_realizados ?? loja.servicos ?? loja.realizados ?? null;
-    const objetivo = loja.objetivo ?? loja.meta ?? loja.target ?? null;
-    const taxa     = loja.taxa_reparacao ?? loja.taxa ?? loja.conversion_rate ?? null;
+    const loja = resultado.resultados[0];
+    const servicos = loja.totalServicos ?? null;
+    const objetivo = loja.objetivoMensal ?? null;
+    const taxa     = loja.taxaReparacao != null ? Math.round(loja.taxaReparacao * 10000) / 100 : null; // 0.3485 → 34.85%
+    const desvio   = loja.desvioObjetivoAcumulado ?? (servicos !== null && objetivo !== null ? servicos - objetivo : null);
 
     const kpis = {
       servicos,
       objetivo,
-      taxa: taxa !== null ? Math.round(taxa * 100) / 100 : null,
-      nps: loja.nps ?? null,
+      taxa,
+      nps:       loja.nps ?? null,
       mes,
       ano,
-      nomeLoja: loja.nome ?? loja.name ?? null,
-      desvio: (servicos !== null && objetivo !== null) ? servicos - objetivo : null,
-      desvioPercent: (servicos !== null && objetivo !== null && objetivo > 0)
-        ? Math.round(((servicos / objetivo) * 100) - 100)
+      nomeLoja:  loja.lojaNome ?? null,
+      desvio,
+      desvioPercent: (objetivo && objetivo > 0 && desvio !== null)
+        ? Math.round((desvio / objetivo) * 100)
         : null,
     };
 
