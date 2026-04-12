@@ -604,7 +604,7 @@
         document.getElementById('pegServicos').textContent = '…';
         document.getElementById('pegObjetivo').textContent = '…';
         document.getElementById('pegTaxa').textContent     = '…';
-        document.getElementById('pegDesvioWrap').style.display = 'none';
+        document.getElementById('pegDesvio').textContent   = '…';
 
         const url = '/.netlify/functions/powering-kpis?portalId=' + portalId;
         const res = await fetch(url, {
