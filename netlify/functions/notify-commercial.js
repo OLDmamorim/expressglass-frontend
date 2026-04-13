@@ -103,9 +103,9 @@ exports.handler = async (event) => {
         ? `📅 <b>Serviço Agendado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📆 ${dataStr}${periodoStr}\n🏪 ${appt.portal_name || '—'}\n\n<i>Este serviço foi encaminhado por si e está agendado.</i>`
         : `📅 <b>Serviço Agendado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📆 ${dataStr}${periodoStr}\n📍 ${localStr}\n🏪 ${appt.portal_name || '—'}\n\n<i>Este serviço foi encaminhado por si e está agendado.</i>`;
     } else if (appt.executed === true) {
-      msg = `✅ <b>Serviço Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}`;
+      msg = `✅ <b>Serviço Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}\n🏪 <b>${appt.portal_name || '—'}</b>`;
     } else {
-      msg = `❌ <b>Serviço Não Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}\n📝 Motivo: ${appt.not_done_reason || '—'}`;
+      msg = `❌ <b>Serviço Não Realizado</b>\n\n🚗 <b>${appt.plate}</b> — ${appt.car || '—'}\n📅 ${dataStr}${periodoStr}\n📍 ${localStr}\n🏪 <b>${appt.portal_name || '—'}</b>\n📝 Motivo: ${appt.not_done_reason || '—'}`;
     }
 
     const tgResult = await sendTelegram(appt.telegram_chat_id, msg);
