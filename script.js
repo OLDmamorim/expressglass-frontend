@@ -1856,6 +1856,9 @@ function editAppointment(id) {
   document.getElementById('appointmentPhone').value = appointment.phone || '';
   if (document.getElementById('appointmentClientName')) document.getElementById('appointmentClientName').value = appointment.client_name || '';
   document.getElementById('appointmentExtra').value = appointment.extra || '';
+  if (document.getElementById('appointmentDamageDetails')) {
+    document.getElementById('appointmentDamageDetails').value = appointment.damage_details || '';
+  }
   
   // Preencher campo de quilómetros se existir
   const kmValue = getKmValue(appointment);
@@ -2070,6 +2073,7 @@ function buildDesktopCard(a){
         ${car ? `<span class="dc-car">${car}</span>` : ''}
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
+      ${a.damage_details ? `<div class="dc-sub" style="margin-top:3px;font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : ''}
       ${preAgendadoBadge}
       ${confirmBtn}
       ${locWarning}
@@ -2351,6 +2355,7 @@ const telBtn = phone ? `
     a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : ''
   ].filter(Boolean).join('');
   const notes = [a.client_name, a.extra, a.notes].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
+  const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
   const phcFooter = isAutoImported ? `
@@ -2420,6 +2425,7 @@ const telBtn = phone ? `
         ${chips ? `<div class="m-chips">${chips}</div>` : ''}
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
+        ${damageRow}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
         ${preAgendadoM
           ? `<div class="m-pending-confirm">⏳ Aguarda confirmação do coordenador</div>`
@@ -3126,7 +3132,8 @@ function bootApp() {
       commercial_user_id: document.getElementById('appointmentCommercial')?.value
         ? parseInt(document.getElementById('appointmentCommercial').value)
         : null,
-      client_name: (document.getElementById('appointmentClientName')?.value || '').trim() || null
+      client_name: (document.getElementById('appointmentClientName')?.value || '').trim() || null,
+      damage_details: (document.getElementById('appointmentDamageDetails')?.value || '').trim() || null
     };
   }
 
