@@ -252,7 +252,6 @@ class ExcelImporter {
     service.address = service.address || '';
     service.phone = service.phone || '';
     service.extra = service.extra || '';
-    service.damage_details = service.damage_details || '';
     
     // Campos padrão
     service.status = 'NE'; // Não Executado
@@ -450,8 +449,30 @@ class ExcelImporter {
 
         // Verificar duplicado no mesmo lote (evita chamadas duplas ao backend)
         if (existingPlates.has(plateNormalized)) {
-          results.skipped++;
-          results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no lote' });
+          // Se tem damage_details, tentar atualizar registo existente
+          if (service.damage_details) {
+            const existing = existingAppointments.find(a =>
+              String(a.plate).toUpperCase().trim() === plateNormalized
+            );
+            if (existing?.id) {
+              try {
+                await window.apiClient.updateAppointment(existing.id, {
+                  ...existing,
+                  damage_details: service.damage_details
+                });
+                results.details.push({ plate: service.plate, status: 'updated', reason: 'damage_details atualizado' });
+              } catch (e) {
+                results.skipped++;
+                results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no lote' });
+              }
+            } else {
+              results.skipped++;
+              results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no lote' });
+            }
+          } else {
+            results.skipped++;
+            results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no lote' });
+          }
           continue;
         }
 
@@ -470,8 +491,31 @@ class ExcelImporter {
 
       } catch (error) {
         if (error.message && error.message.includes('já existe')) {
-          results.skipped++;
-          results.details.push({ plate: service.plate, status: 'skipped', reason: 'Já existe' });
+          // Tentar atualizar damage_details se existir
+          if (service.damage_details) {
+            const plateNorm = String(service.plate).toUpperCase().trim();
+            const existing = (window.appointments || []).find(a =>
+              String(a.plate).toUpperCase().trim() === plateNorm
+            );
+            if (existing?.id) {
+              try {
+                await window.apiClient.updateAppointment(existing.id, {
+                  ...existing,
+                  damage_details: service.damage_details
+                });
+                results.details.push({ plate: service.plate, status: 'updated', reason: 'damage_details atualizado' });
+              } catch (e) {
+                results.skipped++;
+                results.details.push({ plate: service.plate, status: 'skipped', reason: 'Já existe' });
+              }
+            } else {
+              results.skipped++;
+              results.details.push({ plate: service.plate, status: 'skipped', reason: 'Já existe' });
+            }
+          } else {
+            results.skipped++;
+            results.details.push({ plate: service.plate, status: 'skipped', reason: 'Já existe' });
+          }
         } else {
           results.errors++;
           results.details.push({ plate: service.plate, status: 'error', error: error.message });
