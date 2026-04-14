@@ -252,6 +252,7 @@ class ExcelImporter {
     service.address = service.address || '';
     service.phone = service.phone || '';
     service.extra = service.extra || '';
+    service.damage_details = service.damage_details || '';
     
     // Campos padrão
     service.status = 'NE'; // Não Executado

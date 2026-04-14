@@ -176,7 +176,8 @@ function autoDetectColumns() {
     'mapNotes': ['observacoes', 'observações', 'notes', 'obs', 'comentarios', 'comentários'],
     'mapAddress': ['morada', 'endereco', 'endereço', 'address', 'rua'],
     'mapPhone': ['telefone', 'contacto', 'contato', 'phone', 'telemovel', 'telemóvel'],
-    'mapExtra': ['extra', 'outros', 'adicional', 'dados']
+    'mapExtra': ['extra', 'outros', 'adicional', 'dados'],
+    'mapDamagedetails': ['detalhe_danos', 'detalhedanos', 'danos', 'damage', 'avaria', 'detalhe']
   };
   
   Object.entries(mappings).forEach(([selectId, keywords]) => {
@@ -244,8 +245,11 @@ async function goToStep3() {
   try {
     // Definir mapeamento
     const mapping = {};
+    // Mapa de conversão: id do select → nome do campo no backend
+    const fieldAliases = { damagedetails: 'damage_details' };
     document.querySelectorAll('.mapping-select').forEach(select => {
-      const field = select.id.replace('map', '').toLowerCase();
+      const rawField = select.id.replace('map', '').toLowerCase();
+      const field = fieldAliases[rawField] || rawField;
       mapping[field] = select.value ? parseInt(select.value) : null;
     });
     
