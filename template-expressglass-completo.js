@@ -98,7 +98,7 @@ class ExpressglassFileProcessor {
     result.serviceDate = this.formatDate(row[5]);
     result.startTime = row[20] || '';
     result.endTime = row[21] || '';
-    result.damageDetails = row[23] || '';
+    result.damage_details = (row[23] || '').toString().trim() || null;
     
     return result;
   }

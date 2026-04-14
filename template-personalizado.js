@@ -163,6 +163,7 @@ class ProcessadorPersonalizado {
       : null;
 
     const contacto = (row[25] || '').toString().trim();
+    const detalheDanos = (row[23] || '').toString().trim();
 
     const servico = {
       plate: this.formatarMatricula(matricula),
@@ -174,6 +175,7 @@ class ProcessadorPersonalizado {
       phone: contacto,
       extra: eurocode,
       client_name: nomeCliente,
+      damage_details: detalheDanos || null,
       status: 'NE',
       date: dateISO,           // ← dataserviço (col F)
       period: period,          // ← Manhã ou Tarde (col U)
