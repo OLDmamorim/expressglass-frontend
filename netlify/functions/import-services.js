@@ -89,6 +89,11 @@ exports.handler = async (event) => {
             updateFields.push(`notes = $${idx++}`);
             updateVals.push(svc.notes);
           }
+          // Actualizar damage_details se Excel tem valor
+          if (svc.damage_details) {
+            updateFields.push(`damage_details = $${idx++}`);
+            updateVals.push(svc.damage_details);
+          }
 
           // Se NÃO está na agenda mas Excel tem data → colocar na agenda
           if (!hasDateInDB && hasDateInExcel) {
@@ -131,9 +136,9 @@ exports.handler = async (event) => {
             `INSERT INTO appointments (
               date, period, plate, car, service, locality, status,
               notes, address, extra, phone, km, sortIndex, "glassOrdered",
-              auto_imported, confirmed, portal_id, created_at, updated_at
+              auto_imported, confirmed, damage_details, portal_id, created_at, updated_at
             ) VALUES (
-              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
             ) RETURNING id`,
             [
               svc.date || null,
@@ -150,8 +155,9 @@ exports.handler = async (event) => {
               null,           // km
               1,              // sortIndex
               false,          // glassOrdered
-              hasAutoDate,    // auto_imported: true se veio com data do Excel
-              false,          // confirmed: sempre false ao importar
+              hasAutoDate,    // auto_imported
+              false,          // confirmed
+              svc.damage_details || null,
               svc.portal_id,
               svc.createdAt || new Date().toISOString(),
               new Date().toISOString()
