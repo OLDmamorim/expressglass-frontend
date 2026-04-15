@@ -134,33 +134,6 @@
       </div>
     </header>
 
-
-    <!-- Banner KPI PoweringEG -->
-    <div id="poweringKpiBanner" style="display:none;background:#0f2944;padding:8px 10px 6px;border-bottom:2px solid #f59e0b;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <span id="pegBannerTitle" style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:0.8px;text-transform:uppercase;">📊 PoweringEG</span>
-        <span id="pegMesAno" style="font-size:10px;color:#64748b;font-weight:600;">—</span>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
-        <div style="background:#1e3a5f;border-radius:8px;padding:6px 8px;text-align:center;">
-          <div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Serviços</div>
-          <div id="pegServicos" style="font-size:20px;font-weight:800;color:#4ade80;line-height:1;">—</div>
-        </div>
-        <div style="background:#1e3a5f;border-radius:8px;padding:6px 8px;text-align:center;">
-          <div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Objetivo</div>
-          <div id="pegObjetivo" style="font-size:20px;font-weight:800;color:#93c5fd;line-height:1;">—</div>
-        </div>
-        <div style="background:#1e3a5f;border-radius:8px;padding:6px 8px;text-align:center;">
-          <div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Tx. Rep.</div>
-          <div id="pegTaxa" style="font-size:20px;font-weight:800;color:#fbbf24;line-height:1;">—</div>
-        </div>
-        <div style="background:#1e3a5f;border-radius:8px;padding:6px 8px;text-align:center;">
-          <div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Desvio Dia</div>
-          <div id="pegDesvio" style="font-size:20px;font-weight:800;color:#94a3b8;line-height:1;">—</div>
-        </div>
-      </div>
-    </div>
-
     <div id="searchBar" class="search-bar hidden">
       <input type="text" id="searchInput" placeholder="Pesquisar por matrícula, carro ou localidade..." />
       <button id="clearSearch" class="search-clear">✕</button>
@@ -572,6 +545,7 @@
   <script src="excel-import-ui.js?v=2026-04-09"></script>
   <script src="glass-alert.js?v=2026-04-09"></script>
   <script src="agenda-bot.js?v=2026-04-09"></script>
+  <script src="pesados-coord.js?v=2026-04-15"></script>
 
   <script>
     function fillPrintSectionsSafely(){
@@ -621,90 +595,6 @@
     .nd-option input[type=radio]{ display:none; }
   </style>
 
-
-  <script>
-  // ── Banner KPI PoweringEG ──
-  (function() {
-    const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-
-    function getActivePortalId() {
-      try {
-        const t = window.authClient?.getToken?.();
-        if (t) { const p = JSON.parse(atob(t.split('.')[1])); if (p.portalId) return p.portalId; }
-      } catch(e) {}
-      if (window.activePortalId) return window.activePortalId;
-      if (window.currentPortalId) return window.currentPortalId;
-      if (window.portalId) return window.portalId;
-      const urlParam = new URLSearchParams(window.location.search).get('portal_id');
-      if (urlParam) return parseInt(urlParam);
-      return null;
-    }
-
-    async function loadPoweringKpis(portalId, token) {
-      try {
-        document.getElementById('pegServicos').textContent = '…';
-        document.getElementById('pegObjetivo').textContent = '…';
-        document.getElementById('pegTaxa').textContent     = '…';
-        document.getElementById('pegDesvio').textContent   = '…';
-
-        const url = '/.netlify/functions/powering-kpis?portalId=' + portalId;
-        const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!data.success || !data.kpis) { document.getElementById('poweringKpiBanner').style.display = 'none'; return; }
-
-        const k = data.kpis;
-        document.getElementById('pegServicos').textContent = k.servicos !== null ? k.servicos : '—';
-        document.getElementById('pegObjetivo').textContent = k.objetivo !== null ? k.objetivo : '—';
-        document.getElementById('pegTaxa').textContent     = k.taxa !== null ? k.taxa + '%' : '—';
-
-        const desvioEl = document.getElementById('pegDesvio');
-        if (k.desvioPct !== null) {
-          const sinal = k.desvioPct >= 0 ? '+' : '';
-          desvioEl.textContent = sinal + k.desvioPct + '%';
-          desvioEl.style.color = k.desvioPct >= 0 ? '#4ade80' : '#f87171';
-        }
-
-        if (k.nomeLoja) document.getElementById('pegBannerTitle').textContent = '📊 ' + k.nomeLoja.toUpperCase();
-        document.getElementById('pegMesAno').textContent = MESES[(k.mes || 1) - 1] + ' ' + k.ano;
-        document.getElementById('poweringKpiBanner').style.display = 'block';
-      } catch(e) {}
-    }
-
-    let _lastPortalId = null;
-
-    function waitForAuth(attempts) {
-      if (attempts <= 0) return;
-      const token = window.authClient?.getToken?.();
-      const pid   = getActivePortalId();
-      if (token && pid) {
-        _lastPortalId = pid;
-        loadPoweringKpis(pid, token);
-        startPolling(token);
-      } else {
-        setTimeout(() => waitForAuth(attempts - 1), 500);
-      }
-    }
-
-    function startPolling(token) {
-      setInterval(() => {
-        const pid = getActivePortalId();
-        if (pid && pid !== _lastPortalId) {
-          _lastPortalId = pid;
-          loadPoweringKpis(pid, token);
-        }
-      }, 1000);
-    }
-
-    window.addEventListener('portalChanged', () => {
-      const token = window.authClient?.getToken?.();
-      const pid = getActivePortalId();
-      if (token && pid) { _lastPortalId = pid; loadPoweringKpis(pid, token); }
-    });
-
-    waitForAuth(20);
-  })();
-  </script>
 </body>
 </html>
 
