@@ -29,7 +29,8 @@
   // ─── Inicialização ─────────────────────────────────────────────────────────
   function init() {
     const role = window.authClient?.getRole?.();
-    if (role !== 'pesados_coord') return;
+    // Pesados disponível para pesados_coord, admin e coordinator
+    if (!['pesados_coord','admin','coordinator'].includes(role)) return;
 
     // Esconder a vista normal e mostrar a de pesados
     hideDefaultView();
@@ -39,7 +40,9 @@
   }
 
   function hideDefaultView() {
-    // Esconde elementos da vista normal que não fazem sentido para a coordenadora
+    const role = window.authClient?.getRole?.();
+    // Só esconde a vista normal para a coordenadora de pesados — admin e coordinator mantêm tudo
+    if (role !== 'pesados_coord') return;
     const ids = ['calendarSection','portalSwitcher','addAppointmentBtn','totalizador'];
     ids.forEach(id => {
       const el = document.getElementById(id);
@@ -357,8 +360,27 @@
       </div>
     `;
 
-    // Inserir no body antes do primeiro script
-    document.body.insertBefore(container, document.body.firstChild);
+    const role = window.authClient?.getRole?.();
+    if (role === 'pesados_coord') {
+      // Coordenadora: vista pesados é a vista principal
+      document.body.insertBefore(container, document.body.firstChild);
+    } else {
+      // Admin/coordinator: inserir como secção após o header normal
+      container.style.marginTop = '12px';
+      // Adicionar título colapsável
+      const toggle = document.createElement('div');
+      toggle.id = 'pvToggle';
+      toggle.style.cssText = 'cursor:pointer;background:#0f2944;color:#fff;padding:10px 16px;border-radius:10px;font-weight:700;font-size:14px;margin:12px 0 0;display:flex;justify-content:space-between;align-items:center;';
+      toggle.innerHTML = '🚛 Vista Pesados <span id="pvToggleArrow">▼</span>';
+      toggle.onclick = () => {
+        const vis = container.style.display !== 'none';
+        container.style.display = vis ? 'none' : 'block';
+        document.getElementById('pvToggleArrow').textContent = vis ? '▶' : '▼';
+      };
+      const target = document.getElementById('mainContent') || document.getElementById('appContainer') || document.body;
+      target.appendChild(toggle);
+      target.appendChild(container);
+    }
 
     // Criar modal de novo serviço fora do container para z-index correto
     document.body.appendChild(document.getElementById('pvNewServiceModal'));
