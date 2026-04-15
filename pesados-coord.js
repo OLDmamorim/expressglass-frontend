@@ -28,9 +28,9 @@
 
   // ─── Inicialização ─────────────────────────────────────────────────────────
   function init() {
-    const role = window.authClient?.getRole?.();
+    const role = window.authClient?.getUser?.()?.role;
     // Pesados disponível para pesados_coord, admin e coordinator
-    if (!['pesados_coord','admin','coordenador'].includes(role)) return;
+    if (!['pesados_coord','admin','coordinator'].includes(role)) return;
 
     // Esconder a vista normal e mostrar a de pesados
     hideDefaultView();
@@ -40,9 +40,9 @@
   }
 
   function hideDefaultView() {
-    const role = window.authClient?.getRole?.();
+    const role = window.authClient?.getUser?.()?.role;
     // Só esconde a vista normal para a coordenadora de pesados — admin e coordinator mantêm tudo
-    if (!['pesados_coord'].includes(role)) return; // só esconde para coordenadora pesados
+    if (role !== 'pesados_coord') return;
     const ids = ['calendarSection','portalSwitcher','addAppointmentBtn','totalizador'];
     ids.forEach(id => {
       const el = document.getElementById(id);
@@ -360,7 +360,7 @@
       </div>
     `;
 
-    const role = window.authClient?.getRole?.();
+    const role = window.authClient?.getUser?.()?.role;
     if (role === 'pesados_coord') {
       // Coordenadora: vista pesados é a vista principal
       document.body.insertBefore(container, document.body.firstChild);
@@ -708,19 +708,17 @@
   };
 
   // ─── Arrancar quando o DOM estiver pronto ─────────────────────────────────
-  function tryInit() {
-    const role = window.authClient?.getRole?.();
-    if (role) { init(); return true; }
-    return false;
-  }
-
-  // Tentar imediatamente, depois ouvir portalReady, depois poll
-  if (!tryInit()) {
-    window.addEventListener('portalReady', () => tryInit(), { once: true });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    // Aguardar auth estar pronto
     const wait = setInterval(() => {
-      if (tryInit()) clearInterval(wait);
-    }, 300);
-    setTimeout(() => clearInterval(wait), 15000);
+      if (window.authClient?.getUser?.()?.role) {
+        clearInterval(wait);
+        init();
+      }
+    }, 200);
+    setTimeout(() => clearInterval(wait), 10000);
   }
 
 })();
