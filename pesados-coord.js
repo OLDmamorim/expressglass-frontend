@@ -30,7 +30,7 @@
   function init() {
     const role = window.authClient?.getRole?.();
     // Pesados disponível para pesados_coord, admin e coordinator
-    if (!['pesados_coord','admin','coordinator'].includes(role)) return;
+    if (!['pesados_coord','admin','coordenador'].includes(role)) return;
 
     // Esconder a vista normal e mostrar a de pesados
     hideDefaultView();
@@ -42,7 +42,7 @@
   function hideDefaultView() {
     const role = window.authClient?.getRole?.();
     // Só esconde a vista normal para a coordenadora de pesados — admin e coordinator mantêm tudo
-    if (role !== 'pesados_coord') return;
+    if (!['pesados_coord'].includes(role)) return; // só esconde para coordenadora pesados
     const ids = ['calendarSection','portalSwitcher','addAppointmentBtn','totalizador'];
     ids.forEach(id => {
       const el = document.getElementById(id);
@@ -708,17 +708,19 @@
   };
 
   // ─── Arrancar quando o DOM estiver pronto ─────────────────────────────────
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    // Aguardar auth estar pronto
+  function tryInit() {
+    const role = window.authClient?.getRole?.();
+    if (role) { init(); return true; }
+    return false;
+  }
+
+  // Tentar imediatamente, depois ouvir portalReady, depois poll
+  if (!tryInit()) {
+    window.addEventListener('portalReady', () => tryInit(), { once: true });
     const wait = setInterval(() => {
-      if (window.authClient?.getRole?.()) {
-        clearInterval(wait);
-        init();
-      }
-    }, 200);
-    setTimeout(() => clearInterval(wait), 10000);
+      if (tryInit()) clearInterval(wait);
+    }, 300);
+    setTimeout(() => clearInterval(wait), 15000);
   }
 
 })();
