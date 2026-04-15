@@ -32,6 +32,50 @@
     return;
   }
 
+  // === PESADOS COORD: carregar todos os portais pesados ===
+  if (user.role === 'pesados_coord') {
+    try {
+      const token = window.authClient?.getToken();
+      const resp = await fetch('/.netlify/functions/portals', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const data = await resp.json();
+      if (data.success && data.data && data.data.length > 0) {
+        const allPortals = data.data.map(function(p) {
+          return {
+            id: p.id,
+            name: p.name,
+            departureAddress: p.departure_address || p.departureAddress,
+            localities: p.localities || {},
+            portalType: p.portal_type || p.portalType || 'sm',
+            base_lat: p.base_lat,
+            base_lng: p.base_lng,
+            max_daily: p.max_daily || 4
+          };
+        });
+
+        window.coordPortals = allPortals;
+        // Portal ativo: primeiro pesados disponível
+        const pesadosPortals = allPortals.filter(p => p.portalType === 'pesados');
+        const savedPortalId = sessionStorage.getItem('eg_active_portal');
+        const activePortal = savedPortalId
+          ? allPortals.find(p => String(p.id) === savedPortalId) || (pesadosPortals[0] || allPortals[0])
+          : (pesadosPortals[0] || allPortals[0]);
+
+        window.activePortalId = activePortal.id;
+        applyPortalConfig(activePortal);
+        buildPortalSwitcher(allPortals, activePortal.id);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar portais para pesados_coord:', e);
+    }
+
+    addLogoutButton();
+    console.log('✅ Pesados Coord: vista de agendas');
+    window.dispatchEvent(new CustomEvent('portalReady'));
+    return;
+  }
+
   // === ADMIN com ?view=agenda: carregar todos os portais ===
   if (user.role === 'admin') {
     try {
@@ -111,7 +155,8 @@
   if (routeBtn)      routeBtn.style.display       = canEdit ? '' : 'none';
   if (addDesktopBtn) addDesktopBtn.style.display  = canEdit ? '' : 'none';
 
-  console.log('✅ Portal inicializado com sucesso (' + (window.portalConfig?.portalType || 'sm') + ')');
+  const ptype = window.portalConfig?.portalType || 'sm';
+  console.log('✅ Portal inicializado com sucesso (' + ptype + ')');
   window.dispatchEvent(new CustomEvent('portalReady'));
 })();
 
@@ -196,7 +241,8 @@ function buildPortalSwitcher(portals, activeId) {
   portals.forEach(function(p) {
     const opt = document.createElement('option');
     opt.value = p.id;
-    opt.textContent = p.name + (p.portalType === 'loja' ? ' (Loja)' : ' (SM)');
+    const typeLabel = p.portalType === 'loja' ? ' (Loja)' : p.portalType === 'pesados' ? ' (Pesados)' : ' (SM)';
+    opt.textContent = p.name + typeLabel;
     opt.style.cssText = 'color:#1f2937;background:white;';
     if (p.id === activeId) opt.selected = true;
     select.appendChild(opt);
