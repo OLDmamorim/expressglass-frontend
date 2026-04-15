@@ -134,6 +134,8 @@ function renderPortals() {
       : '<span style="color:#9ca3af">—</span>';
     const typeLabel = portal.portal_type === 'loja' 
       ? '<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:4px;font-size:12px;">Loja</span>'
+      : portal.portal_type === 'pesados'
+      ? '<span style="background:#fff7ed;color:#c2410c;padding:2px 8px;border-radius:4px;font-size:12px;">Pesados</span>'
       : '<span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:4px;font-size:12px;">SM</span>';
     return `
     <tr>
@@ -436,7 +438,7 @@ function populateMultiPortalCheckboxes(selectedIds = []) {
   container.innerHTML = portals.map(p => `
     <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;text-align:left;">
       <input type="checkbox" class="coord-portal-cb" value="${p.id}" ${selectedIds.includes(p.id) ? 'checked' : ''} style="width:18px;height:18px;min-width:18px;">
-      <span style="flex:1;text-align:left;">${p.name} <span style="color:#9ca3af;font-size:12px;">(${p.portal_type === 'loja' ? 'Loja' : 'SM'})</span></span>
+      <span style="flex:1;text-align:left;">${p.name} <span style="color:#9ca3af;font-size:12px;">(${p.portal_type === 'loja' ? 'Loja' : p.portal_type === 'pesados' ? 'Pesados' : 'SM'})</span></span>
     </label>
   `).join('');
 }
