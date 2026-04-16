@@ -486,31 +486,51 @@
 
   // ─── Modal novo serviço ────────────────────────────────────────────────────
   window.pvOpenNewService = function(date, portalId) {
-    // Garantir que o modal foi construído
-    if (!document.getElementById('pvDate')) {
-      buildView();
-      setWeekStart(state.weekStart || getMonday(new Date()));
-    }
     state.selectedPortalId = portalId || null;
     state.newServiceLat = null;
     state.newServiceLng = null;
     state.newServiceAddress = '';
     state.suggestions = [];
 
-    document.getElementById('pvDate').value = date || fmtDate(new Date());
-    document.getElementById('pvAddress').value = '';
-    document.getElementById('pvAddressStatus').textContent = '';
-    setTimeout(initPvAddressAutocomplete, 100);
-    document.getElementById('pvSuggestions').style.display = 'none';
-    document.getElementById('pvLoadingMsg').style.display = 'none';
-    document.getElementById('pvProceedBtn').disabled = true;
-    document.getElementById('pvProceedBtn').style.opacity = '0.4';
-    document.getElementById('pvNewServiceModal').classList.add('open');
+    // Remover modal anterior se existir
+    const oldModal = document.getElementById('pvNewServiceModal');
+    if (oldModal) oldModal.remove();
+
+    // Criar modal de raiz
+    const modal = document.createElement('div');
+    modal.id = 'pvNewServiceModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:24px;width:100%;max-width:540px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.2);margin:16px;">
+        <h3 style="font-size:18px;font-weight:800;color:#0f2944;margin:0 0 16px;">🚛 Novo Serviço Pesados</h3>
+        <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Data do Serviço *</label>
+        <input type="date" id="pvDate" value="${date || fmtDate(new Date())}"
+          style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;margin-bottom:12px;"
+          oninput="window.pvOnDateChange()" />
+        <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px;">Localidade / Morada do Cliente *</label>
+        <input type="text" id="pvAddress" placeholder="Ex: Empresa XPTO, Aveiro"
+          style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;"
+          autocomplete="off" />
+        <div id="pvAddressStatus" style="font-size:11px;color:#64748b;margin-top:3px;"></div>
+        <div id="pvSuggestions" style="display:none;margin-top:14px;">
+          <div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">🗺️ SM Sugerido</div>
+          <div id="pvSugList"></div>
+        </div>
+        <div id="pvLoadingMsg" style="display:none;text-align:center;color:#64748b;font-size:13px;padding:12px;">A calcular sugestão...</div>
+        <div style="display:flex;gap:8px;margin-top:20px;justify-content:flex-end;">
+          <button onclick="window.pvCloseNewService()"
+            style="background:#f1f5f9;color:#0f2944;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;">Cancelar</button>
+          <button id="pvProceedBtn" onclick="window.pvProceed()" disabled
+            style="background:#0f2944;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;opacity:0.4;">Abrir Agenda do SM →</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    // Inicializar Google Places Autocomplete
+    setTimeout(initPvAddressAutocomplete, 150);
 
     // Se já tem portal definido, pré-selecionar
-    if (portalId) {
-      renderSuggestionsWithPreselect(portalId);
-    }
+    if (portalId) renderSuggestionsWithPreselect(portalId);
   };
 
   window.pvOpenNewServiceFor = function(date, portalId) {
@@ -518,7 +538,7 @@
   };
 
   window.pvCloseNewService = function() {
-    document.getElementById('pvNewServiceModal').classList.remove('open');
+    document.getElementById('pvNewServiceModal')?.remove();
   };
 
   window.pvOnDateChange = function() {
