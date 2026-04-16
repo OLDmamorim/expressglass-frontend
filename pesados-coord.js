@@ -725,19 +725,28 @@
 
   // ─── Arrancar ─────────────────────────────────────────────────────────────
   let _pvInited = false;
-  function tryInit() {
-    if (_pvInited) return;
+  window._pvDebug = [];
+
+  function tryInit(source) {
     const role = window.authClient?.getUser?.()?.role;
+    window._pvDebug.push({source: source||'?', time: Date.now(), role, _pvInited});
+    if (_pvInited) return;
     if (!['pesados_coord','admin','coordenador'].includes(role)) return;
     _pvInited = true;
-    init();
+    try {
+      init();
+      window._pvDebug.push({source: 'init-done', time: Date.now()});
+    } catch(e) {
+      window._pvDebug.push({source: 'init-ERROR', error: e.message, time: Date.now()});
+      console.error('PV init error:', e);
+    }
   }
 
   // Múltiplos triggers para garantir inicialização independente do timing
-  tryInit();
-  window.addEventListener('portalReady', tryInit);
-  setTimeout(tryInit, 500);
-  setTimeout(tryInit, 1500);
-  setTimeout(tryInit, 3000);
+  tryInit('immediate');
+  window.addEventListener('portalReady', () => tryInit('portalReady'));
+  setTimeout(() => tryInit('500ms'), 500);
+  setTimeout(() => tryInit('1500ms'), 1500);
+  setTimeout(() => tryInit('3000ms'), 3000);
 
 })();
