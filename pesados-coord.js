@@ -341,7 +341,7 @@
 
           <label>Localidade / Morada do Cliente *</label>
           <input type="text" id="pvAddress" placeholder="Ex: Empresa XPTO, Aveiro"
-            autocomplete="off" />
+            oninput="window.pvOnAddressInput(this.value)" autocomplete="off" />
           <div id="pvAddressStatus" style="font-size:11px;color:#64748b;margin-top:3px;"></div>
 
           <div class="pv-suggestions" id="pvSuggestions" style="display:none">
@@ -495,7 +495,6 @@
     document.getElementById('pvDate').value = date || fmtDate(new Date());
     document.getElementById('pvAddress').value = '';
     document.getElementById('pvAddressStatus').textContent = '';
-    // Inicializar autocomplete (pode já estar pronto ou não)
     setTimeout(initPvAddressAutocomplete, 100);
     document.getElementById('pvSuggestions').style.display = 'none';
     document.getElementById('pvLoadingMsg').style.display = 'none';
@@ -524,40 +523,37 @@
   };
 
   // Debounce para pesquisa de morada (fallback sem Google)
-  let pvAddressTimer = null;
   window.pvOnAddressInput = function(val) {
     state.newServiceAddress = val;
   };
 
-  // Inicializar Google Places Autocomplete no campo de morada do modal pesados
+  // Inicializar Google Places Autocomplete — mesmo que o resto do sistema usa
   function initPvAddressAutocomplete() {
     const input = document.getElementById('pvAddress');
-    if (!input) return;
+    if (!input || input._pvAcInit) return;
     if (!(window.google && google.maps && google.maps.places)) {
-      // Tentar de novo daqui a 500ms
-      setTimeout(initPvAddressAutocomplete, 500);
+      setTimeout(initPvAddressAutocomplete, 800);
       return;
     }
-
-    const ac = new google.maps.places.Autocomplete(input, {
-      fields: ['place_id', 'name', 'formatted_address', 'geometry'],
-      componentRestrictions: { country: 'pt' }
-    });
-
-    ac.addListener('place_changed', () => {
-      const place = ac.getPlace();
-      if (!place?.geometry?.location) return;
-
-      const status = document.getElementById('pvAddressStatus');
-      const txt = [place.name, place.formatted_address].filter(Boolean).join(' - ');
-      input.value = txt;
-      state.newServiceAddress = txt;
-      state.newServiceLat = place.geometry.location.lat();
-      state.newServiceLng = place.geometry.location.lng();
-
-      if (status) status.textContent = '📍 ' + (place.formatted_address || txt);
-      fetchSuggestions();
-    });
+    try {
+      const ac = new google.maps.places.Autocomplete(input, {
+        fields: ['name', 'formatted_address', 'geometry'],
+        componentRestrictions: { country: 'pt' }
+      });
+      input._pvAcInit = true;
+      ac.addListener('place_changed', () => {
+        const place = ac.getPlace();
+        if (!place?.geometry?.location) return;
+        const status = document.getElementById('pvAddressStatus');
+        const txt = [place.name, place.formatted_address].filter(Boolean).join(' - ');
+        input.value = txt;
+        state.newServiceAddress = txt;
+        state.newServiceLat = place.geometry.location.lat();
+        state.newServiceLng = place.geometry.location.lng();
+        if (status) status.textContent = '📍 ' + (place.formatted_address || txt);
+        fetchSuggestions();
+      });
+    } catch(e) { console.warn('pvAutocomplete:', e); }
   }
 
   async function fetchSuggestions() {
