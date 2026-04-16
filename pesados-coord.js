@@ -194,10 +194,11 @@
 
     try {
       const kpis = await fetchKpis(portalId);
+      if (!kpis) throw new Error('kpis null — powering-kpis.js antigo em produção?');
       fillKpis(kpis);
     } catch (e) {
       console.warn('[PoweringEG banner]', e.message);
-      shell.remove(); // remover em vez de esconder — permite retry
+      shell.remove();
     }
   }
 
