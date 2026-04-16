@@ -28,7 +28,7 @@
 
   // ─── Inicialização ─────────────────────────────────────────────────────────
   function init() {
-    const role = window.authClient?.getUser?.()?.role;
+    const role = window.authClient?.getRole?.();
     // Pesados disponível para pesados_coord, admin e coordinator
     if (!['pesados_coord','admin','coordinator'].includes(role)) return;
 
@@ -40,7 +40,7 @@
   }
 
   function hideDefaultView() {
-    const role = window.authClient?.getUser?.()?.role;
+    const role = window.authClient?.getRole?.();
     // Só esconde a vista normal para a coordenadora de pesados — admin e coordinator mantêm tudo
     if (role !== 'pesados_coord') return;
     const ids = ['calendarSection','portalSwitcher','addAppointmentBtn','totalizador'];
@@ -341,7 +341,7 @@
 
           <label>Localidade / Morada do Cliente *</label>
           <input type="text" id="pvAddress" placeholder="Ex: Empresa XPTO, Aveiro"
-            oninput="window.pvOnAddressInput(this.value)" autocomplete="off" />
+            autocomplete="off" />
           <div id="pvAddressStatus" style="font-size:11px;color:#64748b;margin-top:3px;"></div>
 
           <div class="pv-suggestions" id="pvSuggestions" style="display:none">
@@ -360,7 +360,7 @@
       </div>
     `;
 
-    const role = window.authClient?.getUser?.()?.role;
+    const role = window.authClient?.getRole?.();
     if (role === 'pesados_coord') {
       // Coordenadora: vista pesados é a vista principal
       document.body.insertBefore(container, document.body.firstChild);
@@ -495,6 +495,8 @@
     document.getElementById('pvDate').value = date || fmtDate(new Date());
     document.getElementById('pvAddress').value = '';
     document.getElementById('pvAddressStatus').textContent = '';
+    // Inicializar autocomplete (pode já estar pronto ou não)
+    setTimeout(initPvAddressAutocomplete, 100);
     document.getElementById('pvSuggestions').style.display = 'none';
     document.getElementById('pvLoadingMsg').style.display = 'none';
     document.getElementById('pvProceedBtn').disabled = true;
@@ -521,48 +523,41 @@
     }
   };
 
-  // Debounce para pesquisa de morada
+  // Debounce para pesquisa de morada (fallback sem Google)
   let pvAddressTimer = null;
   window.pvOnAddressInput = function(val) {
-    clearTimeout(pvAddressTimer);
     state.newServiceAddress = val;
-    if (val.length < 4) return;
-    pvAddressTimer = setTimeout(() => geocodeAddress(val), 600);
   };
 
-  async function geocodeAddress(address) {
-    const status = document.getElementById('pvAddressStatus');
-    status.textContent = '🔍 A localizar...';
-
-    try {
-      const key = window.GOOGLE_MAPS_API_KEY || '';
-      let lat, lng;
-
-      if (key) {
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address+', Portugal')}&key=${key}`;
-        const r = await fetch(url);
-        const d = await r.json();
-        if (d.results?.length) {
-          lat = d.results[0].geometry.location.lat;
-          lng = d.results[0].geometry.location.lng;
-          status.textContent = '📍 ' + d.results[0].formatted_address;
-        } else {
-          status.textContent = '❌ Localização não encontrada';
-          return;
-        }
-      } else {
-        // Fallback: usar autocomplete do browser se disponível
-        status.textContent = '⚠️ Google Maps API não configurada — coordenadas não disponíveis';
-        return;
-      }
-
-      state.newServiceLat = lat;
-      state.newServiceLng = lng;
-      fetchSuggestions();
-
-    } catch(e) {
-      status.textContent = '❌ Erro ao localizar';
+  // Inicializar Google Places Autocomplete no campo de morada do modal pesados
+  function initPvAddressAutocomplete() {
+    const input = document.getElementById('pvAddress');
+    if (!input) return;
+    if (!(window.google && google.maps && google.maps.places)) {
+      // Tentar de novo daqui a 500ms
+      setTimeout(initPvAddressAutocomplete, 500);
+      return;
     }
+
+    const ac = new google.maps.places.Autocomplete(input, {
+      fields: ['place_id', 'name', 'formatted_address', 'geometry'],
+      componentRestrictions: { country: 'pt' }
+    });
+
+    ac.addListener('place_changed', () => {
+      const place = ac.getPlace();
+      if (!place?.geometry?.location) return;
+
+      const status = document.getElementById('pvAddressStatus');
+      const txt = [place.name, place.formatted_address].filter(Boolean).join(' - ');
+      input.value = txt;
+      state.newServiceAddress = txt;
+      state.newServiceLat = place.geometry.location.lat();
+      state.newServiceLng = place.geometry.location.lng();
+
+      if (status) status.textContent = '📍 ' + (place.formatted_address || txt);
+      fetchSuggestions();
+    });
   }
 
   async function fetchSuggestions() {
@@ -713,7 +708,7 @@
   } else {
     // Aguardar auth estar pronto
     const wait = setInterval(() => {
-      if (window.authClient?.getUser?.()?.role) {
+      if (window.authClient?.getRole?.()) {
         clearInterval(wait);
         init();
       }
