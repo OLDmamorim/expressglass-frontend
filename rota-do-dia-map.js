@@ -629,12 +629,22 @@
     });
   }
 
-  // Expor globalmente para chamada manual se necessário
-  window.openRotaDoMapa = openRotaMap;
-
   // ── Arrancar ──────────────────────────────────────────────────────────
   function init() {
-    hookButtons();
+    // Sobrescrever openRotaDoDia do script.js — assim todos os botões usam o mapa
+    window.openRotaDoDia = function() {
+      const date = window.currentMobileDay
+        ? window.currentMobileDay.toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+      openRotaMap(date);
+    };
+
+    // Sobrescrever onclick do botão desktop (por precaução)
+    const desk = document.getElementById('btnRotaDoDiaDesk');
+    if (desk) desk.onclick = () => window.openRotaDoDia();
+
+    // Expor para chamada directa
+    window.openRotaDoMapa = openRotaMap;
   }
 
   if (document.readyState === 'loading') {
@@ -642,8 +652,8 @@
   } else {
     init();
   }
-  window.addEventListener('portalReady', hookButtons);
-  setTimeout(hookButtons, 1000);
-  setTimeout(hookButtons, 2500);
+  // Garantir override após o script.js registar os seus listeners
+  setTimeout(init, 300);
+  window.addEventListener('portalReady', init);
 
 })();
