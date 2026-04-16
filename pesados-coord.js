@@ -121,11 +121,11 @@
       </div>
       <div class="peg-kpi">
         <div class="peg-lbl">Tx. Rep.</div>
-        <div class="peg-val" style="color:${cTx}">${Number(taxa).toFixed(2)}%</div>
+        <div class="peg-val" style="color:${cTx}">${Math.round(taxa)}%</div>
       </div>
       <div class="peg-kpi">
         <div class="peg-lbl">Desvio Dia</div>
-        <div class="peg-val" style="color:${cDev}">${devSign}${Number(desvio).toFixed(2)}%</div>
+        <div class="peg-val" style="color:${cDev}">${devSign}${Math.round(Math.abs(desvio))}%</div>
       </div>
     `;
   }
