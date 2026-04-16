@@ -20,7 +20,7 @@ function fetchPowering(path) {
         hostname: POWERING_HOST,
         path: `/api/external${path}`,
         method: 'GET',
-        headers: { 'Authorization': `Bearer ${POWERING_KEY}`, 'Content-Type': 'application/json' },
+        headers: { 'X-API-Key': POWERING_KEY, 'Content-Type': 'application/json' },
       },
       res => {
         let data = '';
