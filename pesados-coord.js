@@ -28,11 +28,9 @@
 
   // ─── Inicialização ─────────────────────────────────────────────────────────
   function init() {
-    const role = window.authClient?.getRole?.();
-    // Pesados disponível para pesados_coord, admin e coordinator
-    if (!['pesados_coord','admin','coordinator'].includes(role)) return;
+    const role = window.authClient?.getUser?.()?.role;
+    if (!['pesados_coord','admin','coordenador'].includes(role)) return;
 
-    // Esconder a vista normal e mostrar a de pesados
     hideDefaultView();
     buildView();
     setWeekStart(getMonday(new Date()));
@@ -40,8 +38,7 @@
   }
 
   function hideDefaultView() {
-    const role = window.authClient?.getRole?.();
-    // Só esconde a vista normal para a coordenadora de pesados — admin e coordinator mantêm tudo
+    const role = window.authClient?.getUser?.()?.role;
     if (role !== 'pesados_coord') return;
     const ids = ['calendarSection','portalSwitcher','addAppointmentBtn','totalizador'];
     ids.forEach(id => {
