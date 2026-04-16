@@ -99,10 +99,10 @@ exports.handler = async (event) => {
     const kpis = {
       servicos:      r.totalServicos   ?? 0,
       objetivo:      r.objetivoMensal  ?? 0,
-      // taxaReparacao vem em decimal (0.25 = 25%) — converter para %
-      taxa:          r.taxaReparacao != null ? Math.round(r.taxaReparacao * 10000) / 100 : 0,
-      // desvioPercentualMes vem em decimal (-0.6154 = -61.54%)
-      desvioPercent: r.desvioPercentualMes != null ? Math.round(r.desvioPercentualMes * 10000) / 100 : 0,
+      // taxaReparacao vem em decimal (0.25 = 25%) — arredondar para inteiro
+      taxa:          r.taxaReparacao != null ? Math.round(r.taxaReparacao * 100) : 0,
+      // desvioPercentualMes vem em decimal (-0.6154 = -62%) — arredondar para inteiro
+      desvioPercent: r.desvioPercentualMes != null ? Math.round(r.desvioPercentualMes * 100) : 0,
     };
 
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis, mes, ano, lojaId }) };
