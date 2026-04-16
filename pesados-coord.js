@@ -377,9 +377,9 @@
         container.style.display = vis ? 'none' : 'block';
         document.getElementById('pvToggleArrow').textContent = vis ? '▶' : '▼';
       };
-      const target = document.getElementById('mainContent') || document.getElementById('appContainer') || document.body;
-      target.appendChild(toggle);
-      target.appendChild(container);
+      // Inserir no final do body — sempre funciona independente do layout
+      document.body.appendChild(toggle);
+      document.body.appendChild(container);
     }
 
     // Criar modal de novo serviço fora do container para z-index correto
@@ -486,6 +486,11 @@
 
   // ─── Modal novo serviço ────────────────────────────────────────────────────
   window.pvOpenNewService = function(date, portalId) {
+    // Garantir que o modal foi construído
+    if (!document.getElementById('pvDate')) {
+      buildView();
+      setWeekStart(state.weekStart || getMonday(new Date()));
+    }
     state.selectedPortalId = portalId || null;
     state.newServiceLat = null;
     state.newServiceLng = null;
