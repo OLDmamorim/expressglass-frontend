@@ -647,13 +647,64 @@
     window.openRotaDoMapa = openRotaMap;
   }
 
+  // ── Injectar botão "Ver Rota do Dia" no mobile se não existir ───────
+  // (script.js só o mostra para SMs — agora queremos para todos)
+  function injectMobileRotaBtn() {
+    const list = document.getElementById('mobileDayList');
+    if (!list) return;
+    if (list.querySelector('.rm-rota-btn')) return; // já existe
+
+    // Só injectar se houver agendamentos com morada no dia
+    const dateStr = window.currentMobileDay
+      ? window.currentMobileDay.toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0];
+    const temMoradas = (window.appointments || []).some(a => a.date === dateStr && a.address);
+    if (!temMoradas) return;
+
+    // Verificar se o botão já foi injectado pelo script.js
+    if (list.querySelector('[onclick*="openRotaDoDia"]')) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'rm-rota-btn';
+    btn.style.cssText = [
+      'display:flex', 'align-items:center', 'justify-content:center', 'gap:8px',
+      'width:calc(100% - 32px)', 'margin:0 16px 12px', 'padding:14px',
+      'background:linear-gradient(135deg,#16a34a,#15803d)',
+      'color:#fff', 'border:none', 'border-radius:14px',
+      'font-size:15px', 'font-weight:700', 'cursor:pointer',
+      'box-shadow:0 4px 12px rgba(22,163,74,.35)',
+      'font-family:inherit',
+    ].join(';');
+    btn.innerHTML = '📍 🗺️ Ver Rota do Dia';
+    btn.onclick = () => window.openRotaDoDia();
+
+    // Inserir antes dos cards (após o summary/header se existir)
+    const firstCard = list.querySelector('.mobile-appointment-card, .appointment-card, [class*="card"]');
+    if (firstCard) list.insertBefore(btn, firstCard);
+    else list.prepend(btn);
+  }
+
+  // MutationObserver para detectar quando a lista mobile é re-renderizada
+  function watchMobileList() {
+    const list = document.getElementById('mobileDayList');
+    if (!list) { setTimeout(watchMobileList, 500); return; }
+
+    injectMobileRotaBtn(); // tentar logo
+
+    const obs = new MutationObserver(() => {
+      setTimeout(injectMobileRotaBtn, 50);
+    });
+    obs.observe(list, { childList: true, subtree: false });
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => { init(); watchMobileList(); });
   } else {
     init();
+    watchMobileList();
   }
   // Garantir override após o script.js registar os seus listeners
   setTimeout(init, 300);
-  window.addEventListener('portalReady', init);
+  window.addEventListener('portalReady', () => { init(); watchMobileList(); });
 
 })();
