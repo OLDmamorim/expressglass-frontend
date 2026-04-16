@@ -86,6 +86,12 @@ exports.handler = async (event) => {
     }
 
     const data = await fetchPowering(`/resultados/${lojaId}?mes=${mes}&ano=${ano}`);
+
+    // Modo debug — devolve resposta raw para diagnóstico
+    if (p.debug === '1') {
+      return { statusCode: 200, headers, body: JSON.stringify({ debug: true, raw: data, lojaId }) };
+    }
+
     const r = data.resultado || data.resultados?.[0] || data;
 
     const kpis = {
