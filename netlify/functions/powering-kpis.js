@@ -92,21 +92,18 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ debug: true, raw: data, lojaId }) };
     }
 
-    const r = data.resultado || data.resultados?.[0] || data;
+    // Estrutura real: data.resultados[] — filtrar pelo mês pedido
+    const lista = data.resultados || [];
+    const r = lista.find(x => x.mes === mes && x.ano === ano) || lista[lista.length - 1] || {};
 
     const kpis = {
-      servicos:      r.totalServicos  ?? r.servicos ?? 0,
-      objetivo:      r.objetivoMensal ?? r.objetivo ?? 0,
-      taxa:          r.taxaReparacao  ?? r.taxa ?? r.mediaReparacao ?? 0,
-      desvioPercent: r.desvioPercent  ?? r.desvio ?? null,
+      servicos:      r.totalServicos   ?? 0,
+      objetivo:      r.objetivoMensal  ?? 0,
+      // taxaReparacao vem em decimal (0.25 = 25%) — converter para %
+      taxa:          r.taxaReparacao != null ? Math.round(r.taxaReparacao * 10000) / 100 : 0,
+      // desvioPercentualMes vem em decimal (-0.6154 = -61.54%)
+      desvioPercent: r.desvioPercentualMes != null ? Math.round(r.desvioPercentualMes * 10000) / 100 : 0,
     };
-
-    if (kpis.desvioPercent == null && kpis.objetivo > 0) {
-      const diasNoMes = new Date(ano, mes, 0).getDate();
-      const diaActual = (ano === now.getFullYear() && mes === now.getMonth() + 1) ? now.getDate() : diasNoMes;
-      const esperado  = kpis.objetivo * (diaActual / diasNoMes);
-      kpis.desvioPercent = esperado > 0 ? Math.round(((kpis.servicos / esperado) - 1) * 10000) / 100 : 0;
-    }
 
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis, mes, ano, lojaId }) };
 
