@@ -152,42 +152,28 @@
   }
 
   // ── Obter powering_loja_id do portal activo ────────────────────────────
-  async function getLojaId() {
-    // Primeiro tentar window.currentPortal (set pelo portal-init.js)
-    if (window.currentPortal?.powering_loja_id)
-      return window.currentPortal.powering_loja_id;
-
-    // Fallback: ir buscar à API e filtrar pelo portal activo
-    const portalId = window.currentPortalId || window.authClient?.getUser?.()?.portal_id;
-    if (!portalId) return null;
-
-    const r = await window.authClient.authenticatedFetch('/.netlify/functions/get-portals');
-    const d = await r.json();
-    const portal = (d.portals || []).find(p => String(p.id) === String(portalId));
-    return portal?.powering_loja_id ?? null;
+  // ── Ler portal_id e nome do select visível ────────────────────────────
+  function getActivePortal() {
+    const sel = document.getElementById('portalSwitcherSelect');
+    if (sel && sel.value) {
+      const opt = sel.options[sel.selectedIndex];
+      return { portalId: sel.value, name: opt?.text?.trim() || 'Portal' };
+    }
+    return {
+      portalId: window.currentPortalId || window.authClient?.getUser?.()?.portal_id || null,
+      name: window.currentPortalName || 'Portal',
+    };
   }
 
-  // ── Ler nome do portal activo ──────────────────────────────────────────
-  function getPortalName() {
-    return (
-      window.currentPortalName ||
-      window.currentPortal?.name ||
-      document.querySelector('#portalSwitcher select option:checked')?.textContent?.trim() ||
-      document.querySelector('#portalSwitcher .selected-portal-name')?.textContent?.trim() ||
-      document.title?.replace(/Portal de Agendamento\s*[-–]\s*/i, '').trim() ||
-      'Portal'
-    );
-  }
-
-  // ── Chamar o proxy powering-kpis ──────────────────────────────────────
-  async function fetchKpis(lojaId) {
+  // ── Chamar proxy powering-kpis — passa portal_id, proxy resolve loja ──
+  async function fetchKpis(portalId) {
     const { mes, ano } = getMonthMeta();
     const r = await window.authClient.authenticatedFetch(
-      `/.netlify/functions/powering-kpis?loja_id=${lojaId}&mes=${mes}&ano=${ano}`
+      `/.netlify/functions/powering-kpis?portal_id=${portalId}&mes=${mes}&ano=${ano}`
     );
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'PoweringEG sem dados');
-    return d.kpis; // { servicos, objetivo, taxa, desvioPercent, ... }
+    return d.kpis;
   }
 
   // ── Init principal ─────────────────────────────────────────────────────
@@ -195,22 +181,19 @@
     if (document.getElementById(BANNER_ID)) return;
     if (!window.authClient?.getUser?.()) return;
 
+    const { portalId, name } = getActivePortal();
     const { label } = getMonthMeta();
-    const shell = buildShell(getPortalName(), label);
+    const shell = buildShell(name, label);
     insertBanner(shell);
 
+    if (!portalId) { shell.style.display = 'none'; return; }
+
     try {
-      const lojaId = await getLojaId();
-      if (!lojaId) {
-        // Portal sem powering_loja_id configurado — esconder silenciosamente
-        shell.style.display = 'none';
-        return;
-      }
-      const kpis = await fetchKpis(lojaId);
+      const kpis = await fetchKpis(portalId);
       fillKpis(kpis);
     } catch (e) {
       console.warn('[PoweringEG banner]', e.message);
-      shell.style.display = 'none'; // falha silenciosa
+      shell.style.display = 'none';
     }
   }
 
