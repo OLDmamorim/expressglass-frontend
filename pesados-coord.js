@@ -186,29 +186,45 @@
     const shell = buildShell(name, label);
     insertBanner(shell);
 
-    if (!portalId) { shell.style.display = 'none'; return; }
+    if (!portalId) {
+      // Select ainda não tem valor — remover shell para que o próximo trigger tente de novo
+      shell.remove();
+      return;
+    }
 
     try {
       const kpis = await fetchKpis(portalId);
       fillKpis(kpis);
     } catch (e) {
       console.warn('[PoweringEG banner]', e.message);
-      shell.style.display = 'none';
+      shell.remove(); // remover em vez de esconder — permite retry
     }
   }
 
   // ── Re-render ao mudar de portal ──────────────────────────────────────
   function rebuildBanner() {
     document.getElementById(BANNER_ID)?.remove();
-    setTimeout(initBanner, 150);
+    setTimeout(() => initBanner().catch(() => {}), 150);
+  }
+
+  // ── Ouvir mudanças no portalSwitcherSelect ────────────────────────────
+  function attachSwitcherListener() {
+    const sel = document.getElementById('portalSwitcherSelect');
+    if (!sel || sel._pegListenerAttached) return;
+    sel._pegListenerAttached = true;
+    sel.addEventListener('change', rebuildBanner);
   }
 
   // ── Triggers (sem guard de role — corre para todos) ───────────────────
   initBanner().catch(() => {});
-  window.addEventListener('portalReady',   () => initBanner().catch(() => {}));
+  window.addEventListener('portalReady',   () => {
+    attachSwitcherListener();
+    initBanner().catch(() => {});
+  });
   window.addEventListener('portalChanged', rebuildBanner);
-  setTimeout(() => initBanner().catch(() => {}), 900);
-  setTimeout(() => initBanner().catch(() => {}), 2500);
+  setTimeout(() => { attachSwitcherListener(); initBanner().catch(() => {}); }, 900);
+  setTimeout(() => { attachSwitcherListener(); initBanner().catch(() => {}); }, 2500);
+  setTimeout(() => { attachSwitcherListener(); initBanner().catch(() => {}); }, 4000);
 
 })();
 
