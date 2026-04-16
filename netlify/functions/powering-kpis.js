@@ -1,162 +1,113 @@
-
 // netlify/functions/powering-kpis.js
-const https = require('https');
-const { Pool } = require('pg');
-const jwt = require('jsonwebtoken');
+// Proxy seguro para a API do PoweringEG.
+// Aceita ?portal_id=X (agendamentosm) OU ?loja_id=X (PoweringEG directo).
+// Se receber portal_id, faz lookup do powering_loja_id na DB.
 
-const POWERING_EG_API_KEY = process.env.POWERING_EG_API_KEY;
-const POWERING_EG_HOST = 'poweringeg-3c9mozlh.manus.space';
-const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
+const https  = require('https');
+const jwt    = require('jsonwebtoken');
+const { neon } = require('@neondatabase/serverless');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+const JWT_SECRET     = process.env.JWT_SECRET     || 'expressglass-secret-key-change-in-production';
+const POWERING_KEY   = process.env.POWERING_EG_API_KEY;
+const POWERING_HOST  = 'poweringeg-3c9mozlh.manus.space';
 
-function httpsGet(path) {
+// ── Fetch à API PoweringEG ────────────────────────────────────────────────
+function fetchPowering(path) {
   return new Promise((resolve, reject) => {
-    const options = {
-      hostname: POWERING_EG_HOST,
-      path,
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${POWERING_EG_API_KEY}`,
-        'X-API-Key': POWERING_EG_API_KEY,
-        'Content-Type': 'application/json'
+    const req = https.request(
+      { hostname: POWERING_HOST, path: `/api/external${path}`, method: 'GET',
+        headers: { 'Authorization': `Bearer ${POWERING_KEY}`, 'Content-Type': 'application/json' } },
+      res => {
+        let data = '';
+        res.on('data', c => data += c);
+        res.on('end', () => {
+          try { resolve(JSON.parse(data)); }
+          catch(e) { reject(new Error('Resposta inválida do PoweringEG')); }
+        });
       }
-    };
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch (e) { reject(new Error('Invalid JSON')); }
-      });
-    });
+    );
     req.on('error', reject);
     req.end();
   });
 }
 
+// ── Handler ───────────────────────────────────────────────────────────────
 exports.handler = async (event) => {
   const headers = {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin':  '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
   };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  if (event.httpMethod !== 'GET')     return { statusCode: 405, headers, body: '{}' };
 
-  if (!POWERING_EG_API_KEY) {
-    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: 'POWERING_EG_API_KEY nao configurada' }) };
-  }
-
-  const params = event.queryStringParameters || {};
-
-  // Acao auxiliar: listar lojas (para debug/mapeamento)
-  if (params.action === 'lojas') {
-    try {
-      const result = await httpsGet('/api/external/lojas');
-      return { statusCode: 200, headers, body: JSON.stringify(result) };
-    } catch (err) {
-      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: err.message }) };
-    }
-  }
-
-  // Acao auxiliar: ver resultados brutos de uma loja (debug)
-  if (params.action === 'resultados' && params.lojaId) {
-    try {
-      const now = new Date();
-      const mes = params.mes ? parseInt(params.mes) : now.getMonth() + 1;
-      const ano = params.ano ? parseInt(params.ano) : now.getFullYear();
-      const result = await httpsGet(`/api/external/resultados?mes=${mes}&ano=${ano}&lojaId=${params.lojaId}`);
-      return { statusCode: 200, headers, body: JSON.stringify(result) };
-    } catch (err) {
-      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: err.message }) };
-    }
-  }
-
-  // Obter lojaId: via query param direto OU via JWT -> BD
-  let lojaId = params.lojaId ? parseInt(params.lojaId) : null;
-  const portalIdParam = params.portalId ? parseInt(params.portalId) : null;
-
-  if (!lojaId) {
-    // Tentar via portalId query param (coordenadores/admin que trocam portal)
-    const portalIdToLookup = portalIdParam || null;
-
-    // Ou via JWT
-    let portalId = portalIdToLookup;
-    if (!portalId) {
-      const authHeader = event.headers.authorization || event.headers.Authorization || '';
-      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-      if (!token) {
-        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'lojaId ou portalId obrigatorio' }) };
-      }
-      try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        portalId = decoded.portal_id || decoded.portalId;
-      } catch(err) {
-        return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Token invalido' }) };
-      }
-    }
-
-    if (!portalId) {
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis: null, reason: 'sem_portal' }) };
-    }
-
-    try {
-      const result = await pool.query(
-        'SELECT powering_eg_loja_id FROM portals WHERE id = $1',
-        [portalId]
-      );
-      if (!result.rows.length || !result.rows[0].powering_eg_loja_id) {
-        return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis: null, reason: 'sem_mapeamento' }) };
-      }
-      lojaId = result.rows[0].powering_eg_loja_id;
-    } catch(err) {
-      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: 'DB error: ' + err.message }) };
-    }
-  }
-
-  // Buscar KPIs no PoweringEG
   try {
+    // ── Autenticação JWT ────────────────────────────────────────────────
+    const auth = event.headers.authorization || event.headers.Authorization || '';
+    if (!auth.startsWith('Bearer ')) throw new Error('Não autenticado');
+    jwt.verify(auth.substring(7), JWT_SECRET);
+
+    if (!POWERING_KEY) throw new Error('POWERING_EG_API_KEY não configurada');
+
+    const p   = event.queryStringParameters || {};
     const now = new Date();
-    const mes = now.getMonth() + 1;
-    const ano = now.getFullYear();
+    const mes = parseInt(p.mes || now.getMonth() + 1);
+    const ano = parseInt(p.ano || now.getFullYear());
 
-    const resultado = await httpsGet(`/api/external/resultados?mes=${mes}&ano=${ano}&lojaId=${lojaId}`);
+    // ── Resolver lojaId ──────────────────────────────────────────────────
+    let lojaId = p.loja_id ? parseInt(p.loja_id) : null;
 
-    if (!resultado.resultados || resultado.resultados.length === 0) {
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis: null, mes, ano }) };
+    if (!lojaId && p.portal_id) {
+      // Lookup na DB: portals.powering_loja_id
+      const sql = neon(process.env.DATABASE_URL);
+      const rows = await sql`
+        SELECT powering_loja_id FROM portals WHERE id = ${parseInt(p.portal_id)} LIMIT 1
+      `;
+      lojaId = rows[0]?.powering_loja_id ?? null;
     }
 
-    const loja = resultado.resultados[0];
-    const servicos  = loja.totalServicos ?? null;
-    const objetivo  = loja.objetivoMensal ?? null;
-    const objDia    = loja.objetivoDiaAtual ?? null;
-    const taxa      = loja.taxaReparacao != null ? Math.round(loja.taxaReparacao * 1000) / 10 : null;
-    // Desvio diário percentual (ex: -0.031 → -3.1%)
-    const desvioPct = loja.desvioPercentualDia != null
-      ? Math.round(loja.desvioPercentualDia * 1000) / 10
-      : null;
+    if (!lojaId) {
+      return {
+        statusCode: 200, headers,
+        body: JSON.stringify({ success: false, error: 'Portal sem powering_loja_id configurado' })
+      };
+    }
 
+    // ── Chamar PoweringEG ────────────────────────────────────────────────
+    const data = await fetchPowering(`/resultados/${lojaId}?mes=${mes}&ano=${ano}`);
+
+    // Normalizar campos — a API pode variar ligeiramente
+    const r = data.resultado || data.resultados?.[0] || data;
     const kpis = {
-      servicos,
-      objetivo,
-      objDia:   objDia != null ? Math.round(objDia * 10) / 10 : null,
-      taxa,
-      nps:      loja.nps ?? null,
-      mes,
-      ano,
-      nomeLoja: loja.lojaNome ?? null,
-      desvioPct,  // % desvio diário (bate com o PoweringEG "Desvio Obj. Diário")
+      servicos:     r.totalServicos    ?? r.servicos    ?? r.total        ?? 0,
+      objetivo:     r.objetivoMensal   ?? r.objetivo    ?? r.meta         ?? 0,
+      taxa:         r.taxaReparacao    ?? r.taxa        ?? r.mediaReparacao ?? 0,
+      desvioPercent: r.desvioPercent   ?? r.desvio      ?? null,
     };
 
-    return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis, mes, ano }) };
+    // Se o proxy não devolver desvioPercent, calcular aqui
+    if (kpis.desvioPercent == null && kpis.objetivo > 0) {
+      const diasNoMes  = new Date(ano, mes, 0).getDate();
+      const diaActual  = (ano === now.getFullYear() && mes === now.getMonth() + 1)
+                         ? now.getDate() : diasNoMes;
+      const esperado   = kpis.objetivo * (diaActual / diasNoMes);
+      kpis.desvioPercent = esperado > 0
+        ? Math.round(((kpis.servicos / esperado) - 1) * 100 * 100) / 100
+        : 0;
+    }
+
+    return {
+      statusCode: 200, headers,
+      body: JSON.stringify({ success: true, kpis, mes, ano, lojaId })
+    };
 
   } catch (err) {
-    console.error('PoweringEG KPI error:', err);
-    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: err.message }) };
+    console.error('[powering-kpis]', err.message);
+    return {
+      statusCode: 200, headers,   // 200 para o banner não quebrar
+      body: JSON.stringify({ success: false, error: err.message })
+    };
   }
 };
