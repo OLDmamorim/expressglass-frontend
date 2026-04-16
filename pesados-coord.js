@@ -723,18 +723,21 @@
     }, 400);
   };
 
-  // ─── Arrancar quando o DOM estiver pronto ─────────────────────────────────
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    // Aguardar auth estar pronto
-    const wait = setInterval(() => {
-      if (window.authClient?.getRole?.()) {
-        clearInterval(wait);
-        init();
-      }
-    }, 200);
-    setTimeout(() => clearInterval(wait), 10000);
+  // ─── Arrancar ─────────────────────────────────────────────────────────────
+  let _pvInited = false;
+  function tryInit() {
+    if (_pvInited) return;
+    const role = window.authClient?.getUser?.()?.role;
+    if (!['pesados_coord','admin','coordenador'].includes(role)) return;
+    _pvInited = true;
+    init();
   }
+
+  // Múltiplos triggers para garantir inicialização independente do timing
+  tryInit();
+  window.addEventListener('portalReady', tryInit);
+  setTimeout(tryInit, 500);
+  setTimeout(tryInit, 1500);
+  setTimeout(tryInit, 3000);
 
 })();
