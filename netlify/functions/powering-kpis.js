@@ -110,10 +110,12 @@ exports.handler = async (event) => {
       }
       return count;
     }
-    const diaAtual          = (ano === now.getFullYear() && mes === now.getMonth() + 1)
+    // Usar dia passado pelo frontend (evita erro de timezone no servidor)
+    const diaAtual          = p.dia ? parseInt(p.dia) :
+                              (ano === now.getFullYear() && mes === now.getMonth() + 1)
                               ? now.getDate() : new Date(ano, mes, 0).getDate();
-    // PoweringEG exclui hoje E o último dia do mês
-    const diasUteisPassados = contarDiasUteis(ano, mes, diaAtual - 1);
+    // PoweringEG: passados = até 2 dias antes de hoje; mês = até penúltimo dia
+    const diasUteisPassados = contarDiasUteis(ano, mes, diaAtual - 2);
     const diasUteisMes      = contarDiasUteis(ano, mes, new Date(ano, mes, 0).getDate() - 1);
     const esperado          = diasUteisMes > 0 ? objetivo * (diasUteisPassados / diasUteisMes) : 0;
     const desvioPercent     = esperado > 0
