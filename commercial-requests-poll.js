@@ -135,8 +135,22 @@
   };
 
   async function poll() {
-    if (!shouldRun()) return;
+    const role = window.authClient?.getUser?.()?.role;
+    const portalId = document.getElementById('portalSwitcherSelect')?.value || window.currentPortalId || window.activePortalId;
+    
+    // Debug visível — remover após confirmar
+    const dbg = document.getElementById('crDebug') || (() => {
+      const d = document.createElement('div');
+      d.id = 'crDebug';
+      d.style.cssText = 'position:fixed;bottom:60px;left:10px;background:#000;color:#0f0;font-size:10px;padding:6px;border-radius:6px;z-index:9999;max-width:300px;';
+      document.body.appendChild(d);
+      return d;
+    })();
+    dbg.textContent = `CR: role=${role} portal=${portalId} t=${new Date().toLocaleTimeString()}`;
+
+    if (!shouldRun()) { dbg.textContent += ' SKIP(role)'; return; }
     const requests = await fetchPendingRequests();
+    dbg.textContent += ` reqs=${requests.length}`;
     if (requests.length > 0) renderBanner(requests);
   }
 
