@@ -68,7 +68,8 @@ exports.handler = async (event) => {
       }
 
       // Se ?all=1 (admin sem portal seleccionado), buscar todos os pedidos pendentes
-      if (p.all === '1') {
+      const qp = event.queryStringParameters || {};
+      if (qp.all === '1') {
         const { rows } = await pool.query(`
           SELECT cr.*, u.username as commercial_name
           FROM commercial_requests cr
