@@ -2575,23 +2575,23 @@ window.reloadAppointments = async function() {
 
 // ===== RELATÓRIO SEMANAL =====
 
-// ===== ROTA DO DIA — abre Google Maps com toda a rota =====
+// ===== ROTA DO DIA — mapa interno com marcadores de matrícula =====
 function openRotaDoDia() {
   const iso = localISO(currentMobileDay);
-  const items = appointments
-    .filter(a => a.date === iso && !!a.address)
-    .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
-
-  if (items.length === 0) {
-    showToast('Sem serviços com morada para este dia', 'error');
-    return;
+  if (typeof window.openRotaDoMapa === 'function') {
+    window.openRotaDoMapa(iso);
+  } else {
+    // fallback Google Maps se o módulo não carregou
+    const items = appointments
+      .filter(a => a.date === iso && !!a.address)
+      .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
+    if (items.length === 0) { showToast('Sem serviços com morada para este dia', 'error'); return; }
+    const base = getBasePartida();
+    const maxWp = Math.min(items.length, 9);
+    const wps = items.slice(0, maxWp).map(a => encodeURIComponent(a.address));
+    const url = `https://www.google.com/maps/dir/${encodeURIComponent(base)}/${wps.join('/')}/${encodeURIComponent(base)}`;
+    window.open(url, '_blank');
   }
-
-  const base = getBasePartida();
-  const maxWp = Math.min(items.length, 9);
-  const wps = items.slice(0, maxWp).map(a => encodeURIComponent(a.address));
-  const url = `https://www.google.com/maps/dir/${encodeURIComponent(base)}/${wps.join('/')}/${encodeURIComponent(base)}`;
-  window.open(url, '_blank');
 }
 
 
@@ -3034,13 +3034,16 @@ function bootApp() {
   document.getElementById('calculateRoutes')?.addEventListener('click', calculateAllRoutesFromToday);
   document.getElementById('calculateRoutesMobile')?.addEventListener('click', calculateAllRoutesFromToday);
   document.getElementById('btnRotaDoDiaDesk')?.addEventListener('click', () => {
-    // Desktop: usar hoje, ou pedir ao utilizador que selecione o dia
     const today = new Date(); today.setHours(0,0,0,0);
-    // Temporariamente definir currentMobileDay para hoje e chamar openRotaDoDia
-    const prev = currentMobileDay;
-    currentMobileDay = today;
-    openRotaDoDia();
-    currentMobileDay = prev;
+    const iso = today.toISOString().split('T')[0];
+    if (typeof window.openRotaDoMapa === 'function') {
+      window.openRotaDoMapa(iso);
+    } else {
+      const prev = currentMobileDay;
+      currentMobileDay = today;
+      openRotaDoDia();
+      currentMobileDay = prev;
+    }
   });
   document.getElementById('calculateRoutesMobile')?.addEventListener('click', calculateAllRoutesFromToday);
 
