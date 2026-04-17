@@ -112,7 +112,7 @@ exports.handler = async (event) => {
     }
     const diaAtual          = (ano === now.getFullYear() && mes === now.getMonth() + 1)
                               ? now.getDate() : new Date(ano, mes, 0).getDate();
-    const diasUteisPassados = contarDiasUteis(ano, mes, diaAtual - 1); // excluir hoje
+    const diasUteisPassados = contarDiasUteis(ano, mes, diaAtual); // incluir hoje
     const diasUteisMes      = contarDiasUteis(ano, mes);
     const esperado          = diasUteisMes > 0 ? objetivo * (diasUteisPassados / diasUteisMes) : 0;
     const desvioPercent     = esperado > 0
