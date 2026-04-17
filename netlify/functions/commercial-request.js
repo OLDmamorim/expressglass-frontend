@@ -81,9 +81,9 @@ exports.handler = async (event) => {
       }
 
       // Portais SM afectos ao comercial (vêm do JWT via user.portals)
-      const userRow = await pool.query('SELECT assigned_portal_ids FROM users WHERE id = $1', [user.id]);
+      const userRow = await pool.query('SELECT assigned_portal_ids FROM users WHERE id = $1', [user.id || user.userId]);
       const rawIds = userRow.rows[0]?.assigned_portal_ids;
-      console.log('[CR] user.id:', user.id, 'rawIds:', JSON.stringify(rawIds), 'type:', typeof rawIds);
+      console.log('[CR] userId:', user.id || user.userId, 'rawIds:', JSON.stringify(rawIds));
       // PostgreSQL INTEGER[] pode vir como array JS ou como string "{1,2}"
       let assignedIds = [];
       if (Array.isArray(rawIds)) {
@@ -94,11 +94,9 @@ exports.handler = async (event) => {
       }
       console.log('[CR] assignedIds após parse:', JSON.stringify(assignedIds));
 
-      // Fallback: usar portais do JWT se assigned_portal_ids ainda não configurado
-      if (!assignedIds.length && user.portals) {
-        assignedIds = user.portals
-          .filter(p => (p.portalType || p.portal_type) === 'sm')
-          .map(p => parseInt(p.id));
+      // Fallback: usar portalIds do JWT (array de IDs directamente)
+      if (!assignedIds.length && user.portalIds && user.portalIds.length) {
+        assignedIds = user.portalIds.map(id => parseInt(id));
       }
 
       // Fallback 2: buscar todos os SM se ainda vazio (admin/teste)
