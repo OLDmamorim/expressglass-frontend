@@ -64,7 +64,8 @@
       style.id = 'crBannerStyle';
       style.textContent = `
         @keyframes crPulse { 0%,100%{background:#fef3c7;border-color:#f59e0b} 50%{background:#fde68a;border-color:#d97706} }
-        #${BANNER_ID}.pulsing { animation: crPulse 1.5s ease-in-out 3; }
+        .cr-banner-pulsing { animation: crPulse 1.5s ease-in-out 3 !important; }
+        .cr-card-active { border-color:#2563eb !important; background:#eff6ff !important; }
         .cr-grid { display:flex;flex-wrap:wrap;gap:6px; }
         .cr-card { background:#fff;border:1.5px solid #f59e0b;border-radius:10px;padding:8px 10px;font-family:'Figtree',system-ui,sans-serif;box-shadow:0 2px 6px rgba(245,158,11,.15);width:calc(16.66% - 6px);min-width:140px;flex:1;max-width:200px;display:flex;flex-direction:column;gap:3px; }
         .cr-card-top { display:flex;justify-content:space-between;align-items:center; }
@@ -90,9 +91,9 @@
     if (newOnes.length === 0) { container.style.display = 'none'; return; }
 
     container.style.display = 'flex';
-    container.classList.remove('pulsing');
+    container.classList.remove('cr-banner-pulsing');
     void container.offsetWidth;
-    container.classList.add('pulsing');
+    container.classList.add('cr-banner-pulsing');
 
     container.innerHTML = `
       <div class="cr-header"><div class="cr-dot"></div>${newOnes.length === 1 ? '1 pedido pendente' : newOnes.length + ' pedidos pendentes'}</div>
@@ -115,18 +116,39 @@
   }
 
   window.crViewInAgenda = function(plate, id) {
-    markSeen(id);
-    document.getElementById('crCard-' + id)?.remove();
-    const cards = document.getElementById(BANNER_ID)?.querySelectorAll('.cr-card');
-    if (!cards?.length) document.getElementById(BANNER_ID).style.display = 'none';
-    const searchInput = document.getElementById('searchInput');
-    const searchBar = document.getElementById('searchBar');
-    if (searchInput) {
-      if (searchBar) searchBar.classList.remove('hidden');
-      searchInput.value = plate;
-      searchInput.dispatchEvent(new Event('input'));
+    // NÃO marcar como visto ainda — só quando o coordenador fechar o modal
+    document.getElementById('crCard-' + id)?.classList.add('cr-card-active');
+
+    // Abrir modal de novo agendamento
+    const addBtn = document.getElementById('addServiceBtn') || document.getElementById('addAppointmentBtn');
+    if (addBtn) {
+      addBtn.click();
+      // Pré-preencher matrícula após o modal abrir
+      setTimeout(() => {
+        const plateInput = document.getElementById('appointmentPlate');
+        if (plateInput) {
+          plateInput.value = plate;
+          plateInput.dispatchEvent(new Event('input'));
+        }
+      }, 200);
     }
-    document.querySelector('.unscheduled-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Marcar como visto e remover card ao fechar o modal
+    const closeBtn = document.getElementById('closeModal');
+    const cancelBtn = document.getElementById('cancelForm');
+    const onClose = () => {
+      markSeen(id);
+      document.getElementById('crCard-' + id)?.remove();
+      const cards = document.getElementById(BANNER_ID)?.querySelectorAll('.cr-card');
+      if (!cards?.length) document.getElementById(BANNER_ID).style.display = 'none';
+      closeBtn?.removeEventListener('click', onClose);
+      cancelBtn?.removeEventListener('click', onClose);
+    };
+    closeBtn?.addEventListener('click', onClose);
+    cancelBtn?.addEventListener('click', onClose);
+
+    // Também marcar ao submeter o form
+    document.getElementById('appointmentForm')?.addEventListener('submit', onClose, { once: true });
   };
 
   window.crDismiss = function(id) {
@@ -164,13 +186,19 @@
 
   window.addEventListener('portalReady',   start);
   window.addEventListener('portalChanged', poll);
-  // Múltiplos triggers para garantir arranque independente do timing
-  setTimeout(start, 1000);
-  setTimeout(start, 3000);
-  setTimeout(start, 6000);
-  // Também tentar quando a página fica visível após background
+  // Tentar em múltiplos momentos para garantir arranque
+  setTimeout(start, 500);
+  setTimeout(start, 2000);
+  setTimeout(start, 5000);
+  // Quando a página volta ao primeiro plano
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) poll();
   });
+  // Quando o DOM está pronto
+  if (document.readyState === 'complete') {
+    start();
+  } else {
+    window.addEventListener('load', start);
+  }
 
 })();
