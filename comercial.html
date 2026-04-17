@@ -682,7 +682,8 @@
           <div class="pedido-field">
             <label>Matrícula *</label>
             <input type="text" id="pedidoPlate" placeholder="XX-XX-XX" maxlength="8"
-              oninput="this.value=this.value.toUpperCase()" autocomplete="off" />
+              autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-weight:700;"
+              oninput="formatPlateInput(this)" />
           </div>
           <div class="pedido-field">
             <label>Localidade *</label>
@@ -772,7 +773,7 @@
     function validStep1() {
       const plate = document.getElementById('pedidoPlate').value.trim();
       const loc   = document.getElementById('pedidoLocality').value;
-      return plate.length >= 7 && loc;
+      return plate.replace(/-/g,'').length >= 6 && loc;
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -891,6 +892,15 @@
         btn.disabled = false;
         btn.textContent = 'Enviar Pedido ✓';
       }
+    }
+
+    // Formatar matrícula automaticamente (XX-XX-XX)
+    function formatPlateInput(input) {
+      let val = input.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+      if (val.length > 2) val = val.slice(0,2) + '-' + val.slice(2);
+      if (val.length > 5) val = val.slice(0,5) + '-' + val.slice(5);
+      input.value = val.slice(0, 8);
+      document.getElementById('pedidoBtnNext').disabled = !validStep1();
     }
 
     // Fechar com Escape
