@@ -125,7 +125,7 @@
       </div>
       <div class="peg-kpi">
         <div class="peg-lbl">Desvio Dia</div>
-        <div class="peg-val" style="color:${cDev}">${devSign}${Math.round(Math.abs(desvio))}%</div>
+        <div class="peg-val" style="color:${cDev}">${devSign}${Math.abs(Math.round(desvio))}%</div>
       </div>
     `;
   }
