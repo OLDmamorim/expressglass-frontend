@@ -112,8 +112,9 @@ exports.handler = async (event) => {
     }
     const diaAtual          = (ano === now.getFullYear() && mes === now.getMonth() + 1)
                               ? now.getDate() : new Date(ano, mes, 0).getDate();
-    const diasUteisPassados = contarDiasUteis(ano, mes, diaAtual); // incluir hoje
-    const diasUteisMes      = contarDiasUteis(ano, mes);
+    // PoweringEG exclui hoje E o último dia do mês
+    const diasUteisPassados = contarDiasUteis(ano, mes, diaAtual - 1);
+    const diasUteisMes      = contarDiasUteis(ano, mes, new Date(ano, mes, 0).getDate() - 1);
     const esperado          = diasUteisMes > 0 ? objetivo * (diasUteisPassados / diasUteisMes) : 0;
     const desvioPercent     = esperado > 0
       ? Math.round(((servicos / esperado) - 1) * 1000) / 10
