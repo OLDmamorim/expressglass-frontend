@@ -59,7 +59,7 @@ exports.handler = async (event) => {
       // Admin: query completa
       const query = `
         SELECT u.id, u.username, u.plain_password, u.portal_id, u.role, u.created_at, u.updated_at,
-               u.telegram_chat_id, u.telegram_chat_id_2, p.name as portal_name
+               u.telegram_chat_id, u.telegram_chat_id_2, u.assigned_portal_ids, p.name as portal_name
         FROM users u
         LEFT JOIN portals p ON u.portal_id = p.id
         ORDER BY u.username ASC
@@ -77,6 +77,7 @@ exports.handler = async (event) => {
           role: user.role,
           telegramChatId: user.telegram_chat_id || null,
           telegramChatId2: user.telegram_chat_id_2 || null,
+          assigned_portal_ids: user.assigned_portal_ids || [],
           createdAt: user.created_at,
           updatedAt: user.updated_at
         };
