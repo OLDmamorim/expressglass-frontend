@@ -67,6 +67,19 @@ exports.handler = async (event) => {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Matrícula e localidade são obrigatórios' }) };
       }
 
+      // Se ?all=1 (admin sem portal seleccionado), buscar todos os pedidos pendentes
+      if (p.all === '1') {
+        const { rows } = await pool.query(`
+          SELECT cr.*, u.username as commercial_name
+          FROM commercial_requests cr
+          JOIN users u ON u.id = cr.commercial_id
+          WHERE cr.status = 'pending'
+            AND cr.created_at > NOW() - INTERVAL '7 days'
+          ORDER BY cr.created_at DESC
+        `);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, requests: rows }) };
+      }
+
       // Portais SM afectos ao comercial (vêm do JWT via user.portals)
       const userRow = await pool.query('SELECT assigned_portal_ids FROM users WHERE id = $1', [user.id]);
       const rawIds = userRow.rows[0]?.assigned_portal_ids;
