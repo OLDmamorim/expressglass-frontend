@@ -180,6 +180,7 @@ exports.handler = async (event) => {
       if (data.role)                  { updates.push('role = $'              + paramIndex++); values.push(data.role); }
       if (data.telegram_chat_id !== undefined) { updates.push('telegram_chat_id = $' + paramIndex++); values.push(data.telegram_chat_id || null); }
       if (data.telegram_chat_id_2 !== undefined) { updates.push('telegram_chat_id_2 = $' + paramIndex++); values.push(data.telegram_chat_id_2 || null); }
+      if (data.assigned_portal_ids !== undefined) { updates.push('assigned_portal_ids = $' + paramIndex++); values.push(data.assigned_portal_ids || []); }
 
       updates.push('updated_at = $' + paramIndex++);
       values.push(new Date().toISOString());
