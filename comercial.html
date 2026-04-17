@@ -428,6 +428,162 @@
       .plate-badge { padding: 4px 10px; }
       .plate-cell { font-size: 16px; }
     }
+
+    /* ===== PEDIDO DE SERVIÇO ===== */
+    .btn-pedido {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Figtree', sans-serif;
+      transition: opacity .15s;
+      white-space: nowrap;
+    }
+    .btn-pedido:hover { opacity: .85; }
+
+    /* Modal overlay */
+    .pedido-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .pedido-overlay.open { display: flex; }
+
+    .pedido-modal {
+      background: #fff;
+      border-radius: 18px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 24px 64px rgba(0,0,0,.3);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pedido-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .pedido-header h2 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .pedido-close {
+      width: 32px; height: 32px;
+      border: none; background: #f1f5f9;
+      border-radius: 50%; cursor: pointer;
+      font-size: 16px; color: #64748b;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .pedido-close:hover { background: #e2e8f0; }
+
+    .pedido-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+
+    .pedido-field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      margin-bottom: 5px;
+    }
+    .pedido-field input, .pedido-field select {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      font-size: 15px;
+      font-family: 'Figtree', sans-serif;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .pedido-field input:focus, .pedido-field select:focus { border-color: #2563eb; }
+    .pedido-field .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+    /* Sugestões de SM */
+    .pedido-suggestions { display: none; flex-direction: column; gap: 8px; margin-top: 4px; }
+    .pedido-suggestions.visible { display: flex; }
+    .pedido-suggestions h4 {
+      font-size: 11px; font-weight: 700; color: #64748b;
+      text-transform: uppercase; letter-spacing: .5px; margin-bottom: 2px;
+    }
+    .sm-option {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px;
+      border: 2px solid #e2e8f0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .sm-option:hover { border-color: #2563eb; background: #eff6ff; }
+    .sm-option.selected { border-color: #2563eb; background: #eff6ff; }
+    .sm-option.best { border-color: #16a34a; }
+    .sm-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .sm-name { font-weight: 700; font-size: 14px; flex: 1; }
+    .sm-avail { font-size: 12px; color: #64748b; }
+    .sm-badge {
+      font-size: 10px; font-weight: 700;
+      padding: 2px 8px; border-radius: 20px;
+    }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-red   { background: #fee2e2; color: #991b1b; }
+
+    .pedido-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #e2e8f0;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .btn-cancel-pedido {
+      background: #f1f5f9; color: #64748b;
+      border: none; padding: 10px 20px;
+      border-radius: 10px; font-weight: 700;
+      font-size: 14px; cursor: pointer;
+      font-family: 'Figtree', sans-serif;
+    }
+    .btn-submit-pedido {
+      background: #2563eb; color: white;
+      border: none; padding: 10px 24px;
+      border-radius: 10px; font-weight: 700;
+      font-size: 14px; cursor: pointer;
+      font-family: 'Figtree', sans-serif;
+      transition: opacity .15s;
+    }
+    .btn-submit-pedido:hover { opacity: .85; }
+    .btn-submit-pedido:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* Step indicator */
+    .pedido-step { display: none; }
+    .pedido-step.active { display: block; }
+
+    .step-dots {
+      display: flex; gap: 6px; justify-content: center; margin-bottom: 16px;
+    }
+    .step-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0;
+      transition: background .2s;
+    }
+    .step-dot.active { background: #2563eb; }
+
   </style>
 </head>
 <body>
@@ -442,6 +598,10 @@
       <select id="portalSelect" class="portal-selector" onchange="onPortalChange()">
         <option value="">Selecionar SM...</option>
       </select>
+      <button class="btn-pedido" onclick="openPedido()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Pedido de Serviço
+      </button>
       <button class="btn-logout" onclick="doLogout()">Sair</button>
     </div>
   </header>
@@ -502,6 +662,242 @@
   </div>
 
   <div id="toastContainer" class="toast-container"></div>
+
+  <!-- MODAL PEDIDO DE SERVIÇO -->
+  <div class="pedido-overlay" id="pedidoOverlay">
+    <div class="pedido-modal">
+      <div class="pedido-header">
+        <h2>📋 Pedido de Serviço</h2>
+        <button class="pedido-close" onclick="closePedido()">✕</button>
+      </div>
+
+      <div class="pedido-body">
+        <div class="step-dots">
+          <div class="step-dot active" id="dot1"></div>
+          <div class="step-dot" id="dot2"></div>
+        </div>
+
+        <!-- STEP 1: dados -->
+        <div class="pedido-step active" id="stepDados">
+          <div class="pedido-field">
+            <label>Matrícula *</label>
+            <input type="text" id="pedidoPlate" placeholder="XX-XX-XX" maxlength="8"
+              oninput="this.value=this.value.toUpperCase()" autocomplete="off" />
+          </div>
+          <div class="pedido-field">
+            <label>Localidade *</label>
+            <select id="pedidoLocality">
+              <option value="">Selecionar localidade...</option>
+              <option>Barcelos</option>
+              <option>Braga</option>
+              <option>Esposende</option>
+              <option>Famalicão</option>
+              <option>Guimarães</option>
+              <option>Outra</option>
+              <option>Póvoa de Lanhoso</option>
+              <option>Póvoa de Varzim</option>
+              <option>Riba D'Ave</option>
+              <option>Trofa</option>
+              <option>Vieira do Minho</option>
+              <option>Vila do Conde</option>
+              <option>Vila Verde</option>
+            </select>
+          </div>
+          <div class="pedido-field">
+            <label>Ficha de Serviço <span style="color:#94a3b8;font-weight:400;">(facultativo)</span></label>
+            <input type="text" id="pedidoFile" placeholder="Nº de ficha ou referência..." autocomplete="off" />
+          </div>
+        </div>
+
+        <!-- STEP 2: sugestão de SM -->
+        <div class="pedido-step" id="stepSM">
+          <div class="pedido-suggestions visible" id="smSuggestions">
+            <h4>🗺️ SM Sugerido — escolhe o destino</h4>
+            <div id="smList"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pedido-footer">
+        <button class="btn-cancel-pedido" id="pedidoBtnBack" onclick="pedidoBack()" style="display:none;">← Voltar</button>
+        <button class="btn-cancel-pedido" onclick="closePedido()">Cancelar</button>
+        <button class="btn-submit-pedido" id="pedidoBtnNext" onclick="pedidoNext()" disabled>
+          Seguinte →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== PEDIDO DE SERVIÇO =====
+    let pedidoStep = 1;
+    let pedidoPortals = [];
+    let pedidoSelectedPortalId = null;
+
+    function openPedido() {
+      pedidoStep = 1;
+      pedidoSelectedPortalId = null;
+      pedidoPortals = [];
+      document.getElementById('pedidoPlate').value = '';
+      document.getElementById('pedidoLocality').value = '';
+      document.getElementById('pedidoFile').value = '';
+      document.getElementById('smList').innerHTML = '';
+      showStep(1);
+      document.getElementById('pedidoOverlay').classList.add('open');
+      setTimeout(() => document.getElementById('pedidoPlate').focus(), 100);
+    }
+
+    function closePedido() {
+      document.getElementById('pedidoOverlay').classList.remove('open');
+    }
+
+    function showStep(n) {
+      pedidoStep = n;
+      document.getElementById('stepDados').classList.toggle('active', n === 1);
+      document.getElementById('stepSM').classList.toggle('active', n === 2);
+      document.getElementById('dot1').classList.toggle('active', n === 1);
+      document.getElementById('dot2').classList.toggle('active', n === 2);
+      document.getElementById('pedidoBtnBack').style.display = n > 1 ? '' : 'none';
+
+      const btn = document.getElementById('pedidoBtnNext');
+      if (n === 1) {
+        btn.textContent = 'Seguinte →';
+        btn.disabled = !validStep1();
+      } else {
+        btn.textContent = 'Enviar Pedido ✓';
+        btn.disabled = !pedidoSelectedPortalId;
+      }
+    }
+
+    function validStep1() {
+      const plate = document.getElementById('pedidoPlate').value.trim();
+      const loc   = document.getElementById('pedidoLocality').value;
+      return plate.length >= 7 && loc;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('pedidoPlate').addEventListener('input', () => {
+        document.getElementById('pedidoBtnNext').disabled = !validStep1();
+      });
+      document.getElementById('pedidoLocality').addEventListener('change', () => {
+        document.getElementById('pedidoBtnNext').disabled = !validStep1();
+      });
+    });
+
+    async function pedidoNext() {
+      if (pedidoStep === 1) {
+        await pedidoGetSuggestions();
+      } else if (pedidoStep === 2) {
+        await pedidoSubmit();
+      }
+    }
+
+    function pedidoBack() {
+      if (pedidoStep === 2) showStep(1);
+    }
+
+    async function pedidoGetSuggestions() {
+      const btn = document.getElementById('pedidoBtnNext');
+      btn.disabled = true;
+      btn.textContent = 'A calcular...';
+
+      try {
+        const resp = await fetch(`${API_BASE}/commercial-request`, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + getToken(),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            plate: document.getElementById('pedidoPlate').value.trim(),
+            locality: document.getElementById('pedidoLocality').value,
+            service_file: document.getElementById('pedidoFile').value.trim() || null,
+          }),
+        });
+        const data = await resp.json();
+
+        if (!data.success) throw new Error(data.error || 'Erro ao calcular sugestão');
+
+        pedidoPortals = data.portals || [];
+        renderSmOptions(pedidoPortals, data.suggested?.id);
+        showStep(2);
+      } catch (e) {
+        showToast('❌ ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Seguinte →';
+      }
+    }
+
+    function renderSmOptions(portals, suggestedId) {
+      const list = document.getElementById('smList');
+      list.innerHTML = portals.map(p => {
+        const avail = p.today_available;
+        const dotColor = avail <= 0 ? '#dc2626' : avail <= 2 ? '#d97706' : '#16a34a';
+        const isBest = p.id === suggestedId;
+        const isSelected = p.id === pedidoSelectedPortalId;
+        return `
+          <div class="sm-option${isBest ? ' best' : ''}${isSelected ? ' selected' : ''}"
+               id="smOpt-${p.id}" onclick="selectSM(${p.id})">
+            <div class="sm-dot" style="background:${dotColor}"></div>
+            <div style="flex:1">
+              <div class="sm-name">${p.name}</div>
+              <div class="sm-avail">Hoje: ${p.today_count}/${p.max_daily} serviços · Amanhã: ${p.tomorrow_count}/${p.max_daily}</div>
+            </div>
+            ${isBest ? '<span class="sm-badge badge-green">✓ Sugerido</span>' : ''}
+            ${avail <= 0 ? '<span class="sm-badge badge-red">Lotado</span>' : ''}
+          </div>`;
+      }).join('');
+
+      // Auto-seleccionar o sugerido
+      if (suggestedId) selectSM(suggestedId);
+    }
+
+    function selectSM(portalId) {
+      pedidoSelectedPortalId = portalId;
+      document.querySelectorAll('.sm-option').forEach(el => {
+        el.classList.toggle('selected', parseInt(el.id.replace('smOpt-','')) === portalId);
+      });
+      document.getElementById('pedidoBtnNext').disabled = false;
+    }
+
+    async function pedidoSubmit() {
+      const btn = document.getElementById('pedidoBtnNext');
+      btn.disabled = true;
+      btn.textContent = 'A enviar...';
+
+      try {
+        const resp = await fetch(`${API_BASE}/commercial-request`, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + getToken(),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            plate: document.getElementById('pedidoPlate').value.trim(),
+            locality: document.getElementById('pedidoLocality').value,
+            service_file: document.getElementById('pedidoFile').value.trim() || null,
+            confirmed_portal_id: pedidoSelectedPortalId,
+          }),
+        });
+        const data = await resp.json();
+        if (!data.success) throw new Error(data.error || 'Erro ao enviar');
+
+        showToast('✅ Pedido enviado com sucesso!', 'success');
+        closePedido();
+        // Recarregar lista se estiver a ver o SM destino
+        if (currentPortalId === pedidoSelectedPortalId) loadAppointments();
+      } catch (e) {
+        showToast('❌ ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Enviar Pedido ✓';
+      }
+    }
+
+    // Fechar com Escape
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closePedido();
+    });
+  </script>
 
   <script src="auth-client.js"></script>
   <script>
