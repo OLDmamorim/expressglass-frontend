@@ -169,7 +169,7 @@
   async function fetchKpis(portalId) {
     const { mes, ano } = getMonthMeta();
     const r = await window.authClient.authenticatedFetch(
-      `/.netlify/functions/powering-kpis?portal_id=${portalId}&mes=${mes}&ano=${ano}`
+      `/.netlify/functions/powering-kpis?portal_id=${portalId}&mes=${mes}&ano=${ano}&dia=${new Date().getDate()}`
     );
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'PoweringEG sem dados');
