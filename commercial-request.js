@@ -74,12 +74,21 @@ exports.handler = async (event) => {
       if (!assignedIds.length && user.portals) {
         assignedIds = user.portals
           .filter(p => (p.portalType || p.portal_type) === 'sm')
-          .map(p => p.id);
+          .map(p => parseInt(p.id));
+      }
+
+      // Fallback 2: buscar todos os SM se ainda vazio (admin/teste)
+      if (!assignedIds.length) {
+        const allSM = await pool.query("SELECT id FROM portals WHERE portal_type = 'sm'");
+        assignedIds = allSM.rows.map(r => r.id);
       }
 
       if (!assignedIds.length) {
-        return { statusCode: 200, headers, body: JSON.stringify({ success: false, error: 'Sem SMs atribuídos. Configure no painel admin.' }) };
+        return { statusCode: 200, headers, body: JSON.stringify({ success: false, error: 'Sem SMs configurados no sistema.' }) };
       }
+
+      // Garantir que são inteiros
+      assignedIds = assignedIds.map(id => parseInt(id)).filter(id => !isNaN(id));
 
       // ── Sugestão de SM ─────────────────────────────────────────────────
       // Contar agendamentos de hoje + amanhã para cada SM afecto
