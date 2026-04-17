@@ -108,7 +108,7 @@
     const cObj  = '#e2e8f0';
     const cTx   = kpiColor(taxa,   40, 20);
     const cDev  = kpiColor(desvio,  0, -10);
-    const devSign = desvio >= 0 ? '+' : '';
+    const devSign = desvio >= 0 ? '+' : '-';
 
     grid.innerHTML = `
       <div class="peg-kpi">
