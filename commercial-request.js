@@ -68,10 +68,17 @@ exports.handler = async (event) => {
 
       // Portais SM afectos ao comercial (vêm do JWT via user.portals)
       const userRow = await pool.query('SELECT assigned_portal_ids FROM users WHERE id = $1', [user.id]);
-      const assignedIds = userRow.rows[0]?.assigned_portal_ids || [];
+      let assignedIds = userRow.rows[0]?.assigned_portal_ids || [];
+
+      // Fallback: usar portais do JWT se assigned_portal_ids ainda não configurado
+      if (!assignedIds.length && user.portals) {
+        assignedIds = user.portals
+          .filter(p => (p.portalType || p.portal_type) === 'sm')
+          .map(p => p.id);
+      }
 
       if (!assignedIds.length) {
-        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Sem SMs atribuídos a este comercial' }) };
+        return { statusCode: 200, headers, body: JSON.stringify({ success: false, error: 'Sem SMs atribuídos. Configure no painel admin.' }) };
       }
 
       // ── Sugestão de SM ─────────────────────────────────────────────────
