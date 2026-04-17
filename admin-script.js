@@ -352,7 +352,7 @@ function renderUsers() {
       <td><strong>${user.username}</strong></td>
       <td><code style="background:#f3f4f6;padding:2px 8px;border-radius:4px;font-size:13px;user-select:all;">${user.plain_password || '••••••'}</code></td>
       <td>${user.portalName || '-'}</td>
-      <td><span class="badge ${user.role}">${user.role === 'admin' ? 'Admin' : user.role === 'coordenador' ? 'Coordenador' : 'Técnico'}</span></td>
+      <td><span class="badge ${user.role}">${user.role === 'admin' ? 'Admin' : user.role === 'coordenador' ? 'Coordenador' : user.role === 'comercial' ? 'Comercial' : 'Técnico'}</span></td>
       <td class="table-actions">
         <button class="btn-edit" onclick="editUser(${user.id})">Editar</button>
         <button class="btn-danger" onclick="deleteUser(${user.id})">Eliminar</button>
@@ -398,6 +398,12 @@ function editUser(id) {
   if (user.role === 'coordenador' && user.portalIds) {
     populateMultiPortalCheckboxes(user.portalIds);
   }
+  // Se comercial, carregar SMs atribuídos
+  if (user.role === 'comercial') {
+    setTimeout(() => {
+      populateComercialPortalCheckboxes(user.assigned_portal_ids || []);
+    }, 50);
+  }
   
   openModal('userModal');
 }
@@ -431,6 +437,21 @@ async function deleteUser(id) {
 
 // Mostrar/esconder campo de portal baseado no role
 document.getElementById('userRole').addEventListener('change', togglePortalSelect);
+// Alias para o onchange inline do HTML
+window.onRoleChange = togglePortalSelect;
+
+function populateComercialPortalCheckboxes(selectedIds = []) {
+  const container = document.getElementById('comercialPortalCheckboxes');
+  if (!container) return;
+  // Mostrar apenas portais do tipo SM
+  const smPortals = portals.filter(p => (p.portal_type || p.portalType) === 'sm');
+  container.innerHTML = smPortals.map(p => `
+    <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;text-align:left;">
+      <input type="checkbox" class="comercial-portal-cb" value="${p.id}" ${selectedIds.includes(p.id) ? 'checked' : ''} style="width:18px;height:18px;min-width:18px;">
+      <span style="flex:1;text-align:left;">${p.name}</span>
+    </label>
+  `).join('');
+}
 
 function populateMultiPortalCheckboxes(selectedIds = []) {
   const container = document.getElementById('multiPortalCheckboxes');
@@ -457,9 +478,17 @@ function togglePortalSelect() {
     portalGroup.style.display = 'none';
     multiGroup.style.display = 'block';
     portalSelect.required = false;
+    document.getElementById('comercialPortalGroup').style.display = 'none';
     populateMultiPortalCheckboxes();
+  } else if (role === 'comercial') {
+    portalGroup.style.display = 'none';
+    multiGroup.style.display = 'none';
+    portalSelect.required = false;
+    const cg = document.getElementById('comercialPortalGroup');
+    if (cg) { cg.style.display = 'block'; populateComercialPortalCheckboxes(); }
   } else {
     portalGroup.style.display = 'block';
+    if (document.getElementById('comercialPortalGroup')) document.getElementById('comercialPortalGroup').style.display = 'none';
     multiGroup.style.display = 'none';
     portalSelect.required = true;
   }
@@ -499,6 +528,16 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
     }
     userData.portal_id = portalIds[0]; // Portal principal (primeiro)
     userData.portal_ids = portalIds;   // Todos os portais
+  }
+
+  if (role === 'comercial') {
+    const checked = document.querySelectorAll('.comercial-portal-cb:checked');
+    const smIds = Array.from(checked).map(cb => parseInt(cb.value));
+    if (smIds.length === 0) {
+      showToast('Selecione pelo menos um SM para o comercial', 'error');
+      return;
+    }
+    userData.assigned_portal_ids = smIds;
   }
   
   try {
