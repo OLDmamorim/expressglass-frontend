@@ -25,6 +25,7 @@ exports.handler = async (event) => {
 
   try {
     const user = verifyToken(event);
+    console.log('[CR] user JWT:', JSON.stringify(user));
 
     // ── GET — pedidos pendentes para um portal (coordenador) ──────────────
     if (event.httpMethod === 'GET') {
@@ -149,7 +150,7 @@ exports.handler = async (event) => {
           (commercial_id, plate, service_file, locality, confirmed_portal_id, status)
         VALUES ($1, $2, $3, $4, $5, 'pending')
         RETURNING *
-      `, [user.id, plate.toUpperCase(), service_file || null, locality, confirmed_portal_id]);
+      `, [user.id || user.userId, plate.toUpperCase(), service_file || null, locality, confirmed_portal_id]);
 
       // Criar também o registo em appointments (Por Agendar no SM)
       await pool.query(`
@@ -162,7 +163,7 @@ exports.handler = async (event) => {
         plate.toUpperCase(),
         locality,
         service_file ? 'Ficha: ' + service_file : 'Pedido comercial',
-        user.id,
+        user.id || user.userId,
       ]);
 
       return {
