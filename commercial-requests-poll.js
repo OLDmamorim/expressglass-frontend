@@ -29,12 +29,15 @@
   async function fetchPendingRequests() {
     const portalId = document.getElementById('portalSwitcherSelect')?.value ||
                      window.currentPortalId ||
+                     window.activePortalId ||
                      window.authClient?.getUser?.()?.portal_id;
-    if (!portalId) return [];
+
     try {
-      const r = await window.authClient.authenticatedFetch(
-        `/.netlify/functions/commercial-request?portal_id=${portalId}`
-      );
+      // Se não há portal específico (admin), buscar todos os pedidos pendentes
+      const url = portalId
+        ? `/.netlify/functions/commercial-request?portal_id=${portalId}`
+        : `/.netlify/functions/commercial-request?all=1`;
+      const r = await window.authClient.authenticatedFetch(url);
       const d = await r.json();
       return d.success ? (d.requests || []) : [];
     } catch (_) { return []; }
