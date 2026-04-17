@@ -100,7 +100,7 @@
       <div class="cr-grid">
         ${newOnes.map(req => {
           const time = new Date(req.created_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-          const comercial = (req.commercial_name || 'Comercial').split(/[\s.]/)[0]; // primeiro nome
+          const comercial = (req.commercial_name || 'Comercial').split(' ')[0];
           return `<div class="cr-card" id="crCard-${req.id}">
             <div class="cr-card-top">
               <div class="cr-card-plate">${req.plate}</div>
