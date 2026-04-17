@@ -49,7 +49,7 @@
 
     container = document.createElement('div');
     container.id = BANNER_ID;
-    container.style.cssText = 'display:none;flex-direction:column;gap:6px;padding:10px 16px;background:#fef3c7;border-bottom:2px solid #f59e0b;position:relative;z-index:50;';
+    container.style.cssText = 'display:none;flex-direction:column;gap:6px;padding:8px 14px;background:#fef3c7;border-bottom:2px solid #f59e0b;position:relative;z-index:50;';
 
     const switcher = document.getElementById('portalSwitcher');
     if (switcher?.parentNode) switcher.parentNode.insertBefore(container, switcher.nextSibling);
@@ -65,14 +65,15 @@
       style.textContent = `
         @keyframes crPulse { 0%,100%{background:#fef3c7;border-color:#f59e0b} 50%{background:#fde68a;border-color:#d97706} }
         #${BANNER_ID}.pulsing { animation: crPulse 1.5s ease-in-out 3; }
-        .cr-card { display:flex;align-items:center;gap:12px;background:#fff;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 14px;font-family:'Figtree',system-ui,sans-serif;box-shadow:0 2px 8px rgba(245,158,11,.2); }
-        .cr-card-plate { font-family:'Rajdhani','Roboto Mono',monospace;font-size:16px;font-weight:900;color:#92400e;letter-spacing:1px; }
-        .cr-card-info { font-size:12px;color:#78350f;margin-top:1px; }
-        .cr-card-actions { display:flex;gap:6px;flex-shrink:0; }
-        .cr-btn { border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit; }
-        .cr-btn-agenda { background:#f59e0b;color:#fff; }
+        .cr-grid { display:flex;flex-wrap:wrap;gap:6px; }
+        .cr-card { background:#fff;border:1.5px solid #f59e0b;border-radius:10px;padding:8px 10px;font-family:'Figtree',system-ui,sans-serif;box-shadow:0 2px 6px rgba(245,158,11,.15);width:calc(16.66% - 6px);min-width:140px;flex:1;max-width:200px;display:flex;flex-direction:column;gap:3px; }
+        .cr-card-top { display:flex;justify-content:space-between;align-items:center; }
+        .cr-card-plate { font-family:'Rajdhani','Roboto Mono',monospace;font-size:14px;font-weight:900;color:#92400e;letter-spacing:0.5px; }
+        .cr-card-loc { font-size:11px;color:#78350f;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .cr-card-meta { font-size:10px;color:#a16207;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .cr-btn-agenda { background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-top:2px; }
         .cr-btn-agenda:hover { background:#d97706; }
-        .cr-btn-dismiss { background:#f3f4f6;color:#6b7280; }
+        .cr-x { background:none;border:none;color:#d97706;font-size:13px;cursor:pointer;padding:0;line-height:1;flex-shrink:0; }
         .cr-header { display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px; }
         .cr-dot { width:8px;height:8px;border-radius:50%;background:#f59e0b;animation:crDot 1s ease-in-out infinite; }
         @keyframes crDot { 0%,100%{opacity:1} 50%{opacity:0.3} }
@@ -94,21 +95,22 @@
     container.classList.add('pulsing');
 
     container.innerHTML = `
-      <div class="cr-header"><div class="cr-dot"></div>${newOnes.length === 1 ? '1 pedido de serviço pendente' : newOnes.length + ' pedidos pendentes'}</div>
-      ${newOnes.map(req => {
-        const time = new Date(req.created_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
-        return `<div class="cr-card" id="crCard-${req.id}">
-          <div style="font-size:20px;flex-shrink:0">📋</div>
-          <div style="flex:1;min-width:0">
-            <div class="cr-card-plate">${req.plate}</div>
-            <div class="cr-card-info">📍 ${req.locality} · 🕐 ${time} · 👤 ${req.commercial_name || 'Comercial'}${req.service_file ? ' · Ficha: ' + req.service_file : ''}</div>
-          </div>
-          <div class="cr-card-actions">
-            <button class="cr-btn cr-btn-agenda" onclick="crViewInAgenda('${req.plate}',${req.id})">📅 Agendar</button>
-            <button class="cr-btn cr-btn-dismiss" onclick="crDismiss(${req.id})">✕</button>
-          </div>
-        </div>`;
-      }).join('')}
+      <div class="cr-header"><div class="cr-dot"></div>${newOnes.length === 1 ? '1 pedido pendente' : newOnes.length + ' pedidos pendentes'}</div>
+      <div class="cr-grid">
+        ${newOnes.map(req => {
+          const time = new Date(req.created_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+          const comercial = (req.commercial_name || 'Comercial').split(/[\s.]/)[0]; // primeiro nome
+          return `<div class="cr-card" id="crCard-${req.id}">
+            <div class="cr-card-top">
+              <div class="cr-card-plate">${req.plate}</div>
+              <button class="cr-x" onclick="crDismiss(${req.id})">✕</button>
+            </div>
+            <div class="cr-card-loc">📍 ${req.locality}</div>
+            <div class="cr-card-meta">👤 ${comercial}${req.service_file ? ' · ' + req.service_file : ''} · ${time}</div>
+            <button class="cr-btn-agenda" onclick="crViewInAgenda('${req.plate}',${req.id})">📅 Agendar</button>
+          </div>`;
+        }).join('')}
+      </div>
     `;
   }
 
