@@ -68,11 +68,37 @@ exports.handler = async (event) => {
 
       // Portais SM afectos ao comercial (vêm do JWT via user.portals)
       const userRow = await pool.query('SELECT assigned_portal_ids FROM users WHERE id = $1', [user.id]);
-      const assignedIds = userRow.rows[0]?.assigned_portal_ids || [];
+      const rawIds = userRow.rows[0]?.assigned_portal_ids;
+      console.log('[CR] user.id:', user.id, 'rawIds:', JSON.stringify(rawIds), 'type:', typeof rawIds);
+      // PostgreSQL INTEGER[] pode vir como array JS ou como string "{1,2}"
+      let assignedIds = [];
+      if (Array.isArray(rawIds)) {
+        assignedIds = rawIds;
+      } else if (typeof rawIds === 'string' && rawIds.length > 2) {
+        // formato "{1,2}" → [1,2]
+        assignedIds = rawIds.replace(/[{}]/g,'').split(',').map(Number).filter(n => !isNaN(n));
+      }
+      console.log('[CR] assignedIds após parse:', JSON.stringify(assignedIds));
+
+      // Fallback: usar portais do JWT se assigned_portal_ids ainda não configurado
+      if (!assignedIds.length && user.portals) {
+        assignedIds = user.portals
+          .filter(p => (p.portalType || p.portal_type) === 'sm')
+          .map(p => parseInt(p.id));
+      }
+
+      // Fallback 2: buscar todos os SM se ainda vazio (admin/teste)
+      if (!assignedIds.length) {
+        const allSM = await pool.query("SELECT id FROM portals WHERE portal_type = 'sm'");
+        assignedIds = allSM.rows.map(r => r.id);
+      }
 
       if (!assignedIds.length) {
-        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Sem SMs atribuídos a este comercial' }) };
+        return { statusCode: 200, headers, body: JSON.stringify({ success: false, error: 'Sem SMs configurados no sistema.' }) };
       }
+
+      // Garantir que são inteiros
+      assignedIds = assignedIds.map(id => parseInt(id)).filter(id => !isNaN(id));
 
       // ── Sugestão de SM ─────────────────────────────────────────────────
       // Contar agendamentos de hoje + amanhã para cada SM afecto
