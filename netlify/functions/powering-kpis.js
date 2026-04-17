@@ -96,14 +96,30 @@ exports.handler = async (event) => {
     const lista = data.resultados || [];
     const r = lista.find(x => x.mes === mes && x.ano === ano) || lista[lista.length - 1] || {};
 
-    const kpis = {
-      servicos:      r.totalServicos   ?? 0,
-      objetivo:      r.objetivoMensal  ?? 0,
-      // taxaReparacao vem em decimal (0.25 = 25%) — arredondar para inteiro
-      taxa:          r.taxaReparacao != null ? Math.round(r.taxaReparacao * 100) : 0,
-      // desvioPercentualMes vem em decimal (-0.6154 = -62%) — arredondar para inteiro
-      desvioPercent: r.desvioPercentualMes != null ? Math.round(r.desvioPercentualMes * 100) : 0,
-    };
+    const servicos = r.totalServicos  ?? 0;
+    const objetivo = r.objetivoMensal ?? 0;
+    const taxa     = r.taxaReparacao != null ? Math.round(r.taxaReparacao * 100) : 0;
+
+    // Desvio diário com dias úteis — replica fórmula do dashboard PoweringEG
+    function contarDiasUteis(ano, mes, ate) {
+      let count = 0;
+      const fim = ate !== undefined ? ate : new Date(ano, mes, 0).getDate();
+      for (let d = 1; d <= fim; d++) {
+        const dow = new Date(ano, mes - 1, d).getDay();
+        if (dow !== 0 && dow !== 6) count++;
+      }
+      return count;
+    }
+    const diaAtual          = (ano === now.getFullYear() && mes === now.getMonth() + 1)
+                              ? now.getDate() : new Date(ano, mes, 0).getDate();
+    const diasUteisPassados = contarDiasUteis(ano, mes, diaAtual - 1); // excluir hoje
+    const diasUteisMes      = contarDiasUteis(ano, mes);
+    const esperado          = diasUteisMes > 0 ? objetivo * (diasUteisPassados / diasUteisMes) : 0;
+    const desvioPercent     = esperado > 0
+      ? Math.round(((servicos / esperado) - 1) * 1000) / 10
+      : 0;
+
+    const kpis = { servicos, objetivo, taxa, desvioPercent };
 
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis, mes, ano, lojaId }) };
 
