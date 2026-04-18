@@ -25,10 +25,19 @@
     localStorage.setItem(SEEN_KEY, JSON.stringify(seen.slice(-200)));
   }
 
+  function getPortalId() {
+    var sel = document.getElementById('portalSwitcherSelect');
+    if (sel && sel.value) return sel.value;
+    if (window.currentPortalId) return window.currentPortalId;
+    if (window.activePortalId) return window.activePortalId;
+    if (window.portalConfig && window.portalConfig.id) return window.portalConfig.id;
+    var u = window.authClient && window.authClient.getUser && window.authClient.getUser();
+    if (u && u.portal_id) return u.portal_id;
+    return null;
+  }
+
   async function fetchPendingRequests() {
-    var portalId = (document.getElementById('portalSwitcherSelect') || {}).value ||
-                   window.currentPortalId || window.activePortalId ||
-                   (window.authClient && window.authClient.getUser && window.authClient.getUser() && window.authClient.getUser().portal_id);
+    var portalId = getPortalId();
     try {
       var url = portalId
         ? '/.netlify/functions/commercial-request?portal_id=' + portalId
