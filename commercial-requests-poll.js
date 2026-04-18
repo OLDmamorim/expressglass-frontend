@@ -230,11 +230,38 @@
   };
 
   window.crDismiss = function(id) {
-    markSeen(id);
-    var card = document.getElementById('crCard-' + id);
-    if (card) card.remove();
-    var container = document.getElementById(BANNER_ID);
-    if (container && !container.querySelector('.cr-card')) container.style.display = 'none';
+    // Modal de confirmação
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;max-width:300px;width:90%;text-align:center;">' +
+      '<div style="font-size:28px;margin-bottom:10px;">🗑️</div>' +
+      '<div style="font-weight:700;font-size:15px;margin-bottom:6px;">Cancelar este pedido?</div>' +
+      '<div style="font-size:12px;color:#64748b;margin-bottom:18px;">O comercial ficará com o registo como cancelado.</div>' +
+      '<div style="display:flex;gap:8px;">' +
+        '<button id="crDNo" style="flex:1;background:#f1f5f9;color:#475569;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer;">Não</button>' +
+        '<button id="crDYes" style="flex:1;background:#ef4444;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer;">Cancelar Pedido</button>' +
+      '</div></div>';
+    document.body.appendChild(overlay);
+
+    overlay.querySelector('#crDNo').onclick = function() { document.body.removeChild(overlay); };
+    overlay.querySelector('#crDYes').onclick = async function() {
+      document.body.removeChild(overlay);
+
+      // Marcar como cancelled na DB
+      try {
+        await window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id, status: 'cancelled' })
+        });
+      } catch(_) {}
+
+      // Remover card
+      var card = document.getElementById('crCard-' + id);
+      if (card) card.remove();
+      var container = document.getElementById(BANNER_ID);
+      if (container && !container.querySelector('.cr-card')) container.style.display = 'none';
+    };
   };
 
   async function poll() {
