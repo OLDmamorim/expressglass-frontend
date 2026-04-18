@@ -427,6 +427,20 @@ function sugerirDataParaLocalidade(locality) {
         if (r.car)          f('appointmentCar', r.car);
         if (r.service_type) f('appointmentService', r.service_type);
 
+        // Activar "Encaminhado por comercial" e seleccionar o comercial
+        if (r.commercial_id && typeof window.loadComerciais === 'function') {
+          window.loadComerciais().then(function() {
+            var hasCb = document.getElementById('hasCommercial');
+            var wrap  = document.getElementById('commercialSelectWrap');
+            var sel   = document.getElementById('appointmentCommercial');
+            if (hasCb && !hasCb.checked) {
+              hasCb.checked = true;
+              if (wrap) wrap.style.display = 'block';
+            }
+            if (sel) sel.value = r.commercial_id;
+          });
+        }
+
         // Sugestão de data com base na localidade
         var sug = sugerirDataParaLocalidade(r.locality);
         if (sug) {
