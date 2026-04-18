@@ -27,10 +27,23 @@ exports.handler = async (event) => {
     const user = verifyToken(event);
     console.log('[CR] user JWT:', JSON.stringify(user));
 
-    // ── GET — pedidos pendentes para um portal (coordenador) ──────────────
+    // ── GET — pedidos pendentes para um portal (coordenador) ou próprios (comercial) ──────────────
     if (event.httpMethod === 'GET') {
       const p = event.queryStringParameters || {};
       const portalId = p.portal_id ? parseInt(p.portal_id) : null;
+
+      // Comercial a ver os seus próprios pedidos
+      if (p.mine === '1') {
+        const { rows } = await pool.query(`
+          SELECT cr.*, po.name as portal_name
+          FROM commercial_requests cr
+          LEFT JOIN portals po ON po.id = cr.confirmed_portal_id
+          WHERE cr.commercial_id = $1
+          ORDER BY cr.created_at DESC
+          LIMIT 100
+        `, [user.id || user.userId]);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, requests: rows }) };
+      }
 
       // Buscar pedidos novos (pending) para este SM, dos últimos 7 dias
       let rows;
@@ -189,12 +202,18 @@ exports.handler = async (event) => {
       };
     }
 
-    // ── PUT — marcar pedido como done ────────────────────────────────────
+    // ── PUT — actualizar status do pedido ─────────────────────────────────
     if (event.httpMethod === 'PUT') {
       const body = JSON.parse(event.body || '{}');
-      const { id, status } = body;
+      const { id, status, plate, commercial_id } = body;
       if (id && status) {
         await pool.query('UPDATE commercial_requests SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+      } else if (plate && commercial_id && status) {
+        // Cancelamento por matrícula (ao apagar appointment)
+        await pool.query(
+          "UPDATE commercial_requests SET status = $1, updated_at = NOW() WHERE plate = $2 AND commercial_id = $3 AND status != 'done'",
+          [status, plate.toUpperCase(), commercial_id]
+        );
       }
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
     }
