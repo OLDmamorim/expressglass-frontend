@@ -60,7 +60,12 @@
       '.cr-header{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;}',
       '.cr-dot{width:8px;height:8px;border-radius:50%;background:#f59e0b;animation:crDot 1s ease-in-out infinite;}',
       '.cr-grid{display:flex;flex-wrap:wrap;gap:6px;}',
-      '.cr-card{background:#fff;border:1.5px solid #f59e0b;border-radius:10px;padding:8px 10px;font-family:Figtree,system-ui,sans-serif;box-shadow:0 2px 6px rgba(245,158,11,.15);min-width:140px;flex:1;max-width:200px;display:flex;flex-direction:column;gap:3px;}',
+      '@keyframes crPulseCard{0%,100%{border-color:currentColor;box-shadow:0 2px 6px rgba(245,158,11,.15)}50%{box-shadow:0 0 12px 3px rgba(245,158,11,.5)}}',
+      '@keyframes crPulseOrange{0%,100%{border-color:#f97316;box-shadow:0 2px 6px rgba(249,115,22,.15)}50%{box-shadow:0 0 12px 3px rgba(249,115,22,.6)}}',
+      '@keyframes crPulseRed{0%,100%{border-color:#ef4444;box-shadow:0 2px 6px rgba(239,68,68,.15)}50%{box-shadow:0 0 12px 3px rgba(239,68,68,.7)}}',
+      '.cr-card{background:#fff;border:2px solid #f59e0b;border-radius:10px;padding:8px 10px;font-family:Figtree,system-ui,sans-serif;box-shadow:0 2px 6px rgba(245,158,11,.15);min-width:140px;flex:1;max-width:200px;display:flex;flex-direction:column;gap:3px;animation:crPulseCard 1.5s ease-in-out infinite;}',
+      '.cr-card.cr-orange{border-color:#f97316;animation:crPulseOrange 1.2s ease-in-out infinite;}',
+      '.cr-card.cr-red{border-color:#ef4444;animation:crPulseRed 1s ease-in-out infinite;}',
       '.cr-card-top{display:flex;justify-content:space-between;align-items:center;}',
       '.cr-card-plate{font-family:Rajdhani,monospace;font-size:14px;font-weight:900;color:#92400e;letter-spacing:0.5px;}',
       '.cr-card-loc{font-size:11px;color:#78350f;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
@@ -93,8 +98,12 @@
     var name = (req.commercial_name || 'Comercial').split(' ')[0];
     var meta = name + (req.service_file ? ' · ' + req.service_file : '') + ' · ' + time;
 
+    // Calcular urgência
+    var ageMin = (Date.now() - new Date(req.created_at).getTime()) / 60000;
+    var urgClass = ageMin > 60 ? 'cr-red' : ageMin > 30 ? 'cr-orange' : '';
+
     var card = document.createElement('div');
-    card.className = 'cr-card';
+    card.className = 'cr-card' + (urgClass ? ' ' + urgClass : '');
     card.id = 'crCard-' + req.id;
 
     var top = document.createElement('div');
@@ -102,6 +111,7 @@
 
     var plate = document.createElement('div');
     plate.className = 'cr-card-plate';
+    plate.style.color = ageMin > 60 ? '#991b1b' : ageMin > 30 ? '#9a3412' : '#92400e';
     plate.textContent = req.plate;
 
     var xBtn = document.createElement('button');
@@ -122,6 +132,7 @@
 
     var agBtn = document.createElement('button');
     agBtn.className = 'cr-btn-agenda';
+    agBtn.style.background = ageMin > 60 ? '#ef4444' : ageMin > 30 ? '#f97316' : '#f59e0b';
     agBtn.textContent = '📅 Agendar';
     agBtn.onclick = function() { crViewInAgenda(req.plate, req.id); };
 
@@ -140,15 +151,7 @@
     if (newOnes.length === 0) { container.style.display = 'none'; return; }
 
     container.style.display = 'flex';
-    // Pulsar — forçar reflow completo
-    container.style.animation = 'none';
-    container.style.background = '#fef3c7';
-    void container.offsetWidth; // forçar reflow
-    container.style.animation = 'crPulse 1.5s ease-in-out 3';
-    container.addEventListener('animationend', function() {
-      container.style.animation = 'none';
-      container.style.background = '#fef3c7';
-    }, { once: true });
+    // sem animação no container
 
     // Limpar e reconstruir
     container.innerHTML = '';
