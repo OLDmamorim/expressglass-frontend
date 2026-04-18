@@ -189,17 +189,23 @@
       }, 200);
     }
 
-    var onClose = function() {
-      markSeen(id);
-      var card = document.getElementById('crCard-' + id);
-      if (card) card.remove();
-      var cards = container && container.querySelectorAll('.cr-card');
-      if (!cards || !cards.length) container.style.display = 'none';
-    };
+    // Só remover ao GUARDAR (submit) — cancelar/fechar mantém o card
     var container = document.getElementById(BANNER_ID);
-    document.getElementById('closeModal') && document.getElementById('closeModal').addEventListener('click', onClose, { once: true });
-    document.getElementById('cancelForm') && document.getElementById('cancelForm').addEventListener('click', onClose, { once: true });
-    document.getElementById('appointmentForm') && document.getElementById('appointmentForm').addEventListener('submit', onClose, { once: true });
+    var onSave = function() {
+      // Marcar como done na DB
+      if (window.authClient && window.authClient.authenticatedFetch) {
+        window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id, status: 'done' })
+        }).catch(function(){});
+      }
+      var card2 = document.getElementById('crCard-' + id);
+      if (card2) card2.remove();
+      if (container && !container.querySelector('.cr-card')) container.style.display = 'none';
+    };
+    var form = document.getElementById('appointmentForm');
+    if (form) form.addEventListener('submit', onSave, { once: true });
   };
 
   window.crDismiss = function(id) {
