@@ -126,6 +126,17 @@ exports.handler = async (event) => {
       // Garantir que são inteiros
       assignedIds = assignedIds.map(id => parseInt(id)).filter(id => !isNaN(id));
 
+      // Calcular próximo dia útil (excluindo hoje)
+      const diasPT = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+      const nowLocal = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Lisbon'}));
+      let nextWeekday = new Date(nowLocal);
+      nextWeekday.setDate(nextWeekday.getDate() + 1);
+      while (nextWeekday.getDay() === 0 || nextWeekday.getDay() === 6) {
+        nextWeekday.setDate(nextWeekday.getDate() + 1);
+      }
+      const nextWeekdayLabel = diasPT[nextWeekday.getDay()];
+      const nextWeekdayISO = nextWeekday.toISOString().slice(0, 10);
+
       // ── Sugestão de SM ─────────────────────────────────────────────────
       // Contar agendamentos de hoje + amanhã para cada SM afecto
       // e sugerir o que tem mais disponibilidade
@@ -143,7 +154,7 @@ exports.handler = async (event) => {
             COALESCE(
               (SELECT COUNT(*) FROM appointments a
                WHERE a.portal_id = p.id
-                 AND a.date = CURRENT_DATE + 1
+                 AND a.date = $2::date
                  AND a.executed IS NOT TRUE), 0
             ) AS tomorrow_count,
             COALESCE(
@@ -156,7 +167,7 @@ exports.handler = async (event) => {
           WHERE p.id = ANY($1::int[])
             AND p.portal_type = 'sm'
           ORDER BY week_count ASC, today_count ASC, tomorrow_count ASC
-        `, [assignedIds]);
+        `, [assignedIds, nextWeekdayISO]);
 
         const portals = availRes.rows.map(p => ({
           id: p.id,
@@ -165,6 +176,7 @@ exports.handler = async (event) => {
           today_count: parseInt(p.today_count),
           tomorrow_count: parseInt(p.tomorrow_count),
           week_count: parseInt(p.week_count),
+          next_weekday_label: nextWeekdayLabel,
           today_available: (p.max_daily || 8) - parseInt(p.today_count),
           tomorrow_available: (p.max_daily || 8) - parseInt(p.tomorrow_count),
         }));
