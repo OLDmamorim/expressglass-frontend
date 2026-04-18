@@ -61,7 +61,7 @@ exports.handler = async (event) => {
     // ── POST — criar pedido ───────────────────────────────────────────────
     if (event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}');
-      const { plate, service_file, locality, confirmed_portal_id } = body;
+      const { plate, service_file, locality, confirmed_portal_id, service_type, phone, entity, notes } = body;
 
       if (!plate || !locality) {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Matrícula e localidade são obrigatórios' }) };
@@ -159,22 +159,26 @@ exports.handler = async (event) => {
       // ── Confirmar e guardar pedido ─────────────────────────────────────
       const { rows: inserted } = await pool.query(`
         INSERT INTO commercial_requests
-          (commercial_id, plate, service_file, locality, confirmed_portal_id, status)
-        VALUES ($1, $2, $3, $4, $5, 'pending')
+          (commercial_id, plate, service_file, locality, confirmed_portal_id, status, service_type, phone, entity, notes)
+        VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9)
         RETURNING *
-      `, [user.id || user.userId, plate.toUpperCase(), service_file || null, locality, confirmed_portal_id]);
+      `, [user.id || user.userId, plate.toUpperCase(), service_file || null, locality, confirmed_portal_id,
+          service_type || null, phone || null, entity || null, notes || null]);
 
       // Criar também o registo em appointments (Por Agendar no SM)
       await pool.query(`
         INSERT INTO appointments
-          (portal_id, plate, car, locality, notes, status, confirmed, commercial_user_id, created_at)
-        VALUES ($1, $2, '', $3, $4, 'NE', false, $5, NOW())
+          (portal_id, plate, car, service_type, locality, notes, phone, client_name, status, confirmed, commercial_user_id, created_at)
+        VALUES ($1, $2, '', $3, $4, $5, $6, $7, 'NE', false, $8, NOW())
         ON CONFLICT DO NOTHING
       `, [
         confirmed_portal_id,
         plate.toUpperCase(),
+        service_type || 'PB',
         locality,
-        service_file ? 'Ficha: ' + service_file : 'Pedido comercial',
+        [service_file ? 'Ficha: ' + service_file : null, notes].filter(Boolean).join(' | ') || 'Pedido comercial',
+        phone || null,
+        entity || null,
         user.id || user.userId,
       ]);
 
