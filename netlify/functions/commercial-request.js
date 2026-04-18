@@ -168,7 +168,7 @@ exports.handler = async (event) => {
       // Criar também o registo em appointments (Por Agendar no SM)
       await pool.query(`
         INSERT INTO appointments
-          (portal_id, plate, car, service_type, locality, notes, phone, client_name, status, confirmed, commercial_user_id, created_at)
+          (portal_id, plate, car, service, locality, notes, phone, client_name, status, confirmed, commercial_user_id, created_at)
         VALUES ($1, $2, '', $3, $4, $5, $6, $7, 'NE', false, $8, NOW())
         ON CONFLICT DO NOTHING
       `, [
