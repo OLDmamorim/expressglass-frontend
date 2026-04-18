@@ -894,7 +894,7 @@
             <div class="sm-dot" style="background:${dotColor}"></div>
             <div style="flex:1">
               <div class="sm-name">${p.name}</div>
-              <div class="sm-avail">Hoje: ${p.today_count}/${p.max_daily} serviços · Amanhã: ${p.tomorrow_count}/${p.max_daily}</div>
+              <div class="sm-avail">Hoje: ${p.today_count}/${p.max_daily} · ${p.next_weekday_label}: ${p.tomorrow_count}/${p.max_daily}</div>
             </div>
             ${isBest ? '<span class="sm-badge badge-green">✓ Sugerido</span>' : ''}
             ${avail <= 0 ? '<span class="sm-badge badge-red">Lotado</span>' : ''}
