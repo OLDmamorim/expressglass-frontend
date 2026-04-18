@@ -134,7 +134,8 @@
     agBtn.className = 'cr-btn-agenda';
     agBtn.style.background = ageMin > 60 ? '#ef4444' : ageMin > 30 ? '#f97316' : '#f59e0b';
     agBtn.textContent = '📅 Agendar';
-    agBtn.onclick = function() { crViewInAgenda(req.plate, req.id); };
+    agBtn.dataset.req = JSON.stringify(req);
+    agBtn.onclick = function() { crViewInAgenda(JSON.parse(this.dataset.req)); };
 
     card.appendChild(top);
     card.appendChild(loc);
@@ -174,19 +175,38 @@
     container.appendChild(grid);
   }
 
-  window.crViewInAgenda = function(plate, id) {
+  window.crViewInAgenda = function(req) {
+    var plate = req.plate; var id = req.id;
     document.getElementById('crCard-' + id) && document.getElementById('crCard-' + id).style.setProperty('border-color', '#2563eb');
 
     var addBtn = document.getElementById('addServiceBtn') || document.getElementById('addAppointmentNavBtn');
     if (addBtn) {
       addBtn.click();
       setTimeout(function() {
-        var plateInput = document.getElementById('appointmentPlate');
-        if (plateInput) {
-          plateInput.value = plate;
-          plateInput.dispatchEvent(new Event('input'));
+        // Pré-preencher todos os campos do modal
+        var r = req;
+        var f = function(id, val) {
+          var el = document.getElementById(id);
+          if (el && val) {
+            el.value = val;
+            el.dispatchEvent(new Event('input'));
+            el.dispatchEvent(new Event('change'));
+          }
+        };
+        f('appointmentPlate', plate);
+        if (r.service_type) f('appointmentService', r.service_type);
+        if (r.phone)        f('appointmentPhone', r.phone);
+        if (r.entity)       f('appointmentClientName', r.entity);
+        // Localidade via função global se existir
+        if (r.locality && typeof window.setLocalityValue === 'function') {
+          window.setLocalityValue(r.locality);
         }
-      }, 200);
+        // Notas
+        if (r.service_file || r.notes) {
+          var notesEl = document.getElementById('appointmentNotes');
+          if (notesEl) notesEl.value = [r.service_file ? 'Ficha: '+r.service_file : '', r.notes || ''].filter(Boolean).join(' | ');
+        }
+      }, 300);
     }
 
     // Só remover ao GUARDAR (submit) — cancelar/fechar mantém o card
