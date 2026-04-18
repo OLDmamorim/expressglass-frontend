@@ -679,34 +679,61 @@
 
         <!-- STEP 1: dados -->
         <div class="pedido-step active" id="stepDados">
-          <div class="pedido-field">
-            <label>Matrícula *</label>
-            <input type="text" id="pedidoPlate" placeholder="XX-XX-XX" maxlength="8"
-              autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-weight:700;"
-              oninput="formatPlateInput(this)" />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="pedido-field">
+              <label>Matrícula *</label>
+              <input type="text" id="pedidoPlate" placeholder="XX-XX-XX" maxlength="8"
+                autocomplete="off" style="text-transform:uppercase;letter-spacing:2px;font-weight:700;"
+                oninput="formatPlateInput(this)" />
+            </div>
+            <div class="pedido-field">
+              <label>Tipo de Vidro *</label>
+              <select id="pedidoService">
+                <option value="">Selecionar...</option>
+                <option value="PB">PB — Para-brisas</option>
+                <option value="LT">LT — Lateral</option>
+                <option value="OC">OC — Óculo</option>
+                <option value="REP">REP — Reparação</option>
+              </select>
+            </div>
           </div>
-          <div class="pedido-field">
-            <label>Localidade *</label>
-            <select id="pedidoLocality">
-              <option value="">Selecionar localidade...</option>
-              <option>Barcelos</option>
-              <option>Braga</option>
-              <option>Esposende</option>
-              <option>Famalicão</option>
-              <option>Guimarães</option>
-              <option>Outra</option>
-              <option>Póvoa de Lanhoso</option>
-              <option>Póvoa de Varzim</option>
-              <option>Riba D'Ave</option>
-              <option>Trofa</option>
-              <option>Vieira do Minho</option>
-              <option>Vila do Conde</option>
-              <option>Vila Verde</option>
-            </select>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="pedido-field">
+              <label>Localidade *</label>
+              <select id="pedidoLocality">
+                <option value="">Selecionar...</option>
+                <option>Barcelos</option>
+                <option>Braga</option>
+                <option>Esposende</option>
+                <option>Famalicão</option>
+                <option>Guimarães</option>
+                <option>Outra</option>
+                <option>Póvoa de Lanhoso</option>
+                <option>Póvoa de Varzim</option>
+                <option>Riba D'Ave</option>
+                <option>Trofa</option>
+                <option>Vieira do Minho</option>
+                <option>Vila do Conde</option>
+                <option>Vila Verde</option>
+              </select>
+            </div>
+            <div class="pedido-field">
+              <label>Contacto *</label>
+              <input type="tel" id="pedidoPhone" placeholder="9XX XXX XXX" autocomplete="off" />
+            </div>
           </div>
           <div class="pedido-field">
             <label>Ficha de Serviço <span style="color:#94a3b8;font-weight:400;">(facultativo)</span></label>
             <input type="text" id="pedidoFile" placeholder="Nº de ficha ou referência..." autocomplete="off" />
+          </div>
+          <div class="pedido-field">
+            <label>Entidade <span style="color:#94a3b8;font-weight:400;">(facultativo)</span></label>
+            <input type="text" id="pedidoEntity" placeholder="Nome da empresa ou segurado..." autocomplete="off" />
+          </div>
+          <div class="pedido-field">
+            <label>Observações <span style="color:#94a3b8;font-weight:400;">(facultativo)</span></label>
+            <textarea id="pedidoNotes" placeholder="Informações adicionais..." rows="2"
+              style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;font-family:inherit;resize:vertical;outline:none;"></textarea>
           </div>
         </div>
 
@@ -741,7 +768,11 @@
       pedidoPortals = [];
       document.getElementById('pedidoPlate').value = '';
       document.getElementById('pedidoLocality').value = '';
+      document.getElementById('pedidoService').value = '';
+      document.getElementById('pedidoPhone').value = '';
       document.getElementById('pedidoFile').value = '';
+      document.getElementById('pedidoEntity').value = '';
+      document.getElementById('pedidoNotes').value = '';
       document.getElementById('smList').innerHTML = '';
       showStep(1);
       document.getElementById('pedidoOverlay').classList.add('open');
@@ -773,15 +804,17 @@
     function validStep1() {
       const plate = document.getElementById('pedidoPlate').value.trim();
       const loc   = document.getElementById('pedidoLocality').value;
-      return plate.replace(/-/g,'').length >= 6 && loc;
+      const svc   = document.getElementById('pedidoService').value;
+      const phone = document.getElementById('pedidoPhone').value.trim();
+      return plate.replace(/-/g,'').length >= 6 && loc && svc && phone.length >= 9;
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('pedidoPlate').addEventListener('input', () => {
-        document.getElementById('pedidoBtnNext').disabled = !validStep1();
-      });
-      document.getElementById('pedidoLocality').addEventListener('change', () => {
-        document.getElementById('pedidoBtnNext').disabled = !validStep1();
+      ['pedidoPlate','pedidoLocality','pedidoService','pedidoPhone'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+          document.getElementById('pedidoBtnNext').disabled = !validStep1();
+        });
       });
     });
 
@@ -812,7 +845,11 @@
           body: JSON.stringify({
             plate: document.getElementById('pedidoPlate').value.trim(),
             locality: document.getElementById('pedidoLocality').value,
+            service_type: document.getElementById('pedidoService').value,
+            phone: document.getElementById('pedidoPhone').value.trim(),
             service_file: document.getElementById('pedidoFile').value.trim() || null,
+            entity: document.getElementById('pedidoEntity').value.trim() || null,
+            notes: document.getElementById('pedidoNotes').value.trim() || null,
           }),
         });
         const data = await resp.json();
@@ -876,7 +913,11 @@
           body: JSON.stringify({
             plate: document.getElementById('pedidoPlate').value.trim(),
             locality: document.getElementById('pedidoLocality').value,
+            service_type: document.getElementById('pedidoService').value,
+            phone: document.getElementById('pedidoPhone').value.trim(),
             service_file: document.getElementById('pedidoFile').value.trim() || null,
+            entity: document.getElementById('pedidoEntity').value.trim() || null,
+            notes: document.getElementById('pedidoNotes').value.trim() || null,
             confirmed_portal_id: pedidoSelectedPortalId,
           }),
         });
