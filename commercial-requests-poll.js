@@ -205,21 +205,23 @@
     setInterval(poll, POLL_INTERVAL);
   }
 
-  window.addEventListener('portalReady', start);
+  // Arrancar quando o portalReady disparar
+  window.addEventListener('portalReady', function() {
+    setTimeout(start, 100);
+  });
   window.addEventListener('portalChanged', poll);
-  window.addEventListener('load', start);
 
-  // Polling agressivo no início até authClient estar pronto
-  var _startAttempts = 0;
-  var _startTimer = setInterval(function() {
-    _startAttempts++;
-    if (window.authClient && window.authClient.getUser && window.authClient.getUser()) {
+  // Fallback: verificar a cada 300ms até o authClient estar pronto, máx 15s
+  var _t = 0;
+  var _iv = setInterval(function() {
+    _t += 300;
+    var u = window.authClient && window.authClient.getUser && window.authClient.getUser();
+    if (u && (u.role === 'coordenador' || u.role === 'admin')) {
       start();
-      clearInterval(_startTimer);
-    } else if (_startAttempts > 20) {
-      clearInterval(_startTimer); // desistir após 10s
+      clearInterval(_iv);
     }
-  }, 500);
+    if (_t > 15000) clearInterval(_iv);
+  }, 300);
 
   document.addEventListener('visibilitychange', function() {
     if (!document.hidden) poll();
