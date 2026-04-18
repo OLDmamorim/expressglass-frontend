@@ -1911,20 +1911,33 @@ function editAppointment(id) {
 }
 
 async function deleteAppointment(id) {
-  if (!confirm('Tem a certeza que pretende eliminar este agendamento?')) {
-    return;
-  }
+  // Modal de confirmação próprio (confirm() bloqueado em PWA/mobile)
+  const confirmed = await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:24px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="font-size:32px;margin-bottom:12px;">🗑️</div>
+        <div style="font-weight:700;font-size:16px;color:#1e293b;margin-bottom:8px;">Eliminar agendamento?</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:20px;">Esta ação não pode ser desfeita.</div>
+        <div style="display:flex;gap:10px;justify-content:center;">
+          <button id="confirmNo" style="background:#f1f5f9;color:#475569;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;flex:1;">Cancelar</button>
+          <button id="confirmYes" style="background:#ef4444;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;flex:1;">Eliminar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#confirmYes').onclick = () => { document.body.removeChild(overlay); resolve(true); };
+    overlay.querySelector('#confirmNo').onclick  = () => { document.body.removeChild(overlay); resolve(false); };
+  });
+  if (!confirmed) return;
 
   try {
-    // Verificar se tem commercial_user_id antes de apagar
     const appt = appointments.find(a => String(a.id) === String(id));
     const commercialUserId = appt?.commercial_user_id || appt?.commercialUserId;
 
     await window.apiClient.deleteAppointment(id);
     const index = appointments.findIndex(a => String(a.id) === String(id));
-    if (index > -1) {
-      appointments.splice(index, 1);
-    }
+    if (index > -1) appointments.splice(index, 1);
 
     // Se era pedido de comercial, marcar como cancelado
     if (commercialUserId && appt?.plate) {
@@ -1936,11 +1949,11 @@ async function deleteAppointment(id) {
         });
       } catch(_) {}
     }
-    
+
     showToast('Agendamento eliminado com sucesso', 'success');
     renderAll();
     document.getElementById('appointmentModal').classList.remove('show');
-    
+
   } catch (error) {
     showToast('Erro ao eliminar agendamento: ' + error.message, 'error');
   }
