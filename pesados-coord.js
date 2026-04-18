@@ -194,11 +194,15 @@
 
     try {
       const kpis = await fetchKpis(portalId);
-      if (!kpis) throw new Error('kpis null — powering-kpis.js antigo em produção?');
+      if (!kpis) throw new Error('kpis null');
       fillKpis(kpis);
     } catch (e) {
       console.warn('[PoweringEG banner]', e.message);
-      shell.remove();
+      // Manter o shell com traços em vez de remover
+      const grid = document.getElementById('pegGrid');
+      if (grid) grid.innerHTML = ['Serviços','Objetivo','Tx. Rep.','Desvio Dia'].map(l => `
+        <div class="peg-kpi"><div class="peg-lbl">${l}</div><div class="peg-val" style="color:#475569">—</div></div>
+      `).join('');
     }
   }
 
