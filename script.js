@@ -1916,10 +1916,25 @@ async function deleteAppointment(id) {
   }
 
   try {
+    // Verificar se tem commercial_user_id antes de apagar
+    const appt = appointments.find(a => String(a.id) === String(id));
+    const commercialUserId = appt?.commercial_user_id || appt?.commercialUserId;
+
     await window.apiClient.deleteAppointment(id);
     const index = appointments.findIndex(a => String(a.id) === String(id));
     if (index > -1) {
       appointments.splice(index, 1);
+    }
+
+    // Se era pedido de comercial, marcar como cancelado
+    if (commercialUserId && appt?.plate) {
+      try {
+        await window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plate: appt.plate, status: 'cancelled', commercial_id: commercialUserId })
+        });
+      } catch(_) {}
     }
     
     showToast('Agendamento eliminado com sucesso', 'success');
