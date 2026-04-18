@@ -179,12 +179,15 @@ function sugerirDataParaLocalidade(locality) {
   const candidatos = [];
 
   for (var i = 1; i <= MAX_DIAS; i++) {
-    var d = new Date(hoje);
-    d.setDate(hoje.getDate() + i);
-    var dow = d.getDay();
+    var d = new Date();
+    d.setHours(12,0,0,0);
+    d.setDate(d.getDate() + i);
+    var dow = d.getDay(); // 0=dom, 6=sab
     if (dow === 0 || dow === 6) continue; // ignorar fim de semana
 
-    var iso = d.toISOString().slice(0,10);
+    var iso = d.getFullYear() + '-' +
+      String(d.getMonth()+1).padStart(2,'0') + '-' +
+      String(d.getDate()).padStart(2,'0');
     var dia = porDia[iso] || { count: 0, localidades: [] };
 
     if (dia.count >= MAX_SERVICOS) continue; // dia cheio
