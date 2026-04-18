@@ -972,7 +972,7 @@
       'Guimarães','Lousada','Maia','Marco de Canaveses','Melgaço','Monção',
       'Mondim de Basto','Paços de Ferreira','Paredes','Penafiel','Ponte da Barca',
       'Ponte de Lima','Póvoa de Lanhoso','Póvoa de Varzim','Ribeira de Pena',
-      'Riba D'Ave','Santo Tirso','Terras de Bouro','Trofa','Valença','Viana do Castelo',
+      'Riba D\'Ave','Santo Tirso','Terras de Bouro','Trofa','Valença','Viana do Castelo',
       'Vieira do Minho','Vila do Conde','Vila Nova de Famalicão','Vila Verde','Vizela','Outra'
     ];
 
@@ -980,13 +980,18 @@
       const drop = document.getElementById('pedidoLocalityDrop');
       const filtered = val.length === 0
         ? LOCALIDADES
-        : LOCALIDADES.filter(l => l.toLowerCase().includes(val.toLowerCase()));
-      
-      if (filtered.length === 0) { drop.style.display = 'none'; return; }
-      
-      drop.innerHTML = filtered.map(l => 
-        '<div onclick="pedidoSelectLocality('' + l + '')" style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">' + l + '</div>'
-      ).join('');
+        : LOCALIDADES.filter(function(l) { return l.toLowerCase().includes(val.toLowerCase()); });
+      if (!filtered.length) { drop.style.display = 'none'; return; }
+      drop.innerHTML = '';
+      filtered.forEach(function(l) {
+        const div = document.createElement('div');
+        div.textContent = l;
+        div.style.cssText = 'padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f1f5f9;';
+        div.onmouseover = function() { this.style.background = '#f8fafc'; };
+        div.onmouseout  = function() { this.style.background = '#fff'; };
+        div.onclick     = function() { pedidoSelectLocality(l); };
+        drop.appendChild(div);
+      });
       drop.style.display = 'block';
     }
 
