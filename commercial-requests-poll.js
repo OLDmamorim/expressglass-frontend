@@ -194,6 +194,7 @@
           }
         };
         f('appointmentPlate', plate);
+        if (r.car)          f('appointmentCar', r.car);
         if (r.service_type) f('appointmentService', r.service_type);
         if (r.phone)        f('appointmentPhone', r.phone);
         if (r.entity)       f('appointmentClientName', r.entity);
