@@ -715,24 +715,13 @@
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div class="pedido-field">
+            <div class="pedido-field" style="position:relative;">
               <label>Localidade *</label>
-              <select id="pedidoLocality">
-                <option value="">Selecionar...</option>
-                <option>Barcelos</option>
-                <option>Braga</option>
-                <option>Esposende</option>
-                <option>Famalicão</option>
-                <option>Guimarães</option>
-                <option>Outra</option>
-                <option>Póvoa de Lanhoso</option>
-                <option>Póvoa de Varzim</option>
-                <option>Riba D'Ave</option>
-                <option>Trofa</option>
-                <option>Vieira do Minho</option>
-                <option>Vila do Conde</option>
-                <option>Vila Verde</option>
-              </select>
+              <input type="text" id="pedidoLocality" placeholder="Escreva a localidade..." autocomplete="off"
+                oninput="pedidoLocalityFilter(this.value)"
+                onfocus="pedidoLocalityFilter(this.value)"
+                style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;outline:none;" />
+              <div id="pedidoLocalityDrop" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;z-index:100;max-height:180px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,.12);"></div>
             </div>
             <div class="pedido-field">
               <label>Contacto *</label>
@@ -791,6 +780,7 @@
       pedidoPortals = [];
       document.getElementById('pedidoPlate').value = '';
       document.getElementById('pedidoLocality').value = '';
+      document.getElementById('pedidoLocalityDrop').style.display = 'none';
       document.getElementById('pedidoService').value = '';
       document.getElementById('pedidoPhone').value = '';
       document.getElementById('pedidoFile').value = '';
@@ -973,6 +963,44 @@
     // Fechar com Escape
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') closePedido();
+    });
+
+    // ── Autocomplete Localidade ────────────────────────────────────────
+    const LOCALIDADES = [
+      'Amarante','Amares','Arcos de Valdevez','Barcelos','Braga','Cabeceiras de Basto',
+      'Caminha','Celorico de Basto','Esposende','Famalicão','Fafe','Felgueiras',
+      'Guimarães','Lousada','Maia','Marco de Canaveses','Melgaço','Monção',
+      'Mondim de Basto','Paços de Ferreira','Paredes','Penafiel','Ponte da Barca',
+      'Ponte de Lima','Póvoa de Lanhoso','Póvoa de Varzim','Ribeira de Pena',
+      'Riba D'Ave','Santo Tirso','Terras de Bouro','Trofa','Valença','Viana do Castelo',
+      'Vieira do Minho','Vila do Conde','Vila Nova de Famalicão','Vila Verde','Vizela','Outra'
+    ];
+
+    function pedidoLocalityFilter(val) {
+      const drop = document.getElementById('pedidoLocalityDrop');
+      const filtered = val.length === 0
+        ? LOCALIDADES
+        : LOCALIDADES.filter(l => l.toLowerCase().includes(val.toLowerCase()));
+      
+      if (filtered.length === 0) { drop.style.display = 'none'; return; }
+      
+      drop.innerHTML = filtered.map(l => 
+        '<div onclick="pedidoSelectLocality('' + l + '')" style="padding:10px 14px;cursor:pointer;font-size:14px;border-bottom:1px solid #f1f5f9;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">' + l + '</div>'
+      ).join('');
+      drop.style.display = 'block';
+    }
+
+    function pedidoSelectLocality(val) {
+      document.getElementById('pedidoLocality').value = val;
+      document.getElementById('pedidoLocalityDrop').style.display = 'none';
+      document.getElementById('pedidoBtnNext').disabled = !validStep1();
+    }
+
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('#pedidoLocalityDrop') && e.target.id !== 'pedidoLocality') {
+        const drop = document.getElementById('pedidoLocalityDrop');
+        if (drop) drop.style.display = 'none';
+      }
     });
 
     // ── Meus Pedidos ──────────────────────────────────────────────────────
