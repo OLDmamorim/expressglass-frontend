@@ -140,10 +140,15 @@
     if (newOnes.length === 0) { container.style.display = 'none'; return; }
 
     container.style.display = 'flex';
-    // Pulsar via style directo (mais compatível)
+    // Pulsar — forçar reflow completo
     container.style.animation = 'none';
-    void container.offsetWidth;
+    container.style.background = '#fef3c7';
+    void container.offsetWidth; // forçar reflow
     container.style.animation = 'crPulse 1.5s ease-in-out 3';
+    container.addEventListener('animationend', function() {
+      container.style.animation = 'none';
+      container.style.background = '#fef3c7';
+    }, { once: true });
 
     // Limpar e reconstruir
     container.innerHTML = '';
