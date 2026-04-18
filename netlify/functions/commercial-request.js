@@ -184,6 +184,16 @@ exports.handler = async (event) => {
       };
     }
 
+    // ── PUT — marcar pedido como done ────────────────────────────────────
+    if (event.httpMethod === 'PUT') {
+      const body = JSON.parse(event.body || '{}');
+      const { id, status } = body;
+      if (id && status) {
+        await pool.query('UPDATE commercial_requests SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
+      }
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+    }
+
     return { statusCode: 405, headers, body: '{}' };
 
   } catch (err) {
