@@ -551,6 +551,8 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
     
     const method = editingUserId ? 'PUT' : 'POST';
     
+    console.log('[admin] PUT userData:', JSON.stringify(userData));
+    alert('A enviar: ' + JSON.stringify(userData.assigned_portal_ids));
     const response = await authClient.authenticatedFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
