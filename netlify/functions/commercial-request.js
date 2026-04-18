@@ -145,11 +145,17 @@ exports.handler = async (event) => {
                WHERE a.portal_id = p.id
                  AND a.date = CURRENT_DATE + 1
                  AND a.executed IS NOT TRUE), 0
-            ) AS tomorrow_count
+            ) AS tomorrow_count,
+            COALESCE(
+              (SELECT COUNT(*) FROM appointments a
+               WHERE a.portal_id = p.id
+                 AND a.date BETWEEN CURRENT_DATE AND CURRENT_DATE + 14
+                 AND a.executed IS NOT TRUE), 0
+            ) AS week_count
           FROM portals p
           WHERE p.id = ANY($1::int[])
             AND p.portal_type = 'sm'
-          ORDER BY today_count ASC, tomorrow_count ASC
+          ORDER BY week_count ASC, today_count ASC, tomorrow_count ASC
         `, [assignedIds]);
 
         const portals = availRes.rows.map(p => ({
@@ -158,6 +164,7 @@ exports.handler = async (event) => {
           max_daily: p.max_daily || 8,
           today_count: parseInt(p.today_count),
           tomorrow_count: parseInt(p.tomorrow_count),
+          week_count: parseInt(p.week_count),
           today_available: (p.max_daily || 8) - parseInt(p.today_count),
           tomorrow_available: (p.max_daily || 8) - parseInt(p.tomorrow_count),
         }));
