@@ -726,9 +726,15 @@
             <label>Ficha de Serviço <span style="color:#94a3b8;font-weight:400;">(facultativo)</span></label>
             <input type="text" id="pedidoFile" placeholder="Nº de ficha ou referência..." autocomplete="off" />
           </div>
-          <div class="pedido-field">
-            <label>Entidade <span style="color:#94a3b8;font-weight:400;">(facultativo)</span></label>
-            <input type="text" id="pedidoEntity" placeholder="Nome da empresa ou segurado..." autocomplete="off" />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div class="pedido-field">
+              <label>Modelo do Carro <span style="color:#94a3b8;font-weight:400;">(facultativo)</span></label>
+              <input type="text" id="pedidoCar" placeholder="Ex: BMW X3..." autocomplete="off" />
+            </div>
+            <div class="pedido-field">
+              <label>Entidade <span style="color:#94a3b8;font-weight:400;">(facultativo)</span></label>
+              <input type="text" id="pedidoEntity" placeholder="Nome da empresa..." autocomplete="off" />
+            </div>
           </div>
           <div class="pedido-field">
             <label>Observações <span style="color:#94a3b8;font-weight:400;">(facultativo)</span></label>
@@ -771,6 +777,7 @@
       document.getElementById('pedidoService').value = '';
       document.getElementById('pedidoPhone').value = '';
       document.getElementById('pedidoFile').value = '';
+      document.getElementById('pedidoCar').value = '';
       document.getElementById('pedidoEntity').value = '';
       document.getElementById('pedidoNotes').value = '';
       document.getElementById('smList').innerHTML = '';
@@ -848,6 +855,7 @@
             service_type: document.getElementById('pedidoService').value,
             phone: document.getElementById('pedidoPhone').value.trim(),
             service_file: document.getElementById('pedidoFile').value.trim() || null,
+            car: document.getElementById('pedidoCar').value.trim() || null,
             entity: document.getElementById('pedidoEntity').value.trim() || null,
             notes: document.getElementById('pedidoNotes').value.trim() || null,
           }),
@@ -916,6 +924,7 @@
             service_type: document.getElementById('pedidoService').value,
             phone: document.getElementById('pedidoPhone').value.trim(),
             service_file: document.getElementById('pedidoFile').value.trim() || null,
+            car: document.getElementById('pedidoCar').value.trim() || null,
             entity: document.getElementById('pedidoEntity').value.trim() || null,
             notes: document.getElementById('pedidoNotes').value.trim() || null,
             confirmed_portal_id: pedidoSelectedPortalId,
