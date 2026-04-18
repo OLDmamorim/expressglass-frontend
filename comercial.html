@@ -602,9 +602,26 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Pedido de Serviço
       </button>
+      <button onclick="toggleMeusPedidos()" style="background:#7c3aed;color:#fff;border:none;padding:8px 16px;border-radius:20px;font-weight:700;font-size:13px;cursor:pointer;">📋 Meus Pedidos</button>
       <button class="btn-logout" onclick="doLogout()">Sair</button>
     </div>
   </header>
+
+  <!-- Painel Meus Pedidos -->
+  <div id="meusPedidosPanel" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:200;overflow-y:auto;padding:20px;">
+    <div style="background:#fff;margin:40px auto;max-width:600px;border-radius:16px;padding:24px;position:relative;">
+      <button onclick="toggleMeusPedidos()" style="position:absolute;top:16px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;">✕</button>
+      <h2 style="margin:0 0 20px;font-size:18px;font-weight:800;">📋 Meus Pedidos</h2>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button onclick="showMeusTab('pending')" id="tabPending" style="background:#fef3c7;color:#92400e;border:none;padding:6px 14px;border-radius:20px;font-weight:700;font-size:12px;cursor:pointer;">🕐 Pendentes</button>
+        <button onclick="showMeusTab('done')" id="tabDone" style="background:#f1f5f9;color:#64748b;border:none;padding:6px 14px;border-radius:20px;font-weight:700;font-size:12px;cursor:pointer;">✅ Agendados</button>
+        <button onclick="showMeusTab('cancelled')" id="tabCancelled" style="background:#f1f5f9;color:#64748b;border:none;padding:6px 14px;border-radius:20px;font-weight:700;font-size:12px;cursor:pointer;">🚫 Cancelados</button>
+      </div>
+      <div id="meusPedidosList" style="display:flex;flex-direction:column;gap:10px;">
+        <div style="text-align:center;color:#94a3b8;padding:20px;">A carregar...</div>
+      </div>
+    </div>
+  </div>
 
   <!-- MAIN -->
   <div class="main">
@@ -957,6 +974,71 @@
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') closePedido();
     });
+
+    // ── Meus Pedidos ──────────────────────────────────────────────────────
+    let _meusPedidosData = [];
+    let _meusPedidosTab = 'pending';
+
+    function toggleMeusPedidos() {
+      const panel = document.getElementById('meusPedidosPanel');
+      const isOpen = panel.style.display !== 'none';
+      if (isOpen) {
+        panel.style.display = 'none';
+      } else {
+        panel.style.display = 'block';
+        loadMeusPedidos();
+      }
+    }
+
+    async function loadMeusPedidos() {
+      try {
+        const resp = await fetch(API_BASE + '/commercial-request?mine=1', {
+          headers: { 'Authorization': 'Bearer ' + getToken() }
+        });
+        const data = await resp.json();
+        _meusPedidosData = data.requests || [];
+        renderMeusPedidos();
+      } catch(e) {
+        document.getElementById('meusPedidosList').innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">Erro ao carregar pedidos</div>';
+      }
+    }
+
+    function showMeusTab(tab) {
+      _meusPedidosTab = tab;
+      ['pending','done','cancelled'].forEach(t => {
+        const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+        if (btn) btn.style.background = t === tab ? (t === 'pending' ? '#fef3c7' : t === 'done' ? '#dcfce7' : '#fee2e2') : '#f1f5f9';
+        if (btn) btn.style.color = t === tab ? (t === 'pending' ? '#92400e' : t === 'done' ? '#166534' : '#991b1b') : '#64748b';
+      });
+      renderMeusPedidos();
+    }
+
+    function renderMeusPedidos() {
+      const list = document.getElementById('meusPedidosList');
+      const items = _meusPedidosData.filter(r => r.status === _meusPedidosTab);
+      if (items.length === 0) {
+        list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:30px;font-size:14px;">Sem pedidos nesta categoria</div>';
+        return;
+      }
+      list.innerHTML = items.map(r => {
+        const date = new Date(r.created_at).toLocaleString('pt-PT', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+        const statusColor = r.status === 'pending' ? '#f59e0b' : r.status === 'done' ? '#16a34a' : '#ef4444';
+        const statusLabel = r.status === 'pending' ? 'Pendente' : r.status === 'done' ? 'Agendado' : 'Cancelado';
+        return `<div style="border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;font-family:inherit;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-family:Rajdhani,monospace;font-size:16px;font-weight:900;color:#1e293b;letter-spacing:1px;">${r.plate}</span>
+            <span style="background:${statusColor}20;color:${statusColor};font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">${statusLabel}</span>
+          </div>
+          <div style="font-size:12px;color:#64748b;display:flex;gap:12px;flex-wrap:wrap;">
+            ${r.service_type ? '<span>🔧 '+r.service_type+'</span>' : ''}
+            ${r.locality ? '<span>📍 '+r.locality+'</span>' : ''}
+            ${r.portal_name ? '<span>🏢 '+r.portal_name+'</span>' : ''}
+            ${r.car ? '<span>🚗 '+r.car+'</span>' : ''}
+          </div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:4px;">📅 ${date}${r.service_file ? ' · Ficha: '+r.service_file : ''}</div>
+        </div>`;
+      }).join('');
+    }
   </script>
 
   <script src="auth-client.js"></script>
