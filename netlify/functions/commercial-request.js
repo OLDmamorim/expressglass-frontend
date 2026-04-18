@@ -61,7 +61,7 @@ exports.handler = async (event) => {
     // ── POST — criar pedido ───────────────────────────────────────────────
     if (event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}');
-      const { plate, service_file, locality, confirmed_portal_id, service_type, phone, entity, notes } = body;
+      const { plate, service_file, locality, confirmed_portal_id, service_type, phone, entity, notes, car } = body;
 
       if (!plate || !locality) {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Matrícula e localidade são obrigatórios' }) };
@@ -159,11 +159,11 @@ exports.handler = async (event) => {
       // ── Confirmar e guardar pedido ─────────────────────────────────────
       const { rows: inserted } = await pool.query(`
         INSERT INTO commercial_requests
-          (commercial_id, plate, service_file, locality, confirmed_portal_id, status, service_type, phone, entity, notes)
-        VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9)
+          (commercial_id, plate, service_file, locality, confirmed_portal_id, status, service_type, phone, entity, notes, car)
+        VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10)
         RETURNING *
       `, [user.id || user.userId, plate.toUpperCase(), service_file || null, locality, confirmed_portal_id,
-          service_type || null, phone || null, entity || null, notes || null]);
+          service_type || null, phone || null, entity || null, notes || null, car || null]);
 
       // Criar também o registo em appointments (Por Agendar no SM)
       await pool.query(`
@@ -174,6 +174,7 @@ exports.handler = async (event) => {
       `, [
         confirmed_portal_id,
         plate.toUpperCase(),
+        car || '',
         service_type || 'PB',
         locality,
         [service_file ? 'Ficha: ' + service_file : null, notes].filter(Boolean).join(' | ') || 'Pedido comercial',
