@@ -533,8 +533,10 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
   }
 
   if (role === 'comercial') {
-    const checked = document.querySelectorAll('.comercial-portal-cb:checked');
-    const smIds = Array.from(checked).map(cb => parseInt(cb.value));
+    // Ler TODOS os checkboxes (incluindo os fora do viewport por causa do scroll)
+    const allCbs = Array.from(document.querySelectorAll('.comercial-portal-cb'));
+    const smIds = allCbs.filter(cb => cb.checked).map(cb => parseInt(cb.value));
+    console.log('[admin] comercial smIds:', smIds, 'total cbs:', allCbs.length);
     if (smIds.length === 0) {
       showToast('Selecione pelo menos um SM para o comercial', 'error');
       return;
