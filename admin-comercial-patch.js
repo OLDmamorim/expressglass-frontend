@@ -186,8 +186,7 @@
       if (role === 'comercial') {
         var ids = Array.from(document.querySelectorAll('.comercial-portal-cb:checked')).map(function(cb){ return parseInt(cb.value); });
         if (!ids.length) { if (typeof showToast==='function') showToast('Selecione pelo menos um SM','error'); return; }
-        userData.portal_id  = ids[0];
-        userData.portal_ids = ids;
+        userData.assigned_portal_ids = ids;
         var tgVal = (document.getElementById('userTelegramChatId') || {}).value;
         userData.telegram_chat_id = tgVal ? tgVal.trim() : null;
         var tgVal2 = (document.getElementById('userTelegramChatId2') || {}).value;
