@@ -330,9 +330,10 @@ async function handleUpdate(update) {
     if (!portals.length) return sendMessage(chat_id, '❌ Sem SMs disponíveis.');
 
     const max = portals[0].max_daily || 8;
-    const buttons = portals.map(p => {
+    const buttons = portals.map((p, i) => {
       const dot = p.hoje >= max ? '🔴' : p.hoje >= max * 0.7 ? '🟡' : '🟢';
-      return [{ text: `${dot} ${p.name} — Hoje: ${p.hoje}/${max} · ${nextLabel}: ${p.proximo}/${max}`, callback_data: 'sm:' + p.id }];
+      const sugerido = i === 0 ? ' ✅ Sugerido' : '';
+      return [{ text: `${dot} ${p.name} — Hoje: ${p.hoje}/${max} · ${nextLabel}: ${p.proximo}/${max}${sugerido}`, callback_data: 'sm:' + p.id }];
     });
     buttons.push([{ text: '❌ Cancelar', callback_data: 'cancel' }]);
 
