@@ -447,15 +447,14 @@ function sugerirDataParaLocalidade(locality) {
             '<div style="color:#64748b;font-size:11px;margin-top:2px;">' + motivo + '</div>' +
             '<button onclick="crAplicarData(\'' + sug.date + '\')" style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>';
 
-          // Inserir após o campo data no modal
-          var dateField = document.getElementById('appointmentDate')?.closest('.form-group') ||
-                          document.getElementById('appointmentDate')?.parentElement;
-          if (dateField) dateField.after(badge);
-          else {
-            var modalBody = document.querySelector('#appointmentModal .modal-body') ||
-                            document.querySelector('#appointmentModal form');
-            if (modalBody) modalBody.prepend(badge);
-          }
+          // Inserir no topo do form do modal
+          setTimeout(function() {
+            var existing = document.getElementById('crDateSuggestion');
+            if (existing) existing.remove();
+            var form = document.getElementById('appointmentForm') ||
+                       document.querySelector('#appointmentModal form');
+            if (form) form.insertBefore(badge, form.firstChild);
+          }, 100);
         }
         if (r.phone)        f('appointmentPhone', r.phone);
         if (r.entity)       f('appointmentClientName', r.entity);
