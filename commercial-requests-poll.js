@@ -131,9 +131,10 @@
     if (newOnes.length === 0) { container.style.display = 'none'; return; }
 
     container.style.display = 'flex';
-    container.classList.remove('cr-pulsing');
+    // Pulsar via style directo (mais compatível)
+    container.style.animation = 'none';
     void container.offsetWidth;
-    container.classList.add('cr-pulsing');
+    container.style.animation = 'crPulse 1.5s ease-in-out 3';
 
     // Limpar e reconstruir
     container.innerHTML = '';
@@ -207,8 +208,19 @@
   window.addEventListener('portalReady', start);
   window.addEventListener('portalChanged', poll);
   window.addEventListener('load', start);
-  setTimeout(start, 1000);
-  setTimeout(start, 3000);
+
+  // Polling agressivo no início até authClient estar pronto
+  var _startAttempts = 0;
+  var _startTimer = setInterval(function() {
+    _startAttempts++;
+    if (window.authClient && window.authClient.getUser && window.authClient.getUser()) {
+      start();
+      clearInterval(_startTimer);
+    } else if (_startAttempts > 20) {
+      clearInterval(_startTimer); // desistir após 10s
+    }
+  }, 500);
+
   document.addEventListener('visibilitychange', function() {
     if (!document.hidden) poll();
   });
