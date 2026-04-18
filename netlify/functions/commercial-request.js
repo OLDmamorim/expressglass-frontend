@@ -169,7 +169,7 @@ exports.handler = async (event) => {
       await pool.query(`
         INSERT INTO appointments
           (portal_id, plate, car, service, locality, notes, phone, client_name, status, confirmed, commercial_user_id, created_at)
-        VALUES ($1, $2, '', $3, $4, $5, $6, $7, 'NE', false, $8, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'NE', false, $9, NOW())
         ON CONFLICT DO NOTHING
       `, [
         confirmed_portal_id,
