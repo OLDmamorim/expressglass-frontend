@@ -197,9 +197,9 @@
         if (r.service_type) f('appointmentService', r.service_type);
         if (r.phone)        f('appointmentPhone', r.phone);
         if (r.entity)       f('appointmentClientName', r.entity);
-        // Localidade via função global se existir
-        if (r.locality && typeof window.setLocalityValue === 'function') {
-          window.setLocalityValue(r.locality);
+        // Localidade via selectLocality do script.js
+        if (r.locality && typeof window.selectLocality === 'function') {
+          window.selectLocality(r.locality);
         }
         // Notas
         if (r.service_file || r.notes) {
