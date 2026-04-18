@@ -12,17 +12,17 @@
     return role === 'coordenador' || role === 'admin';
   }
 
-  function getSeenIds() {
-    try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); }
-    catch (_) { return []; }
-  }
-
-  function isSeen(id) { return getSeenIds().indexOf(id) !== -1; }
+  function isSeen(id) { return false; } // sempre mostrar
 
   function markSeen(id) {
-    var seen = getSeenIds();
-    if (seen.indexOf(id) === -1) seen.push(id);
-    localStorage.setItem(SEEN_KEY, JSON.stringify(seen.slice(-200)));
+    // marcar no DOM apenas — não guardar em localStorage
+    var card = document.getElementById('crCard-' + id);
+    if (card) card.dataset.dismissed = '1';
+  }
+
+  function isDismissed(id) {
+    var card = document.getElementById('crCard-' + id);
+    return card && card.dataset.dismissed === '1';
   }
 
   function getPortalId() {
@@ -136,7 +136,7 @@
   function renderBanner(requests) {
     ensureStyles();
     var container = ensureContainer();
-    var newOnes = requests.filter(function(r) { return !isSeen(r.id); });
+    var newOnes = requests.filter(function(r) { return !isDismissed(r.id); });
     if (newOnes.length === 0) { container.style.display = 'none'; return; }
 
     container.style.display = 'flex';
@@ -214,6 +214,8 @@
     setInterval(poll, POLL_INTERVAL);
   }
 
+  // Expor para ser chamado pelo script.js após load()
+  window.crStartPolling = start;
   window.addEventListener('portalReady', function() { setTimeout(start, 50); });
   window.addEventListener('portalChanged', poll);
 
