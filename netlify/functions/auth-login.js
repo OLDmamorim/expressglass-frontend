@@ -11,6 +11,54 @@ const pool = new Pool({
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '24h';
 
+// ── Rate Limiting ────────────────────────────────────────────────────────────
+const MAX_ATTEMPTS = 5;
+const BLOCK_MINUTES = 15;
+
+async function checkRateLimit(identifier, event) {
+  const ip = event?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
+  const key = identifier + ':' + ip;
+  
+  const { rows } = await pool.query(`
+    SELECT attempts, blocked_until
+    FROM login_attempts
+    WHERE identifier = $1
+  `, [key]);
+
+  if (rows.length > 0) {
+    const row = rows[0];
+    // Verificar se está bloqueado
+    if (row.blocked_until && new Date(row.blocked_until) > new Date()) {
+      const remaining = Math.ceil((new Date(row.blocked_until) - new Date()) / 60000);
+      throw new Error(`Demasiadas tentativas. Tente novamente em ${remaining} minuto(s).`);
+    }
+  }
+}
+
+async function recordFailedAttempt(identifier, event) {
+  const ip = event?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
+  const key = identifier + ':' + ip;
+
+  await pool.query(`
+    INSERT INTO login_attempts (identifier, attempts, last_attempt)
+    VALUES ($1, 1, NOW())
+    ON CONFLICT (identifier) DO UPDATE
+      SET attempts = login_attempts.attempts + 1,
+          last_attempt = NOW(),
+          blocked_until = CASE
+            WHEN login_attempts.attempts + 1 >= $2
+            THEN NOW() + INTERVAL '${BLOCK_MINUTES} minutes'
+            ELSE NULL
+          END
+  `, [key, MAX_ATTEMPTS]);
+}
+
+async function clearAttempts(identifier, event) {
+  const ip = event?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
+  const key = identifier + ':' + ip;
+  await pool.query('DELETE FROM login_attempts WHERE identifier = $1', [key]);
+}
+
 async function auditLog({ user_id, username, action, details, event }) {
   try {
     const ip = event?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || null;
@@ -46,6 +94,14 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Username e password são obrigatórios' }) };
     }
 
+    // Verificar rate limit antes de consultar a DB
+    try {
+      await checkRateLimit(username, event);
+    } catch (rateLimitError) {
+      await auditLog({ username, action: 'login_blocked', details: { reason: rateLimitError.message }, event });
+      return { statusCode: 429, headers, body: JSON.stringify({ success: false, error: rateLimitError.message }) };
+    }
+
     const query = `
       SELECT u.id, u.username, u.password_hash, u.portal_id, u.role,
              p.name as portal_name, p.departure_address, p.localities, p.portal_type
@@ -57,6 +113,7 @@ exports.handler = async (event) => {
 
     if (rows.length === 0) {
       // Log tentativa falhada (utilizador inexistente)
+      await recordFailedAttempt(username, event);
       await auditLog({ action: 'login_failed', username, details: { reason: 'user_not_found' }, event });
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Credenciais inválidas' }) };
     }
@@ -65,6 +122,7 @@ exports.handler = async (event) => {
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       // Log tentativa falhada (password errada)
+      await recordFailedAttempt(username, event);
       await auditLog({ user_id: user.id, username: user.username, action: 'login_failed', details: { reason: 'wrong_password' }, event });
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Credenciais inválidas' }) };
     }
@@ -117,6 +175,9 @@ exports.handler = async (event) => {
     if ((user.role === 'coordenador' || user.role === 'comercial') && multiPortals.length > 0) {
       userData.portals = multiPortals;
     }
+
+    // Limpar tentativas após login bem-sucedido
+    await clearAttempts(username, event);
 
     // Log login bem-sucedido
     await auditLog({
