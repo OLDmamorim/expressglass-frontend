@@ -29,6 +29,7 @@
       <button class="nav-tab" data-tab="import">📥 Importar Excel</button>
       <button class="nav-tab" data-tab="settings">⚙️ Configurações</button>
       <button class="nav-tab" data-tab="reports">📊 Relatórios</button>
+      <button class="nav-tab" data-tab="audit">🔍 Auditoria</button>
     </nav>
 
     <!-- Tab Content: Portais -->
@@ -289,7 +290,56 @@
 
       </div>
     </div>
-  </div><!-- fim admin-container -->
+    <!-- Tab: Auditoria -->
+  <div id="auditTab" class="tab-content">
+    <div class="content-header">
+      <h2>🔍 Logs de Auditoria</h2>
+      <button onclick="loadAuditLogs()" class="btn-primary">🔄 Actualizar</button>
+    </div>
+
+    <!-- Filtros -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:flex-end;">
+      <div>
+        <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Acção</label>
+        <select id="auditFilterAction" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;">
+          <option value="">Todas</option>
+          <option value="login">Login</option>
+          <option value="login_failed">Login falhado</option>
+          <option value="user_created">Utilizador criado</option>
+          <option value="user_updated">Utilizador editado</option>
+          <option value="user_deleted">Utilizador eliminado</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">Utilizador</label>
+        <input type="text" id="auditFilterUser" placeholder="Username ou ID..." style="padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:13px;width:160px;">
+      </div>
+      <button onclick="loadAuditLogs()" style="background:#2563eb;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">Filtrar</button>
+      <button onclick="document.getElementById('auditFilterAction').value='';document.getElementById('auditFilterUser').value='';loadAuditLogs()" style="background:#f1f5f9;color:#475569;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">Limpar</button>
+    </div>
+
+    <div class="table-container">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Data/Hora</th>
+            <th>Utilizador</th>
+            <th>Acção</th>
+            <th>Detalhes</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody id="auditTableBody">
+          <tr><td colspan="5" class="loading">Clique em Actualizar para carregar...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginação -->
+    <div id="auditPagination" style="display:flex;gap:8px;justify-content:center;margin-top:16px;"></div>
+  </div>
+
+</div><!-- fim admin-container -->
 
   <!-- Modal: Portal -->
   <div id="portalModal" class="modal">
@@ -430,6 +480,80 @@
   </style>
   <script src="auth-client.js"></script>
   <script src="admin-script.js"></script>
+  <script>
+  // ── Auditoria ─────────────────────────────────────────────────────────────
+  let auditPage = 1;
+
+  const ACTION_LABELS = {
+    login:          { label: '✅ Login',              color: '#16a34a', bg: '#dcfce7' },
+    login_failed:   { label: '❌ Login falhado',      color: '#dc2626', bg: '#fee2e2' },
+    user_created:   { label: '➕ Utilizador criado',  color: '#2563eb', bg: '#dbeafe' },
+    user_updated:   { label: '✏️ Utilizador editado', color: '#d97706', bg: '#fef3c7' },
+    user_deleted:   { label: '🗑️ Utilizador apagado', color: '#dc2626', bg: '#fee2e2' },
+  };
+
+  async function loadAuditLogs(page = 1) {
+    auditPage = page;
+    const action = document.getElementById('auditFilterAction').value;
+    const user   = document.getElementById('auditFilterUser').value;
+    const tbody  = document.getElementById('auditTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">A carregar...</td></tr>';
+
+    try {
+      let url = `/.netlify/functions/audit-log?page=${page}&limit=50`;
+      if (action) url += `&action=${encodeURIComponent(action)}`;
+      if (user)   url += `&user=${encodeURIComponent(user)}`;
+
+      const resp = await authClient.authenticatedFetch(url);
+      const data = await resp.json();
+      if (!data.success) throw new Error(data.error);
+
+      if (!data.data.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px;">Sem registos</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = data.data.map(row => {
+        const dt = new Date(row.created_at).toLocaleString('pt-PT');
+        const act = ACTION_LABELS[row.action] || { label: row.action, color: '#64748b', bg: '#f1f5f9' };
+        const details = row.details ? JSON.parse(row.details) : {};
+        const detailStr = Object.entries(details).map(([k,v]) => `${k}: ${v}`).join(' · ') || '—';
+        return `<tr>
+          <td style="font-size:12px;white-space:nowrap;">${dt}</td>
+          <td><strong>${row.username || '—'}</strong>${row.user_id ? '<br><span style="font-size:11px;color:#94a3b8;">ID: '+row.user_id+'</span>' : ''}</td>
+          <td><span style="background:${act.bg};color:${act.color};padding:3px 8px;border-radius:12px;font-size:12px;font-weight:700;white-space:nowrap;">${act.label}</span></td>
+          <td style="font-size:12px;color:#64748b;max-width:250px;overflow:hidden;text-overflow:ellipsis;">${detailStr}</td>
+          <td style="font-size:11px;color:#94a3b8;">${row.ip || '—'}</td>
+        </tr>`;
+      }).join('');
+
+      // Paginação
+      const totalPages = Math.ceil(data.total / data.limit);
+      const pag = document.getElementById('auditPagination');
+      pag.innerHTML = '';
+      if (totalPages > 1) {
+        for (let p = 1; p <= totalPages; p++) {
+          const btn = document.createElement('button');
+          btn.textContent = p;
+          btn.style.cssText = `padding:6px 12px;border:1px solid ${p===page?'#2563eb':'#d1d5db'};background:${p===page?'#2563eb':'#fff'};color:${p===page?'#fff':'#374151'};border-radius:6px;cursor:pointer;font-size:13px;`;
+          btn.onclick = () => loadAuditLogs(p);
+          pag.appendChild(btn);
+        }
+      }
+    } catch(e) {
+      tbody.innerHTML = `<tr><td colspan="5" style="color:#dc2626;text-align:center;padding:20px;">Erro: ${e.message}</td></tr>`;
+    }
+  }
+
+  // Carregar ao clicar na tab
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        if (tab.dataset.tab === 'audit') loadAuditLogs();
+      });
+    });
+  });
+  </script>
   <script src="admin-comercial-patch.js"></script>
 </body>
 </html>
