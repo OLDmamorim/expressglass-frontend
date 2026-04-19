@@ -516,7 +516,7 @@
       tbody.innerHTML = data.data.map(row => {
         const dt = new Date(row.created_at).toLocaleString('pt-PT');
         const act = ACTION_LABELS[row.action] || { label: row.action, color: '#64748b', bg: '#f1f5f9' };
-        const details = row.details ? JSON.parse(row.details) : {};
+        const details = row.details ? (typeof row.details === 'string' ? JSON.parse(row.details) : row.details) : {};
         const detailStr = Object.entries(details).map(([k,v]) => `${k}: ${v}`).join(' · ') || '—';
         return `<tr>
           <td style="font-size:12px;white-space:nowrap;">${dt}</td>
