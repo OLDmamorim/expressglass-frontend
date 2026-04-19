@@ -3921,6 +3921,7 @@ window.selectLocality = function (value) {
   if (search) search.value = '';
 
   // Sugestão de data com base na localidade
+  try {
   if (value && typeof window.sugerirDataParaLocalidade === 'function') {
     const sug = window.sugerirDataParaLocalidade(value);
     const existing = document.getElementById('crDateSuggestion');
@@ -3947,6 +3948,7 @@ window.selectLocality = function (value) {
       if (form) form.insertBefore(badge, form.firstChild);
     }
   }
+  } catch(e) { console.warn('[sugestão]', e.message); }
 };
 
 window.crAplicarData = function(date) {
