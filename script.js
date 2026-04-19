@@ -3906,6 +3906,42 @@ function getProximas(loc) {
   return key ? [key, ...PROX[key]] : [loc];
 }
 
+function sugerirDataParaLocalidade(locality) {
+  if (!locality || !window.appointments) return null;
+  var proximas = getProximas(locality);
+  var hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  var MAX_DIAS = 21;
+  var MAX_SERVICOS = 5;
+  var porDia = {};
+  window.appointments.forEach(function(a) {
+    if (!a.date) return;
+    var d = a.date.slice(0,10);
+    if (!porDia[d]) porDia[d] = { count: 0, localidades: [] };
+    porDia[d].count++;
+    if (a.locality) porDia[d].localidades.push(a.locality);
+  });
+  var candidatos = [];
+  for (var i = 1; i <= MAX_DIAS; i++) {
+    var d = new Date();
+    d.setHours(12,0,0,0);
+    d.setDate(d.getDate() + i);
+    var dow = d.getDay();
+    if (dow === 0 || dow === 6) continue;
+    var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    var dia = porDia[iso] || { count: 0, localidades: [] };
+    if (dia.count >= MAX_SERVICOS) continue;
+    var temMesma = dia.localidades.some(function(l) { return l && l.toLowerCase() === locality.toLowerCase(); });
+    var temProxima = !temMesma && dia.localidades.some(function(l) {
+      return l && proximas.some(function(p) { return p.toLowerCase() === l.toLowerCase(); });
+    });
+    candidatos.push({ date: iso, count: dia.count, localidades: dia.localidades, score: temMesma ? 100 : temProxima ? 50 : 0, temMesma: temMesma, temProxima: temProxima });
+  }
+  if (!candidatos.length) return null;
+  candidatos.sort(function(a, b) { return b.score !== a.score ? b.score - a.score : a.count - b.count; });
+  return candidatos[0];
+}
+
 window.sugerirDataParaLocalidade = sugerirDataParaLocalidade;
 
 window.selectLocality = function (value) {
