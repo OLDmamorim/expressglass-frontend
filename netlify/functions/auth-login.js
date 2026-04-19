@@ -9,7 +9,7 @@ const pool = new Pool({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
-const JWT_EXPIRES_IN = '7d';
+const JWT_EXPIRES_IN = '24h';
 
 async function auditLog({ user_id, username, action, details, event }) {
   try {
