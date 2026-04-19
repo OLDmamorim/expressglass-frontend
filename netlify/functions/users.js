@@ -20,7 +20,21 @@ function verifyAdmin(event) {
 }
 
 exports.handler = async (event) => {
-  const headers = {
+  async function auditLog({ user_id, username, action, entity, entity_id, details, event }) {
+  try {
+    const ip = event?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || null;
+    const ua = event?.headers?.['user-agent'] || null;
+    await pool.query(
+      `INSERT INTO audit_log (user_id, username, action, entity, entity_id, details, ip, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [user_id || null, username || null, action, entity || null,
+       entity_id ? String(entity_id) : null,
+       details ? JSON.stringify(details) : null, ip, ua]
+    );
+  } catch (e) { console.warn('[audit]', e.message); }
+}
+
+const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -58,7 +72,7 @@ exports.handler = async (event) => {
 
       // Admin: query completa
       const query = `
-        SELECT u.id, u.username, u.plain_password, u.portal_id, u.role, u.created_at, u.updated_at,
+        SELECT u.id, u.username, u.portal_id, u.role, u.created_at, u.updated_at,
                u.telegram_chat_id, u.telegram_chat_id_2, u.assigned_portal_ids, p.name as portal_name
         FROM users u
         LEFT JOIN portals p ON u.portal_id = p.id
@@ -71,7 +85,6 @@ exports.handler = async (event) => {
         const u = {
           id: user.id,
           username: user.username,
-          plain_password: user.plain_password || null,
           portalId: user.portal_id,
           portalName: user.portal_name,
           role: user.role,
@@ -127,14 +140,13 @@ exports.handler = async (event) => {
 
       const passwordHash = await bcrypt.hash(data.password, 10);
       const query = `
-        INSERT INTO users (username, password_hash, plain_password, portal_id, role, telegram_chat_id, telegram_chat_id_2, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        INSERT INTO users (username, password_hash, portal_id, role, telegram_chat_id, telegram_chat_id_2, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id, username, portal_id, role
       `;
       const values = [
         data.username.trim(),
         passwordHash,
-        data.password,
         data.portal_id || null,
         data.role || 'user',
         data.telegram_chat_id || null,
@@ -176,7 +188,6 @@ exports.handler = async (event) => {
 
       if (data.username)              { updates.push('username = $'          + paramIndex++); values.push(data.username.trim()); }
       if (passwordHash)               { updates.push('password_hash = $'     + paramIndex++); values.push(passwordHash); }
-      if (data.password)              { updates.push('plain_password = $'    + paramIndex++); values.push(data.password); }
       if (data.portal_id !== undefined){ updates.push('portal_id = $'        + paramIndex++); values.push(data.portal_id || null); }
       if (data.role)                  { updates.push('role = $'              + paramIndex++); values.push(data.role); }
       if (data.telegram_chat_id !== undefined) { updates.push('telegram_chat_id = $' + paramIndex++); values.push(data.telegram_chat_id || null); }
@@ -207,6 +218,8 @@ exports.handler = async (event) => {
         await pool.query('DELETE FROM coordinator_portals WHERE user_id = $1', [id]);
       }
 
+      await auditLog({ user_id: decoded.userId, username: decoded.username, action: 'user_updated',
+        entity: 'user', entity_id: rows[0].id, details: { updated_username: rows[0].username }, event });
       console.log('Utilizador atualizado:', rows[0].username);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
     }
@@ -219,6 +232,8 @@ exports.handler = async (event) => {
       if (rows.length === 0) {
         return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Utilizador não encontrado' }) };
       }
+      await auditLog({ user_id: decoded.userId, username: decoded.username, action: 'user_deleted',
+        entity: 'user', entity_id: rows[0].id, details: { deleted_username: rows[0].username }, event });
       console.log('Utilizador eliminado:', rows[0].username);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
     }
