@@ -7,3 +7,6 @@
 
 [functions]
   node_bundler = "esbuild"
+
+[functions."cleanup-old-data"]
+  schedule = "0 3 * * *"
