@@ -3941,7 +3941,7 @@ window.selectLocality = function (value) {
       badge.innerHTML = '<div style="font-weight:700;color:#1d4ed8;margin-bottom:2px;">💡 Sugestão de data</div>' +
         '<div style="color:#1e40af;font-size:14px;font-weight:600;">' + dateStr + ' (' + sug.count + ' serviços)</div>' +
         '<div style="color:#64748b;font-size:11px;margin-top:2px;">' + motivo + '</div>' +
-        '<button onclick="crAplicarData('' + sug.date + '')" style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>';
+        '<button onclick="crAplicarData(\'' + sug.date + '\')" style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>';
 
       const form = document.getElementById('appointmentForm');
       if (form) form.insertBefore(badge, form.firstChild);
