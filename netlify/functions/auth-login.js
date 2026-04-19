@@ -11,6 +11,21 @@ const pool = new Pool({
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 const JWT_EXPIRES_IN = '7d';
 
+async function auditLog({ user_id, username, action, details, event }) {
+  try {
+    const ip = event?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || null;
+    const ua = event?.headers?.['user-agent'] || null;
+    await pool.query(
+      `INSERT INTO audit_log (user_id, username, action, details, ip, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [user_id || null, username || null, action,
+       details ? JSON.stringify(details) : null, ip, ua]
+    );
+  } catch (e) {
+    console.warn('[audit]', e.message);
+  }
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -41,12 +56,16 @@ exports.handler = async (event) => {
     const { rows } = await pool.query(query, [username]);
 
     if (rows.length === 0) {
+      // Log tentativa falhada (utilizador inexistente)
+      await auditLog({ action: 'login_failed', username, details: { reason: 'user_not_found' }, event });
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Credenciais inválidas' }) };
     }
 
     const user = rows[0];
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
+      // Log tentativa falhada (password errada)
+      await auditLog({ user_id: user.id, username: user.username, action: 'login_failed', details: { reason: 'wrong_password' }, event });
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Credenciais inválidas' }) };
     }
 
@@ -95,10 +114,18 @@ exports.handler = async (event) => {
       } : (multiPortals.length > 0 ? multiPortals[0] : null)
     };
 
-    // Adicionar lista de portais para coordenador e comercial
     if ((user.role === 'coordenador' || user.role === 'comercial') && multiPortals.length > 0) {
       userData.portals = multiPortals;
     }
+
+    // Log login bem-sucedido
+    await auditLog({
+      user_id: user.id,
+      username: user.username,
+      action: 'login',
+      details: { role: user.role, portal: user.portal_name || null },
+      event
+    });
 
     console.log(`✅ Login bem-sucedido: ${username} (${user.role})`);
 
