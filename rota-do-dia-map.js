@@ -433,14 +433,15 @@
         marker.addListener('click', () => iw.open(mapInstance, marker));
         activeMarkers.push(marker);
 
-        // Marcador do ponto final (último leg = último waypoint)
+        // Marcador do ponto final — é o appt seguinte (i+1), não o atual
         if (i === result.routes[0].legs.length - 1) {
+          const lastAppt = withAddr[i + 1] || withAddr[i];
           const lastMarker = new google.maps.Marker({
             position: leg.end_location,
             map: mapInstance,
-            icon: markerIcon(withAddr[i].plate, cardColor(withAddr[i])),
+            icon: markerIcon(lastAppt.plate, cardColor(lastAppt)),
             zIndex: 200,
-            title: withAddr[i].plate,
+            title: lastAppt.plate,
           });
           activeMarkers.push(lastMarker);
         }
