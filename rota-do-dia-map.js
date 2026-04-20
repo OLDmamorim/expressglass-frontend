@@ -433,8 +433,8 @@
         marker.addListener('click', () => iw.open(mapInstance, marker));
         activeMarkers.push(marker);
 
-        // Marcador do ponto final
-        if (i === withAddr.length - 1) {
+        // Marcador do ponto final (último leg = último waypoint)
+        if (i === result.routes[0].legs.length - 1) {
           const lastMarker = new google.maps.Marker({
             position: leg.end_location,
             map: mapInstance,
