@@ -374,16 +374,18 @@
     const addresses = withAddr.map(a => apptAddress(a));
 
     // Base da loja como ponto de partida e chegada
-    const baseAddr = (typeof getBasePartida === 'function' ? getBasePartida() : null)
+    const baseAddr = window.basePartidaDoDia
       || window.portalConfig?.departureAddress
+      || (typeof getBasePartida === 'function' ? getBasePartida() : null)
       || null;
 
+    // Com base: origin=base, destination=base, waypoints=todos os agendamentos
+    // Sem base: origin=1º agendamento, destination=último, waypoints=intermédios
     const origin      = baseAddr || addresses[0];
     const destination = baseAddr || addresses[addresses.length - 1];
-    const waypoints   = (baseAddr ? addresses : addresses.slice(1, -1)).map(addr => ({
-      location: addr,
-      stopover: true,
-    }));
+    const waypoints   = baseAddr
+      ? addresses.map(addr => ({ location: addr, stopover: true }))
+      : addresses.slice(1, -1).map(addr => ({ location: addr, stopover: true }));
 
     try {
       const result = await new Promise((resolve, reject) => {
@@ -400,33 +402,6 @@
       });
 
       directionsRenderer.setDirections(result);
-
-      // Pin da base (partida/chegada) — SM
-      if (baseAddr) {
-        const baseResult = await new Promise(resolve => {
-          new google.maps.Geocoder().geocode({ address: baseAddr }, (r, s) => resolve(s === 'OK' ? r : null));
-        });
-        if (baseResult) {
-          const basePt = baseResult[0].geometry.location;
-          const baseMarker = new google.maps.Marker({
-            position: basePt,
-            map: mapInstance,
-            zIndex: 300,
-            title: 'Base SM',
-            icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 10,
-              fillColor: '#f59e0b',
-              fillOpacity: 1,
-              strokeColor: '#fff',
-              strokeWeight: 2.5,
-            },
-          });
-          new google.maps.InfoWindow({ content: '<div style="font-size:13px;font-weight:700;">🏠 Base SM</div><div style="font-size:11px;color:#64748b;">' + baseAddr + '</div>' })
-            .open(mapInstance, baseMarker);
-          activeMarkers.push(baseMarker);
-        }
-      }
 
       // Somar distância e duração total
       let totalDist = 0, totalDur = 0;
@@ -496,6 +471,33 @@
       });
 
       if (loading) loading.style.display = 'none';
+
+      // Pin da base (partida/chegada) — geocodificado separadamente
+      if (baseAddr) {
+        new google.maps.Geocoder().geocode({ address: baseAddr }, (r, s) => {
+          if (s !== 'OK' || !r || !r[0]) return;
+          const basePt = r[0].geometry.location;
+          const baseMarker = new google.maps.Marker({
+            position: basePt,
+            map: mapInstance,
+            zIndex: 300,
+            title: 'Base SM',
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: '#f59e0b',
+              fillOpacity: 1,
+              strokeColor: '#fff',
+              strokeWeight: 2.5,
+            },
+          });
+          const iw = new google.maps.InfoWindow({
+            content: '<div style="font-size:13px;font-weight:700;">🏠 Base SM</div><div style="font-size:11px;color:#64748b;">' + baseAddr + '</div>'
+          });
+          baseMarker.addListener('click', () => iw.open(mapInstance, baseMarker));
+          activeMarkers.push(baseMarker);
+        });
+      }
 
     } catch (e) {
       console.error('[RotaMapa]', e);
