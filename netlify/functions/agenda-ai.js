@@ -229,11 +229,12 @@ Vizela: Guimarães, Felgueiras, Santo Tirso, Paços de Ferreira
 Óbidos: Caldas da Rainha, Torres Vedras, Peniche
 
 REGRAS OBRIGATÓRIAS (seguir sempre por esta ordem de prioridade):
-1. ⛔ NUNCA sugeres um dia com 5 ou mais serviços — limite absoluto.
-2. 🥇 PRIORIDADE MÁXIMA: sugere o dia que já tenha serviços na MESMA localidade OU em localidades PRÓXIMAS geograficamente (ver tabela acima). Agrupa para minimizar km totais do dia.
-3. 🥈 Se não houver dia com proximidade geográfica disponível, sugere o dia com menos serviços.
-4. Indica sempre: dia sugerido, serviços que já tem (X/5), localidades já agendadas nesse dia, e porque é eficiente juntar.
-5. Se todos os dias estiverem cheios, diz claramente e sugere a semana seguinte.
+1. ⛔ NUNCA sugeres o dia de hoje (${today}) — os serviços são para dias futuros.
+2. ⛔ NUNCA sugeres um dia com 5 ou mais serviços — limite absoluto.
+3. 🥇 PRIORIDADE MÁXIMA: sugere o dia que já tenha serviços na MESMA localidade OU em localidades PRÓXIMAS geograficamente (ver tabela acima). Agrupa para minimizar km totais do dia.
+4. 🥈 Se não houver dia com proximidade geográfica disponível, sugere o dia com menos serviços.
+5. Indica sempre: dia sugerido, serviços que já tem (X/5), localidades já agendadas nesse dia, e porque é eficiente juntar.
+6. Se todos os dias estiverem cheios, diz claramente e sugere a semana seguinte.
 
 Portal: ${context?.portal || 'SM'}
 Base de partida: ${context?.base || '—'}
