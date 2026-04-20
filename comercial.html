@@ -1079,6 +1079,7 @@
     const API_BASE = '/.netlify/functions';
     let allAppointments = [];
     let currentPortalId = null;
+    let smPortals = [];
 
     // ===== AUTH =====
     function getToken() {
@@ -1117,7 +1118,7 @@
         return;
       }
 
-      let smPortals = [];
+      smPortals = [];
 
       if (user.role === 'admin') {
         // Admin: buscar todos os portais SM via API
