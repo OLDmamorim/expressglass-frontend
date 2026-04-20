@@ -314,7 +314,14 @@ function sugerirDataParaLocalidade(locality) {
   }
 
   function buildCard(req) {
-    var time = new Date(req.created_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+    var now = Date.now();
+    var created = new Date(req.created_at).getTime();
+    var diffMin = Math.floor((now - created) / 60000);
+    var time;
+    if (diffMin < 1) time = 'agora';
+    else if (diffMin < 60) time = diffMin + ' min';
+    else if (diffMin < 1440) { var h = Math.floor(diffMin/60); var m = diffMin%60; time = h + 'h' + (m > 0 ? String(m).padStart(2,'0') : ''); }
+    else { var dias = Math.floor(diffMin/1440); var horas = Math.floor((diffMin%1440)/60); time = dias + 'd ' + horas + 'h'; }
     var name = (req.commercial_name || 'Comercial').split(' ')[0];
     var meta = name + (req.service_file ? ' · ' + req.service_file : '') + ' · ' + time;
 
