@@ -352,6 +352,8 @@
         },
       });
       directionsRenderer.setMap(mapInstance);
+      // Forçar resize para garantir que o mapa ocupa o espaço correto
+      google.maps.event.trigger(mapInstance, 'resize');
     }
 
     clearMap();
@@ -579,8 +581,8 @@
     const onKey = e => { if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', onKey); } };
     document.addEventListener('keydown', onKey);
 
-    // Renderizar
-    renderRoute(dateInput.value);
+    // Renderizar — requestAnimationFrame garante que o flex layout já tem dimensões
+    requestAnimationFrame(() => renderRoute(dateInput.value));
   }
 
   // ═══════════════════════════════════════════════════════════════════════
