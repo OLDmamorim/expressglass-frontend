@@ -596,7 +596,7 @@
     </div>
     <div class="header-right">
       <select id="portalSelect" class="portal-selector" onchange="onPortalChange()">
-        <option value="">Selecionar SM...</option>
+        <option value="">Todos os SMs</option>
       </select>
       <button class="btn-pedido" onclick="openPedido()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1152,38 +1152,47 @@
 
       if (smPortals.length === 1) {
         sel.value = smPortals[0].id;
-        onPortalChange();
       }
+      // Carregar todos os SMs por defeito
+      onPortalChange();
     }
 
     function onPortalChange() {
       const sel = document.getElementById('portalSelect');
       currentPortalId = sel.value ? parseInt(sel.value) : null;
-      if (currentPortalId) loadAppointments();
-      else {
-        document.getElementById('emptyPortal').style.display = '';
-        document.getElementById('comTable').style.display = 'none';
-        document.getElementById('summaryChips').style.display = 'none';
-        allAppointments = [];
-      }
+      loadAppointments();
     }
 
     // ===== CARREGAR AGENDAMENTOS =====
     async function loadAppointments() {
-      if (!currentPortalId) return;
-
       document.getElementById('emptyPortal').style.display = 'none';
       document.getElementById('loadingState').style.display = '';
       document.getElementById('comTable').style.display = 'none';
       document.getElementById('emptyResults').style.display = 'none';
 
       try {
-        const resp = await fetch(`${API_BASE}/appointments?portal_id=${currentPortalId}`, {
-          headers: { 'Authorization': 'Bearer ' + getToken() }
-        });
-        const data = await resp.json();
-        allAppointments = data.data || [];
-        renderTable();
+        let appointments = [];
+        if (currentPortalId) {
+          // Portal específico seleccionado
+          const resp = await fetch(`${API_BASE}/appointments?portal_id=${currentPortalId}`, {
+            headers: { 'Authorization': 'Bearer ' + getToken() }
+          });
+          const data = await resp.json();
+          appointments = data.data || [];
+        } else {
+          // Todos os SMs — carregar em paralelo
+          const user = typeof getUser === 'function' ? getUser() : null;
+          const token = getToken();
+          const ids = smPortals.map(p => p.id);
+          const results = await Promise.all(ids.map(pid =>
+            fetch(`${API_BASE}/appointments?portal_id=${pid}`, {
+              headers: { 'Authorization': 'Bearer ' + token }
+            }).then(r => r.json()).then(d => (d.data || []).map(a => ({ ...a, _portalName: smPortals.find(p => p.id === pid)?.name || '' })))
+          ));
+          appointments = results.flat();
+        }
+        allAppointments = appointments;
+        renderTable(!currentPortalId);
       } catch (e) {
         showToast('Erro ao carregar serviços', 'error');
         document.getElementById('loadingState').style.display = 'none';
@@ -1220,7 +1229,7 @@
     }
 
     // ===== RENDER =====
-    function renderTable() {
+    function renderTable(showPortal) {
       document.getElementById('loadingState').style.display = 'none';
 
       const tbody = document.getElementById('comTableBody');
@@ -1259,6 +1268,7 @@
               <span class="plate-flag">PT</span>
               <span class="plate-cell">${plate}</span>
             </div>
+            ${showPortal && a._portalName ? '<div style="font-size:10px;color:#94a3b8;margin-top:2px;">'+a._portalName+'</div>' : ''}
           </td>
           <td class="car-cell">${(a.car || '—').toUpperCase()}</td>
           <td>${fmtDate(a.date)}</td>
