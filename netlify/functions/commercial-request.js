@@ -73,13 +73,6 @@ exports.handler = async (event) => {
 
     // ── POST — criar pedido ───────────────────────────────────────────────
     if (event.httpMethod === 'POST') {
-      const body = JSON.parse(event.body || '{}');
-      const { plate, service_file, locality, confirmed_portal_id, service_type, phone, entity, notes, car } = body;
-
-      if (!plate || !locality) {
-        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Matrícula e localidade são obrigatórios' }) };
-      }
-
       // Se ?all=1 (admin sem portal seleccionado), buscar todos os pedidos pendentes
       const qp = event.queryStringParameters || {};
       if (qp.all === '1') {
@@ -92,6 +85,13 @@ exports.handler = async (event) => {
           ORDER BY cr.created_at DESC
         `);
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, requests: rows }) };
+      }
+
+      const body = JSON.parse(event.body || '{}');
+      const { plate, service_file, locality, confirmed_portal_id, service_type, phone, entity, notes, car } = body;
+
+      if (!plate || !locality) {
+        return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Matrícula e localidade são obrigatórios' }) };
       }
 
       // Portais SM afectos ao comercial (vêm do JWT via user.portals)
