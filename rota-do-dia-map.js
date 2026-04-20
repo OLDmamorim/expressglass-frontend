@@ -373,9 +373,14 @@
     const dirSvc = new google.maps.DirectionsService();
     const addresses = withAddr.map(a => apptAddress(a));
 
-    const origin      = addresses[0];
-    const destination = addresses[addresses.length - 1];
-    const waypoints   = addresses.slice(1, -1).map(addr => ({
+    // Base da loja como ponto de partida e chegada
+    const baseAddr = (typeof getBasePartida === 'function' ? getBasePartida() : null)
+      || window.portalConfig?.departureAddress
+      || null;
+
+    const origin      = baseAddr || addresses[0];
+    const destination = baseAddr || addresses[addresses.length - 1];
+    const waypoints   = (baseAddr ? addresses : addresses.slice(1, -1)).map(addr => ({
       location: addr,
       stopover: true,
     }));
@@ -395,6 +400,33 @@
       });
 
       directionsRenderer.setDirections(result);
+
+      // Pin da base (partida/chegada) — SM
+      if (baseAddr) {
+        const baseResult = await new Promise(resolve => {
+          new google.maps.Geocoder().geocode({ address: baseAddr }, (r, s) => resolve(s === 'OK' ? r : null));
+        });
+        if (baseResult) {
+          const basePt = baseResult[0].geometry.location;
+          const baseMarker = new google.maps.Marker({
+            position: basePt,
+            map: mapInstance,
+            zIndex: 300,
+            title: 'Base SM',
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 10,
+              fillColor: '#f59e0b',
+              fillOpacity: 1,
+              strokeColor: '#fff',
+              strokeWeight: 2.5,
+            },
+          });
+          new google.maps.InfoWindow({ content: '<div style="font-size:13px;font-weight:700;">🏠 Base SM</div><div style="font-size:11px;color:#64748b;">' + baseAddr + '</div>' })
+            .open(mapInstance, baseMarker);
+          activeMarkers.push(baseMarker);
+        }
+      }
 
       // Somar distância e duração total
       let totalDist = 0, totalDur = 0;
