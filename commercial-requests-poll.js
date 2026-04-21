@@ -3,7 +3,6 @@
 (function () {
   'use strict';
 
-
 // ── Sugestão de data para pedido de comercial ─────────────────────────
 const PROX = {
   "Abrantes": ['Santarém', 'Tomar', 'Torres Novas', 'Entroncamento'],
@@ -159,14 +158,11 @@ function getProximas(loc) {
 
 function sugerirDataParaLocalidade(locality) {
   if (!locality || !window.appointments) return null;
-
   const proximas = getProximas(locality);
   const hoje = new Date();
   hoje.setHours(0,0,0,0);
-  const MAX_DIAS = 21; // procurar nas próximas 3 semanas
+  const MAX_DIAS = 21;
   const MAX_SERVICOS = 5;
-
-  // Agrupar appointments por data
   const porDia = {};
   window.appointments.forEach(function(a) {
     if (!a.date) return;
@@ -175,69 +171,31 @@ function sugerirDataParaLocalidade(locality) {
     porDia[d].count++;
     if (a.locality) porDia[d].localidades.push(a.locality);
   });
-
   const candidatos = [];
-
   for (var i = 1; i <= MAX_DIAS; i++) {
     var d = new Date();
     d.setHours(12,0,0,0);
     d.setDate(d.getDate() + i);
-    var dow = d.getDay(); // 0=dom, 6=sab
-    if (dow === 0 || dow === 6) continue; // ignorar fim de semana
-
-    var iso = d.getFullYear() + '-' +
-      String(d.getMonth()+1).padStart(2,'0') + '-' +
-      String(d.getDate()).padStart(2,'0');
+    var dow = d.getDay();
+    if (dow === 0 || dow === 6) continue;
+    var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
     var dia = porDia[iso] || { count: 0, localidades: [] };
-
-    if (dia.count >= MAX_SERVICOS) continue; // dia cheio
-
-    // Verificar proximidade
-    var temMesma = dia.localidades.some(function(l) {
-      return l && l.toLowerCase() === locality.toLowerCase();
-    });
-    var temProxima = !temMesma && dia.localidades.some(function(l) {
-      return l && proximas.some(function(p) {
-        return p.toLowerCase() === l.toLowerCase();
-      });
-    });
-
-    candidatos.push({
-      date: iso,
-      count: dia.count,
-      localidades: dia.localidades,
-      score: temMesma ? 100 : temProxima ? 50 : 0,
-      temMesma: temMesma,
-      temProxima: temProxima
-    });
+    if (dia.count >= MAX_SERVICOS) continue;
+    var temMesma = dia.localidades.some(function(l) { return l && l.toLowerCase() === locality.toLowerCase(); });
+    var temProxima = !temMesma && dia.localidades.some(function(l) { return l && proximas.some(function(p) { return p.toLowerCase() === l.toLowerCase(); }); });
+    candidatos.push({ date: iso, count: dia.count, localidades: dia.localidades, score: temMesma ? 100 : temProxima ? 50 : 0, temMesma: temMesma, temProxima: temProxima });
   }
-
   if (!candidatos.length) return null;
-
-  // Ordenar: mesma localidade primeiro, depois proxima, depois menos serviços
-  candidatos.sort(function(a, b) {
-    if (b.score !== a.score) return b.score - a.score;
-    return a.count - b.count;
-  });
-
+  candidatos.sort(function(a, b) { if (b.score !== a.score) return b.score - a.score; return a.count - b.count; });
   return candidatos[0];
 }
 
   const POLL_INTERVAL = 30000;
-  const SEEN_KEY = 'eg_seen_cr';
   const BANNER_ID = 'crBannerContainer';
 
   function shouldRun() {
     var role = window.authClient && window.authClient.getUser && window.authClient.getUser() && window.authClient.getUser().role;
     return role === 'coordenador' || role === 'admin';
-  }
-
-  function isSeen(id) { return false; } // sempre mostrar
-
-  function markSeen(id) {
-    // marcar no DOM apenas — não guardar em localStorage
-    var card = document.getElementById('crCard-' + id);
-    if (card) card.dataset.dismissed = '1';
   }
 
   function isDismissed(id) {
@@ -324,51 +282,39 @@ function sugerirDataParaLocalidade(locality) {
     else { var dias = Math.floor(diffMin/1440); var horas = Math.floor((diffMin%1440)/60); time = dias + 'd ' + horas + 'h'; }
     var name = (req.commercial_name || 'Comercial').split(' ')[0];
     var meta = name + (req.service_file ? ' · ' + req.service_file : '') + ' · ' + time;
-
-    // Calcular urgência
     var ageMin = (Date.now() - new Date(req.created_at).getTime()) / 60000;
     var urgClass = ageMin > 60 ? 'cr-red' : ageMin > 30 ? 'cr-orange' : '';
-
     var card = document.createElement('div');
     card.className = 'cr-card' + (urgClass ? ' ' + urgClass : '');
     card.id = 'crCard-' + req.id;
-
     var top = document.createElement('div');
     top.className = 'cr-card-top';
-
     var plate = document.createElement('div');
     plate.className = 'cr-card-plate';
     plate.style.color = ageMin > 60 ? '#991b1b' : ageMin > 30 ? '#9a3412' : '#92400e';
     plate.textContent = req.plate;
-
     var xBtn = document.createElement('button');
     xBtn.className = 'cr-x';
     xBtn.textContent = '✕';
     xBtn.onclick = function() { crDismiss(req.id); };
-
     top.appendChild(plate);
     top.appendChild(xBtn);
-
     var loc = document.createElement('div');
     loc.className = 'cr-card-loc';
     loc.textContent = '📍 ' + req.locality;
-
     var metaEl = document.createElement('div');
     metaEl.className = 'cr-card-meta';
     metaEl.textContent = '👤 ' + meta;
-
     var agBtn = document.createElement('button');
     agBtn.className = 'cr-btn-agenda';
     agBtn.style.background = ageMin > 60 ? '#ef4444' : ageMin > 30 ? '#f97316' : '#f59e0b';
     agBtn.textContent = '📅 Agendar';
     agBtn.dataset.req = JSON.stringify(req);
     agBtn.onclick = function() { crViewInAgenda(JSON.parse(this.dataset.req)); };
-
     card.appendChild(top);
     card.appendChild(loc);
     card.appendChild(metaEl);
     card.appendChild(agBtn);
-
     return card;
   }
 
@@ -377,13 +323,8 @@ function sugerirDataParaLocalidade(locality) {
     var container = ensureContainer();
     var newOnes = requests.filter(function(r) { return !isDismissed(r.id); });
     if (newOnes.length === 0) { container.style.display = 'none'; return; }
-
     container.style.display = 'flex';
-    // sem animação no container
-
-    // Limpar e reconstruir
     container.innerHTML = '';
-
     var header = document.createElement('div');
     header.className = 'cr-header';
     var dot = document.createElement('div');
@@ -393,68 +334,47 @@ function sugerirDataParaLocalidade(locality) {
       newOnes.length === 1 ? '1 pedido pendente' : newOnes.length + ' pedidos pendentes'
     ));
     container.appendChild(header);
-
     var grid = document.createElement('div');
     grid.className = 'cr-grid';
-    newOnes.forEach(function(req) {
-      grid.appendChild(buildCard(req));
-    });
+    newOnes.forEach(function(req) { grid.appendChild(buildCard(req)); });
     container.appendChild(grid);
   }
 
   window.crAplicarData = function(date) {
     var el = document.getElementById('appointmentDate');
-    if (el) {
-      el.value = date;
-      el.dispatchEvent(new Event('change'));
-    }
+    if (el) { el.value = date; el.dispatchEvent(new Event('change')); }
     var badge = document.getElementById('crDateSuggestion');
     if (badge) badge.style.border = '1.5px solid #16a34a';
   };
 
   window.crViewInAgenda = function(req) {
     var plate = req.plate; var id = req.id;
-    document.getElementById('crCard-' + id) && document.getElementById('crCard-' + id).style.setProperty('border-color', '#2563eb');
+    var cardEl = document.getElementById('crCard-' + id);
+    if (cardEl) cardEl.style.setProperty('border-color', '#2563eb');
 
     var addBtn = document.getElementById('addServiceBtn') || document.getElementById('addAppointmentNavBtn');
     if (addBtn) {
       addBtn.click();
       setTimeout(function() {
-        // Pré-preencher todos os campos do modal
         var r = req;
-        var f = function(id, val) {
-          var el = document.getElementById(id);
-          if (el && val) {
-            el.value = val;
-            el.dispatchEvent(new Event('input'));
-            el.dispatchEvent(new Event('change'));
-          }
+        var f = function(fid, val) {
+          var el = document.getElementById(fid);
+          if (el && val) { el.value = val; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }
         };
         f('appointmentPlate', plate);
         if (r.car)          f('appointmentCar', r.car);
         if (r.service_type) f('appointmentService', r.service_type);
-
-        // Activar "Encaminhado por comercial" e seleccionar o comercial
         if (r.commercial_id && typeof window.loadComerciais === 'function') {
           window.loadComerciais().then(function() {
             var hasCb = document.getElementById('hasCommercial');
             var wrap  = document.getElementById('commercialSelectWrap');
             var sel   = document.getElementById('appointmentCommercial');
-            if (hasCb && !hasCb.checked) {
-              hasCb.checked = true;
-              if (wrap) wrap.style.display = 'block';
-            }
+            if (hasCb && !hasCb.checked) { hasCb.checked = true; if (wrap) wrap.style.display = 'block'; }
             if (sel) sel.value = r.commercial_id;
           });
         }
-
-        // Sugestão de data com base na localidade
         var sug = sugerirDataParaLocalidade(r.locality);
         if (sug) {
-          // Remover badge anterior
-          var oldBadge = document.getElementById('crDateSuggestion');
-          if (oldBadge) oldBadge.remove();
-
           var badge = document.createElement('div');
           badge.id = 'crDateSuggestion';
           var d = new Date(sug.date + 'T12:00:00');
@@ -463,30 +383,22 @@ function sugerirDataParaLocalidade(locality) {
             ? '📍 Já tem serviços em ' + r.locality + ' nesse dia'
             : sug.temProxima
             ? '🗺️ Localidades próximas nesse dia: ' + [...new Set(sug.localidades)].slice(0,3).join(', ')
-            : '📅 Dia com menos serviços (' + sug.count + '/' + 5 + ')';
-
+            : '📅 Dia com menos serviços (' + sug.count + '/5)';
           badge.style.cssText = 'background:#eff6ff;border:1.5px solid #3b82f6;border-radius:10px;padding:10px 14px;margin:12px 0;font-size:13px;';
           badge.innerHTML = '<div style="font-weight:700;color:#1d4ed8;margin-bottom:2px;">💡 Sugestão de data</div>' +
             '<div style="color:#1e40af;font-size:14px;font-weight:600;">' + dateStr + ' (' + sug.count + ' serviços)</div>' +
             '<div style="color:#64748b;font-size:11px;margin-top:2px;">' + motivo + '</div>' +
             '<button onclick="crAplicarData(\'' + sug.date + '\')" style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>';
-
-          // Inserir no topo do form do modal
           setTimeout(function() {
             var existing = document.getElementById('crDateSuggestion');
             if (existing) existing.remove();
-            var form = document.getElementById('appointmentForm') ||
-                       document.querySelector('#appointmentModal form');
+            var form = document.getElementById('appointmentForm') || document.querySelector('#appointmentModal form');
             if (form) form.insertBefore(badge, form.firstChild);
           }, 100);
         }
-        if (r.phone)        f('appointmentPhone', r.phone);
-        if (r.entity)       f('appointmentClientName', r.entity);
-        // Localidade via selectLocality do script.js
-        if (r.locality && typeof window.selectLocality === 'function') {
-          window.selectLocality(r.locality);
-        }
-        // Notas
+        if (r.phone)   f('appointmentPhone', r.phone);
+        if (r.entity)  f('appointmentClientName', r.entity);
+        if (r.locality && typeof window.selectLocality === 'function') window.selectLocality(r.locality);
         if (r.service_file || r.notes) {
           var notesEl = document.getElementById('appointmentNotes');
           if (notesEl) notesEl.value = [r.service_file ? 'Ficha: '+r.service_file : '', r.notes || ''].filter(Boolean).join(' | ');
@@ -494,10 +406,13 @@ function sugerirDataParaLocalidade(locality) {
       }, 300);
     }
 
-    // Só remover ao GUARDAR (submit) — cancelar/fechar mantém o card
+    // ── Remover pedido SÓ quando o agendamento for gravado com sucesso ──
+    // O script.js dispara 'appointmentSaved' após save OK e
+    // 'appointmentModalClosed' quando o modal fecha sem gravar.
     var container = document.getElementById(BANNER_ID);
-    var onSave = function() {
-      // Marcar como done na DB
+    var onSaved = function(e) {
+      var savedPlate = e && e.detail && e.detail.plate;
+      if (savedPlate && savedPlate.toUpperCase() !== req.plate.toUpperCase()) return;
       if (window.authClient && window.authClient.authenticatedFetch) {
         window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
           method: 'PUT',
@@ -508,13 +423,18 @@ function sugerirDataParaLocalidade(locality) {
       var card2 = document.getElementById('crCard-' + id);
       if (card2) card2.remove();
       if (container && !container.querySelector('.cr-card')) container.style.display = 'none';
+      window.removeEventListener('appointmentSaved', onSaved);
+      window.removeEventListener('appointmentModalClosed', onModalClose);
     };
-    var form = document.getElementById('appointmentForm');
-    if (form) form.addEventListener('submit', onSave, { once: true });
+    var onModalClose = function() {
+      // Modal fechou sem gravar — manter o card no banner
+      window.removeEventListener('appointmentSaved', onSaved);
+    };
+    window.addEventListener('appointmentSaved', onSaved);
+    window.addEventListener('appointmentModalClosed', onModalClose, { once: true });
   };
 
   window.crDismiss = function(id) {
-    // Modal de confirmação
     var overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;max-width:300px;width:90%;text-align:center;">' +
@@ -526,12 +446,9 @@ function sugerirDataParaLocalidade(locality) {
         '<button id="crDYes" style="flex:1;background:#ef4444;color:#fff;border:none;padding:10px;border-radius:8px;font-weight:700;cursor:pointer;">Cancelar Pedido</button>' +
       '</div></div>';
     document.body.appendChild(overlay);
-
     overlay.querySelector('#crDNo').onclick = function() { document.body.removeChild(overlay); };
     overlay.querySelector('#crDYes').onclick = async function() {
       document.body.removeChild(overlay);
-
-      // Marcar como cancelled na DB
       try {
         await window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
           method: 'PUT',
@@ -539,8 +456,6 @@ function sugerirDataParaLocalidade(locality) {
           body: JSON.stringify({ id: id, status: 'cancelled' })
         });
       } catch(_) {}
-
-      // Remover card
       var card = document.getElementById('crCard-' + id);
       if (card) card.remove();
       var container = document.getElementById(BANNER_ID);
@@ -560,12 +475,10 @@ function sugerirDataParaLocalidade(locality) {
     setInterval(poll, POLL_INTERVAL);
   }
 
-  // Expor para ser chamado pelo script.js após load()
   window.crStartPolling = start;
   window.addEventListener('portalReady', function() { setTimeout(start, 50); });
   window.addEventListener('portalChanged', poll);
 
-  // Verificar a cada 200ms se portal está pronto (portalConfig existe)
   var _started = false;
   var _t = 0;
   var _iv = setInterval(function() {
