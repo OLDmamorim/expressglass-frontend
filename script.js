@@ -1962,9 +1962,8 @@ async function deleteAppointment(id) {
 function cancelEdit() {
   editingId = null;
   window.originalUnscheduledServiceId = null; // Limpar ID do serviço original
+  window.dispatchEvent(new CustomEvent('appointmentModalClosed'));
   document.getElementById('appointmentForm').reset();
-  const _oldSug2 = document.getElementById('crDateSuggestion');
-  if (_oldSug2) _oldSug2.remove();
   const calibCb = document.getElementById('appointmentCalibration');
   if (calibCb) calibCb.checked = false;
   const firstCb = document.getElementById('appointmentFirstOfDay');
@@ -3302,8 +3301,6 @@ cancelEdit?.();
   document.getElementById('addServiceBtn')?.addEventListener('click', () => {
     editingId = null;
     document.getElementById('appointmentForm').reset();
-    const _oldSug = document.getElementById('crDateSuggestion');
-    if (_oldSug) _oldSug.remove();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
     setConfirmed(false); // default: pré-agendamento
@@ -3336,8 +3333,6 @@ cancelEdit?.();
   document.getElementById('addServiceMobile')?.addEventListener('click', () => {
     editingId = null;
     document.getElementById('appointmentForm').reset();
-    const _oldSug = document.getElementById('crDateSuggestion');
-    if (_oldSug) _oldSug.remove();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
     setConfirmed(false); // default: pré-agendamento
