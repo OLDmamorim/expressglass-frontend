@@ -250,7 +250,12 @@ function sugerirDataParaLocalidade(locality) {
       '.cr-card-meta{font-size:10px;color:#a16207;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}',
       '.cr-btn-agenda{background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-top:2px;}',
       '.cr-btn-agenda:hover{background:#d97706;}',
-      '.cr-x{background:none;border:none;color:#d97706;font-size:13px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;}'
+      '.cr-x{background:none;border:none;color:#d97706;font-size:13px;cursor:pointer;padding:0;line-height:1;flex-shrink:0;}',
+      '.cr-btn-na{background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;border-radius:6px;padding:4px 8px;font-size:10px;font-weight:600;cursor:pointer;font-family:inherit;width:100%;margin-top:2px;}',
+      '.cr-btn-na:hover{background:#e2e8f0;}',
+      '.cr-btn-na:disabled{opacity:0.5;cursor:not-allowed;}',
+      '.cr-card.cr-no-answer{border-color:#94a3b8!important;animation:none!important;opacity:0.85;}',
+      '.cr-reminder{font-size:10px;color:#7c3aed;font-weight:700;margin-top:3px;}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -311,10 +316,17 @@ function sugerirDataParaLocalidade(locality) {
     agBtn.textContent = '📅 Agendar';
     agBtn.dataset.req = JSON.stringify(req);
     agBtn.onclick = function() { crViewInAgenda(JSON.parse(this.dataset.req)); };
+    var naBtn = document.createElement('button');
+    naBtn.className = 'cr-btn-na';
+    naBtn.id = 'crBtnNA-' + req.id;
+    naBtn.textContent = '📞 Não atendeu';
+    naBtn.onclick = function() { crNoAnswer(req); };
+
     card.appendChild(top);
     card.appendChild(loc);
     card.appendChild(metaEl);
     card.appendChild(agBtn);
+    card.appendChild(naBtn);
     return card;
   }
 
@@ -432,6 +444,55 @@ function sugerirDataParaLocalidade(locality) {
     };
     window.addEventListener('appointmentSaved', onSaved);
     window.addEventListener('appointmentModalClosed', onModalClose, { once: true });
+  };
+
+  window.crNoAnswer = function(req) {
+    var id = req.id;
+    var card = document.getElementById('crCard-' + id);
+    var btn = document.getElementById('crBtnNA-' + id);
+    if (!card || !btn) return;
+
+    // Visual cinzento — cliente não atendeu
+    card.classList.add('cr-no-answer');
+    card.classList.remove('cr-orange', 'cr-red');
+
+    // Hora do lembrete: +30 min
+    var remind = new Date(Date.now() + 30 * 60000);
+    var remindStr = String(remind.getHours()).padStart(2,'0') + ':' + String(remind.getMinutes()).padStart(2,'0');
+
+    // Badge roxo
+    var existing = card.querySelector('.cr-reminder');
+    if (existing) existing.remove();
+    var badge = document.createElement('div');
+    badge.className = 'cr-reminder';
+    badge.textContent = '🔔 Ligar novamente às ' + remindStr;
+    card.appendChild(badge);
+
+    // Bloquear botão
+    btn.disabled = true;
+    btn.textContent = '⏳ Aguardar até ' + remindStr;
+
+    // Notificar comercial via Telegram
+    if (window.authClient && window.authClient.authenticatedFetch) {
+      window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, action: 'no_answer', plate: req.plate })
+      }).catch(function(){});
+    }
+
+    // Reativar ao chegar a hora
+    setTimeout(function() {
+      var c2 = document.getElementById('crCard-' + id);
+      var b2 = document.getElementById('crBtnNA-' + id);
+      if (!c2 || !b2) return;
+      c2.classList.remove('cr-no-answer');
+      c2.classList.add('cr-orange');
+      b2.disabled = false;
+      b2.textContent = '📞 Tentar de novo';
+      var bdg = c2.querySelector('.cr-reminder');
+      if (bdg) bdg.textContent = '🔔 Hora de ligar!';
+    }, remind.getTime() - Date.now());
   };
 
   window.crDismiss = function(id) {
