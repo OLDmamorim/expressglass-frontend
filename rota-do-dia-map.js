@@ -496,8 +496,11 @@
       }
 
     } catch (e) {
-      console.error('[RotaMapa]', e);
+      console.error('[RotaMapa] Directions API falhou:', e.message || e);
       if (loading) loading.style.display = 'none';
+
+      // Limpar rota anterior para não enganar
+      if (directionsRenderer) directionsRenderer.setDirections({ routes: [] });
 
       // Fallback: mostrar marcadores sem rota (geocoding individual)
       document.getElementById('rmStatDist').textContent = '—';
