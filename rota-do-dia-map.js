@@ -373,15 +373,16 @@
     const dirSvc = new google.maps.DirectionsService();
     const addresses = withAddr.map(a => apptAddress(a));
 
-    // Base da loja — só pin visual, não entra na rota (evita rota circular)
+    // Base da loja como ponto de partida e chegada real da rota
     const baseAddr = window.basePartidaDoDia
       || window.portalConfig?.departureAddress
       || null;
 
-    // Rota: 1º agendamento → ... → último agendamento
-    const origin      = addresses[0];
-    const destination = addresses[addresses.length - 1];
-    const waypoints   = addresses.slice(1, -1).map(addr => ({ location: addr, stopover: true }));
+    // Com base: base → agendamentos → base (rota circular)
+    // Sem base: 1º agendamento → ... → último
+    const origin      = baseAddr || addresses[0];
+    const destination = baseAddr || addresses[addresses.length - 1];
+    const waypoints   = addresses.map(addr => ({ location: addr, stopover: true }));
 
     try {
       const result = await new Promise((resolve, reject) => {
@@ -408,46 +409,51 @@
       document.getElementById('rmStatDist').textContent = fmtKm(totalDist);
       document.getElementById('rmStatTime').textContent = fmtDur(totalDur);
 
-      // Colocar marcadores personalizados nos pontos da rota
+      // Colocar marcadores nos agendamentos usando as legs
+      // Com base: legs[0]=base→appt[0], legs[1]=appt[0]→appt[1], ...
+      // Sem base: legs[0]=appt[0]→appt[1], ...
+      const legOffset = baseAddr ? 1 : 0;
       result.routes[0].legs.forEach((leg, i) => {
-        const appt  = withAddr[i];
+        // Com base: appt está em legs[i].end (exceto último leg que é →base)
+        // Sem base: appt[i] está em legs[i].start, último appt em legs[last].end
+        let appt, pos;
+        if (baseAddr) {
+          // legs[0].end = appt[0], legs[1].end = appt[1], ..., legs[last].end = base (ignorar)
+          if (i < withAddr.length) {
+            appt = withAddr[i];
+            pos  = leg.end_location;
+          } else return; // último leg = regresso à base, sem marcador de appt
+        } else {
+          appt = withAddr[i];
+          pos  = leg.start_location;
+          // último appt
+          if (i === result.routes[0].legs.length - 1) {
+            const lastAppt = withAddr[i + 1] || withAddr[i];
+            const lm = new google.maps.Marker({
+              position: leg.end_location, map: mapInstance,
+              icon: markerIcon(lastAppt.plate, cardColor(lastAppt)), zIndex: 200,
+            });
+            activeMarkers.push(lm);
+          }
+        }
+        if (!appt) return;
         const color = cardColor(appt);
-        const pos   = leg.start_location;
-
         const marker = new google.maps.Marker({
-          position: pos,
-          map: mapInstance,
+          position: pos, map: mapInstance,
           icon: markerIcon(appt.plate, color),
           zIndex: 100 + i,
           title: appt.plate + (appt.car ? ' — ' + appt.car : ''),
         });
-
-        // InfoWindow ao clicar
         const iw = new google.maps.InfoWindow({
-          content: `
-            <div style="font-family:system-ui;font-size:13px;min-width:160px;">
-              <div style="font-weight:800;font-size:15px;margin-bottom:4px;">${appt.plate}</div>
-              <div style="color:#475569;margin-bottom:2px;">${appt.car || ''}</div>
-              <div style="color:#64748b;font-size:12px;">${apptAddress(appt) || ''}</div>
-              ${appt.notes ? `<div style="color:#64748b;font-size:11px;margin-top:4px;">${appt.notes}</div>` : ''}
-            </div>
-          `,
+          content: `<div style="font-family:system-ui;font-size:13px;min-width:160px;">
+            <div style="font-weight:800;font-size:15px;margin-bottom:4px;">${appt.plate}</div>
+            <div style="color:#475569;margin-bottom:2px;">${appt.car || ''}</div>
+            <div style="color:#64748b;font-size:12px;">${apptAddress(appt) || ''}</div>
+            ${appt.notes ? `<div style="color:#64748b;font-size:11px;margin-top:4px;">${appt.notes}</div>` : ''}
+          </div>`,
         });
         marker.addListener('click', () => iw.open(mapInstance, marker));
         activeMarkers.push(marker);
-
-        // Marcador do ponto final — é o appt seguinte (i+1), não o atual
-        if (i === result.routes[0].legs.length - 1) {
-          const lastAppt = withAddr[i + 1] || withAddr[i];
-          const lastMarker = new google.maps.Marker({
-            position: leg.end_location,
-            map: mapInstance,
-            icon: markerIcon(lastAppt.plate, cardColor(lastAppt)),
-            zIndex: 200,
-            title: lastAppt.plate,
-          });
-          activeMarkers.push(lastMarker);
-        }
       });
 
       // Highlight parada ao clicar na lista
