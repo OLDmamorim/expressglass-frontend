@@ -190,6 +190,7 @@ function sugerirDataParaLocalidade(locality) {
   return candidatos[0];
 }
 
+  const _naState = {}; // persistir estado 'não atendeu' entre polls
   const POLL_INTERVAL = 30000;
   const BANNER_ID = 'crBannerContainer';
 
@@ -321,6 +322,29 @@ function sugerirDataParaLocalidade(locality) {
     naBtn.id = 'crBtnNA-' + req.id;
     naBtn.textContent = '📞 Não atendeu';
     naBtn.onclick = function() { crNoAnswer(req); };
+
+    // Restaurar estado se já foi clicado neste ciclo
+    if (_naState[req.id]) {
+      var st = _naState[req.id];
+      var msLeft = st.remindAt - Date.now();
+      var remStr = String(new Date(st.remindAt).getHours()).padStart(2,'0') + ':' + String(new Date(st.remindAt).getMinutes()).padStart(2,'0');
+      if (msLeft > 0) {
+        card.classList.add('cr-no-answer');
+        naBtn.disabled = true;
+        naBtn.textContent = '⏳ Aguardar até ' + remStr;
+        var stBdg = document.createElement('div');
+        stBdg.className = 'cr-reminder';
+        stBdg.textContent = '🔔 Ligar novamente às ' + remStr;
+        card.appendChild(stBdg);
+      } else {
+        card.classList.add('cr-orange');
+        naBtn.textContent = '📞 Tentar de novo';
+        var stBdg2 = document.createElement('div');
+        stBdg2.className = 'cr-reminder';
+        stBdg2.textContent = '🔔 Hora de ligar!';
+        card.appendChild(stBdg2);
+      }
+    }
 
     card.appendChild(top);
     card.appendChild(loc);
@@ -512,7 +536,23 @@ function sugerirDataParaLocalidade(locality) {
       }).catch(function(){});
     }
 
-    // Reativar ao chegar a hora
+    // Guardar estado (sobrevive ao rebuild do poll)
+    if (_naState[id] && _naState[id].timerId) clearTimeout(_naState[id].timerId);
+    var timerId = setTimeout(function() {
+      delete _naState[id];
+      var c2 = document.getElementById('crCard-' + id);
+      var b2 = document.getElementById('crBtnNA-' + id);
+      if (!c2 || !b2) return;
+      c2.classList.remove('cr-no-answer');
+      c2.classList.add('cr-orange');
+      b2.disabled = false;
+      b2.textContent = '📞 Tentar de novo';
+      var bdg2 = c2.querySelector('.cr-reminder');
+      if (bdg2) bdg2.textContent = '🔔 Hora de ligar!';
+    }, remind.getTime() - Date.now());
+    _naState[id] = { remindAt: remind.getTime(), timerId: timerId };
+
+    // Reativar ao chegar a hora (fallback no setTimeout do DOM)
     setTimeout(function() {
       var c2 = document.getElementById('crCard-' + id);
       var b2 = document.getElementById('crBtnNA-' + id);
