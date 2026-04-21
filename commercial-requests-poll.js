@@ -415,6 +415,31 @@ function sugerirDataParaLocalidade(locality) {
           var notesEl = document.getElementById('appointmentNotes');
           if (notesEl) notesEl.value = [r.service_file ? 'Ficha: '+r.service_file : '', r.notes || ''].filter(Boolean).join(' | ');
         }
+
+        // Injetar botão "Não atendeu" nas form-actions do modal
+        var oldNaModal = document.getElementById('crNaModalBtn');
+        if (oldNaModal) oldNaModal.remove();
+        var formActions = document.querySelector('.form-actions');
+        if (formActions) {
+          var naModalBtn = document.createElement('button');
+          naModalBtn.type = 'button';
+          naModalBtn.id = 'crNaModalBtn';
+          naModalBtn.textContent = '📞 Não atendeu';
+          naModalBtn.style.cssText = 'background:#f1f5f9;color:#64748b;border:1px solid #cbd5e1;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;';
+          naModalBtn.onclick = function() {
+            crNoAnswer(r);
+            // Feedback visual no botão
+            naModalBtn.textContent = '🔔 Lembrete criado';
+            naModalBtn.style.background = '#f3e8ff';
+            naModalBtn.style.color = '#7c3aed';
+            naModalBtn.style.borderColor = '#a78bfa';
+            naModalBtn.disabled = true;
+          };
+          // Inserir antes do botão "Cancelar"
+          var cancelBtn = document.getElementById('cancelForm');
+          if (cancelBtn) formActions.insertBefore(naModalBtn, cancelBtn);
+          else formActions.prepend(naModalBtn);
+        }
       }, 300);
     }
 
@@ -444,6 +469,12 @@ function sugerirDataParaLocalidade(locality) {
     };
     window.addEventListener('appointmentSaved', onSaved);
     window.addEventListener('appointmentModalClosed', onModalClose, { once: true });
+
+    // Limpar botão do modal ao fechar
+    window.addEventListener('appointmentModalClosed', function() {
+      var b = document.getElementById('crNaModalBtn');
+      if (b) b.remove();
+    }, { once: true });
   };
 
   window.crNoAnswer = function(req) {
