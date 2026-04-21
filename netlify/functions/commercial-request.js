@@ -14,6 +14,25 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+const https = require('https');
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+function sendTelegram(chatId, text) {
+  return new Promise((resolve) => {
+    if (!TELEGRAM_BOT_TOKEN || !chatId) return resolve({ ok: false });
+    const body = JSON.stringify({ chat_id: chatId, text, parse_mode: 'HTML' });
+    const req = https.request({
+      hostname: 'api.telegram.org',
+      path: '/bot' + TELEGRAM_BOT_TOKEN + '/sendMessage',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    }, (res) => { let d = ''; res.on('data', c => d += c); res.on('end', () => resolve(JSON.parse(d))); });
+    req.on('error', () => resolve({ ok: false }));
+    req.write(body);
+    req.end();
+  });
+}
+
 function verifyToken(event) {
   const auth = event.headers.authorization || event.headers.Authorization || '';
   if (!auth.startsWith('Bearer ')) throw new Error('Não autenticado');
@@ -224,7 +243,29 @@ exports.handler = async (event) => {
     // ── PUT — actualizar status do pedido ─────────────────────────────────
     if (event.httpMethod === 'PUT') {
       const body = JSON.parse(event.body || '{}');
-      const { id, status, plate, commercial_id } = body;
+      const { id, status, plate, commercial_id, action } = body;
+
+      // Acção especial: cliente não atendeu → notificar comercial por Telegram
+      if (action === 'no_answer' && id) {
+        const { rows: crRows } = await pool.query(`
+          SELECT cr.plate, u.telegram_chat_id, u.username
+          FROM commercial_requests cr
+          JOIN users u ON u.id = cr.commercial_id
+          WHERE cr.id = $1
+        `, [id]);
+        if (crRows.length && crRows[0].telegram_chat_id) {
+          const cr = crRows[0];
+          const msg = `📞 <b>Cliente não atendeu</b>
+
+🚗 <b>${cr.plate}</b>
+
+O coordenador tentou contactar o cliente mas não obteve resposta.
+O pedido continua pendente — irá tentar novamente em breve.`;
+          await sendTelegram(crRows[0].telegram_chat_id, msg);
+        }
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+      }
+
       if (id && status) {
         await pool.query('UPDATE commercial_requests SET status = $1, updated_at = NOW() WHERE id = $2', [status, id]);
       } else if (plate && commercial_id && status) {
