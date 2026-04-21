@@ -373,19 +373,15 @@
     const dirSvc = new google.maps.DirectionsService();
     const addresses = withAddr.map(a => apptAddress(a));
 
-    // Base da loja como ponto de partida e chegada
+    // Base da loja — só pin visual, não entra na rota (evita rota circular)
     const baseAddr = window.basePartidaDoDia
       || window.portalConfig?.departureAddress
-      || (typeof getBasePartida === 'function' ? getBasePartida() : null)
       || null;
 
-    // Com base: origin=base, destination=base, waypoints=todos os agendamentos
-    // Sem base: origin=1º agendamento, destination=último, waypoints=intermédios
-    const origin      = baseAddr || addresses[0];
-    const destination = baseAddr || addresses[addresses.length - 1];
-    const waypoints   = baseAddr
-      ? addresses.map(addr => ({ location: addr, stopover: true }))
-      : addresses.slice(1, -1).map(addr => ({ location: addr, stopover: true }));
+    // Rota: 1º agendamento → ... → último agendamento
+    const origin      = addresses[0];
+    const destination = addresses[addresses.length - 1];
+    const waypoints   = addresses.slice(1, -1).map(addr => ({ location: addr, stopover: true }));
 
     try {
       const result = await new Promise((resolve, reject) => {
