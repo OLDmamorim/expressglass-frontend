@@ -25,7 +25,7 @@
     <!-- Navigation Tabs -->
     <nav class="admin-nav">
       <button class="nav-tab active" data-tab="portals">🏢 Portais</button>
-      <button class="nav-tab" data-tab="users">👤 Utilizadores</button>
+      <button class="nav-tab" data-tab="users">👤 Utilizadores <span id="requestsBadge" style="display:none;background:#f59e0b;color:#fff;font-size:11px;font-weight:800;padding:1px 7px;border-radius:10px;margin-left:4px;vertical-align:middle;"></span></button>
       <button class="nav-tab" data-tab="import">📥 Importar Excel</button>
       <button class="nav-tab" data-tab="settings">⚙️ Configurações</button>
       <button class="nav-tab" data-tab="reports">📊 Relatórios</button>
@@ -59,6 +59,8 @@
 
     <!-- Tab Content: Utilizadores -->
     <div id="usersTab" class="tab-content">
+      <!-- Pedidos de inscrição pendentes -->
+      <div id="registrationRequestsSection" style="display:none;"></div>
       <div class="content-header">
         <h2>Gestão de Utilizadores</h2>
         <button id="addUserBtn" class="btn-primary">+ Novo Utilizador</button>

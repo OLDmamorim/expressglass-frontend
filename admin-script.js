@@ -207,28 +207,10 @@ function populateNmdosSelect() {
 
 // Mostrar/esconder campos baseado no tipo de portal
 function togglePortalTypeFields() {
-  const type = (document.getElementById('portalType').value || 'sm').toLowerCase();
+  const type = document.getElementById('portalType').value;
   const localitiesSection = document.getElementById('localitiesSection');
   if (localitiesSection) {
     localitiesSection.style.display = type === 'loja' ? 'none' : 'block';
-  }
-  const pegSection = document.getElementById('poweringLojaSection');
-  if (pegSection) pegSection.style.display = type.toLowerCase() === 'loja' ? 'block' : 'none';
-}
-
-async function loadPoweringLojas() {
-  const select = document.getElementById('portalPoweringLoja');
-  if (!select || select.dataset.loaded === '1') return;
-  select.innerHTML = '<option value="">A carregar...</option>';
-  try {
-    const resp = await authClient.authenticatedFetch('/.netlify/functions/powering-kpis?action=lojas');
-    const data = await resp.json();
-    select.innerHTML = '<option value="">-- Não associado --</option>'
-      + (data.lojas || []).map(l => `<option value="${l.id}">${l.nome} (nº${l.numeroLoja})</option>`).join('');
-    select.dataset.loaded = '1';
-  } catch(e) {
-    select.innerHTML = '<option value="">Erro ao carregar lojas</option>';
-    console.warn('Erro ao carregar lojas PoweringEG:', e);
   }
 }
 
@@ -243,7 +225,6 @@ document.getElementById('addPortalBtn').addEventListener('click', () => {
   
   populateNmdosSelect();
   togglePortalTypeFields();
-  loadPoweringLojas();
   
   openModal('portalModal');
 });
@@ -256,15 +237,11 @@ function editPortal(id) {
   document.getElementById('portalModalTitle').textContent = 'Editar Portal';
   document.getElementById('portalName').value = portal.name;
   document.getElementById('portalAddress').value = portal.departure_address;
-  document.getElementById('portalType').value = (portal.portal_type || 'sm').toLowerCase();
+  document.getElementById('portalType').value = portal.portal_type || 'sm';
   
   populateNmdosSelect();
   document.getElementById('portalNmdos').value = portal.nmdos_code || '';
   togglePortalTypeFields();
-  loadPoweringLojas().then(() => {
-    const sel = document.getElementById('portalPoweringLoja');
-    if (sel) sel.value = portal.powering_loja_id || '';
-  });
   
   openModal('portalModal');
 }
@@ -308,8 +285,7 @@ document.getElementById('portalForm').addEventListener('submit', async (e) => {
     departure_address: address, 
     localities: {},
     nmdos_code: document.getElementById('portalNmdos').value || null,
-    portal_type: portalType,
-    powering_loja_id: document.getElementById('portalPoweringLoja')?.value || null
+    portal_type: portalType
   };
   
   try {
@@ -359,6 +335,121 @@ async function loadUsers() {
     console.error('Erro ao carregar utilizadores:', error);
     showToast('Erro ao carregar utilizadores', 'error');
   }
+  // Carregar pedidos de inscrição pendentes
+  loadRegistrationRequests();
+}
+
+async function loadRegistrationRequests() {
+  try {
+    const resp = await authClient.authenticatedFetch('/.netlify/functions/registration-request');
+    const data = await resp.json();
+    if (!data.success) return;
+    renderRegistrationRequests(data.requests || []);
+  } catch(e) {
+    console.warn('Pedidos de inscrição não disponíveis:', e.message);
+  }
+}
+
+function renderRegistrationRequests(requests) {
+  // Atualizar badge na tab
+  const badge = document.getElementById('requestsBadge');
+  if (badge) {
+    badge.textContent = requests.length;
+    badge.style.display = requests.length > 0 ? 'inline-flex' : 'none';
+  }
+
+  const section = document.getElementById('registrationRequestsSection');
+  if (!section) return;
+
+  if (requests.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  section.innerHTML = `
+    <div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+      <div style="font-size:15px;font-weight:800;color:#92400e;margin-bottom:12px;">
+        ✍️ Pedidos de acesso pendentes (${requests.length})
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        ${requests.map(r => {
+          const dt = new Date(r.created_at).toLocaleString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+          const roleLabel = {coordenador:'Coordenador',user:'Técnico',comercial:'Comercial'}[r.role] || r.role;
+          return `<div style="background:#fff;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:160px;">
+              <div style="font-weight:700;color:#1e293b;font-size:14px;">${r.name}</div>
+              <div style="font-size:12px;color:#6b7280;">${r.email}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">
+                <span style="background:#eff6ff;color:#2563eb;padding:1px 7px;border-radius:10px;font-weight:600;">${roleLabel}</span>
+                ${r.portal_name ? ` · ${r.portal_name}` : ''}
+                <span style="color:#9ca3af;margin-left:6px;">${dt}</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;flex-shrink:0;">
+              <button onclick="approveRequest(${r.id},'${r.name}','${r.email}','${r.role}','${r.portal_name||''}')"
+                style="background:#16a34a;color:#fff;border:none;padding:7px 14px;border-radius:7px;font-weight:700;font-size:13px;cursor:pointer;">
+                ✓ Criar conta
+              </button>
+              <button onclick="rejectRequest(${r.id})"
+                style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;padding:7px 12px;border-radius:7px;font-weight:600;font-size:13px;cursor:pointer;">
+                ✕
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+async function approveRequest(id, name, email, role, portalName) {
+  // Marcar como aprovado
+  await authClient.authenticatedFetch('/.netlify/functions/registration-request', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, status: 'approved' })
+  });
+
+  // Abrir modal de criar utilizador pré-preenchido
+  editingUserId = null;
+  document.getElementById('userModalTitle').textContent = 'Criar Conta — ' + name;
+  document.getElementById('userForm').reset();
+  document.getElementById('passwordHint').style.display = 'none';
+  document.getElementById('userPassword').required = true;
+  document.getElementById('userPassword').placeholder = 'Definir password';
+
+  // Pré-preencher
+  document.getElementById('userUsername').value = name.split(' ')[0].toLowerCase();
+  document.getElementById('userRole').value = role;
+  togglePortalSelect();
+
+  // Seleccionar portal se existir
+  if (portalName) {
+    const portalOpt = Array.from(document.getElementById('userPortal').options)
+      .find(o => o.textContent.trim().toLowerCase().includes(portalName.toLowerCase()));
+    if (portalOpt) document.getElementById('userPortal').value = portalOpt.value;
+  }
+
+  // Mostrar email como hint
+  const hint = document.getElementById('passwordHint');
+  if (hint) { hint.style.display = 'block'; hint.textContent = 'Email do utilizador: ' + email; }
+
+  openModal('userModal');
+  // Recarregar pedidos após fechar modal
+  document.getElementById('userModal').addEventListener('click', function refreshOnClose(e) {
+    if (e.target.id === 'userModal') { loadRegistrationRequests(); this.removeEventListener('click', refreshOnClose); }
+  });
+}
+
+async function rejectRequest(id) {
+  if (!confirm('Rejeitar este pedido de acesso?')) return;
+  await authClient.authenticatedFetch('/.netlify/functions/registration-request', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, status: 'rejected' })
+  });
+  showToast('Pedido rejeitado', 'success');
+  loadRegistrationRequests();
 }
 
 function renderUsers() {
