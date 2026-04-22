@@ -2062,6 +2062,8 @@ function cancelEdit() {
   editingId = null;
   window.originalUnscheduledServiceId = null; // Limpar ID do serviço original
   window.dispatchEvent(new CustomEvent('appointmentModalClosed'));
+  // Remover overlay de localidade
+  document.getElementById('localityFirstOverlay')?.remove();
   document.getElementById('appointmentForm').reset();
   const calibCb = document.getElementById('appointmentCalibration');
   if (calibCb) calibCb.checked = false;
@@ -3123,6 +3125,64 @@ function setConfirmed(value) {
 }
 
 
+function _injectLocalityFirstOverlay() {
+  // Remove overlay anterior se existir
+  const existing = document.getElementById('localityFirstOverlay');
+  if (existing) existing.remove();
+
+  // Só para SM e novo agendamento
+  if (isLoja() || editingId) return;
+
+  // Verificar se já tem localidade
+  const localityVal = document.getElementById('appointmentLocality')?.value;
+  if (localityVal) return;
+
+  const form = document.getElementById('appointmentForm');
+  if (!form) return;
+
+  // Criar overlay semi-transparente sobre o form, deixando o selector de localidade visível
+  const overlay = document.createElement('div');
+  overlay.id = 'localityFirstOverlay';
+  overlay.style.cssText = [
+    'position:absolute',
+    'inset:0',
+    'background:rgba(255,255,255,0.75)',
+    'z-index:50',
+    'display:flex',
+    'flex-direction:column',
+    'align-items:center',
+    'justify-content:flex-start',
+    'padding-top:16px',
+    'border-radius:inherit',
+    'backdrop-filter:blur(2px)',
+    '-webkit-backdrop-filter:blur(2px)',
+    'pointer-events:none',
+  ].join(';');
+
+  overlay.innerHTML = '<div style="background:#1d4ed8;color:#fff;border-radius:12px;padding:10px 18px;font-size:14px;font-weight:700;box-shadow:0 4px 16px rgba(29,78,216,0.3);text-align:center;max-width:260px;">'
+    + '📍 Começa por escolher a localidade'
+    + '<div style="font-size:11px;font-weight:400;margin-top:4px;opacity:0.85;">A sugestão de data é automática</div>'
+    + '</div>';
+
+  // O form precisa de position:relative para o overlay funcionar
+  if (getComputedStyle(form).position === 'static') {
+    form.style.position = 'relative';
+  }
+  form.appendChild(overlay);
+
+  // Abrir automaticamente o dropdown de localidade
+  setTimeout(() => {
+    const localityBtn = document.querySelector('.locality-select');
+    if (localityBtn) localityBtn.click();
+    else {
+      const dd = document.getElementById('localityDropdown');
+      if (dd) { dd.classList.add('open'); dd.classList.add('show'); }
+      const search = document.getElementById('localitySearch');
+      if (search) { search.value = ''; renderLocalityOptions(''); search.focus(); }
+    }
+  }, 100);
+}
+
 function bootApp() {
   (async () => {
     try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
@@ -3420,13 +3480,15 @@ cancelEdit?.();
 
     document.getElementById('appointmentModal').classList.add('show');
     
-    // 🎯 FOCO AUTOMÁTICO: Colocar cursor no campo de matrícula
-    setTimeout(() => {
-      const plateInput = document.getElementById('appointmentPlate');
-      if (plateInput) {
-        plateInput.focus();
-      }
-    }, 100);
+    // SM: forçar escolha de localidade primeiro
+    if (!isLoja()) {
+      setTimeout(() => _injectLocalityFirstOverlay(), 50);
+    } else {
+      setTimeout(() => {
+        const plateInput = document.getElementById('appointmentPlate');
+        if (plateInput) plateInput.focus();
+      }, 100);
+    }
   });
 
   // --- Novo Serviço (mobile) ---
@@ -3450,14 +3512,16 @@ cancelEdit?.();
     }
 
     document.getElementById('appointmentModal').classList.add('show');
-    
-    // 🎯 FOCO AUTOMÁTICO: Colocar cursor no campo de matrícula
-    setTimeout(() => {
-      const plateInput = document.getElementById('appointmentPlate');
-      if (plateInput) {
-        plateInput.focus();
-      }
-    }, 100);
+
+    // SM: forçar escolha de localidade primeiro
+    if (!isLoja()) {
+      setTimeout(() => _injectLocalityFirstOverlay(), 50);
+    } else {
+      setTimeout(() => {
+        const plateInput = document.getElementById('appointmentPlate');
+        if (plateInput) plateInput.focus();
+      }, 100);
+    }
   });
 
   // --- Importar Excel ---
@@ -4056,6 +4120,11 @@ window.selectLocality = function (value) {
   dd?.classList.remove('open'); dd?.classList.remove('show');
   const search = document.getElementById('localitySearch');
   if (search) search.value = '';
+  // Remover overlay "escolha localidade primeiro" se existir
+  if (value) {
+    const ov = document.getElementById('localityFirstOverlay');
+    if (ov) ov.remove();
+  }
 
   // Sugestão de data — em timeout para não interferir com o dropdown
   setTimeout(function() {
