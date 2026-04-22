@@ -1509,47 +1509,63 @@ async function confirmNotDone() {
 function openReagendarModal(id) {
   if (document.getElementById('reagendarModal')) document.getElementById('reagendarModal').remove();
 
-  const appt = appointments.find(a => String(a.id) === String(id));
+  var appt = appointments.find(function(a) { return String(a.id) === String(id); });
   if (!appt) return;
 
-  const sug = appt.locality ? sugerirDataParaLocalidade(appt.locality) : null;
+  var sug = appt.locality ? sugerirDataParaLocalidade(appt.locality) : null;
+  var idStr = String(id);
 
-  var sugHtml = '';
+  var modal = document.createElement('div');
+  modal.id = 'reagendarModal';
+  modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;align-items:center;justify-content:center;';
+
+  var inner = document.createElement('div');
+  inner.style.cssText = 'background:#fff;border-radius:16px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);';
+
+  var html = '<h3 style="margin:0 0 6px;font-size:18px;font-weight:800;color:#1e293b;">Cliente quer reagendar?</h3>'
+    + '<p style="margin:0 0 16px;font-size:13px;color:#64748b;">O cliente pediu para marcar nova data?</p>';
+
   if (sug) {
     var d = new Date(sug.date + 'T12:00:00');
     var dateStr = d.toLocaleDateString('pt-PT', { weekday:'long', day:'numeric', month:'long' });
     var motivo = sug.temMesma ? '📍 Já tem serviços em ' + appt.locality + ' nesse dia'
       : sug.temProxima ? '🗺️ Localidades próximas nesse dia'
       : '📅 Dia com menos serviços (' + sug.count + '/5)';
-    sugHtml = '<div style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">'
+    html += '<div style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">'
       + '<div style="font-weight:700;color:#1d4ed8;margin-bottom:2px;">💡 Sugestão</div>'
       + '<div style="color:#1e40af;font-size:14px;font-weight:600;">' + dateStr + '</div>'
       + '<div style="color:#64748b;font-size:11px;margin-top:2px;">' + motivo + '</div>'
-      + '<button onclick="document.getElementById('reagendarDate').value='' + sug.date + ''" '
-      + 'style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>'
+      + '<button id="reagendarUsarBtn" style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>'
       + '</div>';
   }
 
-  const modal = document.createElement('div');
-  modal.id = 'reagendarModal';
-  modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;align-items:center;justify-content:center;';
-
-  var inner = document.createElement('div');
-  inner.style.cssText = 'background:#fff;border-radius:16px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);';
-  inner.innerHTML = '<h3 style="margin:0 0 6px;font-size:18px;font-weight:800;color:#1e293b;">Cliente quer reagendar?</h3>'
-    + '<p style="margin:0 0 16px;font-size:13px;color:#64748b;">O cliente pediu para marcar nova data?</p>'
-    + sugHtml
-    + '<div style="margin-bottom:16px;">'
+  html += '<div style="margin-bottom:16px;">'
     + '<label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Data pretendida</label>'
     + '<input type="date" id="reagendarDate" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;" value="' + (sug ? sug.date : '') + '">'
     + '</div>'
     + '<div style="display:flex;gap:10px;justify-content:flex-end;">'
-    + '<button onclick="document.getElementById('reagendarModal').remove()" style="padding:10px 18px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-weight:600;cursor:pointer;font-size:14px;">Não</button>'
-    + '<button onclick="confirmReagendar('' + id + '')" style="padding:10px 18px;border:none;border-radius:8px;background:#7c3aed;color:#fff;font-weight:700;cursor:pointer;font-size:14px;">✅ Reagendar</button>'
+    + '<button id="reagendarNaoBtn" style="padding:10px 18px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-weight:600;cursor:pointer;font-size:14px;">Não</button>'
+    + '<button id="reagendarSimBtn" style="padding:10px 18px;border:none;border-radius:8px;background:#7c3aed;color:#fff;font-weight:700;cursor:pointer;font-size:14px;">✅ Reagendar</button>'
     + '</div>';
 
+  inner.innerHTML = html;
   modal.appendChild(inner);
   document.body.appendChild(modal);
+
+  // Ligar eventos após inserção no DOM
+  var naoBtn = document.getElementById('reagendarNaoBtn');
+  if (naoBtn) naoBtn.onclick = function() { document.getElementById('reagendarModal').remove(); };
+
+  var simBtn = document.getElementById('reagendarSimBtn');
+  if (simBtn) simBtn.onclick = function() { confirmReagendar(idStr); };
+
+  if (sug) {
+    var usarBtn = document.getElementById('reagendarUsarBtn');
+    if (usarBtn) usarBtn.onclick = function() {
+      var di = document.getElementById('reagendarDate');
+      if (di) di.value = sug.date;
+    };
+  }
 }
 
 
