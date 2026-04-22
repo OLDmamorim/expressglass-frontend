@@ -327,6 +327,15 @@ function sugerirDataParaLocalidade(locality) {
     naBtn.textContent = '📞 Não atendeu';
     naBtn.onclick = function() { crNoAnswer(req); };
 
+    // Mostrar ícone persistente se já houve pelo menos um "não atendeu"
+    var naHistory = getNaState()['history_' + req.id];
+    if (naHistory) {
+      var naIcon = document.createElement('div');
+      naIcon.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;';
+      naIcon.textContent = '📞 ' + naHistory + 'x não atendeu';
+      card.appendChild(naIcon);
+    }
+
     // Restaurar estado "não atendeu" do sessionStorage (persiste após refresh)
     (function() {
       var st = getNaState()[req.id];
@@ -352,6 +361,17 @@ function sugerirDataParaLocalidade(locality) {
           b2.textContent = '📞 Tentar de novo';
           var b3 = c2.querySelector('.cr-reminder');
           if (b3) b3.textContent = '🔔 Hora de ligar!';
+          // Atualizar ícone de histórico
+          var cnt = getNaState()['history_' + req.id] || 0;
+          var icons = c2.querySelectorAll('[data-na-icon]');
+          icons.forEach(function(el) { el.remove(); });
+          if (cnt > 0) {
+            var naIcon = document.createElement('div');
+            naIcon.setAttribute('data-na-icon','1');
+            naIcon.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;';
+            naIcon.textContent = '📞 ' + cnt + 'x não atendeu';
+            c2.appendChild(naIcon);
+          }
         }, msLeft);
       } else {
         setNaState(req.id, null);
@@ -545,7 +565,12 @@ function sugerirDataParaLocalidade(locality) {
     btn.disabled = true;
     btn.textContent = '⏳ Aguardar até ' + remindStr;
 
-    // Guardar estado em sessionStorage
+    // Incrementar contador histórico (permanece até agendamento)
+    var histKey = 'history_' + id;
+    var prevCount = (getNaState()[histKey] || 0);
+    setNaState(histKey, prevCount + 1);
+
+    // Guardar estado de timer em sessionStorage
     setNaState(id, { remindAt: remind.getTime() });
     setTimeout(function() {
       setNaState(id, null);
