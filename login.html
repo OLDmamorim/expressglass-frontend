@@ -301,10 +301,8 @@
           <input type="email" id="regEmail" placeholder="joao.silva@expressglass.pt" required>
         </div>
         <div class="form-group">
-          <label for="regPortal">Loja / Portal</label>
-          <select id="regPortal">
-            <option value="">A carregar lojas...</option>
-          </select>
+          <label for="regPortal">Loja / Região</label>
+          <input type="text" id="regPortal" placeholder="Ex: Braga, Viana do Castelo SM...">
         </div>
         <div class="form-group">
           <label for="regRole">Cargo</label>
@@ -389,18 +387,7 @@
 
     async function loadPortalsForRegister() {
       const sel = document.getElementById('regPortal');
-      if (sel.dataset.loaded === '1') return;
-      try {
-        const resp = await fetch('/.netlify/functions/registration-request?action=portals');
-        const data = await resp.json();
-        if (data.success && data.portals) {
-          sel.innerHTML = '<option value="">Selecionar loja/portal...</option>'
-            + data.portals.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
-          sel.dataset.loaded = '1';
-        }
-      } catch(e) {
-        sel.innerHTML = '<option value="">Erro ao carregar — escreva o nome</option>';
-      }
+      // campo livre — nada a carregar
     }
 
     const registerForm  = document.getElementById('registerForm');
