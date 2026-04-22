@@ -212,6 +212,24 @@ function togglePortalTypeFields() {
   if (localitiesSection) {
     localitiesSection.style.display = type === 'loja' ? 'none' : 'block';
   }
+  const pegSection = document.getElementById('poweringLojaSection');
+  if (pegSection) pegSection.style.display = type === 'loja' ? 'block' : 'none';
+}
+
+async function loadPoweringLojas() {
+  const select = document.getElementById('portalPoweringLoja');
+  if (!select || select.dataset.loaded === '1') return;
+  select.innerHTML = '<option value="">A carregar...</option>';
+  try {
+    const resp = await authClient.authenticatedFetch('/.netlify/functions/powering-kpis?action=lojas');
+    const data = await resp.json();
+    select.innerHTML = '<option value="">-- Não associado --</option>'
+      + (data.lojas || []).map(l => `<option value="${l.id}">${l.nome} (nº${l.numeroLoja})</option>`).join('');
+    select.dataset.loaded = '1';
+  } catch(e) {
+    select.innerHTML = '<option value="">Erro ao carregar lojas</option>';
+    console.warn('Erro ao carregar lojas PoweringEG:', e);
+  }
 }
 
 // Gestão de localidades - REMOVIDO (308 concelhos automáticos no frontend)
@@ -225,6 +243,7 @@ document.getElementById('addPortalBtn').addEventListener('click', () => {
   
   populateNmdosSelect();
   togglePortalTypeFields();
+  loadPoweringLojas();
   
   openModal('portalModal');
 });
@@ -242,6 +261,10 @@ function editPortal(id) {
   populateNmdosSelect();
   document.getElementById('portalNmdos').value = portal.nmdos_code || '';
   togglePortalTypeFields();
+  loadPoweringLojas().then(() => {
+    const sel = document.getElementById('portalPoweringLoja');
+    if (sel) sel.value = portal.powering_loja_id || '';
+  });
   
   openModal('portalModal');
 }
@@ -285,7 +308,8 @@ document.getElementById('portalForm').addEventListener('submit', async (e) => {
     departure_address: address, 
     localities: {},
     nmdos_code: document.getElementById('portalNmdos').value || null,
-    portal_type: portalType
+    portal_type: portalType,
+    powering_loja_id: document.getElementById('portalPoweringLoja')?.value || null
   };
   
   try {
