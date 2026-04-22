@@ -3125,6 +3125,86 @@ function setConfirmed(value) {
 }
 
 
+async function _checkOutrosSMsLocalidade(locality) {
+  var oldAlert = document.getElementById('localityNearbyAlert');
+  if (oldAlert) oldAlert.remove();
+
+  if (!window.authClient || !window.authClient.authenticatedFetch) return;
+
+  // Janela: próximos 3 dias úteis (excluindo hoje)
+  var diasUteis = [];
+  var d = new Date(); d.setHours(0,0,0,0);
+  while (diasUteis.length < 3) {
+    d.setDate(d.getDate() + 1);
+    if (d.getDay() !== 0 && d.getDay() !== 6) {
+      diasUteis.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
+    }
+  }
+
+  try {
+    // Buscar lista de todos os portais SM
+    var portaisResp = await window.authClient.authenticatedFetch('/.netlify/functions/portals');
+    var portaisData = await portaisResp.json();
+    if (!portaisData.success) return;
+
+    var outrosSMs = (portaisData.portals || portaisData.data || []).filter(function(p) {
+      return p.portal_type === 'sm' && String(p.id) !== String(window.activePortalId);
+    });
+    if (outrosSMs.length === 0) return;
+
+    // Verificar cada SM
+    var encontrados = [];
+    for (var i = 0; i < outrosSMs.length; i++) {
+      var sm = outrosSMs[i];
+      try {
+        var resp = await window.authClient.authenticatedFetch('/.netlify/functions/appointments?portal_id=' + sm.id);
+        var data = await resp.json();
+        var appts = data.data || data.appointments || [];
+        var matches = appts.filter(function(a) {
+          return a.locality && a.locality.toLowerCase() === locality.toLowerCase()
+            && a.date && diasUteis.includes(a.date)
+            && a.confirmed !== false;
+        });
+        if (matches.length > 0) {
+          var porData = {};
+          matches.forEach(function(a) { porData[a.date] = (porData[a.date] || 0) + 1; });
+          encontrados.push({ sm: sm, porData: porData });
+        }
+      } catch(e) {}
+    }
+
+    if (encontrados.length === 0) return;
+
+    // Confirmar que a localidade ainda é a mesma (utilizador pode ter mudado)
+    var cur = document.getElementById('appointmentLocality')?.value;
+    if (!cur || cur.toLowerCase() !== locality.toLowerCase()) return;
+
+    // Montar alerta
+    var alertEl = document.createElement('div');
+    alertEl.id = 'localityNearbyAlert';
+    alertEl.style.cssText = 'background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:12px 14px;margin:8px 0;font-size:13px;';
+
+    var linhas = encontrados.map(function(e) {
+      var datas = Object.entries(e.porData).map(function(kv) {
+        var dd = new Date(kv[0] + 'T12:00:00');
+        var lbl = dd.toLocaleDateString('pt-PT', { weekday:'short', day:'numeric', month:'short' });
+        return lbl + ' (' + kv[1] + (kv[1] > 1 ? ' serv.' : ' serv.') + ')';
+      }).join(', ');
+      return '<div style="margin-top:3px;">🚐 <strong>' + e.sm.name + '</strong> — ' + datas + '</div>';
+    }).join('');
+
+    alertEl.innerHTML = '<div style="font-weight:800;color:#92400e;font-size:14px;">⚠️ Outro SM já tem serviços em ' + locality + '</div>'
+      + linhas
+      + '<div style="margin-top:8px;font-size:12px;color:#a16207;font-style:italic;">Mantém neste SM ou considera passar para agrupamento?</div>';
+
+    var form = document.getElementById('appointmentForm');
+    if (form) form.insertBefore(alertEl, form.firstChild);
+
+  } catch(e) {
+    console.warn('[checkOutrosSMs]', e.message);
+  }
+}
+
 function _injectLocalityFirstOverlay() {
   // Remove overlay anterior se existir
   const existing = document.getElementById('localityFirstOverlay');
@@ -4124,6 +4204,12 @@ window.selectLocality = function (value) {
   if (value) {
     const ov = document.getElementById('localityFirstOverlay');
     if (ov) ov.remove();
+  }
+
+  // SM: verificar se há agendamentos para esta localidade nos próximos 2-3 dias
+  // Verificar se outros SMs já têm serviços nesta localidade nos próximos dias
+  if (value && !isLoja() && !editingId) {
+    _checkOutrosSMsLocalidade(value);
   }
 
   // Sugestão de data — em timeout para não interferir com o dropdown
