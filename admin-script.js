@@ -207,13 +207,13 @@ function populateNmdosSelect() {
 
 // Mostrar/esconder campos baseado no tipo de portal
 function togglePortalTypeFields() {
-  const type = document.getElementById('portalType').value;
+  const type = (document.getElementById('portalType').value || 'sm').toLowerCase();
   const localitiesSection = document.getElementById('localitiesSection');
   if (localitiesSection) {
     localitiesSection.style.display = type === 'loja' ? 'none' : 'block';
   }
   const pegSection = document.getElementById('poweringLojaSection');
-  if (pegSection) pegSection.style.display = type === 'loja' ? 'block' : 'none';
+  if (pegSection) pegSection.style.display = type.toLowerCase() === 'loja' ? 'block' : 'none';
 }
 
 async function loadPoweringLojas() {
@@ -256,7 +256,7 @@ function editPortal(id) {
   document.getElementById('portalModalTitle').textContent = 'Editar Portal';
   document.getElementById('portalName').value = portal.name;
   document.getElementById('portalAddress').value = portal.departure_address;
-  document.getElementById('portalType').value = portal.portal_type || 'sm';
+  document.getElementById('portalType').value = (portal.portal_type || 'sm').toLowerCase();
   
   populateNmdosSelect();
   document.getElementById('portalNmdos').value = portal.nmdos_code || '';
