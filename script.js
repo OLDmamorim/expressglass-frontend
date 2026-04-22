@@ -1495,12 +1495,94 @@ async function confirmNotDone() {
   if (!selected) { showToast('Selecione um motivo', 'error'); return; }
   let reason = selected.value;
   if (reason === '__outro__') {
-    reason = (document.getElementById('ndOutrosText')?.value || '').trim();
+    reason = (document.getElementById('ndOutroText')?.value || '').trim();
     if (!reason) { showToast('Descreva o motivo', 'error'); return; }
   }
   const idToSave = _pendingNotDoneId;
   closeNotDoneModal();
   await _doSaveExecuted(idToSave, false, reason);
+  // Perguntar se cliente quer reagendar
+  setTimeout(() => openReagendarModal(idToSave), 300);
+}
+
+// ===== MODAL REAGENDAR (após Não Realizado) =====
+function openReagendarModal(id) {
+  if (document.getElementById('reagendarModal')) document.getElementById('reagendarModal').remove();
+
+  const appt = appointments.find(a => String(a.id) === String(id));
+  if (!appt) return;
+
+  // Sugestão de data
+  const sug = appt.locality ? sugerirDataParaLocalidade(appt.locality) : null;
+  const sugHtml = sug ? (() => {
+    const d = new Date(sug.date + 'T12:00:00');
+    const dateStr = d.toLocaleDateString('pt-PT', { weekday:'long', day:'numeric', month:'long' });
+    const motivo = sug.temMesma ? '📍 Já tem serviços em ' + appt.locality + ' nesse dia'
+      : sug.temProxima ? '🗺️ Localidades próximas nesse dia'
+      : '📅 Dia com menos serviços (' + sug.count + '/5)';
+    return \`<div style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">
+      <div style="font-weight:700;color:#1d4ed8;margin-bottom:2px;">💡 Sugestão</div>
+      <div style="color:#1e40af;font-size:14px;font-weight:600;">\${dateStr}</div>
+      <div style="color:#64748b;font-size:11px;margin-top:2px;">\${motivo}</div>
+      <button onclick="document.getElementById('reagendarDate').value='\${sug.date}'" 
+        style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>
+    </div>\`;
+  })() : '';
+
+  const modal = document.createElement('div');
+  modal.id = 'reagendarModal';
+  modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;align-items:center;justify-content:center;';
+  modal.innerHTML = \`
+    <div style="background:#fff;border-radius:16px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+      <h3 style="margin:0 0 6px;font-size:18px;font-weight:800;color:#1e293b;">Cliente quer reagendar?</h3>
+      <p style="margin:0 0 16px;font-size:13px;color:#64748b;">O cliente pediu para marcar nova data?</p>
+      \${sugHtml}
+      <div style="margin-bottom:16px;">
+        <label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Data pretendida</label>
+        <input type="date" id="reagendarDate" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;"
+          value="\${sug ? sug.date : ''}">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="document.getElementById('reagendarModal').remove()" 
+          style="padding:10px 18px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-weight:600;cursor:pointer;font-size:14px;">Não</button>
+        <button onclick="confirmReagendar('\${id}')"
+          style="padding:10px 18px;border:none;border-radius:8px;background:#7c3aed;color:#fff;font-weight:700;cursor:pointer;font-size:14px;">✅ Reagendar</button>
+      </div>
+    </div>\`;
+  document.body.appendChild(modal);
+}
+
+async function confirmReagendar(id) {
+  const dateInput = document.getElementById('reagendarDate');
+  const newDate = dateInput?.value;
+  if (!newDate) { showToast('Selecione uma data', 'error'); return; }
+
+  document.getElementById('reagendarModal')?.remove();
+
+  const i = appointments.findIndex(a => String(a.id) === String(id));
+  if (i < 0) return;
+
+  // Mover para nova data, pré-agendado (confirmed=false) com badge especial
+  appointments[i].date = newDate;
+  appointments[i].confirmed = false;
+  appointments[i].suggested_by_client = true;
+  appointments[i].executed = null;
+  appointments[i].not_done_reason = null;
+
+  try {
+    await window.apiClient.updateAppointment(id, {
+      ...appointments[i],
+      date: newDate,
+      confirmed: false,
+      suggested_by_client: true,
+      executed: null,
+      not_done_reason: null
+    });
+    showToast('✅ Reagendado — aguarda confirmação do coordenador', 'success');
+    renderAll();
+  } catch(err) {
+    showToast('Erro ao reagendar: ' + err.message, 'error');
+  }
 }
 
 
@@ -2057,7 +2139,7 @@ function buildDesktopCard(a){
     ? `<div style="font-size:11px;font-weight:700;color:#fef3c7;background:rgba(0,0,0,0.3);border-radius:6px;padding:4px 8px;margin-top:6px;">📍 Adicionar localidade e morada para confirmar</div>`
     : '';
 
-  const preAgendadoBadge = isPreAgendado ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : '';
+  const preAgendadoBadge = isPreAgendado ? `<span class="pre-agendado-badge">${a.suggested_by_client ? '📅 Sugerido pelo cliente — ' : ''}⏳ Aguarda confirmação</span>` : '';
   const confirmBtn = canConfirm
     ? `<button class="dc-confirm-btn" data-confirm="${a.id}">✅ Confirmar agendamento</button>`
     : needsLocMsg;
@@ -2396,6 +2478,7 @@ const telBtn = phone ? `
   const isRealizado = a.executed === true;
   const isNaoRealizado = a.executed === false && !!a.not_done_reason;
   const preAgendadoM = a.confirmed === false;
+  const sugByClient = a.suggested_by_client;
   const todayISO = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO;
 
@@ -2455,7 +2538,7 @@ const telBtn = phone ? `
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${damageRow}
-        ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
+        ${preAgendadoM ? `<span class="pre-agendado-badge">${sugByClient ? '📅 Sugerido pelo cliente — ' : ''}⏳ Aguarda confirmação</span>` : ''}
         ${preAgendadoM
           ? `<div class="m-pending-confirm">⏳ Aguarda confirmação do coordenador</div>`
           : ''
