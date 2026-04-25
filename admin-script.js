@@ -679,7 +679,6 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
     const method = editingUserId ? 'PUT' : 'POST';
     
     console.log('[admin] PUT userData:', JSON.stringify(userData));
-    alert('A enviar: ' + JSON.stringify(userData.assigned_portal_ids));
     const response = await authClient.authenticatedFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -693,18 +692,24 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
 
       // Se veio de um pedido de inscrição, enviar email de boas-vindas
       if (!editingUserId && window._pendingWelcomeEmail) {
-        const { requestId, to, name: reqName, password } = window._pendingWelcomeEmail;
-        const username = document.getElementById('userUsername').value.trim();
-        authClient.authenticatedFetch('/.netlify/functions/registration-request', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: requestId,
-            status: 'approved',
-            welcome_email: { to, name: reqName, username, password }
-          })
-        }).catch(e => console.warn('Email boas-vindas falhou:', e));
+        const pending = window._pendingWelcomeEmail;
         window._pendingWelcomeEmail = null;
+        const username = document.getElementById('userUsername').value.trim();
+        try {
+          await authClient.authenticatedFetch('/.netlify/functions/registration-request', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: pending.requestId,
+              status: 'approved',
+              welcome_email: { to: pending.to, name: pending.name, username, password: pending.password }
+            })
+          });
+          showToast('📧 Email de boas-vindas enviado para ' + pending.to, 'success');
+        } catch(e) {
+          console.warn('Email boas-vindas falhou:', e);
+          showToast('⚠️ Conta criada mas email não enviado: ' + e.message, 'error');
+        }
       }
 
       closeModal('userModal');
