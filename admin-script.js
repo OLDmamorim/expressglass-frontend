@@ -403,7 +403,16 @@ function renderRegistrationRequests(requests) {
 }
 
 async function approveRequest(id, name, email, role, portalName) {
-  // Marcar como aprovado
+  // Gerar password automática
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  let autoPass = '';
+  for (let i = 0; i < 8; i++) autoPass += chars[Math.floor(Math.random() * chars.length)];
+
+  // Marcar como aprovado + enviar email de boas-vindas após conta criada
+  // (o email é enviado no userForm submit, após saber o username final)
+  window._pendingWelcomeEmail = { requestId: id, to: email, name, password: autoPass };
+
+  // Marcar pedido como aprovado no servidor
   await authClient.authenticatedFetch('/.netlify/functions/registration-request', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -420,6 +429,9 @@ async function approveRequest(id, name, email, role, portalName) {
 
   // Pré-preencher
   document.getElementById('userUsername').value = name.split(' ')[0].toLowerCase();
+  if (window._pendingWelcomeEmail?.password) {
+    document.getElementById('userPassword').value = window._pendingWelcomeEmail.password;
+  }
   document.getElementById('userRole').value = role;
   togglePortalSelect();
 
@@ -678,6 +690,23 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
     
     if (data.success) {
       showToast(editingUserId ? 'Utilizador atualizado' : 'Utilizador criado', 'success');
+
+      // Se veio de um pedido de inscrição, enviar email de boas-vindas
+      if (!editingUserId && window._pendingWelcomeEmail) {
+        const { requestId, to, name: reqName, password } = window._pendingWelcomeEmail;
+        const username = document.getElementById('userUsername').value.trim();
+        authClient.authenticatedFetch('/.netlify/functions/registration-request', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: requestId,
+            status: 'approved',
+            welcome_email: { to, name: reqName, username, password }
+          })
+        }).catch(e => console.warn('Email boas-vindas falhou:', e));
+        window._pendingWelcomeEmail = null;
+      }
+
       closeModal('userModal');
       loadUsers();
     } else {
@@ -696,6 +725,7 @@ function openModal(modalId) {
 
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('show');
+  if (modalId === 'userModal') window._pendingWelcomeEmail = null;
 }
 
 // Fechar modal ao clicar no X ou fora do conteúdo
