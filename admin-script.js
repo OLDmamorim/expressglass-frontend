@@ -408,16 +408,12 @@ async function approveRequest(id, name, email, role, portalName) {
   let autoPass = '';
   for (let i = 0; i < 8; i++) autoPass += chars[Math.floor(Math.random() * chars.length)];
 
-  // Marcar como aprovado + enviar email de boas-vindas após conta criada
-  // (o email é enviado no userForm submit, após saber o username final)
-  window._pendingWelcomeEmail = { requestId: id, to: email, name, password: autoPass };
-
-  // Marcar pedido como aprovado no servidor
-  await authClient.authenticatedFetch('/.netlify/functions/registration-request', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, status: 'approved' })
-  });
+  // Guardar no form via data-attributes (mais fiável que variável global)
+  const form = document.getElementById('userForm');
+  form.dataset.pendingRequestId = id;
+  form.dataset.pendingEmail = email;
+  form.dataset.pendingName = name;
+  form.dataset.pendingPassword = autoPass;
 
   // Abrir modal de criar utilizador pré-preenchido
   editingUserId = null;
@@ -429,8 +425,8 @@ async function approveRequest(id, name, email, role, portalName) {
 
   // Pré-preencher
   document.getElementById('userUsername').value = name.split(' ')[0].toLowerCase();
-  if (window._pendingWelcomeEmail?.password) {
-    document.getElementById('userPassword').value = window._pendingWelcomeEmail.password;
+  if (autoPass) {
+    document.getElementById('userPassword').value = autoPass;
   }
   document.getElementById('userRole').value = role;
   togglePortalSelect();
@@ -691,24 +687,32 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
       showToast(editingUserId ? 'Utilizador atualizado' : 'Utilizador criado', 'success');
 
       // Se veio de um pedido de inscrição, enviar email de boas-vindas
-      if (!editingUserId && window._pendingWelcomeEmail) {
-        const pending = window._pendingWelcomeEmail;
-        window._pendingWelcomeEmail = null;
-        const username = document.getElementById('userUsername').value.trim();
+      const form2 = document.getElementById('userForm');
+      const pendingRequestId = form2.dataset.pendingRequestId;
+      if (!editingUserId && pendingRequestId) {
+        const pendingEmail    = form2.dataset.pendingEmail;
+        const pendingName     = form2.dataset.pendingName;
+        const pendingPassword = form2.dataset.pendingPassword;
+        const username        = document.getElementById('userUsername').value.trim();
+        // Limpar data-attributes
+        delete form2.dataset.pendingRequestId;
+        delete form2.dataset.pendingEmail;
+        delete form2.dataset.pendingName;
+        delete form2.dataset.pendingPassword;
         try {
           await authClient.authenticatedFetch('/.netlify/functions/registration-request', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              id: pending.requestId,
+              id: parseInt(pendingRequestId),
               status: 'approved',
-              welcome_email: { to: pending.to, name: pending.name, username, password: pending.password }
+              welcome_email: { to: pendingEmail, name: pendingName, username, password: pendingPassword }
             })
           });
-          showToast('📧 Email de boas-vindas enviado para ' + pending.to, 'success');
+          showToast('📧 Email de boas-vindas enviado para ' + pendingEmail, 'success');
         } catch(e) {
           console.warn('Email boas-vindas falhou:', e);
-          showToast('⚠️ Conta criada mas email não enviado: ' + e.message, 'error');
+          showToast('⚠️ Conta criada mas email não enviado', 'error');
         }
       }
 
@@ -730,7 +734,16 @@ function openModal(modalId) {
 
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('show');
-  if (modalId === 'userModal') window._pendingWelcomeEmail = null;
+  if (modalId === 'userModal') {
+    // Limpar dados de pedido pendente
+    const form = document.getElementById('userForm');
+    if (form) {
+      delete form.dataset.pendingRequestId;
+      delete form.dataset.pendingEmail;
+      delete form.dataset.pendingName;
+      delete form.dataset.pendingPassword;
+    }
+  }
 }
 
 // Fechar modal ao clicar no X ou fora do conteúdo
