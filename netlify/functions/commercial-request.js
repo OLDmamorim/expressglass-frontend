@@ -74,6 +74,12 @@ exports.handler = async (event) => {
           WHERE cr.confirmed_portal_id = $1
             AND cr.status = 'pending'
             AND cr.created_at > NOW() - INTERVAL '7 days'
+            AND NOT EXISTS (
+              SELECT 1 FROM appointments a
+              WHERE a.portal_id = cr.confirmed_portal_id
+                AND UPPER(REPLACE(REPLACE(a.plate,'-',''),' ','')) = UPPER(REPLACE(REPLACE(cr.plate,'-',''),' ',''))
+                AND a.date IS NOT NULL
+            )
           ORDER BY cr.created_at DESC
         `, [portalId]));
       } else {
