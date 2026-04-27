@@ -986,11 +986,14 @@ async function startImport() {
     const email = emailCol >= 0 && row[emailCol] ? String(row[emailCol]).trim() : '';
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
 
-    // Observações: eurocode da coluna ref
-    const notes = ref || eurocode || '';
+    // Eurocode → campo extra (label "Eurocode" no form)
+    const extra = eurocode || ref || '';
 
-    // Outros dados: só o nome do segurado
-    const extra = segurado || '';
+    // Segurado/Nome → client_name
+    const clientName = nome || segurado || '';
+
+    // Observações → campo notes
+    const notes = obs || '';
 
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
@@ -1017,6 +1020,7 @@ async function startImport() {
       notes,
       extra,
       phone,
+      client_name: clientName || null,
       status: 'NE',
       createdAt,
       date: scheduleDate || null,
@@ -1145,8 +1149,11 @@ async function startSync() {
     const car = [marca, modelo].filter(Boolean).join(' ') || 'Sem modelo';
     const ref = refCol >= 0 && row[refCol] ? String(row[refCol]).trim() : '';
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
-    const notes = ref || eurocode || '';
-    const extra = seguradoCol >= 0 && row[seguradoCol] ? String(row[seguradoCol]).trim() : '';
+    const seguradoSync = seguradoCol >= 0 && row[seguradoCol] ? String(row[seguradoCol]).trim() : '';
+    const nomeSync = nomeCol >= 0 && row[nomeCol] ? String(row[nomeCol]).trim() : '';
+    const extra = eurocode || ref || '';
+    const clientNameSync = nomeSync || seguradoSync || '';
+    const notes = obsCol >= 0 && row[obsCol] ? String(row[obsCol]).trim() : '';
     const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
@@ -1164,7 +1171,8 @@ async function startSync() {
     if (!byPortal[portalInfo.id]) byPortal[portalInfo.id] = [];
     byPortal[portalInfo.id].push({
       portal_id: portalInfo.id, plate, car, service: 'PB',
-      notes, extra, phone, status: 'NE', createdAt,
+      notes, extra, phone, client_name: clientNameSync || null,
+      status: 'NE', createdAt,
       date: scheduleDate || null, period: schedulePeriod || null,
       confirmed: false  // sempre pré-agendamento ao importar do Excel
     });
