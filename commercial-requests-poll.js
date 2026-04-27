@@ -595,11 +595,32 @@ function sugerirDataParaLocalidade(locality) {
 
   window.crStartPolling = start;
   window.addEventListener('portalReady', function() { setTimeout(start, 50); });
-  window.addEventListener('portalChanged', poll);
+  window.addEventListener('portalChanged', function() {
+    // Após mudar portal, aguardar que window.appointments seja preenchido
+    setTimeout(poll, 1500);
+  });
 
   // Re-poll sempre que o modal de agendamento fecha (pode ter sido gravado)
   window.addEventListener('appointmentModalClosed', function() {
     setTimeout(poll, 500);
+  });
+
+  // Interceptar window.reloadAppointments para re-poll após cada recarga de dados
+  var _origReload = null;
+  function patchReloadAppointments() {
+    if (window.reloadAppointments && window.reloadAppointments !== _patchedReload) {
+      _origReload = window.reloadAppointments;
+      window.reloadAppointments = _patchedReload;
+    }
+  }
+  async function _patchedReload() {
+    if (_origReload) await _origReload.apply(this, arguments);
+    setTimeout(poll, 200);
+  }
+  // Tentar patch imediatamente e após portalReady
+  patchReloadAppointments();
+  window.addEventListener('portalReady', function() {
+    setTimeout(patchReloadAppointments, 100);
   });
 
   var _started = false;
