@@ -190,11 +190,6 @@ function sugerirDataParaLocalidade(locality) {
   return candidatos[0];
 }
 
-  // Estado "não atendeu" persistido em sessionStorage (sobrevive a refresh)
-  const NA_KEY = 'eg_na_state';
-  function getNaState() { try { return JSON.parse(sessionStorage.getItem(NA_KEY)||'{}'); } catch(_){return {};} }
-  function setNaState(id,val) { var s=getNaState(); if(val) s[id]=val; else delete s[id]; sessionStorage.setItem(NA_KEY,JSON.stringify(s)); }
-
   const POLL_INTERVAL = 30000;
   const BANNER_ID = 'crBannerContainer';
 
@@ -326,63 +321,6 @@ function sugerirDataParaLocalidade(locality) {
     naBtn.id = 'crBtnNA-' + req.id;
     naBtn.textContent = '📞 Não atendeu';
     naBtn.onclick = function() { crNoAnswer(req); };
-
-    // Mostrar ícone persistente se já houve pelo menos um "não atendeu"
-    var naHistory = getNaState()['history_' + req.id];
-    if (naHistory) {
-      var naIcon = document.createElement('div');
-      naIcon.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;';
-      naIcon.textContent = '📞 ' + naHistory + 'x não atendeu';
-      card.appendChild(naIcon);
-    }
-
-    // Restaurar estado "não atendeu" do sessionStorage (persiste após refresh)
-    (function() {
-      var st = getNaState()[req.id];
-      if (!st) return;
-      var msLeft = st.remindAt - Date.now();
-      var remStr = String(new Date(st.remindAt).getHours()).padStart(2,'0') + ':' + String(new Date(st.remindAt).getMinutes()).padStart(2,'0');
-      if (msLeft > 0) {
-        card.classList.add('cr-no-answer');
-        naBtn.disabled = true;
-        naBtn.textContent = '⏳ Aguardar até ' + remStr;
-        var bdg = document.createElement('div');
-        bdg.className = 'cr-reminder';
-        bdg.textContent = '🔔 Ligar novamente às ' + remStr;
-        card.appendChild(bdg);
-        setTimeout(function() {
-          setNaState(req.id, null);
-          var c2 = document.getElementById('crCard-' + req.id);
-          var b2 = document.getElementById('crBtnNA-' + req.id);
-          if (!c2 || !b2) return;
-          c2.classList.remove('cr-no-answer');
-          c2.classList.add('cr-orange');
-          b2.disabled = false;
-          b2.textContent = '📞 Tentar de novo';
-          var b3 = c2.querySelector('.cr-reminder');
-          if (b3) b3.textContent = '🔔 Hora de ligar!';
-          // Atualizar ícone de histórico
-          var cnt = getNaState()['history_' + req.id] || 0;
-          var icons = c2.querySelectorAll('[data-na-icon]');
-          icons.forEach(function(el) { el.remove(); });
-          if (cnt > 0) {
-            var naIcon = document.createElement('div');
-            naIcon.setAttribute('data-na-icon','1');
-            naIcon.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;';
-            naIcon.textContent = '📞 ' + cnt + 'x não atendeu';
-            c2.appendChild(naIcon);
-          }
-        }, msLeft);
-      } else {
-        setNaState(req.id, null);
-        card.classList.add('cr-orange');
-        naBtn.textContent = '📞 Tentar de novo';
-        var bdg2 = document.createElement('div');
-        bdg2.className = 'cr-reminder';
-        bdg2.textContent = '🔔 Hora de ligar!';
-        card.appendChild(bdg2);
-      }
-    })();
 
     card.appendChild(top);
     card.appendChild(loc);
@@ -565,15 +503,17 @@ function sugerirDataParaLocalidade(locality) {
     btn.disabled = true;
     btn.textContent = '⏳ Aguardar até ' + remindStr;
 
-    // Incrementar contador histórico (permanece até agendamento)
-    var histKey = 'history_' + id;
-    var prevCount = (getNaState()[histKey] || 0);
-    setNaState(histKey, prevCount + 1);
+    // Notificar comercial via Telegram
+    if (window.authClient && window.authClient.authenticatedFetch) {
+      window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id, action: 'no_answer', plate: req.plate })
+      }).catch(function(){});
+    }
 
-    // Guardar estado de timer em sessionStorage
-    setNaState(id, { remindAt: remind.getTime() });
+    // Reativar ao chegar a hora
     setTimeout(function() {
-      setNaState(id, null);
       var c2 = document.getElementById('crCard-' + id);
       var b2 = document.getElementById('crBtnNA-' + id);
       if (!c2 || !b2) return;
@@ -584,17 +524,6 @@ function sugerirDataParaLocalidade(locality) {
       var bdg = c2.querySelector('.cr-reminder');
       if (bdg) bdg.textContent = '🔔 Hora de ligar!';
     }, remind.getTime() - Date.now());
-
-    // Notificar comercial via Telegram
-    if (window.authClient && window.authClient.authenticatedFetch) {
-      window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: id, action: 'no_answer', plate: req.plate })
-      }).catch(function(){});
-    }
-
-    // (timer já gerido acima)
   };
 
   window.crDismiss = function(id) {
@@ -629,7 +558,33 @@ function sugerirDataParaLocalidade(locality) {
   async function poll() {
     if (!shouldRun()) return;
     var requests = await fetchPendingRequests();
+
+    // Filtrar pedidos cujo plate já tem agendamento com data (foram agendados)
+    var appts = window.appointments || [];
+    requests = requests.filter(function(r) {
+      var plate = (r.plate || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      var jaAgendado = appts.some(function(a) {
+        return a.date && (a.plate || '').replace(/[^A-Z0-9]/gi, '').toUpperCase() === plate;
+      });
+      if (jaAgendado) {
+        // Marcar como done no servidor silenciosamente
+        if (window.authClient && window.authClient.authenticatedFetch) {
+          window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: r.id, status: 'done' })
+          }).catch(function(){});
+        }
+        return false;
+      }
+      return true;
+    });
+
     if (requests.length > 0) renderBanner(requests);
+    else {
+      var container = document.getElementById(BANNER_ID);
+      if (container) container.style.display = 'none';
+    }
   }
 
   function start() {
@@ -641,6 +596,11 @@ function sugerirDataParaLocalidade(locality) {
   window.crStartPolling = start;
   window.addEventListener('portalReady', function() { setTimeout(start, 50); });
   window.addEventListener('portalChanged', poll);
+
+  // Re-poll sempre que o modal de agendamento fecha (pode ter sido gravado)
+  window.addEventListener('appointmentModalClosed', function() {
+    setTimeout(poll, 500);
+  });
 
   var _started = false;
   var _t = 0;
