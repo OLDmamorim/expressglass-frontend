@@ -1196,6 +1196,127 @@ function buildLocalityOptions() {
 
 // ---------- Estado ----------
 let appointments = [];
+let blockedDays = [];
+
+function isDayBlocked(isoDate) {
+  if (!isoDate) return null;
+  const pid = String(window.activePortalId || window.portalConfig?.id || '');
+  return blockedDays.find(function(b) {
+    return b.date === isoDate && (b.portal_id === null || String(b.portal_id) === pid);
+  }) || null;
+}
+
+async function loadBlockedDays() {
+  try {
+    const pid = window.activePortalId || window.portalConfig?.id;
+    const url = '/.netlify/functions/blocked-days' + (pid ? '?portal_id=' + pid : '');
+    const resp = await window.authClient.authenticatedFetch(url);
+    const data = await resp.json();
+    if (data.success) blockedDays = data.blocked || [];
+  } catch(e) { console.warn('loadBlockedDays:', e.message); }
+}
+
+async function toggleBlockedDay(isoDate) {
+  const role = window.authClient?.getUser?.()?.role;
+  if (role !== 'admin' && role !== 'coordenador') return;
+  const existing = isDayBlocked(isoDate);
+  const pid = window.activePortalId || window.portalConfig?.id;
+  const url = '/.netlify/functions/blocked-days' + (pid ? '?portal_id=' + pid : '');
+  try {
+    if (existing) {
+      if (existing.portal_id === null && role !== 'admin') {
+        showToast('Feriado nacional — só o admin pode remover.', 'info');
+        return;
+      }
+      await window.authClient.authenticatedFetch(url, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: isoDate, remove_global: role === 'admin' && existing.portal_id === null })
+      });
+      blockedDays = blockedDays.filter(function(b) {
+        return !(b.date === isoDate && (b.portal_id === null || String(b.portal_id) === String(pid)));
+      });
+      showToast('✅ Dia desbloqueado', 'success');
+    } else {
+      var reason = prompt('Motivo (opcional):', 'Feriado local');
+      if (reason === null) return;
+      var resp = await window.authClient.authenticatedFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: isoDate, reason: reason || 'Dia bloqueado', is_holiday: false })
+      });
+      var data = await resp.json();
+      if (data.success) { blockedDays.push(data.blocked); showToast('🔒 Dia bloqueado', 'success'); }
+    }
+    applyBlockedDayOverlays();
+  } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+}
+
+// Aplicar overlays visuais APÓS o render (não toca no renderSchedule interno)
+function applyBlockedDayOverlays() {
+  var role = window.authClient?.getUser?.()?.role;
+  var canToggle = role === 'admin' || role === 'coordenador';
+
+  // Injectar estilos uma vez
+  if (!document.getElementById('_bdStyles')) {
+    var s = document.createElement('style');
+    s.id = '_bdStyles';
+    s.textContent = [
+      '.th-blocked{background:repeating-linear-gradient(45deg,#fef2f2,#fef2f2 6px,#fee2e2 6px,#fee2e2 12px)!important;}',
+      '.th-blocked .day{color:#dc2626!important;}.th-blocked .date{color:#ef4444!important;}',
+      '.bd-reason{font-size:10px;font-weight:700;color:#dc2626;background:#fff;border-radius:4px;padding:2px 5px;margin-top:2px;display:block;}',
+      '.bd-lock{background:none;border:none;cursor:pointer;font-size:12px;padding:0 2px;opacity:.55;vertical-align:middle;}',
+      '.bd-lock:hover{opacity:1;}',
+      '.td-blocked{background:repeating-linear-gradient(45deg,#fef2f2,#fef2f2 6px,#fee2e2 6px,#fee2e2 12px)!important;pointer-events:none!important;opacity:.65;}'
+    ].join('');
+    document.head.appendChild(s);
+  }
+
+  // Limpar overlays anteriores
+  document.querySelectorAll('.bd-lock,.bd-reason,.td-blocked-overlay').forEach(function(el) { el.remove(); });
+  document.querySelectorAll('.th-blocked').forEach(function(el) { el.classList.remove('th-blocked'); });
+  document.querySelectorAll('.td-blocked').forEach(function(el) { el.classList.remove('td-blocked'); });
+
+  // Aplicar a cada coluna da semana
+  var table = document.getElementById('schedule');
+  if (!table) return;
+  var headers = table.querySelectorAll('thead th');
+  // headers[0] é "Data", headers[1..6] são os dias
+  var week = [...Array(6)].map(function(_, i) { return addDays(currentMonday, i); });
+
+  week.forEach(function(d, i) {
+    var iso = localISO(d);
+    var blocked = isDayBlocked(iso);
+    var th = headers[i + 1];
+    if (!th) return;
+
+    // Botão de lock
+    if (canToggle) {
+      var btn = document.createElement('button');
+      btn.className = 'bd-lock';
+      btn.title = blocked ? 'Desbloquear dia' : 'Bloquear dia';
+      btn.textContent = blocked ? '🔒' : '🔓';
+      btn.setAttribute('onclick', 'toggleBlockedDay("' + iso + '")');
+      var dayDiv = th.querySelector('.day');
+      if (dayDiv) dayDiv.appendChild(btn);
+    }
+
+    if (blocked) {
+      th.classList.add('th-blocked');
+      var reason = document.createElement('span');
+      reason.className = 'bd-reason';
+      reason.textContent = blocked.reason || 'Bloqueado';
+      th.appendChild(reason);
+
+      // Bloquear células da coluna
+      var colIdx = i + 1;
+      table.querySelectorAll('tbody tr').forEach(function(row) {
+        var td = row.cells[colIdx];
+        if (td) td.classList.add('td-blocked');
+      });
+    }
+  });
+}
 let currentMonday = getMonday(new Date());
 let currentMobileDay = new Date();
 let editingId = null;
@@ -1704,6 +1825,11 @@ function enableDragDrop(scope){
 }
 
 async function onDropAppointment(id, targetBucket, targetIndex){
+  if (targetBucket && targetBucket !== 'unscheduled') {
+    var _dateDrop = targetBucket.split('|')[0];
+    var _blockedDrop = isDayBlocked(_dateDrop);
+    if (_blockedDrop) { showToast('🔒 ' + (_blockedDrop.reason || 'Dia bloqueado'), 'error'); return; }
+  }
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
   const a = appointments[i];
@@ -1856,6 +1982,9 @@ function editAppointment(id) {
   document.getElementById('appointmentPhone').value = appointment.phone || '';
   if (document.getElementById('appointmentClientName')) document.getElementById('appointmentClientName').value = appointment.client_name || '';
   document.getElementById('appointmentExtra').value = appointment.extra || '';
+  if (document.getElementById('appointmentDamageDetails')) {
+    document.getElementById('appointmentDamageDetails').value = appointment.damage_details || '';
+  }
   
   // Preencher campo de quilómetros se existir
   const kmValue = getKmValue(appointment);
@@ -1908,21 +2037,49 @@ function editAppointment(id) {
 }
 
 async function deleteAppointment(id) {
-  if (!confirm('Tem a certeza que pretende eliminar este agendamento?')) {
-    return;
-  }
+  // Modal de confirmação próprio (confirm() bloqueado em PWA/mobile)
+  const confirmed = await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:24px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="font-size:32px;margin-bottom:12px;">🗑️</div>
+        <div style="font-weight:700;font-size:16px;color:#1e293b;margin-bottom:8px;">Eliminar agendamento?</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:20px;">Esta ação não pode ser desfeita.</div>
+        <div style="display:flex;gap:10px;justify-content:center;">
+          <button id="confirmNo" style="background:#f1f5f9;color:#475569;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;flex:1;">Cancelar</button>
+          <button id="confirmYes" style="background:#ef4444;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;flex:1;">Eliminar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('#confirmYes').onclick = () => { document.body.removeChild(overlay); resolve(true); };
+    overlay.querySelector('#confirmNo').onclick  = () => { document.body.removeChild(overlay); resolve(false); };
+  });
+  if (!confirmed) return;
 
   try {
+    const appt = appointments.find(a => String(a.id) === String(id));
+    const commercialUserId = appt?.commercial_user_id || appt?.commercialUserId;
+
     await window.apiClient.deleteAppointment(id);
     const index = appointments.findIndex(a => String(a.id) === String(id));
-    if (index > -1) {
-      appointments.splice(index, 1);
+    if (index > -1) appointments.splice(index, 1);
+
+    // Se era pedido de comercial, marcar como cancelado
+    if (commercialUserId && appt?.plate) {
+      try {
+        await window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plate: appt.plate, status: 'cancelled', commercial_id: commercialUserId })
+        });
+      } catch(_) {}
     }
-    
+
     showToast('Agendamento eliminado com sucesso', 'success');
     renderAll();
     document.getElementById('appointmentModal').classList.remove('show');
-    
+
   } catch (error) {
     showToast('Erro ao eliminar agendamento: ' + error.message, 'error');
   }
@@ -1930,7 +2087,9 @@ async function deleteAppointment(id) {
 
 function cancelEdit() {
   editingId = null;
-  window.originalUnscheduledServiceId = null; // Limpar ID do serviço original
+  window.originalUnscheduledServiceId = null;
+  window.dispatchEvent(new CustomEvent('appointmentModalClosed'));
+  document.getElementById('localityFirstOverlay')?.remove();
   document.getElementById('appointmentForm').reset();
   const calibCb = document.getElementById('appointmentCalibration');
   if (calibCb) calibCb.checked = false;
@@ -2070,6 +2229,7 @@ function buildDesktopCard(a){
         ${car ? `<span class="dc-car">${car}</span>` : ''}
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
+      ${a.damage_details ? `<div class="dc-sub" style="margin-top:3px;font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : ''}
       ${preAgendadoBadge}
       ${confirmBtn}
       ${locWarning}
@@ -2351,6 +2511,7 @@ const telBtn = phone ? `
     a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : ''
   ].filter(Boolean).join('');
   const notes = [a.client_name, a.extra, a.notes].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
+  const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
   const phcFooter = isAutoImported ? `
@@ -2420,6 +2581,7 @@ const telBtn = phone ? `
         ${chips ? `<div class="m-chips">${chips}</div>` : ''}
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
+        ${damageRow}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
         ${preAgendadoM
           ? `<div class="m-pending-confirm">⏳ Aguarda confirmação do coordenador</div>`
@@ -2475,8 +2637,19 @@ async function renderMobileDay(){
     items = await ordenarSeNecessario(itemsRaw);
   }
 
+  var _bmBlocked = isDayBlocked(iso);
+  var _bmRole = window.authClient?.getUser?.()?.role;
+  var _bmCanToggle = _bmRole === 'admin' || _bmRole === 'coordenador';
+  var _bmBanner = '';
+  if (_bmBlocked) {
+    var _desbtn = _bmCanToggle ? '<button onclick="toggleBlockedDay(&quot;' + iso + '&quot;)" style="margin-left:auto;background:#ef4444;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">Desbloquear</button>' : '';
+    _bmBanner = '<div style="background:#fee2e2;border:1.5px solid #ef4444;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#dc2626;">🔒 ' + (_bmBlocked.reason || 'Dia bloqueado') + ' ' + _desbtn + '</div>';
+  } else if (_bmCanToggle) {
+    _bmBanner = '<div style="text-align:right;margin-bottom:6px;"><button onclick="toggleBlockedDay(&quot;' + iso + '&quot;)" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">🔓 Bloquear este dia</button></div>';
+  }
+
   if(items.length === 0){
-    list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
+    list.innerHTML = _bmBanner + '<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>';
     return;
   }
 
@@ -2508,18 +2681,18 @@ async function renderMobileDay(){
       🗺️ Ver Rota do Dia
     </button>` : '';
 
-  list.innerHTML = (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
+  list.innerHTML = _bmBanner + (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
 }
 
 // Render global
 function renderAll(){
-  // 🔧 expõe sempre o estado atual para o módulo de impressão
   window.appointments = appointments;
   try { renderSchedule(); } catch(e){ console.error('Erro renderSchedule:', e); }
   try { renderUnscheduled(); } catch(e){ console.error('Erro renderUnscheduled:', e); }
   try { renderServicesTable(); } catch(e){ console.error('Erro renderServicesTable:', e); }
   try { renderMobileDay(); } catch(e){ console.error('Erro renderMobileDay:', e); }
+  try { applyBlockedDayOverlays(); } catch(e){ console.warn('applyBlockedDayOverlays:', e); }
 }
 
 // Função global para recarregar appointments (usada pelo switcher do coordenador)
@@ -2588,6 +2761,92 @@ function openRotaDoDia() {
   window.open(url, '_blank');
 }
 
+
+
+// ===== POWERING EG KPIs =====
+let _poweringKpis = null;
+let _poweringKpisLoaded = false;
+
+async function loadPoweringKpis() {
+  if (!isLoja()) return;
+  const lojaId = window.portalConfig?.poweringLojaId;
+  if (!lojaId) return; // portal sem lojaId configurado
+
+  try {
+    const now = new Date();
+    const url = `/.netlify/functions/powering-kpis?loja_id=${lojaId}&mes=${now.getMonth()+1}&ano=${now.getFullYear()}`;
+    const resp = await window.authClient.authenticatedFetch(url);
+    const data = await resp.json();
+    if (data.success && data.kpis) {
+      _poweringKpis = data.kpis;
+      _poweringKpisLoaded = true;
+      renderPoweringBanner();
+    }
+  } catch(e) {
+    console.warn('PoweringEG KPIs não disponíveis:', e.message);
+  }
+}
+
+function renderPoweringBanner() {
+  const k = _poweringKpis;
+  if (!k) return;
+
+  // Desktop — inserir antes da tabela
+  const existing = document.getElementById('poweringKpiBanner');
+  if (existing) existing.remove();
+
+  const desvioCor = parseFloat(k.desvioPct) >= 0 ? '#16a34a' : '#dc2626';
+  const desvioBg = parseFloat(k.desvioPct) >= 0 ? '#f0fdf4' : '#fef2f2';
+  const desvioIcon = parseFloat(k.desvioPct) >= 0 ? '↑' : '↓';
+
+  const mesNome = new Date(k.ano, k.mes-1, 1).toLocaleDateString('pt-PT', {month:'long', year:'numeric'});
+
+  const banner = document.createElement('div');
+  banner.id = 'poweringKpiBanner';
+  banner.style.cssText = 'margin:0 0 0 0;background:#fff;border-bottom:1px solid #e5e7eb;padding:8px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;';
+  banner.innerHTML = `
+    <div style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;">
+      📊 ${mesNome}
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+      <div style="background:#eff6ff;border-radius:8px;padding:5px 12px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:#2563eb;line-height:1;">${k.servicos}</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:1px;">Serviços</div>
+      </div>
+      <div style="background:#f5f3ff;border-radius:8px;padding:5px 12px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:#7c3aed;line-height:1;">${k.objetivo}</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:1px;">Objetivo</div>
+      </div>
+      <div style="background:${desvioBg};border-radius:8px;padding:5px 12px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:${desvioCor};line-height:1;">${desvioIcon}${Math.abs(k.desvioPct)}%</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:1px;">Desvio diário</div>
+      </div>
+      <div style="background:#f0fdf4;border-radius:8px;padding:5px 12px;text-align:center;">
+        <div style="font-size:18px;font-weight:800;color:#16a34a;line-height:1;">${k.taxaRep}%</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:1px;">Taxa rep.</div>
+      </div>
+    </div>
+    <div style="flex:1;min-width:120px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#9ca3af;margin-bottom:3px;">
+        <span>Progresso mensal</span>
+        <span>${k.progressoPct}%</span>
+      </div>
+      <div style="height:6px;background:#e5e7eb;border-radius:3px;">
+        <div style="height:6px;background:linear-gradient(90deg,#3b82f6,#7c3aed);border-radius:3px;width:${Math.min(k.progressoPct,100)}%;transition:width 0.6s ease;"></div>
+      </div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:3px;">Dia ${k.diasPassados} de ${k.diasUteisTotais} úteis</div>
+    </div>`;
+
+  // Inserir antes do schedule ou da toolbar mobile
+  const schedule = document.getElementById('schedule');
+  if (schedule) {
+    schedule.parentElement.insertBefore(banner, schedule);
+  } else {
+    const mobileHeader = document.getElementById('mobileHeader') || document.querySelector('.mobile-day-header');
+    if (mobileHeader) mobileHeader.after(banner);
+    else document.querySelector('main, #app, body').prepend(banner);
+  }
+}
 
 function buildRelatorio() {
   const el = document.getElementById('relatorioContent');
@@ -2829,6 +3088,59 @@ function buildRelatorio() {
       </div>`;
   }
 
+  // ===== SECÇÃO TEMPO DE EXECUÇÃO POR TIPO DE SERVIÇO =====
+  const apptsConcluidos = weekAppts.filter(a => a.executed === true);
+
+  if (apptsConcluidos.length > 0) {
+    const serviceLabels = { PB: 'Para-brisas', LT: 'Lateral', OC: 'Óculo', REP: 'Reparação', POL: 'Polimento' };
+    const byService = {};
+
+    apptsConcluidos.forEach(a => {
+      const svc = a.service || 'PB';
+      if (!byService[svc]) byService[svc] = { count: 0, totalMin: 0 };
+      byService[svc].count++;
+      byService[svc].totalMin += getServiceTime(svc, a.vehicle_type || a.vehicleType, a.calibration);
+    });
+
+    html += `
+      <div style="border-top:2px solid #0ea5e9;padding-top:16px;margin-top:16px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#0ea5e9;margin-bottom:12px;">⏱️ Tempo de Execução por Tipo</div>
+        ${Object.entries(byService).sort((a,b) => b[1].count - a[1].count).map(([svc, d]) => {
+          const avgMin = Math.round(d.totalMin / d.count);
+          const h = Math.floor(avgMin / 60);
+          const m = avgMin % 60;
+          const timeStr = h > 0 ? `${h}h${String(m).padStart(2,'0')}` : `${m}min`;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;">
+            <span style="font-weight:700;color:#374151;">${serviceLabels[svc] || svc}</span>
+            <span style="display:flex;gap:12px;align-items:center;">
+              <span style="color:#6b7280;font-size:12px;">${d.count} serviço${d.count !== 1 ? 's' : ''}</span>
+              <span style="background:#e0f2fe;color:#0ea5e9;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:800;">${timeStr}/serviço</span>
+            </span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
+  // ===== MOTIVOS DE NÃO REALIZAÇÃO =====
+  const naoRealizados = weekAppts.filter(a => a.executed === false && !!a.not_done_reason);
+  if (naoRealizados.length > 0) {
+    const byMotivo = {};
+    naoRealizados.forEach(a => {
+      const m = a.not_done_reason;
+      byMotivo[m] = (byMotivo[m] || 0) + 1;
+    });
+    html += `
+      <div style="border-top:2px solid #dc2626;padding-top:16px;margin-top:16px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#dc2626;margin-bottom:12px;">❌ Motivos de Não Realização</div>
+        ${Object.entries(byMotivo).sort((a,b) => b[1]-a[1]).map(([motivo, count]) =>
+          `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px;">
+            <span style="color:#374151;">${motivo}</span>
+            <span style="background:#fef2f2;color:#dc2626;padding:2px 10px;border-radius:8px;font-size:12px;font-weight:800;">${count}×</span>
+          </div>`
+        ).join('')}
+      </div>`;
+  }
+
   html += `</div></div>`;
   el.innerHTML = html;
 }
@@ -2849,10 +3161,40 @@ function setConfirmed(value) {
 }
 
 
+function _injectLocalityFirstOverlay() {
+  var existing = document.getElementById('localityFirstOverlay');
+  if (existing) existing.remove();
+  if (isLoja() || editingId) return;
+  var localityVal = document.getElementById('appointmentLocality')?.value;
+  if (localityVal) return;
+  var form = document.getElementById('appointmentForm');
+  if (!form) return;
+  if (getComputedStyle(form).position === 'static') form.style.position = 'relative';
+  var overlay = document.createElement('div');
+  overlay.id = 'localityFirstOverlay';
+  overlay.style.cssText = 'position:absolute;inset:0;background:rgba(255,255,255,0.75);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:16px;border-radius:inherit;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);pointer-events:none;';
+  overlay.innerHTML = '<div style="background:#1d4ed8;color:#fff;border-radius:12px;padding:10px 18px;font-size:14px;font-weight:700;box-shadow:0 4px 16px rgba(29,78,216,0.3);text-align:center;max-width:260px;">📍 Começa por escolher a localidade<div style="font-size:11px;font-weight:400;margin-top:4px;opacity:0.85;">A sugestão de data é automática</div></div>';
+  form.appendChild(overlay);
+  setTimeout(function() {
+    var localityBtn = document.querySelector('.locality-select');
+    if (localityBtn) localityBtn.click();
+    else {
+      var dd = document.getElementById('localityDropdown');
+      if (dd) { dd.classList.add('open'); dd.classList.add('show'); }
+      var search = document.getElementById('localitySearch');
+      if (search) { search.value = ''; renderLocalityOptions(''); search.focus(); }
+    }
+  }, 100);
+}
+
 function bootApp() {
   (async () => {
     try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
     try { await load(); } catch(e){ console.error('load() falhou', e); }
+    try { await loadBlockedDays(); } catch(e){ console.warn('loadBlockedDays falhou', e); }
+    try { await loadPoweringKpis(); } catch(e){ console.warn('PoweringEG falhou', e); }
+    // Arrancar polling de pedidos comerciais após tudo carregado
+    try { if (typeof window.crStartPolling === 'function') window.crStartPolling(); } catch(e){}
     try { buildLocalityOptions?.(); } catch(e){}
     renderAll();
   document.querySelector('.locality-select')?.addEventListener('click', toggleLocalityDropdown);
@@ -2986,7 +3328,8 @@ function bootApp() {
       commercial_user_id: document.getElementById('appointmentCommercial')?.value
         ? parseInt(document.getElementById('appointmentCommercial').value)
         : null,
-      client_name: (document.getElementById('appointmentClientName')?.value || '').trim() || null
+      client_name: (document.getElementById('appointmentClientName')?.value || '').trim() || null,
+      damage_details: (document.getElementById('appointmentDamageDetails')?.value || '').trim() || null
     };
   }
 
@@ -2998,6 +3341,10 @@ function bootApp() {
     // Guardar último tipo de veículo selecionado
     if (payload.vehicleType) localStorage.setItem('eg_last_vehicleType', payload.vehicleType);
 
+    if (payload.date && payload.confirmed !== false) {
+      var _bd = isDayBlocked(payload.date);
+      if (_bd && !confirm('⚠️ ' + (_bd.reason || 'Dia bloqueado') + '\nAgendar mesmo assim?')) return;
+    }
     // defaults mínimos
     if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
     if (!payload.service) { showToast('Tipo de serviço é obrigatório', 'error'); return; }
@@ -3125,30 +3472,22 @@ cancelEdit?.();
     document.getElementById('appointmentForm').reset();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
-    setConfirmed(false); // default: pré-agendamento
-
-    // Carregar último tipo de veículo usado
+    setConfirmed(false);
     const lastVT = localStorage.getItem('eg_last_vehicleType') || 'L';
     const vtSelect = document.getElementById('appointmentVehicleType');
     if (vtSelect) vtSelect.value = lastVT;
-
-    // Reset dropdown da localidade
     const selectedText = document.getElementById('selectedLocalityText');
     const selectedDot = document.getElementById('selectedLocalityDot');
     if (selectedText && selectedDot) {
       selectedText.textContent = 'Selecione a localidade';
       selectedDot.style.backgroundColor = '';
     }
-
     document.getElementById('appointmentModal').classList.add('show');
-    
-    // 🎯 FOCO AUTOMÁTICO: Colocar cursor no campo de matrícula
-    setTimeout(() => {
-      const plateInput = document.getElementById('appointmentPlate');
-      if (plateInput) {
-        plateInput.focus();
-      }
-    }, 100);
+    if (!isLoja()) {
+      setTimeout(() => _injectLocalityFirstOverlay(), 50);
+    } else {
+      setTimeout(() => { const p = document.getElementById('appointmentPlate'); if (p) p.focus(); }, 100);
+    }
   });
 
   // --- Novo Serviço (mobile) ---
@@ -3157,29 +3496,22 @@ cancelEdit?.();
     document.getElementById('appointmentForm').reset();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
-    setConfirmed(false); // default: pré-agendamento
-
-    // Carregar último tipo de veículo usado
+    setConfirmed(false);
     const lastVT = localStorage.getItem('eg_last_vehicleType') || 'L';
     const vtSelect = document.getElementById('appointmentVehicleType');
     if (vtSelect) vtSelect.value = lastVT;
-
     const selectedText = document.getElementById('selectedLocalityText');
     const selectedDot = document.getElementById('selectedLocalityDot');
     if (selectedText && selectedDot) {
       selectedText.textContent = 'Selecione a localidade';
       selectedDot.style.backgroundColor = '';
     }
-
     document.getElementById('appointmentModal').classList.add('show');
-    
-    // 🎯 FOCO AUTOMÁTICO: Colocar cursor no campo de matrícula
-    setTimeout(() => {
-      const plateInput = document.getElementById('appointmentPlate');
-      if (plateInput) {
-        plateInput.focus();
-      }
-    }, 100);
+    if (!isLoja()) {
+      setTimeout(() => _injectLocalityFirstOverlay(), 50);
+    } else {
+      setTimeout(() => { const p = document.getElementById('appointmentPlate'); if (p) p.focus(); }, 100);
+    }
   });
 
   // --- Importar Excel ---
@@ -3577,6 +3909,196 @@ window.toggleLocalityDropdown = function () {
   }
 };
 
+const PROX = {
+  "Abrantes": ['Santarém', 'Tomar', 'Torres Novas', 'Entroncamento'],
+  "Albufeira": ['Loulé', 'Silves', 'Lagoa', 'Portimão'],
+  "Alcobaça": ['Leiria', 'Batalha', 'Nazaré', 'Caldas da Rainha', 'Porto de Mós'],
+  "Alcochete": ['Montijo', 'Benavente', 'Palmela'],
+  "Alcácer do Sal": ['Setúbal', 'Grândola', 'Santiago do Cacém', 'Évora'],
+  "Almada": ['Lisboa', 'Seixal', 'Sesimbra', 'Palmela'],
+  "Almeirim": ['Santarém', 'Cartaxo', 'Alpiarça'],
+  "Amadora": ['Lisboa', 'Odivelas', 'Sintra', 'Cascais', 'Oeiras'],
+  "Amarante": ['Felgueiras', 'Lousada', 'Penafiel', 'Celorico de Basto', 'Marco de Canaveses'],
+  "Amares": ['Braga', 'Barcelos', 'Póvoa de Lanhoso', 'Terras de Bouro', 'Vila Verde'],
+  "Anadia": ['Aveiro', 'Oliveira do Bairro', 'Mealhada', 'Cantanhede', 'Coimbra'],
+  "Arcos de Valdevez": ['Ponte de Lima', 'Viana do Castelo', 'Ponte da Barca', 'Monção', 'Terras de Bouro'],
+  "Arouca": ['Vale de Cambra', 'Sever do Vouga', 'Santa Maria da Feira'],
+  "Aveiro": ['Ílhavo', 'Estarreja', 'Vagos', 'Murtosa', 'Oliveira do Bairro', 'Águeda'],
+  "Azambuja": ['Vila Franca de Xira', 'Cartaxo', 'Rio Maior'],
+  "Barcelos": ['Braga', 'Famalicão', 'Póvoa de Varzim', 'Esposende', 'Amares', 'Vila Verde'],
+  "Barreiro": ['Seixal', 'Moita', 'Montijo', 'Palmela'],
+  "Batalha": ['Leiria', 'Porto de Mós', 'Alcobaça'],
+  "Beja": ['Cuba', 'Serpa', 'Vidigueira', 'Ferreira do Alentejo', 'Alvito'],
+  "Benavente": ['Montijo', 'Alcochete', 'Vila Franca de Xira', 'Santarém'],
+  "Borba": ['Estremoz', 'Vila Viçosa', 'Reguengos de Monsaraz'],
+  "Braga": ['Barcelos', 'Famalicão', 'Guimarães', 'Póvoa de Lanhoso', 'Amares', 'Vila Verde', 'Esposende', 'Póvoa de Varzim'],
+  "Bragança": ['Vinhais', 'Macedo de Cavaleiros', 'Miranda do Douro', 'Vimioso'],
+  "Cabeceiras de Basto": ['Fafe', 'Celorico de Basto', 'Amarante', 'Mondim de Basto'],
+  "Caldas da Rainha": ['Leiria', 'Alcobaça', 'Nazaré', 'Óbidos', 'Torres Vedras'],
+  "Caminha": ['Viana do Castelo', 'Vila Nova de Cerveira', 'Ponte de Lima'],
+  "Campo Maior": ['Elvas', 'Portalegre'],
+  "Cantanhede": ['Coimbra', 'Vagos', 'Mira', 'Montemor-o-Velho', 'Figueira da Foz', 'Anadia'],
+  "Cartaxo": ['Santarém', 'Almeirim', 'Vila Franca de Xira', 'Azambuja'],
+  "Cascais": ['Sintra', 'Oeiras', 'Lisboa'],
+  "Castelo Branco": ['Covilhã', 'Fundão', 'Proença-a-Nova', 'Idanha-a-Nova', 'Oleiros'],
+  "Celorico de Basto": ['Cabeceiras de Basto', 'Amarante', 'Felgueiras'],
+  "Chaves": ['Valpaços', 'Montalegre', 'Boticas', 'Vinhais'],
+  "Coimbra": ['Condeixa-a-Nova', 'Montemor-o-Velho', 'Mealhada', 'Anadia', 'Cantanhede', 'Miranda do Corvo', 'Penacova', 'Soure'],
+  "Covilhã": ['Castelo Branco', 'Fundão', 'Belmonte', 'Guarda', 'Seia'],
+  "Elvas": ['Portalegre', 'Campo Maior', 'Estremoz'],
+  "Entroncamento": ['Torres Novas', 'Abrantes', 'Tomar'],
+  "Espinho": ['Gaia', 'Santa Maria da Feira', 'Ovar'],
+  "Esposende": ['Barcelos', 'Braga', 'Viana do Castelo', 'Póvoa de Varzim'],
+  "Estarreja": ['Aveiro', 'Murtosa', 'Ovar', 'Oliveira de Azeméis', 'Albergaria-a-Velha'],
+  "Estremoz": ['Évora', 'Arraiolos', 'Borba', 'Vila Viçosa', 'Elvas'],
+  "Fafe": ['Guimarães', 'Braga', 'Póvoa de Lanhoso', 'Cabeceiras de Basto', 'Vieira do Minho'],
+  "Famalicão": ['Braga', 'Barcelos', 'Trofa', 'Santo Tirso', 'Póvoa de Varzim', 'Vila do Conde', 'Guimarães'],
+  "Faro": ['Loulé', 'Olhão', 'São Brás de Alportel', 'Tavira'],
+  "Felgueiras": ['Guimarães', 'Paços de Ferreira', 'Lousada', 'Amarante', 'Celorico de Basto'],
+  "Figueira da Foz": ['Cantanhede', 'Mira', 'Montemor-o-Velho', 'Soure'],
+  "Fundão": ['Castelo Branco', 'Covilhã', 'Belmonte'],
+  "Gaia": ['Porto', 'Gondomar', 'Santa Maria da Feira', 'Espinho', 'Matosinhos'],
+  "Gondomar": ['Porto', 'Gaia', 'Valongo', 'Penafiel', 'Santa Maria da Feira'],
+  "Gouveia": ['Seia', 'Guarda', 'Mangualde', 'Celorico da Beira'],
+  "Grândola": ['Setúbal', 'Alcácer do Sal', 'Santiago do Cacém', 'Sines'],
+  "Guarda": ['Covilhã', 'Manteigas', 'Seia', 'Sabugal', 'Pinhel', 'Trancoso', 'Celorico da Beira'],
+  "Guimarães": ['Braga', 'Famalicão', 'Felgueiras', 'Fafe', 'Vizela', 'Santo Tirso', 'Paços de Ferreira'],
+  "Lagoa": ['Portimão', 'Silves', 'Albufeira'],
+  "Lagos": ['Portimão', 'Aljezur', 'Vila do Bispo'],
+  "Lamego": ['Peso da Régua', 'Resende', 'Castro Daire', 'Tarouca'],
+  "Leiria": ['Batalha', 'Marinha Grande', 'Porto de Mós', 'Alcobaça', 'Pombal', 'Ourém'],
+  "Lisboa": ['Loures', 'Odivelas', 'Amadora', 'Sintra', 'Oeiras', 'Cascais', 'Almada'],
+  "Loulé": ['Faro', 'Albufeira', 'São Brás de Alportel', 'Silves', 'Tavira'],
+  "Loures": ['Lisboa', 'Odivelas', 'Vila Franca de Xira', 'Mafra', 'Sintra'],
+  "Lousada": ['Felgueiras', 'Paços de Ferreira', 'Penafiel', 'Amarante'],
+  "Lousã": ['Miranda do Corvo', 'Coimbra', 'Góis', 'Oliveira do Hospital'],
+  "Macedo de Cavaleiros": ['Bragança', 'Mirandela', 'Vinhais', 'Alfândega da Fé'],
+  "Mafra": ['Sintra', 'Loures', 'Torres Vedras'],
+  "Maia": ['Porto', 'Matosinhos', 'Trofa', 'Vila do Conde', 'Valongo', 'Gondomar'],
+  "Mangualde": ['Viseu', 'Nelas', 'Penalva do Castelo', 'Gouveia'],
+  "Marco de Canaveses": ['Amarante', 'Penafiel', 'Baião', 'Resende'],
+  "Marinha Grande": ['Leiria', 'Pombal', 'Alcobaça'],
+  "Matosinhos": ['Porto', 'Maia', 'Póvoa de Varzim', 'Vila do Conde', 'Gondomar'],
+  "Mealhada": ['Aveiro', 'Águeda', 'Anadia', 'Coimbra'],
+  "Melgaço": ['Monção', 'Arcos de Valdevez'],
+  "Miranda do Corvo": ['Coimbra', 'Condeixa-a-Nova', 'Lousã', 'Góis'],
+  "Mirandela": ['Macedo de Cavaleiros', 'Chaves', 'Valpaços', 'Murça'],
+  "Moita": ['Barreiro', 'Montijo', 'Palmela'],
+  "Montalegre": ['Chaves', 'Boticas', 'Vieira do Minho', 'Terras de Bouro'],
+  "Montijo": ['Barreiro', 'Moita', 'Alcochete', 'Benavente'],
+  "Monção": ['Valença', 'Melgaço', 'Arcos de Valdevez', 'Paredes de Coura'],
+  "Moura": ['Serpa', 'Beja', 'Barrancos', 'Mourão'],
+  "Murtosa": ['Aveiro', 'Estarreja', 'Ovar'],
+  "Mértola": ['Serpa', 'Beja', 'Castro Verde'],
+  "Nazaré": ['Alcobaça', 'Caldas da Rainha'],
+  "Nelas": ['Viseu', 'Mangualde', 'Anadia', 'Santa Comba Dão'],
+  "Odivelas": ['Lisboa', 'Loures', 'Amadora', 'Sintra'],
+  "Oeiras": ['Lisboa', 'Amadora', 'Cascais', 'Sintra'],
+  "Olhão": ['Faro', 'Tavira', 'São Brás de Alportel'],
+  "Oliveira de Azeméis": ['Santa Maria da Feira', 'Estarreja', 'São João da Madeira', 'Vale de Cambra', 'Albergaria-a-Velha'],
+  "Oliveira do Bairro": ['Aveiro', 'Águeda', 'Mealhada', 'Anadia'],
+  "Oliveira do Hospital": ['Lousã', 'Góis', 'Arganil', 'Seia', 'Nelas'],
+  "Ourém": ['Tomar', 'Leiria', 'Batalha'],
+  "Ovar": ['Espinho', 'Estarreja', 'Santa Maria da Feira', 'Murtosa'],
+  "Palmela": ['Setúbal', 'Seixal', 'Barreiro', 'Almada', 'Alcochete'],
+  "Paredes": ['Valongo', 'Gondomar', 'Penafiel', 'Santo Tirso', 'Paços de Ferreira'],
+  "Paredes de Coura": ['Vila Nova de Cerveira', 'Valença', 'Monção', 'Ponte de Lima'],
+  "Paços de Ferreira": ['Guimarães', 'Felgueiras', 'Lousada', 'Santo Tirso', 'Paredes'],
+  "Penafiel": ['Gondomar', 'Valongo', 'Paredes', 'Lousada', 'Amarante'],
+  "Peniche": ['Óbidos', 'Caldas da Rainha'],
+  "Peso da Régua": ['Vila Real', 'Lamego', 'Mesão Frio'],
+  "Pombal": ['Leiria', 'Marinha Grande', 'Coimbra', 'Soure'],
+  "Ponte da Barca": ['Arcos de Valdevez', 'Ponte de Lima', 'Terras de Bouro'],
+  "Ponte de Lima": ['Viana do Castelo', 'Braga', 'Arcos de Valdevez', 'Barcelos', 'Ponte da Barca'],
+  "Portalegre": ['Elvas', 'Campo Maior', 'Alter do Chão', 'Arronches', 'Marvão', 'Crato'],
+  "Portimão": ['Lagoa', 'Silves', 'Lagos', 'Monchique'],
+  "Porto": ['Gaia', 'Matosinhos', 'Maia', 'Gondomar', 'Valongo'],
+  "Porto de Mós": ['Leiria', 'Batalha', 'Alcobaça', 'Torres Novas'],
+  "Póvoa de Lanhoso": ['Braga', 'Amares', 'Fafe', 'Vieira do Minho', 'Guimarães'],
+  "Póvoa de Varzim": ['Vila do Conde', 'Barcelos', 'Famalicão', 'Esposende', 'Maia', 'Matosinhos'],
+  "Rio Maior": ['Santarém', 'Caldas da Rainha', 'Alcobaça', 'Azambuja'],
+  "Santa Maria da Feira": ['Gaia', 'Gondomar', 'Espinho', 'Ovar', 'Oliveira de Azeméis', 'São João da Madeira'],
+  "Santarém": ['Torres Novas', 'Almeirim', 'Cartaxo', 'Rio Maior', 'Benavente', 'Abrantes'],
+  "Santiago do Cacém": ['Grândola', 'Sines', 'Alcácer do Sal', 'Odemira'],
+  "Santo Tirso": ['Guimarães', 'Famalicão', 'Trofa', 'Maia', 'Paredes', 'Paços de Ferreira'],
+  "Seia": ['Guarda', 'Gouveia', 'Oliveira do Hospital', 'Covilhã'],
+  "Seixal": ['Almada', 'Barreiro', 'Palmela', 'Setúbal'],
+  "Serpa": ['Beja', 'Moura', 'Mértola', 'Vidigueira'],
+  "Sesimbra": ['Almada', 'Setúbal', 'Palmela'],
+  "Setúbal": ['Palmela', 'Seixal', 'Almada', 'Alcácer do Sal', 'Grândola'],
+  "Sever do Vouga": ['Albergaria-a-Velha', 'Águeda', 'Vale de Cambra', 'Arouca'],
+  "Silves": ['Loulé', 'Albufeira', 'Portimão', 'Lagoa'],
+  "Sines": ['Santiago do Cacém', 'Grândola', 'Odemira'],
+  "Sintra": ['Lisboa', 'Amadora', 'Cascais', 'Mafra', 'Loures', 'Oeiras'],
+  "São João da Madeira": ['Santa Maria da Feira', 'Oliveira de Azeméis', 'Vale de Cambra'],
+  "Tavira": ['Faro', 'Loulé', 'Olhão', 'Castro Marim', 'Vila Real de Santo António'],
+  "Terras de Bouro": ['Amares', 'Braga', 'Ponte da Barca', 'Arcos de Valdevez'],
+  "Tomar": ['Entroncamento', 'Ourém', 'Torres Novas', 'Ferreira do Zêzere'],
+  "Tondela": ['Viseu', 'Águeda', 'Santa Comba Dão', 'Sátão'],
+  "Torres Novas": ['Santarém', 'Porto de Mós', 'Entroncamento', 'Tomar'],
+  "Torres Vedras": ['Mafra', 'Caldas da Rainha', 'Óbidos', 'Lisboa'],
+  "Trofa": ['Famalicão', 'Santo Tirso', 'Vila do Conde', 'Maia'],
+  "Vagos": ['Aveiro', 'Ílhavo', 'Cantanhede', 'Mira'],
+  "Vale de Cambra": ['São João da Madeira', 'Oliveira de Azeméis', 'Sever do Vouga', 'Arouca'],
+  "Valença": ['Vila Nova de Cerveira', 'Monção', 'Paredes de Coura'],
+  "Valongo": ['Porto', 'Maia', 'Gondomar', 'Penafiel', 'Paredes'],
+  "Viana do Castelo": ['Esposende', 'Barcelos', 'Ponte de Lima', 'Caminha', 'Arcos de Valdevez', 'Vila Nova de Cerveira'],
+  "Vieira do Minho": ['Braga', 'Póvoa de Lanhoso', 'Fafe', 'Cabeceiras de Basto', 'Montalegre'],
+  "Vila Franca de Xira": ['Loures', 'Cartaxo', 'Benavente', 'Azambuja'],
+  "Vila Nova de Cerveira": ['Caminha', 'Viana do Castelo', 'Valença', 'Paredes de Coura'],
+  "Vila Real": ['Peso da Régua', 'Alijó', 'Murça', 'Mondim de Basto', 'Sabrosa'],
+  "Vila Real de Santo António": ['Tavira', 'Castro Marim'],
+  "Vila Verde": ['Braga', 'Barcelos', 'Amares', 'Ponte de Lima'],
+  "Vila Viçosa": ['Borba', 'Estremoz', 'Elvas'],
+  "Vila do Conde": ['Póvoa de Varzim', 'Barcelos', 'Famalicão', 'Trofa', 'Maia', 'Matosinhos'],
+  "Viseu": ['Mangualde', 'Tondela', 'Nelas', 'Santa Comba Dão', 'Penalva do Castelo', 'Sátão'],
+  "Vizela": ['Guimarães', 'Felgueiras', 'Santo Tirso', 'Paços de Ferreira'],
+};
+
+function getProximas(loc) {
+  if (!loc) return [];
+  const key = Object.keys(PROX).find(k => k.toLowerCase() === loc.toLowerCase());
+  return key ? [key, ...PROX[key]] : [loc];
+}
+
+function sugerirDataParaLocalidade(locality) {
+  if (!locality || !window.appointments) return null;
+  var proximas = getProximas(locality);
+  var hoje = new Date();
+  hoje.setHours(0,0,0,0);
+  var MAX_DIAS = 21;
+  var MAX_SERVICOS = 5;
+  var porDia = {};
+  window.appointments.forEach(function(a) {
+    if (!a.date) return;
+    var d = a.date.slice(0,10);
+    if (!porDia[d]) porDia[d] = { count: 0, localidades: [] };
+    porDia[d].count++;
+    if (a.locality) porDia[d].localidades.push(a.locality);
+  });
+  var candidatos = [];
+  for (var i = 1; i <= MAX_DIAS; i++) {
+    var d = new Date();
+    d.setHours(12,0,0,0);
+    d.setDate(d.getDate() + i);
+    var dow = d.getDay();
+    if (dow === 0 || dow === 6) continue;
+    var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    var dia = porDia[iso] || { count: 0, localidades: [] };
+    if (dia.count >= MAX_SERVICOS) continue;
+    var temMesma = dia.localidades.some(function(l) { return l && l.toLowerCase() === locality.toLowerCase(); });
+    var temProxima = !temMesma && dia.localidades.some(function(l) {
+      return l && proximas.some(function(p) { return p.toLowerCase() === l.toLowerCase(); });
+    });
+    candidatos.push({ date: iso, count: dia.count, localidades: dia.localidades, score: temMesma ? 100 : temProxima ? 50 : 0, temMesma: temMesma, temProxima: temProxima });
+  }
+  if (!candidatos.length) return null;
+  candidatos.sort(function(a, b) { return b.score !== a.score ? b.score - a.score : a.count - b.count; });
+  return candidatos[0];
+}
+
+window.sugerirDataParaLocalidade = sugerirDataParaLocalidade;
+
 window.selectLocality = function (value) {
   const field = document.getElementById('appointmentLocality');
   const txt   = document.getElementById('selectedLocalityText');
@@ -3586,9 +4108,47 @@ window.selectLocality = function (value) {
   if (dot)   dot.style.backgroundColor = value ? getLocColor(value) : '';
   const dd = document.getElementById('localityDropdown');
   dd?.classList.remove('open'); dd?.classList.remove('show');
-  // Limpar pesquisa
   const search = document.getElementById('localitySearch');
   if (search) search.value = '';
+  // Remover overlay de localidade obrigatória
+  if (value) { var ov = document.getElementById('localityFirstOverlay'); if (ov) ov.remove(); }
+
+  // Sugestão de data — em timeout para não interferir com o dropdown
+  setTimeout(function() {
+    try {
+      var existing = document.getElementById('crDateSuggestion');
+      if (existing) existing.remove();
+      if (!value || typeof window.sugerirDataParaLocalidade !== 'function') return;
+      var sug = window.sugerirDataParaLocalidade(value);
+      if (!sug) return;
+      var d = new Date(sug.date + 'T12:00:00');
+      var dateStr = d.toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' });
+      var motivo = sug.temMesma ? '📍 Já tem serviços em ' + value + ' nesse dia'
+        : sug.temProxima ? '🗺️ Localidades próximas nesse dia'
+        : '📅 Dia com menos serviços (' + sug.count + '/5)';
+      var badge = document.createElement('div');
+      badge.id = 'crDateSuggestion';
+      badge.style.cssText = 'background:#eff6ff;border:1.5px solid #3b82f6;border-radius:10px;padding:10px 14px;margin:8px 0;font-size:13px;';
+      badge.innerHTML = '<div style="font-weight:700;color:#1d4ed8;margin-bottom:2px;">💡 Sugestão de data</div>'
+        + '<div style="color:#1e40af;font-size:14px;font-weight:600;">' + dateStr + ' (' + sug.count + ' serviços)</div>'
+        + '<div style="color:#64748b;font-size:11px;margin-top:2px;">' + motivo + '</div>'
+        + '<button id="crApplyDateBtn" style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>';
+      var form = document.getElementById('appointmentForm');
+      if (form) {
+        form.insertBefore(badge, form.firstChild);
+        document.getElementById('crApplyDateBtn').onclick = function() {
+          window.crAplicarData(sug.date);
+        };
+      }
+    } catch(e) { console.warn('[sugestão]', e.message); }
+  }, 50);
+};
+
+window.crAplicarData = function(date) {
+  const el = document.getElementById('appointmentDate');
+  if (el) { el.value = date; el.dispatchEvent(new Event('change')); }
+  const badge = document.getElementById('crDateSuggestion');
+  if (badge) badge.style.border = '1.5px solid #16a34a';
 };
 
 // fecha o dropdown ao clicar fora
