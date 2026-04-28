@@ -102,13 +102,14 @@ exports.handler = async (event) => {
         await pool.query(
           `INSERT INTO appointments (
              date, period, plate, car, service, locality, status,
-             notes, extra, phone, km, sortIndex, "glassOrdered",
-             auto_imported, portal_id, created_at, updated_at
-           ) VALUES ($1,$2,$3,$4,$5,null,$6,$7,$8,$9,null,1,false,$10,$11,$12,$13)`,
+             notes, extra, phone, client_name, km, sortIndex, "glassOrdered",
+             auto_imported, confirmed, portal_id, created_at, updated_at
+           ) VALUES ($1,$2,$3,$4,$5,null,$6,$7,$8,$9,$10,null,1,false,$11,false,$12,$13,$14)`,
           [
             svc.date || null, svc.period || null,
             String(svc.plate).trim(), svc.car || null, svc.service || null,
             svc.status || 'NE', svc.notes || null, svc.extra || null, svc.phone || null,
+            svc.client_name || null,
             !!svc.date, portal_id,
             svc.createdAt || new Date().toISOString(), new Date().toISOString()
           ]
