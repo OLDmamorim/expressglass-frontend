@@ -1495,111 +1495,12 @@ async function confirmNotDone() {
   if (!selected) { showToast('Selecione um motivo', 'error'); return; }
   let reason = selected.value;
   if (reason === '__outro__') {
-    reason = (document.getElementById('ndOutroText')?.value || '').trim();
+    reason = (document.getElementById('ndOutrosText')?.value || '').trim();
     if (!reason) { showToast('Descreva o motivo', 'error'); return; }
   }
   const idToSave = _pendingNotDoneId;
   closeNotDoneModal();
   await _doSaveExecuted(idToSave, false, reason);
-  // Perguntar se cliente quer reagendar
-  setTimeout(() => openReagendarModal(idToSave), 300);
-}
-
-// ===== MODAL REAGENDAR (após Não Realizado) =====
-function openReagendarModal(id) {
-  if (document.getElementById('reagendarModal')) document.getElementById('reagendarModal').remove();
-
-  var appt = appointments.find(function(a) { return String(a.id) === String(id); });
-  if (!appt) return;
-
-  var sug = appt.locality ? sugerirDataParaLocalidade(appt.locality) : null;
-  var idStr = String(id);
-
-  var modal = document.createElement('div');
-  modal.id = 'reagendarModal';
-  modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;align-items:center;justify-content:center;';
-
-  var inner = document.createElement('div');
-  inner.style.cssText = 'background:#fff;border-radius:16px;padding:24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);';
-
-  var html = '<h3 style="margin:0 0 6px;font-size:18px;font-weight:800;color:#1e293b;">Cliente quer reagendar?</h3>'
-    + '<p style="margin:0 0 16px;font-size:13px;color:#64748b;">O cliente pediu para marcar nova data?</p>';
-
-  if (sug) {
-    var d = new Date(sug.date + 'T12:00:00');
-    var dateStr = d.toLocaleDateString('pt-PT', { weekday:'long', day:'numeric', month:'long' });
-    var motivo = sug.temMesma ? '📍 Já tem serviços em ' + appt.locality + ' nesse dia'
-      : sug.temProxima ? '🗺️ Localidades próximas nesse dia'
-      : '📅 Dia com menos serviços (' + sug.count + '/5)';
-    html += '<div style="background:#eff6ff;border:1.5px solid #3b82f6;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;">'
-      + '<div style="font-weight:700;color:#1d4ed8;margin-bottom:2px;">💡 Sugestão</div>'
-      + '<div style="color:#1e40af;font-size:14px;font-weight:600;">' + dateStr + '</div>'
-      + '<div style="color:#64748b;font-size:11px;margin-top:2px;">' + motivo + '</div>'
-      + '<button id="reagendarUsarBtn" style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>'
-      + '</div>';
-  }
-
-  html += '<div style="margin-bottom:16px;">'
-    + '<label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Data pretendida</label>'
-    + '<input type="date" id="reagendarDate" style="width:100%;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;box-sizing:border-box;" value="' + (sug ? sug.date : '') + '">'
-    + '</div>'
-    + '<div style="display:flex;gap:10px;justify-content:flex-end;">'
-    + '<button id="reagendarNaoBtn" style="padding:10px 18px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;font-weight:600;cursor:pointer;font-size:14px;">Não</button>'
-    + '<button id="reagendarSimBtn" style="padding:10px 18px;border:none;border-radius:8px;background:#7c3aed;color:#fff;font-weight:700;cursor:pointer;font-size:14px;">✅ Reagendar</button>'
-    + '</div>';
-
-  inner.innerHTML = html;
-  modal.appendChild(inner);
-  document.body.appendChild(modal);
-
-  // Ligar eventos após inserção no DOM
-  var naoBtn = document.getElementById('reagendarNaoBtn');
-  if (naoBtn) naoBtn.onclick = function() { document.getElementById('reagendarModal').remove(); };
-
-  var simBtn = document.getElementById('reagendarSimBtn');
-  if (simBtn) simBtn.onclick = function() { confirmReagendar(idStr); };
-
-  if (sug) {
-    var usarBtn = document.getElementById('reagendarUsarBtn');
-    if (usarBtn) usarBtn.onclick = function() {
-      var di = document.getElementById('reagendarDate');
-      if (di) di.value = sug.date;
-    };
-  }
-}
-
-
-async function confirmReagendar(id) {
-  const dateInput = document.getElementById('reagendarDate');
-  const newDate = dateInput?.value;
-  if (!newDate) { showToast('Selecione uma data', 'error'); return; }
-
-  document.getElementById('reagendarModal')?.remove();
-
-  const i = appointments.findIndex(a => String(a.id) === String(id));
-  if (i < 0) return;
-
-  // Mover para nova data, pré-agendado (confirmed=false) com badge especial
-  appointments[i].date = newDate;
-  appointments[i].confirmed = false;
-  appointments[i].suggested_by_client = true;
-  appointments[i].executed = null;
-  appointments[i].not_done_reason = null;
-
-  try {
-    await window.apiClient.updateAppointment(id, {
-      ...appointments[i],
-      date: newDate,
-      confirmed: false,
-      suggested_by_client: true,
-      executed: null,
-      not_done_reason: null
-    });
-    showToast('✅ Reagendado — aguarda confirmação do coordenador', 'success');
-    renderAll();
-  } catch(err) {
-    showToast('Erro ao reagendar: ' + err.message, 'error');
-  }
 }
 
 
@@ -1803,14 +1704,6 @@ function enableDragDrop(scope){
 }
 
 async function onDropAppointment(id, targetBucket, targetIndex){
-  if (targetBucket && targetBucket !== 'unscheduled') {
-    const dateBucket = targetBucket.split('|')[0];
-    const blocked = isDayBlocked(dateBucket);
-    if (blocked) {
-      showToast('🔒 ' + (blocked.reason || 'Dia bloqueado') + ' — não é possível agendar', 'error');
-      return;
-    }
-  }
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
   const a = appointments[i];
@@ -2070,8 +1963,6 @@ function cancelEdit() {
   editingId = null;
   window.originalUnscheduledServiceId = null; // Limpar ID do serviço original
   window.dispatchEvent(new CustomEvent('appointmentModalClosed'));
-  // Remover overlay de localidade
-  document.getElementById('localityFirstOverlay')?.remove();
   document.getElementById('appointmentForm').reset();
   const calibCb = document.getElementById('appointmentCalibration');
   if (calibCb) calibCb.checked = false;
@@ -2166,7 +2057,7 @@ function buildDesktopCard(a){
     ? `<div style="font-size:11px;font-weight:700;color:#fef3c7;background:rgba(0,0,0,0.3);border-radius:6px;padding:4px 8px;margin-top:6px;">📍 Adicionar localidade e morada para confirmar</div>`
     : '';
 
-  const preAgendadoBadge = isPreAgendado ? `<span class="pre-agendado-badge">${a.suggested_by_client ? '📅 Sugerido pelo cliente — ' : ''}⏳ Aguarda confirmação</span>` : '';
+  const preAgendadoBadge = isPreAgendado ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : '';
   const confirmBtn = canConfirm
     ? `<button class="dc-confirm-btn" data-confirm="${a.id}">✅ Confirmar agendamento</button>`
     : needsLocMsg;
@@ -2238,21 +2129,11 @@ function renderSchedule(){
   const todayISO = localISO(new Date());
   const isToday = d => localISO(d) === todayISO;
 
-  const userRoleSched = window.authClient?.getUser?.()?.role;
-  const canToggleBlock = userRoleSched === 'admin' || userRoleSched === 'coordenador';
-
   let thead='<thead><tr><th>Data</th>';
   for(const d of week){
     const h=fmtHeader(d);
-    const iso = localISO(d);
-    const blocked = isDayBlocked(iso);
-    const cls = [isToday(d) ? 'is-today' : '', blocked ? 'day-blocked' : ''].filter(Boolean);
-    const clsStr = cls.length ? ` class="${cls.join(' ')}"` : '';
-    const lockBtn = canToggleBlock
-      ? `<button class="day-lock-btn" onclick="toggleBlockedDay('${iso}')" title="${blocked ? 'Desbloquear dia' : 'Bloquear dia'}">${blocked ? '🔒' : '🔓'}</button>`
-      : '';
-    const blockedBadge = blocked ? `<div class="day-blocked-reason">${blocked.reason || 'Bloqueado'}</div>` : '';
-    thead+=`<th${clsStr}><div class="day">${cap(h.day)}${lockBtn}</div><div class="date">${h.dm}</div>${isToday(d) ? '<div class="today-dot"></div>' : ''}${blockedBadge}</th>`;
+    const cls = isToday(d) ? ' class="is-today"' : '';
+    thead+=`<th${cls}><div class="day">${cap(h.day)}</div><div class="date">${h.dm}</div>${isToday(d) ? '<div class="today-dot"></div>' : ''}</th>`;
   }
   thead+='</tr></thead>';
   table.insertAdjacentHTML('beforeend', thead);
@@ -2285,7 +2166,6 @@ function renderSchedule(){
 
     const renderCell = (dayDate) => {
       const iso = localISO(dayDate);
-      const blockedCell = isDayBlocked(iso);
       let items = filterAppointments(
         appointments.filter(a => a.date && a.date === iso)
           .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
@@ -2295,10 +2175,7 @@ function renderSchedule(){
         items = items.filter(a => !!a.locality);
       }
       const blocks = items.map(buildDesktopCard).join('');
-      const blockedOverlay = blockedCell
-        ? '<div style="background:rgba(239,68,68,0.08);border-radius:8px;padding:8px;margin-bottom:6px;font-size:11px;font-weight:700;color:#dc2626;text-align:center;">🔒 ' + (blockedCell.reason || 'Bloqueado') + '</div>'
-        : '';
-      return '<div class="drop-zone' + (blockedCell ? ' day-blocked-cell' : '') + '" data-drop-bucket="' + iso + '"' + (blockedCell ? ' style="pointer-events:none;"' : '') + '>' + blockedOverlay + blocks + '</div>';
+      return `<div class="drop-zone" data-drop-bucket="${iso}">${blocks}</div>`;
     };
 
     // Linha de resumo (KM, tempo, combustível)
@@ -2519,7 +2396,6 @@ const telBtn = phone ? `
   const isRealizado = a.executed === true;
   const isNaoRealizado = a.executed === false && !!a.not_done_reason;
   const preAgendadoM = a.confirmed === false;
-  const sugByClient = a.suggested_by_client;
   const todayISO = localISO(new Date());
   const isPastOrToday = a.date && a.date <= todayISO;
 
@@ -2579,7 +2455,7 @@ const telBtn = phone ? `
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${damageRow}
-        ${preAgendadoM ? `<span class="pre-agendado-badge">${sugByClient ? '📅 Sugerido pelo cliente — ' : ''}⏳ Aguarda confirmação</span>` : ''}
+        ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
         ${preAgendadoM
           ? `<div class="m-pending-confirm">⏳ Aguarda confirmação do coordenador</div>`
           : ''
@@ -2634,19 +2510,8 @@ async function renderMobileDay(){
     items = await ordenarSeNecessario(itemsRaw);
   }
 
-  const blockedMobile = isDayBlocked(iso);
-  const userRoleMob = window.authClient?.getUser?.()?.role;
-  const canToggleMob = userRoleMob === 'admin' || userRoleMob === 'coordenador';
-  let blockedBannerHtml = '';
-  if (blockedMobile) {
-    var _naBtn = canToggleMob ? '<button onclick="toggleBlockedDay(\"' + iso + '\")" style="margin-left:auto;background:#ef4444;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">Desbloquear</button>' : '';
-    blockedBannerHtml = '<div class="mobile-blocked-banner">🔒 ' + (blockedMobile.reason || 'Dia bloqueado') + ' ' + _naBtn + '</div>';
-  } else if (canToggleMob) {
-    blockedBannerHtml = '<div style="text-align:right;margin-bottom:6px;"><button onclick="toggleBlockedDay(\"' + iso + '\")" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">🔓 Bloquear este dia</button></div>';
-  }
-
   if(items.length === 0){
-    list.innerHTML = blockedBannerHtml + '<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>';
+    list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
     return;
   }
 
@@ -2678,7 +2543,7 @@ async function renderMobileDay(){
       🗺️ Ver Rota do Dia
     </button>` : '';
 
-  list.innerHTML = blockedBannerHtml + (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
+  list.innerHTML = (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
 }
 
@@ -3158,144 +3023,6 @@ function setConfirmed(value) {
 }
 
 
-async function _checkOutrosSMsLocalidade(locality) {
-  var oldAlert = document.getElementById('localityNearbyAlert');
-  if (oldAlert) oldAlert.remove();
-
-  if (!window.authClient || !window.authClient.authenticatedFetch) return;
-
-  // Janela: próximos 3 dias úteis (excluindo hoje)
-  var diasUteis = [];
-  var d = new Date(); d.setHours(0,0,0,0);
-  while (diasUteis.length < 3) {
-    d.setDate(d.getDate() + 1);
-    if (d.getDay() !== 0 && d.getDay() !== 6) {
-      diasUteis.push(d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'));
-    }
-  }
-
-  try {
-    // Buscar lista de todos os portais SM
-    var portaisResp = await window.authClient.authenticatedFetch('/.netlify/functions/portals');
-    var portaisData = await portaisResp.json();
-    if (!portaisData.success) return;
-
-    var outrosSMs = (portaisData.portals || portaisData.data || []).filter(function(p) {
-      return p.portal_type === 'sm' && String(p.id) !== String(window.activePortalId);
-    });
-    if (outrosSMs.length === 0) return;
-
-    // Verificar cada SM
-    var encontrados = [];
-    for (var i = 0; i < outrosSMs.length; i++) {
-      var sm = outrosSMs[i];
-      try {
-        var resp = await window.authClient.authenticatedFetch('/.netlify/functions/appointments?portal_id=' + sm.id);
-        var data = await resp.json();
-        var appts = data.data || data.appointments || [];
-        var matches = appts.filter(function(a) {
-          return a.locality && a.locality.toLowerCase() === locality.toLowerCase()
-            && a.date && diasUteis.includes(a.date)
-            && a.confirmed !== false;
-        });
-        if (matches.length > 0) {
-          var porData = {};
-          matches.forEach(function(a) { porData[a.date] = (porData[a.date] || 0) + 1; });
-          encontrados.push({ sm: sm, porData: porData });
-        }
-      } catch(e) {}
-    }
-
-    if (encontrados.length === 0) return;
-
-    // Confirmar que a localidade ainda é a mesma (utilizador pode ter mudado)
-    var cur = document.getElementById('appointmentLocality')?.value;
-    if (!cur || cur.toLowerCase() !== locality.toLowerCase()) return;
-
-    // Montar alerta
-    var alertEl = document.createElement('div');
-    alertEl.id = 'localityNearbyAlert';
-    alertEl.style.cssText = 'background:#fef3c7;border:2px solid #f59e0b;border-radius:12px;padding:12px 14px;margin:8px 0;font-size:13px;';
-
-    var linhas = encontrados.map(function(e) {
-      var datas = Object.entries(e.porData).map(function(kv) {
-        var dd = new Date(kv[0] + 'T12:00:00');
-        var lbl = dd.toLocaleDateString('pt-PT', { weekday:'short', day:'numeric', month:'short' });
-        return lbl + ' (' + kv[1] + (kv[1] > 1 ? ' serv.' : ' serv.') + ')';
-      }).join(', ');
-      return '<div style="margin-top:3px;">🚐 <strong>' + e.sm.name + '</strong> — ' + datas + '</div>';
-    }).join('');
-
-    alertEl.innerHTML = '<div style="font-weight:800;color:#92400e;font-size:14px;">⚠️ Outro SM já tem serviços em ' + locality + '</div>'
-      + linhas
-      + '<div style="margin-top:8px;font-size:12px;color:#a16207;font-style:italic;">Mantém neste SM ou considera passar para agrupamento?</div>';
-
-    var form = document.getElementById('appointmentForm');
-    if (form) form.insertBefore(alertEl, form.firstChild);
-
-  } catch(e) {
-    console.warn('[checkOutrosSMs]', e.message);
-  }
-}
-
-function _injectLocalityFirstOverlay() {
-  // Remove overlay anterior se existir
-  const existing = document.getElementById('localityFirstOverlay');
-  if (existing) existing.remove();
-
-  // Só para SM e novo agendamento
-  if (isLoja() || editingId) return;
-
-  // Verificar se já tem localidade
-  const localityVal = document.getElementById('appointmentLocality')?.value;
-  if (localityVal) return;
-
-  const form = document.getElementById('appointmentForm');
-  if (!form) return;
-
-  // Criar overlay semi-transparente sobre o form, deixando o selector de localidade visível
-  const overlay = document.createElement('div');
-  overlay.id = 'localityFirstOverlay';
-  overlay.style.cssText = [
-    'position:absolute',
-    'inset:0',
-    'background:rgba(255,255,255,0.75)',
-    'z-index:50',
-    'display:flex',
-    'flex-direction:column',
-    'align-items:center',
-    'justify-content:flex-start',
-    'padding-top:16px',
-    'border-radius:inherit',
-    'backdrop-filter:blur(2px)',
-    '-webkit-backdrop-filter:blur(2px)',
-    'pointer-events:none',
-  ].join(';');
-
-  overlay.innerHTML = '<div style="background:#1d4ed8;color:#fff;border-radius:12px;padding:10px 18px;font-size:14px;font-weight:700;box-shadow:0 4px 16px rgba(29,78,216,0.3);text-align:center;max-width:260px;">'
-    + '📍 Começa por escolher a localidade'
-    + '<div style="font-size:11px;font-weight:400;margin-top:4px;opacity:0.85;">A sugestão de data é automática</div>'
-    + '</div>';
-
-  // O form precisa de position:relative para o overlay funcionar
-  if (getComputedStyle(form).position === 'static') {
-    form.style.position = 'relative';
-  }
-  form.appendChild(overlay);
-
-  // Abrir automaticamente o dropdown de localidade
-  setTimeout(() => {
-    const localityBtn = document.querySelector('.locality-select');
-    if (localityBtn) localityBtn.click();
-    else {
-      const dd = document.getElementById('localityDropdown');
-      if (dd) { dd.classList.add('open'); dd.classList.add('show'); }
-      const search = document.getElementById('localitySearch');
-      if (search) { search.value = ''; renderLocalityOptions(''); search.focus(); }
-    }
-  }, 100);
-}
-
 function bootApp() {
   (async () => {
     try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
@@ -3449,13 +3176,6 @@ function bootApp() {
     // Guardar último tipo de veículo selecionado
     if (payload.vehicleType) localStorage.setItem('eg_last_vehicleType', payload.vehicleType);
 
-    if (payload.date) {
-      const blockedDay = isDayBlocked(payload.date);
-      if (blockedDay && payload.confirmed !== false) {
-        const forceAny = confirm('⚠️ ' + (blockedDay.reason || 'Dia bloqueado') + '\nTem a certeza que quer agendar neste dia?');
-        if (!forceAny) return;
-      }
-    }
     // defaults mínimos
     if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
     if (!payload.service) { showToast('Tipo de serviço é obrigatório', 'error'); return; }
@@ -3600,15 +3320,13 @@ cancelEdit?.();
 
     document.getElementById('appointmentModal').classList.add('show');
     
-    // SM: forçar escolha de localidade primeiro
-    if (!isLoja()) {
-      setTimeout(() => _injectLocalityFirstOverlay(), 50);
-    } else {
-      setTimeout(() => {
-        const plateInput = document.getElementById('appointmentPlate');
-        if (plateInput) plateInput.focus();
-      }, 100);
-    }
+    // 🎯 FOCO AUTOMÁTICO: Colocar cursor no campo de matrícula
+    setTimeout(() => {
+      const plateInput = document.getElementById('appointmentPlate');
+      if (plateInput) {
+        plateInput.focus();
+      }
+    }, 100);
   });
 
   // --- Novo Serviço (mobile) ---
@@ -3632,16 +3350,14 @@ cancelEdit?.();
     }
 
     document.getElementById('appointmentModal').classList.add('show');
-
-    // SM: forçar escolha de localidade primeiro
-    if (!isLoja()) {
-      setTimeout(() => _injectLocalityFirstOverlay(), 50);
-    } else {
-      setTimeout(() => {
-        const plateInput = document.getElementById('appointmentPlate');
-        if (plateInput) plateInput.focus();
-      }, 100);
-    }
+    
+    // 🎯 FOCO AUTOMÁTICO: Colocar cursor no campo de matrícula
+    setTimeout(() => {
+      const plateInput = document.getElementById('appointmentPlate');
+      if (plateInput) {
+        plateInput.focus();
+      }
+    }, 100);
   });
 
   // --- Importar Excel ---
@@ -4240,17 +3956,6 @@ window.selectLocality = function (value) {
   dd?.classList.remove('open'); dd?.classList.remove('show');
   const search = document.getElementById('localitySearch');
   if (search) search.value = '';
-  // Remover overlay "escolha localidade primeiro" se existir
-  if (value) {
-    const ov = document.getElementById('localityFirstOverlay');
-    if (ov) ov.remove();
-  }
-
-  // SM: verificar se há agendamentos para esta localidade nos próximos 2-3 dias
-  // Verificar se outros SMs já têm serviços nesta localidade nos próximos dias
-  if (value && !isLoja() && !editingId) {
-    _checkOutrosSMsLocalidade(value);
-  }
 
   // Sugestão de data — em timeout para não interferir com o dropdown
   setTimeout(function() {
