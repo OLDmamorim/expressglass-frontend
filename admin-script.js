@@ -551,8 +551,6 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
     
     const method = editingUserId ? 'PUT' : 'POST';
     
-    console.log('[admin] PUT userData:', JSON.stringify(userData));
-    alert('A enviar: ' + JSON.stringify(userData.assigned_portal_ids));
     const response = await authClient.authenticatedFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
@@ -824,12 +822,10 @@ async function startImport() {
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
 
     // Observações: eurocode da coluna ref
-    // Eurocode/ref → campo Eurocode (extra)
-    const extra = eurocode || ref || '';
-    // Segurado/Nome → campo Nome (client_name)
-    const clientName = nome || segurado || '';
-    // Obs → Observações (notes)
-    const notes = obs || '';
+    const notes = ref || eurocode || '';
+
+    // Outros dados: só o nome do segurado
+    const extra = segurado || '';
 
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
@@ -856,7 +852,6 @@ async function startImport() {
       notes,
       extra,
       phone,
-      client_name: clientName || null,
       status: 'NE',
       createdAt,
       date: scheduleDate || null,
@@ -941,7 +936,6 @@ async function startSync() {
   const refCol = importHeaders.findIndex(h => h.toLowerCase() === 'ref');
   const obsCol = importHeaders.findIndex(h => h.toLowerCase() === 'obs');
   const seguradoCol = importHeaders.findIndex(h => h.toLowerCase() === 'segurado');
-  const nomeColSync = importHeaders.findIndex(h => h.toLowerCase() === 'nome');
   const phoneCol = importHeaders.findIndex(h => h.toLowerCase() === 'u_contsega');
   const eurocodeCol = importHeaders.findIndex(h => h.toLowerCase() === 'eurocode');
   const dataObraCol = importHeaders.findIndex(h => h.toLowerCase() === 'dataobra');
@@ -986,15 +980,8 @@ async function startSync() {
     const car = [marca, modelo].filter(Boolean).join(' ') || 'Sem modelo';
     const ref = refCol >= 0 && row[refCol] ? String(row[refCol]).trim() : '';
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
-    const seguradoSync = seguradoCol >= 0 && row[seguradoCol] ? String(row[seguradoCol]).trim() : '';
-    const nomeSync = nomeColSync >= 0 && row[nomeColSync] ? String(row[nomeColSync]).trim() : '';
-    const obsSync = obsCol >= 0 && row[obsCol] ? String(row[obsCol]).trim() : '';
-    // Eurocode/ref → campo Eurocode (extra)
-    const extra = eurocode || ref || '';
-    // Segurado/Nome → campo Nome (client_name)
-    const clientNameSync = nomeSync || seguradoSync || '';
-    // Obs → Observações (notes)
-    const notes = obsSync || '';
+    const notes = ref || eurocode || '';
+    const extra = seguradoCol >= 0 && row[seguradoCol] ? String(row[seguradoCol]).trim() : '';
     const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
@@ -1012,8 +999,7 @@ async function startSync() {
     if (!byPortal[portalInfo.id]) byPortal[portalInfo.id] = [];
     byPortal[portalInfo.id].push({
       portal_id: portalInfo.id, plate, car, service: 'PB',
-      notes, extra, phone, client_name: clientNameSync || null,
-      status: 'NE', createdAt,
+      notes, extra, phone, status: 'NE', createdAt,
       date: scheduleDate || null, period: schedulePeriod || null,
       confirmed: false  // sempre pré-agendamento ao importar do Excel
     });
