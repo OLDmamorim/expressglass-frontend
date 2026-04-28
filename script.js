@@ -2087,8 +2087,9 @@ async function deleteAppointment(id) {
 
 function cancelEdit() {
   editingId = null;
-  window.originalUnscheduledServiceId = null; // Limpar ID do serviço original
+  window.originalUnscheduledServiceId = null;
   window.dispatchEvent(new CustomEvent('appointmentModalClosed'));
+  document.getElementById('localityFirstOverlay')?.remove();
   document.getElementById('appointmentForm').reset();
   const calibCb = document.getElementById('appointmentCalibration');
   if (calibCb) calibCb.checked = false;
@@ -3160,6 +3161,32 @@ function setConfirmed(value) {
 }
 
 
+function _injectLocalityFirstOverlay() {
+  var existing = document.getElementById('localityFirstOverlay');
+  if (existing) existing.remove();
+  if (isLoja() || editingId) return;
+  var localityVal = document.getElementById('appointmentLocality')?.value;
+  if (localityVal) return;
+  var form = document.getElementById('appointmentForm');
+  if (!form) return;
+  if (getComputedStyle(form).position === 'static') form.style.position = 'relative';
+  var overlay = document.createElement('div');
+  overlay.id = 'localityFirstOverlay';
+  overlay.style.cssText = 'position:absolute;inset:0;background:rgba(255,255,255,0.75);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:16px;border-radius:inherit;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);pointer-events:none;';
+  overlay.innerHTML = '<div style="background:#1d4ed8;color:#fff;border-radius:12px;padding:10px 18px;font-size:14px;font-weight:700;box-shadow:0 4px 16px rgba(29,78,216,0.3);text-align:center;max-width:260px;">📍 Começa por escolher a localidade<div style="font-size:11px;font-weight:400;margin-top:4px;opacity:0.85;">A sugestão de data é automática</div></div>';
+  form.appendChild(overlay);
+  setTimeout(function() {
+    var localityBtn = document.querySelector('.locality-select');
+    if (localityBtn) localityBtn.click();
+    else {
+      var dd = document.getElementById('localityDropdown');
+      if (dd) { dd.classList.add('open'); dd.classList.add('show'); }
+      var search = document.getElementById('localitySearch');
+      if (search) { search.value = ''; renderLocalityOptions(''); search.focus(); }
+    }
+  }, 100);
+}
+
 function bootApp() {
   (async () => {
     try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
@@ -3445,30 +3472,22 @@ cancelEdit?.();
     document.getElementById('appointmentForm').reset();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
-    setConfirmed(false); // default: pré-agendamento
-
-    // Carregar último tipo de veículo usado
+    setConfirmed(false);
     const lastVT = localStorage.getItem('eg_last_vehicleType') || 'L';
     const vtSelect = document.getElementById('appointmentVehicleType');
     if (vtSelect) vtSelect.value = lastVT;
-
-    // Reset dropdown da localidade
     const selectedText = document.getElementById('selectedLocalityText');
     const selectedDot = document.getElementById('selectedLocalityDot');
     if (selectedText && selectedDot) {
       selectedText.textContent = 'Selecione a localidade';
       selectedDot.style.backgroundColor = '';
     }
-
     document.getElementById('appointmentModal').classList.add('show');
-    
-    // 🎯 FOCO AUTOMÁTICO: Colocar cursor no campo de matrícula
-    setTimeout(() => {
-      const plateInput = document.getElementById('appointmentPlate');
-      if (plateInput) {
-        plateInput.focus();
-      }
-    }, 100);
+    if (!isLoja()) {
+      setTimeout(() => _injectLocalityFirstOverlay(), 50);
+    } else {
+      setTimeout(() => { const p = document.getElementById('appointmentPlate'); if (p) p.focus(); }, 100);
+    }
   });
 
   // --- Novo Serviço (mobile) ---
@@ -3477,29 +3496,22 @@ cancelEdit?.();
     document.getElementById('appointmentForm').reset();
     document.getElementById('modalTitle').textContent = 'Novo Agendamento';
     document.getElementById('deleteAppointment').classList.add('hidden');
-    setConfirmed(false); // default: pré-agendamento
-
-    // Carregar último tipo de veículo usado
+    setConfirmed(false);
     const lastVT = localStorage.getItem('eg_last_vehicleType') || 'L';
     const vtSelect = document.getElementById('appointmentVehicleType');
     if (vtSelect) vtSelect.value = lastVT;
-
     const selectedText = document.getElementById('selectedLocalityText');
     const selectedDot = document.getElementById('selectedLocalityDot');
     if (selectedText && selectedDot) {
       selectedText.textContent = 'Selecione a localidade';
       selectedDot.style.backgroundColor = '';
     }
-
     document.getElementById('appointmentModal').classList.add('show');
-    
-    // 🎯 FOCO AUTOMÁTICO: Colocar cursor no campo de matrícula
-    setTimeout(() => {
-      const plateInput = document.getElementById('appointmentPlate');
-      if (plateInput) {
-        plateInput.focus();
-      }
-    }, 100);
+    if (!isLoja()) {
+      setTimeout(() => _injectLocalityFirstOverlay(), 50);
+    } else {
+      setTimeout(() => { const p = document.getElementById('appointmentPlate'); if (p) p.focus(); }, 100);
+    }
   });
 
   // --- Importar Excel ---
@@ -4098,6 +4110,8 @@ window.selectLocality = function (value) {
   dd?.classList.remove('open'); dd?.classList.remove('show');
   const search = document.getElementById('localitySearch');
   if (search) search.value = '';
+  // Remover overlay de localidade obrigatória
+  if (value) { var ov = document.getElementById('localityFirstOverlay'); if (ov) ov.remove(); }
 
   // Sugestão de data — em timeout para não interferir com o dropdown
   setTimeout(function() {
