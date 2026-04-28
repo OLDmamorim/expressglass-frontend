@@ -1196,6 +1196,127 @@ function buildLocalityOptions() {
 
 // ---------- Estado ----------
 let appointments = [];
+let blockedDays = [];
+
+function isDayBlocked(isoDate) {
+  if (!isoDate) return null;
+  const pid = String(window.activePortalId || window.portalConfig?.id || '');
+  return blockedDays.find(function(b) {
+    return b.date === isoDate && (b.portal_id === null || String(b.portal_id) === pid);
+  }) || null;
+}
+
+async function loadBlockedDays() {
+  try {
+    const pid = window.activePortalId || window.portalConfig?.id;
+    const url = '/.netlify/functions/blocked-days' + (pid ? '?portal_id=' + pid : '');
+    const resp = await window.authClient.authenticatedFetch(url);
+    const data = await resp.json();
+    if (data.success) blockedDays = data.blocked || [];
+  } catch(e) { console.warn('loadBlockedDays:', e.message); }
+}
+
+async function toggleBlockedDay(isoDate) {
+  const role = window.authClient?.getUser?.()?.role;
+  if (role !== 'admin' && role !== 'coordenador') return;
+  const existing = isDayBlocked(isoDate);
+  const pid = window.activePortalId || window.portalConfig?.id;
+  const url = '/.netlify/functions/blocked-days' + (pid ? '?portal_id=' + pid : '');
+  try {
+    if (existing) {
+      if (existing.portal_id === null && role !== 'admin') {
+        showToast('Feriado nacional — só o admin pode remover.', 'info');
+        return;
+      }
+      await window.authClient.authenticatedFetch(url, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: isoDate, remove_global: role === 'admin' && existing.portal_id === null })
+      });
+      blockedDays = blockedDays.filter(function(b) {
+        return !(b.date === isoDate && (b.portal_id === null || String(b.portal_id) === String(pid)));
+      });
+      showToast('✅ Dia desbloqueado', 'success');
+    } else {
+      var reason = prompt('Motivo (opcional):', 'Feriado local');
+      if (reason === null) return;
+      var resp = await window.authClient.authenticatedFetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: isoDate, reason: reason || 'Dia bloqueado', is_holiday: false })
+      });
+      var data = await resp.json();
+      if (data.success) { blockedDays.push(data.blocked); showToast('🔒 Dia bloqueado', 'success'); }
+    }
+    applyBlockedDayOverlays();
+  } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+}
+
+// Aplicar overlays visuais APÓS o render (não toca no renderSchedule interno)
+function applyBlockedDayOverlays() {
+  var role = window.authClient?.getUser?.()?.role;
+  var canToggle = role === 'admin' || role === 'coordenador';
+
+  // Injectar estilos uma vez
+  if (!document.getElementById('_bdStyles')) {
+    var s = document.createElement('style');
+    s.id = '_bdStyles';
+    s.textContent = [
+      '.th-blocked{background:repeating-linear-gradient(45deg,#fef2f2,#fef2f2 6px,#fee2e2 6px,#fee2e2 12px)!important;}',
+      '.th-blocked .day{color:#dc2626!important;}.th-blocked .date{color:#ef4444!important;}',
+      '.bd-reason{font-size:10px;font-weight:700;color:#dc2626;background:#fff;border-radius:4px;padding:2px 5px;margin-top:2px;display:block;}',
+      '.bd-lock{background:none;border:none;cursor:pointer;font-size:12px;padding:0 2px;opacity:.55;vertical-align:middle;}',
+      '.bd-lock:hover{opacity:1;}',
+      '.td-blocked{background:repeating-linear-gradient(45deg,#fef2f2,#fef2f2 6px,#fee2e2 6px,#fee2e2 12px)!important;pointer-events:none!important;opacity:.65;}'
+    ].join('');
+    document.head.appendChild(s);
+  }
+
+  // Limpar overlays anteriores
+  document.querySelectorAll('.bd-lock,.bd-reason,.td-blocked-overlay').forEach(function(el) { el.remove(); });
+  document.querySelectorAll('.th-blocked').forEach(function(el) { el.classList.remove('th-blocked'); });
+  document.querySelectorAll('.td-blocked').forEach(function(el) { el.classList.remove('td-blocked'); });
+
+  // Aplicar a cada coluna da semana
+  var table = document.getElementById('schedule');
+  if (!table) return;
+  var headers = table.querySelectorAll('thead th');
+  // headers[0] é "Data", headers[1..6] são os dias
+  var week = [...Array(6)].map(function(_, i) { return addDays(currentMonday, i); });
+
+  week.forEach(function(d, i) {
+    var iso = localISO(d);
+    var blocked = isDayBlocked(iso);
+    var th = headers[i + 1];
+    if (!th) return;
+
+    // Botão de lock
+    if (canToggle) {
+      var btn = document.createElement('button');
+      btn.className = 'bd-lock';
+      btn.title = blocked ? 'Desbloquear dia' : 'Bloquear dia';
+      btn.textContent = blocked ? '🔒' : '🔓';
+      btn.setAttribute('onclick', 'toggleBlockedDay("' + iso + '")');
+      var dayDiv = th.querySelector('.day');
+      if (dayDiv) dayDiv.appendChild(btn);
+    }
+
+    if (blocked) {
+      th.classList.add('th-blocked');
+      var reason = document.createElement('span');
+      reason.className = 'bd-reason';
+      reason.textContent = blocked.reason || 'Bloqueado';
+      th.appendChild(reason);
+
+      // Bloquear células da coluna
+      var colIdx = i + 1;
+      table.querySelectorAll('tbody tr').forEach(function(row) {
+        var td = row.cells[colIdx];
+        if (td) td.classList.add('td-blocked');
+      });
+    }
+  });
+}
 let currentMonday = getMonday(new Date());
 let currentMobileDay = new Date();
 let editingId = null;
@@ -1704,6 +1825,11 @@ function enableDragDrop(scope){
 }
 
 async function onDropAppointment(id, targetBucket, targetIndex){
+  if (targetBucket && targetBucket !== 'unscheduled') {
+    var _dateDrop = targetBucket.split('|')[0];
+    var _blockedDrop = isDayBlocked(_dateDrop);
+    if (_blockedDrop) { showToast('🔒 ' + (_blockedDrop.reason || 'Dia bloqueado'), 'error'); return; }
+  }
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
   const a = appointments[i];
@@ -2510,8 +2636,19 @@ async function renderMobileDay(){
     items = await ordenarSeNecessario(itemsRaw);
   }
 
+  var _bmBlocked = isDayBlocked(iso);
+  var _bmRole = window.authClient?.getUser?.()?.role;
+  var _bmCanToggle = _bmRole === 'admin' || _bmRole === 'coordenador';
+  var _bmBanner = '';
+  if (_bmBlocked) {
+    var _desbtn = _bmCanToggle ? '<button onclick="toggleBlockedDay(&quot;' + iso + '&quot;)" style="margin-left:auto;background:#ef4444;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">Desbloquear</button>' : '';
+    _bmBanner = '<div style="background:#fee2e2;border:1.5px solid #ef4444;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#dc2626;">🔒 ' + (_bmBlocked.reason || 'Dia bloqueado') + ' ' + _desbtn + '</div>';
+  } else if (_bmCanToggle) {
+    _bmBanner = '<div style="text-align:right;margin-bottom:6px;"><button onclick="toggleBlockedDay(&quot;' + iso + '&quot;)" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">🔓 Bloquear este dia</button></div>';
+  }
+
   if(items.length === 0){
-    list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
+    list.innerHTML = _bmBanner + '<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>';
     return;
   }
 
@@ -2543,18 +2680,18 @@ async function renderMobileDay(){
       🗺️ Ver Rota do Dia
     </button>` : '';
 
-  list.innerHTML = (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
+  list.innerHTML = _bmBanner + (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
 }
 
 // Render global
 function renderAll(){
-  // 🔧 expõe sempre o estado atual para o módulo de impressão
   window.appointments = appointments;
   try { renderSchedule(); } catch(e){ console.error('Erro renderSchedule:', e); }
   try { renderUnscheduled(); } catch(e){ console.error('Erro renderUnscheduled:', e); }
   try { renderServicesTable(); } catch(e){ console.error('Erro renderServicesTable:', e); }
   try { renderMobileDay(); } catch(e){ console.error('Erro renderMobileDay:', e); }
+  try { applyBlockedDayOverlays(); } catch(e){ console.warn('applyBlockedDayOverlays:', e); }
 }
 
 // Função global para recarregar appointments (usada pelo switcher do coordenador)
@@ -3027,6 +3164,7 @@ function bootApp() {
   (async () => {
     try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
     try { await load(); } catch(e){ console.error('load() falhou', e); }
+    try { await loadBlockedDays(); } catch(e){ console.warn('loadBlockedDays falhou', e); }
     try { await loadPoweringKpis(); } catch(e){ console.warn('PoweringEG falhou', e); }
     // Arrancar polling de pedidos comerciais após tudo carregado
     try { if (typeof window.crStartPolling === 'function') window.crStartPolling(); } catch(e){}
@@ -3176,6 +3314,10 @@ function bootApp() {
     // Guardar último tipo de veículo selecionado
     if (payload.vehicleType) localStorage.setItem('eg_last_vehicleType', payload.vehicleType);
 
+    if (payload.date && payload.confirmed !== false) {
+      var _bd = isDayBlocked(payload.date);
+      if (_bd && !confirm('⚠️ ' + (_bd.reason || 'Dia bloqueado') + '\nAgendar mesmo assim?')) return;
+    }
     // defaults mínimos
     if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
     if (!payload.service) { showToast('Tipo de serviço é obrigatório', 'error'); return; }
