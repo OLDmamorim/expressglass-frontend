@@ -79,21 +79,14 @@ exports.handler = async (event) => {
             updateFields.push(`phone = $${idx++}`);
             updateVals.push(svc.phone);
           }
-          // Actualizar extra (eurocode/ref)
-          if (svc.extra) {
-            updateFields.push(`extra = $${idx++}`);
-            updateVals.push(svc.extra);
-          }
-          // Actualizar notes (obs)
-          if (svc.notes) {
-            updateFields.push(`notes = $${idx++}`);
-            updateVals.push(svc.notes);
-          }
-          // Actualizar client_name (nome/segurado)
-          if (svc.client_name) {
-            updateFields.push(`client_name = $${idx++}`);
-            updateVals.push(svc.client_name);
-          }
+          // Sempre actualizar extra (eurocode/ref), notes (obs) e client_name
+          // mesmo que vazios — para corrigir dados importados com mapeamento antigo
+          updateFields.push(`extra = $${idx++}`);
+          updateVals.push(svc.extra || null);
+          updateFields.push(`notes = $${idx++}`);
+          updateVals.push(svc.notes || null);
+          updateFields.push(`client_name = $${idx++}`);
+          updateVals.push(svc.client_name || null);
 
           // Se NÃO está na agenda mas Excel tem data → colocar na agenda
           if (!hasDateInDB && hasDateInExcel) {
