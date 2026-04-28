@@ -1803,6 +1803,14 @@ function enableDragDrop(scope){
 }
 
 async function onDropAppointment(id, targetBucket, targetIndex){
+  if (targetBucket && targetBucket !== 'unscheduled') {
+    const dateBucket = targetBucket.split('|')[0];
+    const blocked = isDayBlocked(dateBucket);
+    if (blocked) {
+      showToast('🔒 ' + (blocked.reason || 'Dia bloqueado') + ' — não é possível agendar', 'error');
+      return;
+    }
+  }
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
   const a = appointments[i];
@@ -2230,11 +2238,21 @@ function renderSchedule(){
   const todayISO = localISO(new Date());
   const isToday = d => localISO(d) === todayISO;
 
+  const userRoleSched = window.authClient?.getUser?.()?.role;
+  const canToggleBlock = userRoleSched === 'admin' || userRoleSched === 'coordenador';
+
   let thead='<thead><tr><th>Data</th>';
   for(const d of week){
     const h=fmtHeader(d);
-    const cls = isToday(d) ? ' class="is-today"' : '';
-    thead+=`<th${cls}><div class="day">${cap(h.day)}</div><div class="date">${h.dm}</div>${isToday(d) ? '<div class="today-dot"></div>' : ''}</th>`;
+    const iso = localISO(d);
+    const blocked = isDayBlocked(iso);
+    const cls = [isToday(d) ? 'is-today' : '', blocked ? 'day-blocked' : ''].filter(Boolean);
+    const clsStr = cls.length ? ` class="${cls.join(' ')}"` : '';
+    const lockBtn = canToggleBlock
+      ? `<button class="day-lock-btn" onclick="toggleBlockedDay('${iso}')" title="${blocked ? 'Desbloquear dia' : 'Bloquear dia'}">${blocked ? '🔒' : '🔓'}</button>`
+      : '';
+    const blockedBadge = blocked ? `<div class="day-blocked-reason">${blocked.reason || 'Bloqueado'}</div>` : '';
+    thead+=`<th${clsStr}><div class="day">${cap(h.day)}${lockBtn}</div><div class="date">${h.dm}</div>${isToday(d) ? '<div class="today-dot"></div>' : ''}${blockedBadge}</th>`;
   }
   thead+='</tr></thead>';
   table.insertAdjacentHTML('beforeend', thead);
@@ -2267,6 +2285,7 @@ function renderSchedule(){
 
     const renderCell = (dayDate) => {
       const iso = localISO(dayDate);
+      const blockedCell = isDayBlocked(iso);
       let items = filterAppointments(
         appointments.filter(a => a.date && a.date === iso)
           .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
@@ -2276,7 +2295,10 @@ function renderSchedule(){
         items = items.filter(a => !!a.locality);
       }
       const blocks = items.map(buildDesktopCard).join('');
-      return `<div class="drop-zone" data-drop-bucket="${iso}">${blocks}</div>`;
+      const blockedOverlay = blockedCell
+        ? '<div style="background:rgba(239,68,68,0.08);border-radius:8px;padding:8px;margin-bottom:6px;font-size:11px;font-weight:700;color:#dc2626;text-align:center;">🔒 ' + (blockedCell.reason || 'Bloqueado') + '</div>'
+        : '';
+      return '<div class="drop-zone' + (blockedCell ? ' day-blocked-cell' : '') + '" data-drop-bucket="' + iso + '"' + (blockedCell ? ' style="pointer-events:none;"' : '') + '>' + blockedOverlay + blocks + '</div>';
     };
 
     // Linha de resumo (KM, tempo, combustível)
@@ -2612,8 +2634,19 @@ async function renderMobileDay(){
     items = await ordenarSeNecessario(itemsRaw);
   }
 
+  const blockedMobile = isDayBlocked(iso);
+  const userRoleMob = window.authClient?.getUser?.()?.role;
+  const canToggleMob = userRoleMob === 'admin' || userRoleMob === 'coordenador';
+  let blockedBannerHtml = '';
+  if (blockedMobile) {
+    var _naBtn = canToggleMob ? '<button onclick="toggleBlockedDay(\"' + iso + '\")" style="margin-left:auto;background:#ef4444;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">Desbloquear</button>' : '';
+    blockedBannerHtml = '<div class="mobile-blocked-banner">🔒 ' + (blockedMobile.reason || 'Dia bloqueado') + ' ' + _naBtn + '</div>';
+  } else if (canToggleMob) {
+    blockedBannerHtml = '<div style="text-align:right;margin-bottom:6px;"><button onclick="toggleBlockedDay(\"' + iso + '\")" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">🔓 Bloquear este dia</button></div>';
+  }
+
   if(items.length === 0){
-    list.innerHTML = `<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>`;
+    list.innerHTML = blockedBannerHtml + '<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>';
     return;
   }
 
@@ -2645,7 +2678,7 @@ async function renderMobileDay(){
       🗺️ Ver Rota do Dia
     </button>` : '';
 
-  list.innerHTML = (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
+  list.innerHTML = blockedBannerHtml + (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
 }
 
@@ -3416,6 +3449,13 @@ function bootApp() {
     // Guardar último tipo de veículo selecionado
     if (payload.vehicleType) localStorage.setItem('eg_last_vehicleType', payload.vehicleType);
 
+    if (payload.date) {
+      const blockedDay = isDayBlocked(payload.date);
+      if (blockedDay && payload.confirmed !== false) {
+        const forceAny = confirm('⚠️ ' + (blockedDay.reason || 'Dia bloqueado') + '\nTem a certeza que quer agendar neste dia?');
+        if (!forceAny) return;
+      }
+    }
     // defaults mínimos
     if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
     if (!payload.service) { showToast('Tipo de serviço é obrigatório', 'error'); return; }
