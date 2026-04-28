@@ -51,7 +51,7 @@ exports.handler = async (event) => {
 
         // Verificar se já existe
         const existing = await pool.query(
-          `SELECT id, date, period, car, phone, extra, notes, auto_imported, confirmed
+          `SELECT id, date, period, car, phone, extra, notes, client_name, auto_imported, confirmed
            FROM appointments
            WHERE portal_id = $1
            AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
@@ -74,20 +74,25 @@ exports.handler = async (event) => {
             updateFields.push(`car = $${idx++}`);
             updateVals.push(svc.car);
           }
-          // Actualizar phone se Excel tem valor (sobrescrever)
+          // Actualizar phone se Excel tem valor
           if (svc.phone) {
             updateFields.push(`phone = $${idx++}`);
             updateVals.push(svc.phone);
           }
-          // Actualizar extra (segurado/nome) se Excel tem valor
+          // Actualizar extra (eurocode/ref)
           if (svc.extra) {
             updateFields.push(`extra = $${idx++}`);
             updateVals.push(svc.extra);
           }
-          // Actualizar notes (eurocode) se Excel tem valor
+          // Actualizar notes (obs)
           if (svc.notes) {
             updateFields.push(`notes = $${idx++}`);
             updateVals.push(svc.notes);
+          }
+          // Actualizar client_name (nome/segurado)
+          if (svc.client_name) {
+            updateFields.push(`client_name = $${idx++}`);
+            updateVals.push(svc.client_name);
           }
 
           // Se NÃO está na agenda mas Excel tem data → colocar na agenda
@@ -130,10 +135,10 @@ exports.handler = async (event) => {
           await pool.query(
             `INSERT INTO appointments (
               date, period, plate, car, service, locality, status,
-              notes, address, extra, phone, km, sortIndex, "glassOrdered",
+              notes, address, extra, phone, client_name, km, sortIndex, "glassOrdered",
               auto_imported, confirmed, portal_id, created_at, updated_at
             ) VALUES (
-              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
+              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
             ) RETURNING id`,
             [
               svc.date || null,
@@ -141,17 +146,18 @@ exports.handler = async (event) => {
               String(svc.plate).trim(),
               svc.car || null,
               svc.service || null,
-              null,           // locality
+              null,                         // locality
               svc.status || 'NE',
               svc.notes || null,
-              null,           // address
+              null,                         // address
               svc.extra || null,
               svc.phone || null,
-              null,           // km
-              1,              // sortIndex
-              false,          // glassOrdered
-              hasAutoDate,    // auto_imported: true se veio com data do Excel
-              false,          // confirmed: sempre false ao importar
+              svc.client_name || null,      // client_name (nome/segurado)
+              null,                         // km
+              1,                            // sortIndex
+              false,                        // glassOrdered
+              hasAutoDate,                  // auto_imported
+              false,                        // confirmed
               svc.portal_id,
               svc.createdAt || new Date().toISOString(),
               new Date().toISOString()
