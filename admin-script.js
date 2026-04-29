@@ -821,13 +821,13 @@ async function startImport() {
     const email = emailCol >= 0 && row[emailCol] ? String(row[emailCol]).trim() : '';
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
 
-    // ✅ MAPEAMENTO CORRECTO (consistente com template-personalizado.js):
-    // Observações (DB: notes) → nome do segurado (col K)
-    const notes = segurado || '';
+    // ✅ MAPEAMENTO CORRECTO:
+    // Nome do cliente (DB: client_name) → col K - Segurado (col E "Nome" é só "EXPRESS", inútil)
+    const client_name = segurado || '';
     // Eurocode (DB: extra) → código de vidro (col N - Ref ou col O - Eurocode)
     const extra = ref || eurocode || '';
-    // Nome do cliente (DB: client_name) → col E - Nome
-    const client_name = nome || '';
+    // Observações (DB: notes) → col J - Obs
+    const notes = obs || '';
 
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
@@ -985,17 +985,17 @@ async function startSync() {
     const ref = refCol >= 0 && row[refCol] ? String(row[refCol]).trim() : '';
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
     const segurado = seguradoCol >= 0 && row[seguradoCol] ? String(row[seguradoCol]).trim() : '';
-    const nome = nomeCol >= 0 && row[nomeCol] ? String(row[nomeCol]).trim() : '';
+    const obs = obsCol >= 0 && row[obsCol] ? String(row[obsCol]).trim() : '';
     const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
-    // ✅ MAPEAMENTO CORRECTO (consistente com template-personalizado.js):
-    // Observações (DB: notes) → nome do segurado (col K)
-    const notes = segurado || '';
+    // ✅ MAPEAMENTO CORRECTO:
+    // Nome do cliente (DB: client_name) → col K - Segurado
+    const client_name = segurado || '';
     // Eurocode (DB: extra) → código de vidro (col N - Ref ou col O - Eurocode)
     const extra = ref || eurocode || '';
-    // Nome do cliente (DB: client_name) → col E - Nome
-    const client_name = nome || '';
+    // Observações (DB: notes) → col J - Obs
+    const notes = obs || '';
 
     // Loja e SM: agenda automática se hora entre 09:00-18:00
     let scheduleDate = null, schedulePeriod = null;
