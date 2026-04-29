@@ -821,11 +821,13 @@ async function startImport() {
     const email = emailCol >= 0 && row[emailCol] ? String(row[emailCol]).trim() : '';
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
 
-    // Observações: eurocode da coluna ref
-    const notes = ref || eurocode || '';
-
-    // Outros dados: só o nome do segurado
-    const extra = segurado || '';
+    // ✅ MAPEAMENTO CORRECTO (consistente com template-personalizado.js):
+    // Observações (DB: notes) → nome do segurado (col K)
+    const notes = segurado || '';
+    // Eurocode (DB: extra) → código de vidro (col N - Ref ou col O - Eurocode)
+    const extra = ref || eurocode || '';
+    // Nome do cliente (DB: client_name) → col E - Nome
+    const client_name = nome || '';
 
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
@@ -851,6 +853,7 @@ async function startImport() {
       service: 'PB',
       notes,
       extra,
+      client_name,
       phone,
       status: 'NE',
       createdAt,
@@ -936,6 +939,7 @@ async function startSync() {
   const refCol = importHeaders.findIndex(h => h.toLowerCase() === 'ref');
   const obsCol = importHeaders.findIndex(h => h.toLowerCase() === 'obs');
   const seguradoCol = importHeaders.findIndex(h => h.toLowerCase() === 'segurado');
+  const nomeCol = importHeaders.findIndex(h => h.toLowerCase() === 'nome');
   const phoneCol = importHeaders.findIndex(h => h.toLowerCase() === 'u_contsega');
   const eurocodeCol = importHeaders.findIndex(h => h.toLowerCase() === 'eurocode');
   const dataObraCol = importHeaders.findIndex(h => h.toLowerCase() === 'dataobra');
@@ -980,10 +984,18 @@ async function startSync() {
     const car = [marca, modelo].filter(Boolean).join(' ') || 'Sem modelo';
     const ref = refCol >= 0 && row[refCol] ? String(row[refCol]).trim() : '';
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
-    const notes = ref || eurocode || '';
-    const extra = seguradoCol >= 0 && row[seguradoCol] ? String(row[seguradoCol]).trim() : '';
+    const segurado = seguradoCol >= 0 && row[seguradoCol] ? String(row[seguradoCol]).trim() : '';
+    const nome = nomeCol >= 0 && row[nomeCol] ? String(row[nomeCol]).trim() : '';
     const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
+
+    // ✅ MAPEAMENTO CORRECTO (consistente com template-personalizado.js):
+    // Observações (DB: notes) → nome do segurado (col K)
+    const notes = segurado || '';
+    // Eurocode (DB: extra) → código de vidro (col N - Ref ou col O - Eurocode)
+    const extra = ref || eurocode || '';
+    // Nome do cliente (DB: client_name) → col E - Nome
+    const client_name = nome || '';
 
     // Loja e SM: agenda automática se hora entre 09:00-18:00
     let scheduleDate = null, schedulePeriod = null;
@@ -999,7 +1011,7 @@ async function startSync() {
     if (!byPortal[portalInfo.id]) byPortal[portalInfo.id] = [];
     byPortal[portalInfo.id].push({
       portal_id: portalInfo.id, plate, car, service: 'PB',
-      notes, extra, phone, status: 'NE', createdAt,
+      notes, extra, client_name, phone, status: 'NE', createdAt,
       date: scheduleDate || null, period: schedulePeriod || null,
       confirmed: false  // sempre pré-agendamento ao importar do Excel
     });
