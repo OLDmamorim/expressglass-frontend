@@ -821,12 +821,12 @@ async function startImport() {
     const email = emailCol >= 0 && row[emailCol] ? String(row[emailCol]).trim() : '';
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
 
-    // ✅ MAPEAMENTO CORRECTO (confirmado com dados reais do Excel):
+    // ✅ MAPEAMENTO CORRECTO (confirmado com utilizador):
     // Nome do cliente (DB: client_name) → col K - Segurado
     const client_name = segurado || '';
-    // Eurocode (DB: extra) → col J - Obs (no Excel real, esta coluna contém o código de vidro)
-    const extra = obs || '';
-    // Observações (DB: notes) → vazio (col N "ref" tem nome empresa, col J já foi para extra)
+    // Eurocode (DB: extra) → col N - Ref
+    const extra = ref || '';
+    // Observações (DB: notes) → vazio
     const notes = '';
 
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
@@ -989,12 +989,12 @@ async function startSync() {
     const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
-    // ✅ MAPEAMENTO CORRECTO (confirmado com dados reais do Excel):
+    // ✅ MAPEAMENTO CORRECTO (confirmado com utilizador):
     // Nome do cliente (DB: client_name) → col K - Segurado
     const client_name = segurado || '';
-    // Eurocode (DB: extra) → col J - Obs (no Excel real, esta coluna contém o código de vidro)
-    const extra = obs || '';
-    // Observações (DB: notes) → vazio (col N "ref" tem nome empresa, col J já foi para extra)
+    // Eurocode (DB: extra) → col N - Ref
+    const extra = ref || '';
+    // Observações (DB: notes) → vazio
     const notes = '';
 
     // Loja e SM: agenda automática se hora entre 09:00-18:00
