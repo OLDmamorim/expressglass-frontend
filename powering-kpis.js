@@ -117,19 +117,18 @@ exports.handler = async (event) => {
     }
 
     // Determinar dia de referência:
-    // - Se mês efetivo é o actual → usar p.dia (do frontend) ou hoje
-    // - Caso contrário (mês passado/concluído) → IGNORAR p.dia e usar último dia
-    //   (não faz sentido usar dia 1 de maio quando estamos a calcular abril)
+    // - Se mês efetivo NÃO é o actual (mês passado/concluído) → usar último dia do mês
+    //   (ignorar p.dia que vem do frontend, porque refere-se a hoje no mês actual)
+    // - Se mês efetivo É o actual → usar p.dia (do frontend) ou hoje
     const hojeMes = now.getMonth() + 1;
     const hojeAno = now.getFullYear();
     const ultimoDiaDoMes = new Date(anoEfetivo, mesEfetivo, 0).getDate();
     const ehMesActual = (anoEfetivo === hojeAno && mesEfetivo === hojeMes);
-    const diaAtual = ehMesActual
-                     ? (p.dia ? parseInt(p.dia) : now.getDate())
-                     : ultimoDiaDoMes;
+    const diaAtual = !ehMesActual ? ultimoDiaDoMes
+                   : (p.dia ? parseInt(p.dia) : now.getDate());
 
     // PoweringEG: passados = até 2 dias antes de hoje; mês = até penúltimo dia
-    // Math.max(1, ...) protege contra divisão por zero no início do mês
+    // Math.max(1, ...) protege contra divisão por zero
     const diasUteisPassados = Math.max(1, contarDiasUteis(anoEfetivo, mesEfetivo, diaAtual - 2));
     const diasUteisMes      = Math.max(1, contarDiasUteis(anoEfetivo, mesEfetivo, ultimoDiaDoMes - 1));
     const esperado          = objetivo * (diasUteisPassados / diasUteisMes);
