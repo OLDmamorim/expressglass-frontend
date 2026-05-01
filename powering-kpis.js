@@ -65,8 +65,23 @@ exports.handler = async (event) => {
     }
 
     const now = new Date();
-    const mes = parseInt(p.mes || now.getMonth() + 1);
-    const ano = parseInt(p.ano || now.getFullYear());
+    let mes = parseInt(p.mes || now.getMonth() + 1);
+    let ano = parseInt(p.ano || now.getFullYear());
+    let dia = p.dia ? parseInt(p.dia) : null;
+
+    // ✅ Fix dia 1/2 do mês (independente dos parâmetros recebidos):
+    // Se estamos no mês actual E nos primeiros 2 dias, mostrar mês anterior
+    // (evita desvio enorme por divisão por número muito pequeno de dias úteis passados)
+    const hojeMes = now.getMonth() + 1;
+    const hojeAno = now.getFullYear();
+    const diaHoje = now.getDate();
+    const ehMesActual = (mes === hojeMes && ano === hojeAno);
+
+    if (ehMesActual && diaHoje <= 2) {
+      mes = mes - 1;
+      if (mes === 0) { mes = 12; ano = ano - 1; }
+      dia = null; // forçar recalcular como mês completo
+    }
 
     let lojaId = p.loja_id ? parseInt(p.loja_id) : null;
 
@@ -89,7 +104,7 @@ exports.handler = async (event) => {
 
     // Modo debug — devolve resposta raw para diagnóstico
     if (p.debug === '1') {
-      return { statusCode: 200, headers, body: JSON.stringify({ debug: true, raw: data, lojaId }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ debug: true, raw: data, lojaId, mesUsado: mes, anoUsado: ano }) };
     }
 
     // Estrutura real: data.resultados[] — filtrar pelo mês pedido
@@ -110,11 +125,22 @@ exports.handler = async (event) => {
       }
       return count;
     }
-    const diaAtual          = (ano === now.getFullYear() && mes === now.getMonth() + 1)
-                              ? now.getDate() : new Date(ano, mes, 0).getDate();
-    const diasUteisPassados = contarDiasUteis(ano, mes, diaAtual - 1); // excluir hoje
-    const diasUteisMes      = contarDiasUteis(ano, mes);
-    const esperado          = diasUteisMes > 0 ? objetivo * (diasUteisPassados / diasUteisMes) : 0;
+
+    // Determinar dia de referência:
+    // - Se dia foi passado (e ainda válido para o mês ajustado), usar
+    // - Se mes/ano correspondem ao mês actual (sem ajuste), usar dia de hoje
+    // - Caso contrário (mês passado), usar último dia do mês
+    const ultimoDiaDoMes = new Date(ano, mes, 0).getDate();
+    const mesAjustado    = (mes === hojeMes && ano === hojeAno);
+    const diaAtual       = dia
+                           ? Math.min(dia, ultimoDiaDoMes)
+                           : (mesAjustado ? diaHoje : ultimoDiaDoMes);
+
+    // PoweringEG: passados = até 2 dias antes de hoje; mês = até penúltimo dia
+    // Garantir mínimo de 1 dia para evitar divisão por número muito pequeno
+    const diasUteisPassados = Math.max(1, contarDiasUteis(ano, mes, diaAtual - 2));
+    const diasUteisMes      = Math.max(1, contarDiasUteis(ano, mes, ultimoDiaDoMes - 1));
+    const esperado          = objetivo * (diasUteisPassados / diasUteisMes);
     const desvioPercent     = esperado > 0
       ? Math.round(((servicos / esperado) - 1) * 1000) / 10
       : 0;
