@@ -12,18 +12,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-
 // Verificar se o utilizador é admin
 function verifyAdmin(event) {
   const authHeader = event.headers.authorization || event.headers.Authorization;
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     throw new Error('Não autenticado');
   }
 
   const token = authHeader.substring(7);
   const decoded = jwt.verify(token, JWT_SECRET);
-  
+
   if (decoded.role !== 'admin') {
     throw new Error('Acesso negado: apenas administradores');
   }
-  
+
   return decoded;
 }
 
@@ -46,17 +46,19 @@ exports.handler = async (event) => {
     // ---------- GET - Listar todos os portais ----------
     if (event.httpMethod === 'GET') {
       const query = `
-        SELECT id, name, departure_address, localities, nmdos_code, portal_type, last_import_at, created_at, updated_at,
+        SELECT id, name, departure_address, localities, nmdos_code, portal_type,
+               powering_loja_id, powering_eg_loja_id,
+               last_import_at, created_at, updated_at,
                (SELECT COUNT(*) FROM users WHERE portal_id = portals.id) as user_count,
-               (SELECT COUNT(*) FROM appointments 
-                WHERE portal_id = portals.id 
+               (SELECT COUNT(*) FROM appointments
+                WHERE portal_id = portals.id
                   AND (date IS NULL OR date >= CURRENT_DATE)) as service_count
         FROM portals
         ORDER BY name ASC
       `;
-      
+
       const { rows } = await pool.query(query);
-      
+
       return {
         statusCode: 200,
         headers,
@@ -72,9 +74,9 @@ exports.handler = async (event) => {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ 
-            success: false, 
-            error: 'Nome e morada de partida são obrigatórios' 
+          body: JSON.stringify({
+            success: false,
+            error: 'Nome e morada de partida são obrigatórios'
           })
         };
       }
@@ -88,34 +90,45 @@ exports.handler = async (event) => {
           return {
             statusCode: 400,
             headers,
-            body: JSON.stringify({ 
-              success: false, 
-              error: 'Formato de localidades inválido' 
+            body: JSON.stringify({
+              success: false,
+              error: 'Formato de localidades inválido'
             })
           };
         }
       }
 
+      // Normalizar powering_loja_id (aceita string ou número, guarda integer ou null)
+      const poweringId = data.powering_loja_id !== undefined && data.powering_loja_id !== null && data.powering_loja_id !== ''
+        ? parseInt(data.powering_loja_id)
+        : null;
+
       const query = `
-        INSERT INTO portals (name, departure_address, localities, nmdos_code, portal_type, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO portals (
+          name, departure_address, localities, nmdos_code, portal_type,
+          powering_loja_id, powering_eg_loja_id,
+          created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `;
-      
+
       const values = [
         data.name.trim(),
         data.departure_address.trim(),
         JSON.stringify(localities),
         data.nmdos_code || null,
         data.portal_type || 'sm',
+        poweringId,
+        poweringId,                     // duplicar nas 2 colunas para compatibilidade
         new Date().toISOString(),
         new Date().toISOString()
       ];
 
       const { rows } = await pool.query(query, values);
-      
-      console.log(`✅ Portal criado: ${data.name}`);
-      
+
+      console.log(`✅ Portal criado: ${data.name} (powering_loja_id=${poweringId})`);
+
       return {
         statusCode: 201,
         headers,
@@ -137,51 +150,60 @@ exports.handler = async (event) => {
           return {
             statusCode: 400,
             headers,
-            body: JSON.stringify({ 
-              success: false, 
-              error: 'Formato de localidades inválido' 
+            body: JSON.stringify({
+              success: false,
+              error: 'Formato de localidades inválido'
             })
           };
         }
       }
 
+      // Normalizar powering_loja_id
+      const poweringId = data.powering_loja_id !== undefined && data.powering_loja_id !== null && data.powering_loja_id !== ''
+        ? parseInt(data.powering_loja_id)
+        : null;
+
       const query = `
-        UPDATE portals 
-        SET name = $1, 
-            departure_address = $2, 
+        UPDATE portals
+        SET name = $1,
+            departure_address = $2,
             localities = $3,
             nmdos_code = $4,
             portal_type = $5,
-            updated_at = $6
-        WHERE id = $7
+            powering_loja_id = $6,
+            powering_eg_loja_id = $7,
+            updated_at = $8
+        WHERE id = $9
         RETURNING *
       `;
-      
+
       const values = [
         data.name?.trim(),
         data.departure_address?.trim(),
         JSON.stringify(localities),
         data.nmdos_code || null,
         data.portal_type || 'sm',
+        poweringId,
+        poweringId,                     // duplicar nas 2 colunas para compatibilidade
         new Date().toISOString(),
         id
       ];
 
       const { rows } = await pool.query(query, values);
-      
+
       if (rows.length === 0) {
         return {
           statusCode: 404,
           headers,
-          body: JSON.stringify({ 
-            success: false, 
-            error: 'Portal não encontrado' 
+          body: JSON.stringify({
+            success: false,
+            error: 'Portal não encontrado'
           })
         };
       }
 
-      console.log(`✅ Portal atualizado: ${data.name}`);
-      
+      console.log(`✅ Portal atualizado: ${data.name} (powering_loja_id=${poweringId})`);
+
       return {
         statusCode: 200,
         headers,
@@ -203,9 +225,9 @@ exports.handler = async (event) => {
         return {
           statusCode: 400,
           headers,
-          body: JSON.stringify({ 
-            success: false, 
-            error: 'Não é possível eliminar portal com utilizadores associados' 
+          body: JSON.stringify({
+            success: false,
+            error: 'Não é possível eliminar portal com utilizadores associados'
           })
         };
       }
@@ -214,20 +236,20 @@ exports.handler = async (event) => {
         'DELETE FROM portals WHERE id = $1 RETURNING *',
         [id]
       );
-      
+
       if (rows.length === 0) {
         return {
           statusCode: 404,
           headers,
-          body: JSON.stringify({ 
-            success: false, 
-            error: 'Portal não encontrado' 
+          body: JSON.stringify({
+            success: false,
+            error: 'Portal não encontrado'
           })
         };
       }
 
       console.log(`✅ Portal eliminado: ${rows[0].name}`);
-      
+
       return {
         statusCode: 200,
         headers,
@@ -238,15 +260,15 @@ exports.handler = async (event) => {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ 
-        success: false, 
-        error: `Método ${event.httpMethod} não permitido` 
+      body: JSON.stringify({
+        success: false,
+        error: `Método ${event.httpMethod} não permitido`
       })
     };
 
   } catch (error) {
     console.error('❌ Erro na gestão de portais:', error);
-    
+
     if (error.message.includes('Não autenticado') || error.message.includes('Acesso negado')) {
       return {
         statusCode: 403,
@@ -258,9 +280,9 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ 
-        success: false, 
-        error: 'Erro interno do servidor' 
+      body: JSON.stringify({
+        success: false,
+        error: 'Erro interno do servidor'
       })
     };
   }

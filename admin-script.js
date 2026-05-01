@@ -129,17 +129,20 @@ function renderPortals() {
   const sorted = [...portals].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'pt'));
   
   tbody.innerHTML = sorted.map(portal => {
-    const lastImport = portal.last_import_at 
+    const lastImport = portal.last_import_at
       ? new Date(portal.last_import_at).toLocaleString('pt-PT', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })
       : '<span style="color:#9ca3af">—</span>';
-    const typeLabel = portal.portal_type === 'loja' 
+    const typeLabel = portal.portal_type === 'loja'
       ? '<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:4px;font-size:12px;">Loja</span>'
       : portal.portal_type === 'pesados'
       ? '<span style="background:#fff7ed;color:#c2410c;padding:2px 8px;border-radius:4px;font-size:12px;">Pesados</span>'
       : '<span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:4px;font-size:12px;">SM</span>';
+    const poweringBadge = portal.powering_loja_id
+      ? `<span title="PoweringEG #${portal.powering_loja_id}" style="background:#f5f3ff;color:#7c3aed;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-left:4px;">⚡ EG</span>`
+      : '';
     return `
     <tr>
-      <td><strong>${portal.name}</strong> ${typeLabel}</td>
+      <td><strong>${portal.name}</strong> ${typeLabel}${poweringBadge}</td>
       <td>${portal.departure_address}</td>
       <td>${portal.nmdos_code || '<span style="color:#9ca3af">—</span>'}</td>
       <td>${portal.service_count || 0}</td>
@@ -186,6 +189,73 @@ const NMDOS_CODES = [
   "Ficha Servico 95","Ficha Servico 96","Ficha Servico 97"
 ];
 
+// ===== POWERING EG — Lojas =====
+let _poweringLojasCache = null;
+let _poweringLojasLoading = null;
+
+async function loadPoweringLojas() {
+  if (_poweringLojasCache) return _poweringLojasCache;
+  if (_poweringLojasLoading) return _poweringLojasLoading;
+
+  _poweringLojasLoading = (async () => {
+    try {
+      const resp = await authClient.authenticatedFetch('/.netlify/functions/powering-kpis?action=lojas');
+      const data = await resp.json();
+      const lojas = Array.isArray(data?.lojas) ? data.lojas : [];
+      _poweringLojasCache = lojas.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt'));
+      return _poweringLojasCache;
+    } catch (e) {
+      console.warn('Erro ao carregar lojas PoweringEG:', e);
+      return [];
+    } finally {
+      _poweringLojasLoading = null;
+    }
+  })();
+
+  return _poweringLojasLoading;
+}
+
+async function populatePoweringLojaSelect(selectedId = null) {
+  const select = document.getElementById('portalPoweringLoja');
+  const hint = document.getElementById('portalPoweringHint');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">-- Sem associação PoweringEG --</option>';
+  if (hint) hint.textContent = 'A carregar lojas do PoweringEG...';
+
+  const lojas = await loadPoweringLojas();
+
+  if (!lojas.length) {
+    if (hint) hint.textContent = '⚠️ Nenhuma loja PoweringEG disponível';
+    return;
+  }
+
+  // Lista de IDs já usados por outros portais
+  const usedIds = new Set(
+    portals
+      .filter(p => p.powering_loja_id && p.id !== editingPortalId)
+      .map(p => parseInt(p.powering_loja_id))
+  );
+
+  lojas.forEach(loja => {
+    const opt = document.createElement('option');
+    opt.value = loja.id;
+    const numero = loja.numeroLoja ? ` (#${loja.numeroLoja})` : '';
+    opt.textContent = `${loja.nome}${numero}`;
+    if (usedIds.has(parseInt(loja.id))) {
+      opt.disabled = true;
+      opt.textContent += ' (já atribuída)';
+    }
+    select.appendChild(opt);
+  });
+
+  if (selectedId) {
+    select.value = String(selectedId);
+  }
+
+  if (hint) hint.textContent = `${lojas.length} lojas disponíveis no PoweringEG`;
+}
+
 function populateNmdosSelect() {
   const select = document.getElementById('portalNmdos');
   if (!select) return;
@@ -222,27 +292,29 @@ document.getElementById('addPortalBtn').addEventListener('click', () => {
   document.getElementById('portalModalTitle').textContent = 'Novo Portal';
   document.getElementById('portalForm').reset();
   document.getElementById('portalType').value = 'sm';
-  
+
   populateNmdosSelect();
+  populatePoweringLojaSelect(null);
   togglePortalTypeFields();
-  
+
   openModal('portalModal');
 });
 
 function editPortal(id) {
   const portal = portals.find(p => p.id === id);
   if (!portal) return;
-  
+
   editingPortalId = id;
   document.getElementById('portalModalTitle').textContent = 'Editar Portal';
   document.getElementById('portalName').value = portal.name;
   document.getElementById('portalAddress').value = portal.departure_address;
   document.getElementById('portalType').value = portal.portal_type || 'sm';
-  
+
   populateNmdosSelect();
   document.getElementById('portalNmdos').value = portal.nmdos_code || '';
+  populatePoweringLojaSelect(portal.powering_loja_id || null);
   togglePortalTypeFields();
-  
+
   openModal('portalModal');
 }
 
@@ -280,11 +352,12 @@ document.getElementById('portalForm').addEventListener('submit', async (e) => {
   const address = document.getElementById('portalAddress').value.trim();
   const portalType = document.getElementById('portalType').value;
   
-  const portalData = { 
-    name, 
-    departure_address: address, 
+  const portalData = {
+    name,
+    departure_address: address,
     localities: {},
     nmdos_code: document.getElementById('portalNmdos').value || null,
+    powering_loja_id: document.getElementById('portalPoweringLoja')?.value || null,
     portal_type: portalType
   };
   
