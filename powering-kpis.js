@@ -65,23 +65,8 @@ exports.handler = async (event) => {
     }
 
     const now = new Date();
-    let mes = parseInt(p.mes || now.getMonth() + 1);
-    let ano = parseInt(p.ano || now.getFullYear());
-    let dia = p.dia ? parseInt(p.dia) : null;
-
-    // ✅ Fix dia 1/2 do mês (independente dos parâmetros recebidos):
-    // Se estamos no mês actual E nos primeiros 2 dias, mostrar mês anterior
-    // (evita desvio enorme por divisão por número muito pequeno de dias úteis passados)
-    const hojeMes = now.getMonth() + 1;
-    const hojeAno = now.getFullYear();
-    const diaHoje = now.getDate();
-    const ehMesActual = (mes === hojeMes && ano === hojeAno);
-
-    if (ehMesActual && diaHoje <= 2) {
-      mes = mes - 1;
-      if (mes === 0) { mes = 12; ano = ano - 1; }
-      dia = null; // forçar recalcular como mês completo
-    }
+    const mesPedido = parseInt(p.mes || now.getMonth() + 1);
+    const anoPedido = parseInt(p.ano || now.getFullYear());
 
     let lojaId = p.loja_id ? parseInt(p.loja_id) : null;
 
@@ -100,20 +85,25 @@ exports.handler = async (event) => {
       };
     }
 
-    const data = await fetchPowering(`/resultados/${lojaId}?mes=${mes}&ano=${ano}`);
+    const data = await fetchPowering(`/resultados/${lojaId}?mes=${mesPedido}&ano=${anoPedido}`);
 
     // Modo debug — devolve resposta raw para diagnóstico
     if (p.debug === '1') {
-      return { statusCode: 200, headers, body: JSON.stringify({ debug: true, raw: data, lojaId, mesUsado: mes, anoUsado: ano }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ debug: true, raw: data, lojaId }) };
     }
 
-    // Estrutura real: data.resultados[] — filtrar pelo mês pedido
+    // Pegar SEMPRE no último resultado disponível na lista
+    // (PoweringEG devolve histórico; o último é o mais recente com dados)
     const lista = data.resultados || [];
-    const r = lista.find(x => x.mes === mes && x.ano === ano) || lista[lista.length - 1] || {};
+    const r = lista[lista.length - 1] || {};
 
     const servicos = r.totalServicos  ?? 0;
     const objetivo = r.objetivoMensal ?? 0;
     const taxa     = r.taxaReparacao != null ? Math.round(r.taxaReparacao * 100) : 0;
+
+    // Mês/ano efetivamente usados (do registo encontrado)
+    const mesEfetivo = r.mes || mesPedido;
+    const anoEfetivo = r.ano || anoPedido;
 
     // Desvio diário com dias úteis — replica fórmula do dashboard PoweringEG
     function contarDiasUteis(ano, mes, ate) {
@@ -127,19 +117,21 @@ exports.handler = async (event) => {
     }
 
     // Determinar dia de referência:
-    // - Se dia foi passado (e ainda válido para o mês ajustado), usar
-    // - Se mes/ano correspondem ao mês actual (sem ajuste), usar dia de hoje
-    // - Caso contrário (mês passado), usar último dia do mês
-    const ultimoDiaDoMes = new Date(ano, mes, 0).getDate();
-    const mesAjustado    = (mes === hojeMes && ano === hojeAno);
-    const diaAtual       = dia
-                           ? Math.min(dia, ultimoDiaDoMes)
-                           : (mesAjustado ? diaHoje : ultimoDiaDoMes);
+    // - Se mês efetivo é o actual → usar p.dia (do frontend) ou hoje
+    // - Caso contrário (mês passado/concluído) → IGNORAR p.dia e usar último dia
+    //   (não faz sentido usar dia 1 de maio quando estamos a calcular abril)
+    const hojeMes = now.getMonth() + 1;
+    const hojeAno = now.getFullYear();
+    const ultimoDiaDoMes = new Date(anoEfetivo, mesEfetivo, 0).getDate();
+    const ehMesActual = (anoEfetivo === hojeAno && mesEfetivo === hojeMes);
+    const diaAtual = ehMesActual
+                     ? (p.dia ? parseInt(p.dia) : now.getDate())
+                     : ultimoDiaDoMes;
 
     // PoweringEG: passados = até 2 dias antes de hoje; mês = até penúltimo dia
-    // Garantir mínimo de 1 dia para evitar divisão por número muito pequeno
-    const diasUteisPassados = Math.max(1, contarDiasUteis(ano, mes, diaAtual - 2));
-    const diasUteisMes      = Math.max(1, contarDiasUteis(ano, mes, ultimoDiaDoMes - 1));
+    // Math.max(1, ...) protege contra divisão por zero no início do mês
+    const diasUteisPassados = Math.max(1, contarDiasUteis(anoEfetivo, mesEfetivo, diaAtual - 2));
+    const diasUteisMes      = Math.max(1, contarDiasUteis(anoEfetivo, mesEfetivo, ultimoDiaDoMes - 1));
     const esperado          = objetivo * (diasUteisPassados / diasUteisMes);
     const desvioPercent     = esperado > 0
       ? Math.round(((servicos / esperado) - 1) * 1000) / 10
@@ -147,7 +139,7 @@ exports.handler = async (event) => {
 
     const kpis = { servicos, objetivo, taxa, desvioPercent };
 
-    return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis, mes, ano, lojaId }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis, mes: mesEfetivo, ano: anoEfetivo, lojaId }) };
 
   } catch (err) {
     console.error('[powering-kpis]', err.message);
