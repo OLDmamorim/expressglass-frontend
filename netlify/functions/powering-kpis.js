@@ -92,7 +92,7 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ debug: true, raw: data, lojaId }) };
     }
 
-    // ✅ Pegar SEMPRE no último resultado disponível na lista
+    // Pegar SEMPRE no último resultado disponível na lista
     // (PoweringEG devolve histórico; o último é o mais recente com dados)
     const lista = data.resultados || [];
     const r = lista[lista.length - 1] || {};
@@ -117,14 +117,15 @@ exports.handler = async (event) => {
     }
 
     // Determinar dia de referência:
-    // - Se mês efetivo é o actual → usar dia de hoje
-    // - Caso contrário (mês passado) → usar último dia do mês (mês concluído)
+    // - Se mês efetivo é o actual → usar p.dia (do frontend) ou hoje
+    // - Caso contrário (mês passado/concluído) → IGNORAR p.dia e usar último dia do mês
+    //   (não faz sentido usar dia 1 de Maio quando estamos a calcular Abril)
     const hojeMes = now.getMonth() + 1;
     const hojeAno = now.getFullYear();
     const ultimoDiaDoMes = new Date(anoEfetivo, mesEfetivo, 0).getDate();
-    const diaAtual = p.dia ? parseInt(p.dia) :
-                     (anoEfetivo === hojeAno && mesEfetivo === hojeMes)
-                     ? now.getDate()
+    const ehMesActual = (anoEfetivo === hojeAno && mesEfetivo === hojeMes);
+    const diaAtual = ehMesActual
+                     ? (p.dia ? parseInt(p.dia) : now.getDate())
                      : ultimoDiaDoMes;
 
     // PoweringEG: passados = até 2 dias antes de hoje; mês = até penúltimo dia
