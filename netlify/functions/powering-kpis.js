@@ -65,8 +65,8 @@ exports.handler = async (event) => {
     }
 
     const now = new Date();
-    const mes = parseInt(p.mes || now.getMonth() + 1);
-    const ano = parseInt(p.ano || now.getFullYear());
+    const mesPedido = parseInt(p.mes || now.getMonth() + 1);
+    const anoPedido = parseInt(p.ano || now.getFullYear());
 
     let lojaId = p.loja_id ? parseInt(p.loja_id) : null;
 
@@ -85,20 +85,25 @@ exports.handler = async (event) => {
       };
     }
 
-    const data = await fetchPowering(`/resultados/${lojaId}?mes=${mes}&ano=${ano}`);
+    const data = await fetchPowering(`/resultados/${lojaId}?mes=${mesPedido}&ano=${anoPedido}`);
 
     // Modo debug — devolve resposta raw para diagnóstico
     if (p.debug === '1') {
       return { statusCode: 200, headers, body: JSON.stringify({ debug: true, raw: data, lojaId }) };
     }
 
-    // Estrutura real: data.resultados[] — filtrar pelo mês pedido
+    // ✅ Pegar SEMPRE no último resultado disponível na lista
+    // (PoweringEG devolve histórico; o último é o mais recente com dados)
     const lista = data.resultados || [];
-    const r = lista.find(x => x.mes === mes && x.ano === ano) || lista[lista.length - 1] || {};
+    const r = lista[lista.length - 1] || {};
 
     const servicos = r.totalServicos  ?? 0;
     const objetivo = r.objetivoMensal ?? 0;
     const taxa     = r.taxaReparacao != null ? Math.round(r.taxaReparacao * 100) : 0;
+
+    // Mês/ano efetivamente usados (do registo encontrado)
+    const mesEfetivo = r.mes || mesPedido;
+    const anoEfetivo = r.ano || anoPedido;
 
     // Desvio diário com dias úteis — replica fórmula do dashboard PoweringEG
     function contarDiasUteis(ano, mes, ate) {
@@ -110,21 +115,30 @@ exports.handler = async (event) => {
       }
       return count;
     }
-    // Usar dia passado pelo frontend (evita erro de timezone no servidor)
-    const diaAtual          = p.dia ? parseInt(p.dia) :
-                              (ano === now.getFullYear() && mes === now.getMonth() + 1)
-                              ? now.getDate() : new Date(ano, mes, 0).getDate();
+
+    // Determinar dia de referência:
+    // - Se mês efetivo é o actual → usar dia de hoje
+    // - Caso contrário (mês passado) → usar último dia do mês (mês concluído)
+    const hojeMes = now.getMonth() + 1;
+    const hojeAno = now.getFullYear();
+    const ultimoDiaDoMes = new Date(anoEfetivo, mesEfetivo, 0).getDate();
+    const diaAtual = p.dia ? parseInt(p.dia) :
+                     (anoEfetivo === hojeAno && mesEfetivo === hojeMes)
+                     ? now.getDate()
+                     : ultimoDiaDoMes;
+
     // PoweringEG: passados = até 2 dias antes de hoje; mês = até penúltimo dia
-    const diasUteisPassados = contarDiasUteis(ano, mes, diaAtual - 2);
-    const diasUteisMes      = contarDiasUteis(ano, mes, new Date(ano, mes, 0).getDate() - 1);
-    const esperado          = diasUteisMes > 0 ? objetivo * (diasUteisPassados / diasUteisMes) : 0;
+    // Math.max(1, ...) protege contra divisão por zero no início do mês
+    const diasUteisPassados = Math.max(1, contarDiasUteis(anoEfetivo, mesEfetivo, diaAtual - 2));
+    const diasUteisMes      = Math.max(1, contarDiasUteis(anoEfetivo, mesEfetivo, ultimoDiaDoMes - 1));
+    const esperado          = objetivo * (diasUteisPassados / diasUteisMes);
     const desvioPercent     = esperado > 0
       ? Math.round(((servicos / esperado) - 1) * 1000) / 10
       : 0;
 
     const kpis = { servicos, objetivo, taxa, desvioPercent };
 
-    return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis, mes, ano, lojaId }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis, mes: mesEfetivo, ano: anoEfetivo, lojaId }) };
 
   } catch (err) {
     console.error('[powering-kpis]', err.message);
