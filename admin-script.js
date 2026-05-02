@@ -75,21 +75,25 @@ navTabs.forEach(tab => {
 // ===== CARREGAR PORTAIS PARA RELATÓRIOS (coordenador) =====
 async function loadPortalsForReports() {
   const user = authClient.getUser();
-  // Suportar portalIds (formato antigo, array de IDs) ou portals (formato novo, array de objetos)
-  let portalIds = user.portalIds || [];
-  if (!portalIds.length && Array.isArray(user.portals)) {
-    portalIds = user.portals.map(p => p.id ?? p).filter(Boolean);
+
+  // Coordenador NÃO pode chamar /.netlify/functions/portals (403 — só admin)
+  // Em vez disso, usar directamente user.portals (já vem com {id, name, ...} no token)
+  let portalList = [];
+  if (Array.isArray(user.portals) && user.portals.length) {
+    portalList = user.portals.filter(p => p && p.id && p.name);
+  } else if (Array.isArray(user.portalIds) && user.portalIds.length) {
+    // Fallback: só temos IDs, sem nomes — chamar API (vai falhar para coordenador, mas tentar)
+    try {
+      const resp = await authClient.authenticatedFetch('/.netlify/functions/portals');
+      const data = await resp.json();
+      if (data.success) portalList = data.data.filter(p => user.portalIds.includes(p.id));
+    } catch(e) { console.error('Erro ao carregar portais:', e); }
   }
-  if (!portalIds.length) return;
-  try {
-    const resp = await authClient.authenticatedFetch('/.netlify/functions/portals');
-    const data = await resp.json();
-    if (data.success) {
-      portals = data.data.filter(p => portalIds.includes(p.id));
-      window._adminPortals = portals;
-      populateReportPortalSelect(portals);
-    }
-  } catch(e) { console.error('Erro ao carregar portais:', e); }
+
+  if (!portalList.length) return;
+  portals = portalList;
+  window._adminPortals = portals;
+  populateReportPortalSelect(portals);
 }
 
 function populateReportPortalSelect(portalList) {
