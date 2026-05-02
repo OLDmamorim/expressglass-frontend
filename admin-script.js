@@ -75,7 +75,11 @@ navTabs.forEach(tab => {
 // ===== CARREGAR PORTAIS PARA RELATÓRIOS (coordenador) =====
 async function loadPortalsForReports() {
   const user = authClient.getUser();
-  const portalIds = user.portalIds || [];
+  // Suportar portalIds (formato antigo, array de IDs) ou portals (formato novo, array de objetos)
+  let portalIds = user.portalIds || [];
+  if (!portalIds.length && Array.isArray(user.portals)) {
+    portalIds = user.portals.map(p => p.id ?? p).filter(Boolean);
+  }
   if (!portalIds.length) return;
   try {
     const resp = await authClient.authenticatedFetch('/.netlify/functions/portals');
