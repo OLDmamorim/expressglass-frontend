@@ -22,6 +22,21 @@
         h1.style.display = '';
         h1.textContent = '📊 Relatórios';
       }
+      // Adicionar botão "Voltar à agenda" antes do Sair (se ainda não existir)
+      if (!document.getElementById('btnVoltarAgenda')) {
+        const btnVoltar = document.createElement('button');
+        btnVoltar.id = 'btnVoltarAgenda';
+        btnVoltar.textContent = '← Voltar à agenda';
+        btnVoltar.style.cssText = 'background:#fff;color:#2563eb;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;margin-right:8px;';
+        btnVoltar.onclick = () => { window.location.href = '/'; };
+        const sair = document.getElementById('logoutBtn') ||
+                     [...header.querySelectorAll('a,button')].find(el => /sair/i.test(el.textContent));
+        if (sair && sair.parentNode) {
+          sair.parentNode.insertBefore(btnVoltar, sair);
+        } else {
+          header.appendChild(btnVoltar);
+        }
+      }
     }
 
     // 2) Esconder TODAS as tabs excepto Relatórios
