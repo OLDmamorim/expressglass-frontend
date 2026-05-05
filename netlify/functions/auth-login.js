@@ -9,7 +9,7 @@ const pool = new Pool({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
-const JWT_EXPIRES_IN = '24h';
+// Sem expiração — token válido até logout manual
 
 // ── Rate Limiting ────────────────────────────────────────────────────────────
 const MAX_ATTEMPTS = 5;
@@ -157,7 +157,7 @@ exports.handler = async (event) => {
       tokenPayload.portalIds = multiPortals.map(p => p.id);
     }
 
-    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    const token = jwt.sign(tokenPayload, JWT_SECRET);
 
     const userData = {
       id: user.id,
