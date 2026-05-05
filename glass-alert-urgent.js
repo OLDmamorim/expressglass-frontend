@@ -157,9 +157,9 @@
   }
 
   async function verificar() {
-    // Só para coordenadores
+    // Coordenadores e admins
     const role = window.authClient?.getUser?.()?.role;
-    if (role !== 'coordenador') return;
+    if (role !== 'coordenador' && role !== 'admin') return;
 
     const slot = getSlotAtual();
     if (!slot) return;
