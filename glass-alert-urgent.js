@@ -146,7 +146,8 @@
     document.body.appendChild(overlay);
 
     document.getElementById('glassUrgentVer').onclick = () => {
-      // Abre o modal existente sem fechar este popup
+      // Fechar este popup e abrir o modal existente
+      overlay.remove();
       if (typeof openGlassAlertModal === 'function') openGlassAlertModal();
     };
 
