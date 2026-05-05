@@ -1977,6 +1977,9 @@ function editAppointment(id) {
   const firstCb = document.getElementById('appointmentFirstOfDay');
   if (firstCb) firstCb.checked = !!(appointment.first_of_day);
   document.getElementById('appointmentLocality').value = appointment.locality || '';
+  if (document.getElementById('appointmentPeriod')) {
+    document.getElementById('appointmentPeriod').value = appointment.period || 'Manhã';
+  }
   document.getElementById('appointmentNotes').value = appointment.notes || '';
   document.getElementById('appointmentAddress').value = appointment.address || '';
   document.getElementById('appointmentPhone').value = appointment.phone || '';
@@ -3314,6 +3317,7 @@ function bootApp() {
       car:    get('appointmentCar').toUpperCase(),
       service:get('appointmentService'),
       locality:get('appointmentLocality'),
+      period: (document.getElementById('appointmentPeriod')?.value || null),
       notes:  get('appointmentNotes'),
       address:get('appointmentAddress'),
       phone:  get('appointmentPhone'),
