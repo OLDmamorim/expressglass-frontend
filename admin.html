@@ -479,7 +479,9 @@
       #reportContent { display: block !important; }
       #reportComercialSection { display: block !important; }
       #reportMotivosSection { display: block !important; }
-      .tab-content { display: block !important; }
+      /* Esconder outras tabs no print (manter só Relatórios) */
+      .tab-content { display: none !important; }
+      #reportsTab.tab-content { display: block !important; }
       canvas { max-width: 100%; height: auto !important; }
       .report-charts-grid { grid-template-columns: 1fr !important; }
       .chart-card { break-inside: avoid; page-break-inside: avoid; margin-bottom: 20px; }
