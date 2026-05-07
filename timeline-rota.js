@@ -204,11 +204,26 @@
 
     let html = '<div class="tl-list">';
     events.forEach((ev, idx) => {
-      const isPast = isToday && now > ev.time + (ev.duration || 0);
-      const isCurrent = isToday && now >= ev.time && now <= ev.time + (ev.duration || 0);
+      const evEnd = ev.time + (ev.duration || 0);
+      const isPast = isToday && now > evEnd;
+      const isCurrent = isToday && now >= ev.time && now <= evEnd;
       let cls = 'tl-event tl-' + ev.type;
       if (isPast) cls += ' tl-past';
       if (isCurrent) cls += ' tl-current';
+
+      // Inserir linha "agora" ANTES deste evento se now estiver entre o evento anterior e este
+      if (isToday && now >= tlStart && now <= tlEnd) {
+        const prevEnd = idx > 0 ? events[idx-1].time + (events[idx-1].duration || 0) : tlStart;
+        if (now >= prevEnd && now < ev.time) {
+          html += `
+            <div class="tl-now-row">
+              <div class="tl-now-time">${fmtHM(now)}</div>
+              <div class="tl-now-line-h"></div>
+              <div class="tl-now-tag">agora</div>
+            </div>
+          `;
+        }
+      }
 
       html += `
         <div class="${cls}" style="--col:${colorByType[ev.type]}">
@@ -222,27 +237,27 @@
           </div>
         </div>
       `;
+
+      // Se o "agora" cai DENTRO deste evento, inserir linha logo após
+      if (isCurrent) {
+        html += `
+          <div class="tl-now-row tl-now-inside">
+            <div class="tl-now-time">${fmtHM(now)}</div>
+            <div class="tl-now-line-h"></div>
+            <div class="tl-now-tag">agora</div>
+          </div>
+        `;
+      }
     });
     html += '</div>';
 
-    // Linha "agora" — só se for hoje E entre tlStart e tlEnd
-    if (isToday && now >= tlStart && now <= tlEnd) {
-      const pct = ((now - tlStart) / tlSpan) * 100;
-      html += `
-        <div class="tl-now-marker" style="top:${pct}%">
-          <div class="tl-now-line"></div>
-          <div class="tl-now-label">${fmtHM(now)} agora</div>
-        </div>
-      `;
-    }
-
     list.innerHTML = html;
 
-    // Scroll para evento atual
+    // Scroll para linha "agora"
     if (isToday) {
       setTimeout(() => {
-        const cur = list.querySelector('.tl-current');
-        if (cur) cur.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const nowEl = list.querySelector('.tl-now-row');
+        if (nowEl) nowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 200);
     }
   }
@@ -379,29 +394,43 @@
           0%, 100% { box-shadow: 0 0 0 4px #0f172a, 0 0 0 7px rgba(251,191,36,0.4); }
           50% { box-shadow: 0 0 0 4px #0f172a, 0 0 0 11px rgba(251,191,36,0.15); }
         }
-        #timelineModal .tl-now-marker {
-          position: absolute;
-          left: 12px;
-          right: 12px;
-          height: 0;
-          z-index: 3;
-          pointer-events: none;
+        #timelineModal .tl-now-row {
+          display: grid;
+          grid-template-columns: auto 1fr auto;
+          align-items: center;
+          gap: 10px;
+          margin: 8px 0 8px -56px;
+          padding-left: 0;
+          position: relative;
+          z-index: 4;
         }
-        #timelineModal .tl-now-line {
+        #timelineModal .tl-now-time {
+          font-size: 12px;
+          font-weight: 800;
+          color: #ef4444;
+          font-family: 'Roboto Mono', monospace;
+          background: #ef4444;
+          color: white;
+          padding: 2px 8px;
+          border-radius: 10px;
+          white-space: nowrap;
+        }
+        #timelineModal .tl-now-line-h {
           height: 2px;
           background: #ef4444;
           box-shadow: 0 0 8px rgba(239,68,68,0.6);
+          border-radius: 2px;
         }
-        #timelineModal .tl-now-label {
-          position: absolute;
-          right: 0; top: -10px;
-          background: #ef4444;
-          color: white;
-          font-size: 11px;
+        #timelineModal .tl-now-tag {
+          font-size: 10px;
           font-weight: 800;
-          padding: 3px 10px;
-          border-radius: 12px;
-          font-family: 'Roboto Mono', monospace;
+          color: #ef4444;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        #timelineModal .tl-now-inside {
+          margin-top: -4px;
+          margin-bottom: 4px;
         }
         #timelineModal .tl-legend {
           background: rgba(255,255,255,0.04);
