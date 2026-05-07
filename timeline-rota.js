@@ -480,13 +480,15 @@
   const _origGet = getSelectedDate;
   // (não vou expor — uso a função global)
 
-  // Hook do botão
+  // Hook do botão (mobile + desktop)
   function init() {
-    const btn = document.getElementById('btnTimeline');
-    if (btn && !btn._tlHooked) {
-      btn._tlHooked = true;
-      btn.onclick = openTimeline;
-    }
+    ['btnTimeline', 'btnTimelineDesk'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn && !btn._tlHooked) {
+        btn._tlHooked = true;
+        btn.onclick = openTimeline;
+      }
+    });
   }
 
   if (document.readyState === 'loading') {
