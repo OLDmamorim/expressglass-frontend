@@ -117,7 +117,12 @@
       return [];
     }
     const onDay = (data.data || [])
-      .filter(a => a.date === date)
+      .filter(a => {
+        if (!a.date) return false;
+        // Normalizar para YYYY-MM-DD (backend pode devolver com timestamp)
+        const apptDate = String(a.date).slice(0, 10);
+        return apptDate === date;
+      })
       .sort((a, b) => (a.sortIndex ?? 999) - (b.sortIndex ?? 999));
     apptCache.set(key, onDay);
     return onDay;
@@ -372,17 +377,20 @@
 
   function darkMapStyle() {
     return [
-      { elementType: 'geometry', stylers: [{ color: '#1a2332' }] },
-      { elementType: 'labels.text.stroke', stylers: [{ color: '#1a2332' }] },
-      { elementType: 'labels.text.fill', stylers: [{ color: '#748498' }] },
-      { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#253345' }] },
-      { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1c2d3e' }] },
-      { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
-      { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2c4a6e' }] },
-      { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e1f2f' }] },
+      { elementType: 'geometry', stylers: [{ color: '#2a3a52' }] },
+      { elementType: 'labels.text.stroke', stylers: [{ color: '#2a3a52' }] },
+      { elementType: 'labels.text.fill', stylers: [{ color: '#a8b4c4' }] },
+      { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#3d5070' }] },
+      { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#2e4060' }] },
+      { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#c8d4e4' }] },
+      { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#4a6a96' }] },
+      { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#365080' }] },
+      { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1a6a8e' }] },
+      { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#7fb8d4' }] },
       { featureType: 'poi', stylers: [{ visibility: 'off' }] },
       { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-      { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#2d4a6e' }] },
+      { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#4a6a96' }] },
+      { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#d4dfe9' }] },
     ];
   }
 
@@ -573,6 +581,8 @@
 
     if (hasBounds) {
       map.fitBounds(allBounds, { top: 60, right: 40, bottom: 40, left: 40 });
+      // Forçar resize após bounds para garantir que o mapa redesenha
+      setTimeout(() => google.maps.event.trigger(map, 'resize'), 200);
     }
 
     if (loading) loading.style.display = 'none';
@@ -647,7 +657,15 @@
     };
     document.addEventListener('keydown', onKey);
 
-    requestAnimationFrame(() => renderAll());
+    // Criar mapa imediatamente (antes do render para garantir que tem dimensões)
+    requestAnimationFrame(() => {
+      ensureMap();
+      // Forçar resize após primeiro layout
+      setTimeout(() => {
+        if (mapInstance) google.maps.event.trigger(mapInstance, 'resize');
+        renderAll();
+      }, 100);
+    });
   }
 
   function init() {
