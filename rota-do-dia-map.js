@@ -1,27 +1,20 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// rota-do-dia-map.js — v2 — Mapa multi-portal (SM + Pesados)
+// rota-do-dia-map.js — v2.1 — Mapa multi-portal (SM + Pesados)
 // Checkboxes no topo do mapa para combinar rotas de vários portais.
 // Cada portal: cor própria, base própria, rota própria.
+// Admin: vê todos os SMs/Pesados via API de portais.
 // ═══════════════════════════════════════════════════════════════════════════
 
 (function () {
   'use strict';
 
-  // Paleta de cores por portal (até 8 cores)
   const PORTAL_COLORS = [
-    '#3b82f6', // azul
-    '#16a34a', // verde
-    '#dc2626', // vermelho
-    '#d97706', // âmbar
-    '#7c3aed', // roxo
-    '#0891b2', // ciano
-    '#db2777', // rosa
-    '#ea580c', // laranja
+    '#3b82f6', '#16a34a', '#dc2626', '#d97706',
+    '#7c3aed', '#0891b2', '#db2777', '#ea580c',
   ];
 
   function colorForIndex(i) { return PORTAL_COLORS[i % PORTAL_COLORS.length]; }
 
-  // ── SVG do marcador com matrícula ─────────────────────────────────────
   function makeMarkerSVG(plate, color) {
     const w = 96, h = 46, r = 8;
     const label = (plate || '—').toUpperCase();
@@ -44,7 +37,6 @@
     };
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────
   function getSelectedDate() {
     if (window.currentMobileDate) return window.currentMobileDate;
     if (window.currentMobileDay) return window.currentMobileDay.toISOString().split('T')[0];
@@ -71,24 +63,46 @@
   }
 
   // ── Lista dos portais a que o utilizador tem acesso (SM + Pesados) ────
-  function getAvailablePortals() {
+  // Para admin: fetch all SM+Pesados via /.netlify/functions/portals
+  // Para outros: usar user.portals do token
+  async function getAvailablePortals() {
     const user = window.authClient?.getUser?.();
     if (!user) return [];
+
+    if (user.role === 'admin') {
+      try {
+        const token = window.authClient?.getToken?.() || localStorage.getItem('authToken');
+        const resp = await fetch('/.netlify/functions/portals', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await resp.json();
+        if (data.success && Array.isArray(data.data)) {
+          return data.data
+            .filter(p => p.portal_type === 'sm' || p.portal_type === 'pesados')
+            .map(p => ({
+              id: p.id,
+              name: p.name,
+              departureAddress: p.departure_address,
+              portalType: p.portal_type,
+            }));
+        }
+      } catch(e) { console.warn('[RotaMapa] Erro a listar portais admin:', e); }
+      return [];
+    }
+
     let portals = [];
     if (Array.isArray(user.portals) && user.portals.length) {
       portals = user.portals;
     } else if (user.portal) {
       portals = [user.portal];
     }
-    // Aceitar SM e Pesados (lojas têm rota fixa, sem sentido aqui)
     return portals.filter(p => {
       const t = p.portalType || p.portal_type;
       return t === 'sm' || t === 'pesados';
     });
   }
 
-  // ── Buscar agendamentos de um portal (com cache em memória) ───────────
-  const apptCache = new Map(); // key = portal_id+'_'+date
+  const apptCache = new Map();
   async function fetchAppointments(portalId, date) {
     const key = portalId + '_' + date;
     if (apptCache.has(key)) return apptCache.get(key);
@@ -108,10 +122,6 @@
     apptCache.set(key, onDay);
     return onDay;
   }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // MODAL
-  // ═══════════════════════════════════════════════════════════════════════
 
   function buildModal(portals, currentPortalId) {
     const existing = document.getElementById('rotaMapModal');
@@ -159,8 +169,6 @@
           transition: background .15s;
         }
         #rotaMapModal .rm-close:hover { background: rgba(255,255,255,0.15); color: #f1f5f9; }
-
-        /* ── Filtros de portais ── */
         #rotaMapModal .rm-portals {
           display: flex; gap: 6px; padding: 8px 16px; overflow-x: auto;
           background: #0b1422;
@@ -197,12 +205,9 @@
         #rotaMapModal .rm-portal-chip.active .check::after {
           content: '✓'; color: currentColor;
         }
-
         #rotaMapModal .rm-body {
           display: flex; flex: 1; overflow: hidden; min-height: 0;
         }
-
-        /* ── Painel ── */
         #rotaMapModal .rm-panel {
           width: 320px; flex-shrink: 0;
           background: #0f172a;
@@ -273,8 +278,6 @@
           text-align: center; padding: 20px 12px;
           color: #475569; font-size: 12px; font-style: italic;
         }
-
-        /* ── Mapa ── */
         #rotaMapModal .rm-map-wrap { flex: 1; position: relative; min-height: 0; }
         #rotaMapModal #rotaGoogleMap { width: 100%; height: 100%; }
         #rotaMapModal .rm-loading {
@@ -292,7 +295,6 @@
           animation: rmSpin .8s linear infinite;
         }
         @keyframes rmSpin { to { transform: rotate(360deg); } }
-
         @media (max-width: 700px) {
           #rotaMapModal .rm-body { flex-direction: column-reverse; }
           #rotaMapModal .rm-panel {
@@ -334,7 +336,6 @@
 
     document.body.appendChild(modal);
 
-    // Renderizar chips de portais
     const chipsContainer = document.getElementById('rmPortalChips');
     portals.forEach((p, i) => {
       const color = colorForIndex(i);
@@ -358,12 +359,8 @@
     return modal;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // RENDER (com debounce para evitar redraws ao clicar rapidamente)
-  // ═══════════════════════════════════════════════════════════════════════
-
   let mapInstance = null;
-  let activeOverlays = []; // markers + renderers
+  let activeOverlays = [];
 
   function clearMap() {
     activeOverlays.forEach(o => {
@@ -441,7 +438,6 @@
     const allBounds = new google.maps.LatLngBounds();
     let hasBounds = false;
 
-    // Buscar appointments de cada portal e desenhar
     for (const portal of portalsActivos) {
       const allPortals = window._rmAllPortals || [];
       const portalFull = allPortals.find(p => p.id === portal.id);
@@ -450,7 +446,6 @@
       const appts = await fetchAppointments(portal.id, date);
       totalStops += appts.length;
 
-      // Lista no painel
       const group = document.createElement('div');
       group.className = 'rm-portal-group';
       group.innerHTML = `
@@ -480,14 +475,12 @@
       }
       stopList.appendChild(group);
 
-      // Desenhar no mapa (só agendamentos com morada)
       const withAddr = appts.filter(a => apptAddress(a));
       if (withAddr.length === 0) continue;
 
       const result = await calcRoute(baseAddr, withAddr);
       if (!result) continue;
 
-      // Polyline da rota
       const renderer = new google.maps.DirectionsRenderer({
         suppressMarkers: true,
         polylineOptions: {
@@ -500,8 +493,6 @@
       renderer.setDirections(result);
       activeOverlays.push(renderer);
 
-      // Markers nas paragens
-      const legOffset = baseAddr ? 1 : 0;
       result.routes[0].legs.forEach((leg, i) => {
         let appt, pos;
         if (baseAddr) {
@@ -542,7 +533,6 @@
         allBounds.extend(pos); hasBounds = true;
       });
 
-      // Marker base
       if (baseAddr) {
         try {
           const baseGeo = await new Promise((res, rej) =>
@@ -571,7 +561,6 @@
         }
       }
 
-      // Somar totais
       result.routes[0].legs.forEach(leg => {
         totalDist += leg.distance.value;
         totalDur += leg.duration.value;
@@ -615,23 +604,18 @@
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════
-  // ABRIR / FECHAR
-  // ═══════════════════════════════════════════════════════════════════════
-
-  function openRotaMap(date) {
+  async function openRotaMap(date) {
     if (!window.google?.maps) {
       alert('Google Maps ainda não carregou. Aguarda um momento.');
       return;
     }
 
-    const portals = getAvailablePortals();
+    const portals = await getAvailablePortals();
     if (portals.length === 0) {
       alert('Não há SMs ou Pesados disponíveis para mostrar.');
       return;
     }
 
-    // Guardar lista completa (com morada) para uso interno
     window._rmAllPortals = portals;
 
     const currentPortalId = window.portalConfig?.id || portals[0].id;
@@ -665,10 +649,6 @@
 
     requestAnimationFrame(() => renderAll());
   }
-
-  // ═══════════════════════════════════════════════════════════════════════
-  // INTERCEPTAR BOTÕES
-  // ═══════════════════════════════════════════════════════════════════════
 
   function init() {
     window.openRotaDoDia = function() {
