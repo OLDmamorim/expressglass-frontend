@@ -1,24 +1,29 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// rota-do-dia-map.js — Mapa full-screen da Rota do Dia
-// Marcadores personalizados com matrícula + cor do card
-// Interceta #btnRotaDoDiaDesk e #btnRotaDoDiaMobile
+// rota-do-dia-map.js — v2 — Mapa multi-portal (SM + Pesados)
+// Checkboxes no topo do mapa para combinar rotas de vários portais.
+// Cada portal: cor própria, base própria, rota própria.
 // ═══════════════════════════════════════════════════════════════════════════
 
 (function () {
   'use strict';
 
-  // ── Cor do marcador conforme estado do agendamento ─────────────────────
-  function cardColor(appt) {
-    if (appt.executed)          return '#16a34a'; // verde  — realizado
-    if (appt.not_done_reason)   return '#dc2626'; // vermelho — não realizado
-    if (appt.confirmed === true || appt.confirmed === 'true') return '#1d4ed8'; // azul — confirmado
-    return '#d97706';                              // âmbar — pré-agendamento
-  }
+  // Paleta de cores por portal (até 8 cores)
+  const PORTAL_COLORS = [
+    '#3b82f6', // azul
+    '#16a34a', // verde
+    '#dc2626', // vermelho
+    '#d97706', // âmbar
+    '#7c3aed', // roxo
+    '#0891b2', // ciano
+    '#db2777', // rosa
+    '#ea580c', // laranja
+  ];
+
+  function colorForIndex(i) { return PORTAL_COLORS[i % PORTAL_COLORS.length]; }
 
   // ── SVG do marcador com matrícula ─────────────────────────────────────
   function makeMarkerSVG(plate, color) {
     const w = 96, h = 46, r = 8;
-    // Formatar matrícula: garantir maiúsculas
     const label = (plate || '—').toUpperCase();
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
       <rect x="1" y="1" width="${w-2}" height="${h-14}" rx="${r}" fill="${color}" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
@@ -39,54 +44,76 @@
     };
   }
 
-  // ── Obter dia seleccionado ─────────────────────────────────────────────
+  // ── Helpers ────────────────────────────────────────────────────────────
   function getSelectedDate() {
-    // Tentar ler do estado global do script.js
     if (window.currentMobileDate) return window.currentMobileDate;
-    // Tentar ler do elemento de data mobile
+    if (window.currentMobileDay) return window.currentMobileDay.toISOString().split('T')[0];
     const lbl = document.getElementById('mobileDayLabel');
     if (lbl && lbl.dataset.date) return lbl.dataset.date;
-    // Fallback: hoje
     return new Date().toISOString().split('T')[0];
   }
 
-  // ── Obter agendamentos do dia ordenados ───────────────────────────────
-  function getDayAppointments(date) {
-    return (window.appointments || [])
-      .filter(a => a.date === date)
-      .sort((a, b) => (a.sortIndex ?? 999) - (b.sortIndex ?? 999));
-  }
-
-  // ── Endereço para geocoding ────────────────────────────────────────────
   function apptAddress(appt) {
     if (appt.address && appt.address.trim().length > 5) return appt.address.trim() + ', Portugal';
     if (appt.locality) return appt.locality + ', Portugal';
     return null;
   }
 
-  // ── Período legível ────────────────────────────────────────────────────
-  function periodLabel(appt) {
-    if (appt.period === 'Manhã') return '🌅 Manhã';
-    if (appt.period === 'Tarde') return '🌇 Tarde';
-    return '';
-  }
-
-  // ── Formatação km ──────────────────────────────────────────────────────
   function fmtKm(m) {
-    if (!m) return '';
+    if (!m) return '0 km';
     return m >= 1000 ? (m/1000).toFixed(1) + ' km' : m + ' m';
   }
+
   function fmtDur(s) {
-    if (!s) return '';
+    if (!s) return '0 min';
     const m = Math.round(s / 60);
     return m >= 60 ? Math.floor(m/60) + 'h ' + (m%60) + 'min' : m + ' min';
   }
 
+  // ── Lista dos portais a que o utilizador tem acesso (SM + Pesados) ────
+  function getAvailablePortals() {
+    const user = window.authClient?.getUser?.();
+    if (!user) return [];
+    let portals = [];
+    if (Array.isArray(user.portals) && user.portals.length) {
+      portals = user.portals;
+    } else if (user.portal) {
+      portals = [user.portal];
+    }
+    // Aceitar SM e Pesados (lojas têm rota fixa, sem sentido aqui)
+    return portals.filter(p => {
+      const t = p.portalType || p.portal_type;
+      return t === 'sm' || t === 'pesados';
+    });
+  }
+
+  // ── Buscar agendamentos de um portal (com cache em memória) ───────────
+  const apptCache = new Map(); // key = portal_id+'_'+date
+  async function fetchAppointments(portalId, date) {
+    const key = portalId + '_' + date;
+    if (apptCache.has(key)) return apptCache.get(key);
+
+    const token = window.authClient?.getToken?.() || localStorage.getItem('authToken');
+    const resp = await fetch('/.netlify/functions/appointments?portal_id=' + portalId, {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const data = await resp.json();
+    if (!data.success) {
+      console.warn('[RotaMapa] Erro a buscar appointments do portal', portalId, data.error);
+      return [];
+    }
+    const onDay = (data.data || [])
+      .filter(a => a.date === date)
+      .sort((a, b) => (a.sortIndex ?? 999) - (b.sortIndex ?? 999));
+    apptCache.set(key, onDay);
+    return onDay;
+  }
+
   // ═══════════════════════════════════════════════════════════════════════
-  // MODAL PRINCIPAL
+  // MODAL
   // ═══════════════════════════════════════════════════════════════════════
 
-  function buildModal() {
+  function buildModal(portals, currentPortalId) {
     const existing = document.getElementById('rotaMapModal');
     if (existing) existing.remove();
 
@@ -105,12 +132,12 @@
           padding: 10px 16px;
           background: #0f172a;
           border-bottom: 1px solid rgba(255,255,255,0.08);
-          flex-shrink: 0;
+          flex-shrink: 0; flex-wrap: wrap;
         }
         #rotaMapModal .rm-title {
           font-size: 16px; font-weight: 800;
           color: #f1f5f9; letter-spacing: 0.3px;
-          flex: 1;
+          flex: 1; min-width: 100px;
         }
         #rotaMapModal .rm-date-pill {
           display: flex; align-items: center; gap: 6px;
@@ -122,8 +149,7 @@
         #rotaMapModal .rm-date-input {
           background: none; border: none; outline: none;
           color: #e2e8f0; font-size: 13px; font-weight: 700;
-          font-family: inherit; cursor: pointer;
-          width: 130px;
+          font-family: inherit; cursor: pointer; width: 130px;
         }
         #rotaMapModal .rm-close {
           width: 34px; height: 34px; border-radius: 50%;
@@ -133,13 +159,52 @@
           transition: background .15s;
         }
         #rotaMapModal .rm-close:hover { background: rgba(255,255,255,0.15); color: #f1f5f9; }
-        #rotaMapModal .rm-body {
-          display: flex; flex: 1; overflow: hidden;
+
+        /* ── Filtros de portais ── */
+        #rotaMapModal .rm-portals {
+          display: flex; gap: 6px; padding: 8px 16px; overflow-x: auto;
+          background: #0b1422;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          flex-shrink: 0; -webkit-overflow-scrolling: touch;
+        }
+        #rotaMapModal .rm-portals::-webkit-scrollbar { height: 4px; }
+        #rotaMapModal .rm-portals::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+        #rotaMapModal .rm-portal-chip {
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 6px 12px; border-radius: 20px;
+          background: rgba(255,255,255,0.04);
+          border: 1.5px solid rgba(255,255,255,0.1);
+          color: #94a3b8; font-size: 12px; font-weight: 700;
+          cursor: pointer; white-space: nowrap;
+          transition: all .15s; user-select: none;
+        }
+        #rotaMapModal .rm-portal-chip:hover {
+          background: rgba(255,255,255,0.08); color: #e2e8f0;
+        }
+        #rotaMapModal .rm-portal-chip.active {
+          color: #fff; background: rgba(59,130,246,0.15);
+        }
+        #rotaMapModal .rm-portal-chip .dot {
+          width: 10px; height: 10px; border-radius: 50%;
+          flex-shrink: 0;
+        }
+        #rotaMapModal .rm-portal-chip .check {
+          width: 14px; height: 14px; border-radius: 4px;
+          border: 1.5px solid currentColor;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 10px; line-height: 1;
+        }
+        #rotaMapModal .rm-portal-chip.active .check::after {
+          content: '✓'; color: currentColor;
         }
 
-        /* ── Painel lateral ── */
+        #rotaMapModal .rm-body {
+          display: flex; flex: 1; overflow: hidden; min-height: 0;
+        }
+
+        /* ── Painel ── */
         #rotaMapModal .rm-panel {
-          width: 300px; flex-shrink: 0;
+          width: 320px; flex-shrink: 0;
           background: #0f172a;
           border-right: 1px solid rgba(255,255,255,0.07);
           display: flex; flex-direction: column;
@@ -168,64 +233,56 @@
           padding: 10px 8px;
         }
         #rotaMapModal .rm-stops::-webkit-scrollbar { width: 4px; }
-        #rotaMapModal .rm-stops::-webkit-scrollbar-track { background: transparent; }
         #rotaMapModal .rm-stops::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-
+        #rotaMapModal .rm-portal-group {
+          margin-bottom: 14px;
+        }
+        #rotaMapModal .rm-portal-header {
+          display: flex; align-items: center; gap: 6px;
+          padding: 6px 8px; margin-bottom: 4px;
+          font-size: 11px; font-weight: 800; letter-spacing: 0.5px;
+          text-transform: uppercase;
+        }
+        #rotaMapModal .rm-portal-header .dot {
+          width: 8px; height: 8px; border-radius: 50%;
+        }
         #rotaMapModal .rm-stop {
           display: flex; align-items: flex-start; gap: 10px;
-          padding: 10px 8px; border-radius: 10px; margin-bottom: 4px;
+          padding: 8px; border-radius: 8px; margin-bottom: 3px;
           cursor: pointer; transition: background .12s;
         }
         #rotaMapModal .rm-stop:hover { background: rgba(255,255,255,0.05); }
-        #rotaMapModal .rm-stop.active { background: rgba(255,255,255,0.08); }
-
         #rotaMapModal .rm-stop-idx {
           width: 22px; height: 22px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
-          font-size: 10px; font-weight: 800; flex-shrink: 0; margin-top: 1px;
+          font-size: 10px; font-weight: 800; flex-shrink: 0;
           color: white;
         }
         #rotaMapModal .rm-stop-plate {
           font-size: 13px; font-weight: 800; color: #f1f5f9;
-          font-family: 'Rajdhani', 'Roboto Mono', monospace;
+          font-family: 'Rajdhani','Roboto Mono',monospace;
           letter-spacing: 0.5px; line-height: 1.2;
         }
         #rotaMapModal .rm-stop-car {
           font-size: 11px; color: #64748b; font-weight: 500;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-          max-width: 180px;
         }
         #rotaMapModal .rm-stop-loc {
           font-size: 11px; color: #475569; margin-top: 2px;
-          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-          max-width: 180px;
-        }
-        #rotaMapModal .rm-stop-leg {
-          font-size: 10px; color: #334155; margin-top: 3px;
-          display: flex; gap: 6px;
-        }
-        #rotaMapModal .rm-connector {
-          width: 1px; background: rgba(255,255,255,0.08);
-          margin: 0 10px 0 18px; height: 14px; flex-shrink: 0;
         }
         #rotaMapModal .rm-no-stops {
-          text-align: center; padding: 40px 16px;
-          color: #475569; font-size: 13px;
+          text-align: center; padding: 20px 12px;
+          color: #475569; font-size: 12px; font-style: italic;
         }
 
         /* ── Mapa ── */
-        #rotaMapModal .rm-map-wrap {
-          flex: 1; position: relative;
-        }
-        #rotaMapModal #rotaGoogleMap {
-          width: 100%; height: 100%;
-        }
+        #rotaMapModal .rm-map-wrap { flex: 1; position: relative; min-height: 0; }
+        #rotaMapModal #rotaGoogleMap { width: 100%; height: 100%; }
         #rotaMapModal .rm-loading {
           position: absolute; inset: 0;
-          display: flex; flex-direction: column;
+          display: none; flex-direction: column;
           align-items: center; justify-content: center;
-          background: #0f172a; color: #64748b;
-          font-size: 14px; gap: 12px;
+          background: rgba(15,23,42,0.85); color: #cbd5e1;
+          font-size: 14px; gap: 12px; z-index: 5;
         }
         #rotaMapModal .rm-spinner {
           width: 36px; height: 36px;
@@ -235,24 +292,13 @@
           animation: rmSpin .8s linear infinite;
         }
         @keyframes rmSpin { to { transform: rotate(360deg); } }
-        #rotaMapModal .rm-err {
-          position: absolute; inset: 0;
-          display: none; flex-direction: column;
-          align-items: center; justify-content: center;
-          background: #0f172a; color: #ef4444;
-          font-size: 14px; gap: 8px; padding: 32px;
-          text-align: center;
-        }
 
-        /* ── Mobile: painel escorrega de baixo ── */
         @media (max-width: 700px) {
           #rotaMapModal .rm-body { flex-direction: column-reverse; }
           #rotaMapModal .rm-panel {
-            width: 100%; height: 220px;
+            width: 100%; height: 240px;
             border-right: none; border-top: 1px solid rgba(255,255,255,0.07);
           }
-          #rotaMapModal .rm-stops { padding: 6px; }
-          #rotaMapModal .rm-stop { padding: 8px 6px; }
         }
       </style>
 
@@ -264,313 +310,69 @@
         <button class="rm-close" id="rotaMapClose">✕</button>
       </div>
 
+      <div class="rm-portals" id="rmPortalChips"></div>
+
       <div class="rm-body">
         <div class="rm-panel">
           <div class="rm-stats">
-            <div class="rm-stat">
-              <div class="rm-stat-lbl">Paragens</div>
-              <div class="rm-stat-val" id="rmStatStops">—</div>
-            </div>
-            <div class="rm-stat">
-              <div class="rm-stat-lbl">Distância</div>
-              <div class="rm-stat-val" id="rmStatDist">—</div>
-            </div>
-            <div class="rm-stat">
-              <div class="rm-stat-lbl">Tempo viagem</div>
-              <div class="rm-stat-val" id="rmStatTime">—</div>
-            </div>
-            <div class="rm-stat">
-              <div class="rm-stat-lbl">Com morada</div>
-              <div class="rm-stat-val" id="rmStatAddr">—</div>
-            </div>
+            <div class="rm-stat"><div class="rm-stat-lbl">Paragens</div><div class="rm-stat-val" id="rmStatStops">—</div></div>
+            <div class="rm-stat"><div class="rm-stat-lbl">Distância total</div><div class="rm-stat-val" id="rmStatDist">—</div></div>
+            <div class="rm-stat"><div class="rm-stat-lbl">Tempo viagem</div><div class="rm-stat-val" id="rmStatTime">—</div></div>
+            <div class="rm-stat"><div class="rm-stat-lbl">Portais</div><div class="rm-stat-val" id="rmStatPortals">—</div></div>
           </div>
           <div class="rm-stops" id="rmStopList"></div>
         </div>
-
         <div class="rm-map-wrap">
           <div id="rotaGoogleMap"></div>
           <div class="rm-loading" id="rmLoading">
             <div class="rm-spinner"></div>
-            A calcular rota...
+            <span id="rmLoadingText">A calcular rotas...</span>
           </div>
-          <div class="rm-err" id="rmError"></div>
         </div>
       </div>
     `;
 
     document.body.appendChild(modal);
+
+    // Renderizar chips de portais
+    const chipsContainer = document.getElementById('rmPortalChips');
+    portals.forEach((p, i) => {
+      const color = colorForIndex(i);
+      const chip = document.createElement('div');
+      chip.className = 'rm-portal-chip';
+      chip.dataset.portalId = p.id;
+      chip.dataset.color = color;
+      chip.innerHTML = `
+        <span class="check"></span>
+        <span class="dot" style="background:${color}"></span>
+        <span>${p.name}</span>
+      `;
+      if (p.id === currentPortalId) chip.classList.add('active');
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('active');
+        scheduleRender();
+      });
+      chipsContainer.appendChild(chip);
+    });
+
     return modal;
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // LÓGICA DO MAPA
+  // RENDER (com debounce para evitar redraws ao clicar rapidamente)
   // ═══════════════════════════════════════════════════════════════════════
 
   let mapInstance = null;
-  let directionsRenderer = null;
-  let activeMarkers = [];
+  let activeOverlays = []; // markers + renderers
 
   function clearMap() {
-    activeMarkers.forEach(m => m.setMap(null));
-    activeMarkers = [];
-    if (directionsRenderer) directionsRenderer.setDirections({ routes: [] });
-  }
-
-  async function renderRoute(date) {
-    const loading = document.getElementById('rmLoading');
-    const errDiv  = document.getElementById('rmError');
-    const stopList = document.getElementById('rmStopList');
-
-    if (loading) loading.style.display = 'flex';
-    if (errDiv)  errDiv.style.display  = 'none';
-
-    const appts = getDayAppointments(date);
-    const withAddr = appts.filter(a => apptAddress(a));
-
-    // Estatísticas
-    document.getElementById('rmStatStops').textContent = appts.length;
-    document.getElementById('rmStatAddr').textContent  = withAddr.length + '/' + appts.length;
-
-    // Lista de paragens (todos, com ou sem morada)
-    renderStopList(appts);
-
-    if (!mapInstance) {
-      mapInstance = new google.maps.Map(document.getElementById('rotaGoogleMap'), {
-        zoom: 10,
-        center: { lat: 41.55, lng: -8.43 }, // Braga por defeito
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        styles: darkMapStyle(),
-      });
-      directionsRenderer = new google.maps.DirectionsRenderer({
-        suppressMarkers: true, // vamos usar os nossos marcadores
-        polylineOptions: {
-          strokeColor: '#3b82f6',
-          strokeOpacity: 0.85,
-          strokeWeight: 4,
-        },
-      });
-      directionsRenderer.setMap(mapInstance);
-      // Forçar resize para garantir que o mapa ocupa o espaço correto
-      google.maps.event.trigger(mapInstance, 'resize');
-    }
-
-    clearMap();
-
-    if (withAddr.length === 0) {
-      if (loading) loading.style.display = 'none';
-      document.getElementById('rmStatDist').textContent = '—';
-      document.getElementById('rmStatTime').textContent = '—';
-      // Mostrar apenas pins sem rota
-      appts.forEach((a, i) => {
-        // Sem endereço não conseguimos posicionar
-      });
-      return;
-    }
-
-    // Calcular rota via Directions API
-    const dirSvc = new google.maps.DirectionsService();
-    const addresses = withAddr.map(a => apptAddress(a));
-
-    // Base da loja como ponto de partida e chegada real da rota
-    const baseAddr = window.basePartidaDoDia
-      || window.portalConfig?.departureAddress
-      || null;
-
-    // Com base: base → agendamentos → base (rota circular)
-    // Sem base: 1º agendamento → ... → último
-    const origin      = baseAddr || addresses[0];
-    const destination = baseAddr || addresses[addresses.length - 1];
-    const waypoints   = addresses.map(addr => ({ location: addr, stopover: true }));
-
-    try {
-      const result = await new Promise((resolve, reject) => {
-        dirSvc.route({
-          origin,
-          destination,
-          waypoints,
-          travelMode: google.maps.TravelMode.DRIVING,
-          optimizeWaypoints: false, // respeitar a ordem dos cards
-        }, (res, status) => {
-          if (status === 'OK') resolve(res);
-          else reject(new Error('Directions API: ' + status));
-        });
-      });
-
-      directionsRenderer.setDirections(result);
-
-      // Somar distância e duração total
-      let totalDist = 0, totalDur = 0;
-      result.routes[0].legs.forEach(leg => {
-        totalDist += leg.distance.value;
-        totalDur  += leg.duration.value;
-      });
-      document.getElementById('rmStatDist').textContent = fmtKm(totalDist);
-      document.getElementById('rmStatTime').textContent = fmtDur(totalDur);
-
-      // Colocar marcadores nos agendamentos usando as legs
-      // Com base: legs[0]=base→appt[0], legs[1]=appt[0]→appt[1], ...
-      // Sem base: legs[0]=appt[0]→appt[1], ...
-      const legOffset = baseAddr ? 1 : 0;
-      result.routes[0].legs.forEach((leg, i) => {
-        // Com base: appt está em legs[i].end (exceto último leg que é →base)
-        // Sem base: appt[i] está em legs[i].start, último appt em legs[last].end
-        let appt, pos;
-        if (baseAddr) {
-          // legs[0].end = appt[0], legs[1].end = appt[1], ..., legs[last].end = base (ignorar)
-          if (i < withAddr.length) {
-            appt = withAddr[i];
-            pos  = leg.end_location;
-          } else return; // último leg = regresso à base, sem marcador de appt
-        } else {
-          appt = withAddr[i];
-          pos  = leg.start_location;
-          // último appt
-          if (i === result.routes[0].legs.length - 1) {
-            const lastAppt = withAddr[i + 1] || withAddr[i];
-            const lm = new google.maps.Marker({
-              position: leg.end_location, map: mapInstance,
-              icon: markerIcon(lastAppt.plate, cardColor(lastAppt)), zIndex: 200,
-            });
-            activeMarkers.push(lm);
-          }
-        }
-        if (!appt) return;
-        const color = cardColor(appt);
-        const marker = new google.maps.Marker({
-          position: pos, map: mapInstance,
-          icon: markerIcon(appt.plate, color),
-          zIndex: 100 + i,
-          title: appt.plate + (appt.car ? ' — ' + appt.car : ''),
-        });
-        const iw = new google.maps.InfoWindow({
-          content: `<div style="font-family:system-ui;font-size:13px;min-width:160px;">
-            <div style="font-weight:800;font-size:15px;margin-bottom:4px;">${appt.plate}</div>
-            <div style="color:#475569;margin-bottom:2px;">${appt.car || ''}</div>
-            <div style="color:#64748b;font-size:12px;">${apptAddress(appt) || ''}</div>
-            ${appt.notes ? `<div style="color:#64748b;font-size:11px;margin-top:4px;">${appt.notes}</div>` : ''}
-          </div>`,
-        });
-        marker.addListener('click', () => iw.open(mapInstance, marker));
-        activeMarkers.push(marker);
-      });
-
-      // Highlight parada ao clicar na lista
-      withAddr.forEach((appt, i) => {
-        const stopEl = document.getElementById('rmStop-' + appt.id);
-        if (stopEl) {
-          stopEl.addEventListener('click', () => {
-            document.querySelectorAll('.rm-stop').forEach(s => s.classList.remove('active'));
-            stopEl.classList.add('active');
-            if (activeMarkers[i]) {
-              mapInstance.panTo(activeMarkers[i].getPosition());
-              mapInstance.setZoom(14);
-              google.maps.event.trigger(activeMarkers[i], 'click');
-            }
-          });
-        }
-      });
-
-      if (loading) loading.style.display = 'none';
-
-      // Pin da base (partida/chegada) — geocodificado separadamente
-      if (baseAddr) {
-        new google.maps.Geocoder().geocode({ address: baseAddr }, (r, s) => {
-          if (s !== 'OK' || !r || !r[0]) return;
-          const basePt = r[0].geometry.location;
-          const baseMarker = new google.maps.Marker({
-            position: basePt,
-            map: mapInstance,
-            zIndex: 300,
-            title: 'Base SM',
-            icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 10,
-              fillColor: '#f59e0b',
-              fillOpacity: 1,
-              strokeColor: '#fff',
-              strokeWeight: 2.5,
-            },
-          });
-          const iw = new google.maps.InfoWindow({
-            content: '<div style="font-size:13px;font-weight:700;">🏠 Base SM</div><div style="font-size:11px;color:#64748b;">' + baseAddr + '</div>'
-          });
-          baseMarker.addListener('click', () => iw.open(mapInstance, baseMarker));
-          activeMarkers.push(baseMarker);
-        });
-      }
-
-    } catch (e) {
-      console.error('[RotaMapa] Directions API falhou:', e.message || e);
-      if (loading) loading.style.display = 'none';
-
-      // Limpar rota anterior para não enganar
-      if (directionsRenderer) directionsRenderer.setDirections({ routes: [] });
-
-      // Fallback: mostrar marcadores sem rota (geocoding individual)
-      document.getElementById('rmStatDist').textContent = '—';
-      document.getElementById('rmStatTime').textContent = '—';
-
-      const geocoder = new google.maps.Geocoder();
-      const bounds = new google.maps.LatLngBounds();
-
-      for (let i = 0; i < withAddr.length; i++) {
-        const appt = withAddr[i];
-        try {
-          const geoRes = await new Promise((res, rej) =>
-            geocoder.geocode({ address: apptAddress(appt) }, (r, s) =>
-              s === 'OK' ? res(r) : rej(s)
-            )
-          );
-          const pos   = geoRes[0].geometry.location;
-          const color = cardColor(appt);
-          const marker = new google.maps.Marker({
-            position: pos,
-            map: mapInstance,
-            icon: markerIcon(appt.plate, color),
-            zIndex: 100 + i,
-            title: appt.plate,
-          });
-          activeMarkers.push(marker);
-          bounds.extend(pos);
-        } catch (_) {}
-      }
-      if (!bounds.isEmpty()) mapInstance.fitBounds(bounds);
-    }
-  }
-
-  // ── Lista de paragens no painel ────────────────────────────────────────
-  function renderStopList(appts) {
-    const list = document.getElementById('rmStopList');
-    if (!list) return;
-
-    if (appts.length === 0) {
-      list.innerHTML = `<div class="rm-no-stops">Sem agendamentos para este dia</div>`;
-      return;
-    }
-
-    let html = '';
-    appts.forEach((a, i) => {
-      const color = cardColor(a);
-      const addr  = apptAddress(a);
-      const period = periodLabel(a);
-      html += `
-        <div class="rm-stop" id="rmStop-${a.id}" data-idx="${i}">
-          <div class="rm-stop-idx" style="background:${color}">${i + 1}</div>
-          <div style="flex:1;min-width:0;">
-            <div class="rm-stop-plate">${a.plate || '—'}</div>
-            <div class="rm-stop-car">${a.car || ''} ${period}</div>
-            ${addr ? `<div class="rm-stop-loc">📍 ${addr.replace(', Portugal','')}</div>` : '<div class="rm-stop-loc" style="color:#dc2626">⚠ Sem morada</div>'}
-          </div>
-        </div>
-        ${i < appts.length - 1 ? '<div class="rm-connector"></div>' : ''}
-      `;
+    activeOverlays.forEach(o => {
+      if (o.setMap) o.setMap(null);
+      if (o.setDirections) o.setDirections({ routes: [] });
     });
-    list.innerHTML = html;
+    activeOverlays = [];
   }
 
-  // ── Estilo dark do mapa ────────────────────────────────────────────────
   function darkMapStyle() {
     return [
       { elementType: 'geometry', stylers: [{ color: '#1a2332' }] },
@@ -580,12 +382,237 @@
       { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#1c2d3e' }] },
       { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#9ca5b3' }] },
       { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#2c4a6e' }] },
-      { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#1f3a56' }] },
       { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0e1f2f' }] },
       { featureType: 'poi', stylers: [{ visibility: 'off' }] },
       { featureType: 'transit', stylers: [{ visibility: 'off' }] },
       { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#2d4a6e' }] },
     ];
+  }
+
+  function ensureMap() {
+    if (mapInstance) return mapInstance;
+    mapInstance = new google.maps.Map(document.getElementById('rotaGoogleMap'), {
+      zoom: 9,
+      center: { lat: 41.55, lng: -8.43 },
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: false,
+      styles: darkMapStyle(),
+    });
+    return mapInstance;
+  }
+
+  let _renderTimer = null;
+  function scheduleRender() {
+    if (_renderTimer) clearTimeout(_renderTimer);
+    _renderTimer = setTimeout(renderAll, 150);
+  }
+
+  async function renderAll() {
+    const date = document.getElementById('rotaDateInput').value;
+    const chips = [...document.querySelectorAll('.rm-portal-chip.active')];
+    const portalsActivos = chips.map(c => ({
+      id: parseInt(c.dataset.portalId),
+      color: c.dataset.color,
+      name: c.querySelector('span:last-child').textContent
+    }));
+
+    document.getElementById('rmStatPortals').textContent = portalsActivos.length || '—';
+
+    const map = ensureMap();
+    clearMap();
+
+    const stopList = document.getElementById('rmStopList');
+    stopList.innerHTML = '';
+
+    const loading = document.getElementById('rmLoading');
+    if (loading) loading.style.display = 'flex';
+
+    if (portalsActivos.length === 0) {
+      document.getElementById('rmStatStops').textContent = '—';
+      document.getElementById('rmStatDist').textContent = '—';
+      document.getElementById('rmStatTime').textContent = '—';
+      stopList.innerHTML = '<div class="rm-no-stops">Selecione pelo menos 1 portal acima</div>';
+      if (loading) loading.style.display = 'none';
+      return;
+    }
+
+    let totalStops = 0, totalDist = 0, totalDur = 0;
+    const allBounds = new google.maps.LatLngBounds();
+    let hasBounds = false;
+
+    // Buscar appointments de cada portal e desenhar
+    for (const portal of portalsActivos) {
+      const allPortals = window._rmAllPortals || [];
+      const portalFull = allPortals.find(p => p.id === portal.id);
+      const baseAddr = portalFull?.departureAddress || portalFull?.departure_address || null;
+
+      const appts = await fetchAppointments(portal.id, date);
+      totalStops += appts.length;
+
+      // Lista no painel
+      const group = document.createElement('div');
+      group.className = 'rm-portal-group';
+      group.innerHTML = `
+        <div class="rm-portal-header" style="color:${portal.color}">
+          <span class="dot" style="background:${portal.color}"></span>
+          <span>${portal.name}</span>
+          <span style="margin-left:auto;color:#475569;font-weight:600;">${appts.length} ${appts.length === 1 ? 'paragem' : 'paragens'}</span>
+        </div>
+      `;
+      if (appts.length === 0) {
+        group.innerHTML += '<div class="rm-no-stops">Sem agendamentos neste dia</div>';
+      } else {
+        appts.forEach((a, i) => {
+          const addr = apptAddress(a);
+          const stop = document.createElement('div');
+          stop.className = 'rm-stop';
+          stop.innerHTML = `
+            <div class="rm-stop-idx" style="background:${portal.color}">${i + 1}</div>
+            <div style="flex:1;min-width:0;">
+              <div class="rm-stop-plate">${a.plate || '—'}</div>
+              <div class="rm-stop-car">${a.car || ''}</div>
+              ${addr ? `<div class="rm-stop-loc">📍 ${addr.replace(', Portugal','')}</div>` : '<div class="rm-stop-loc" style="color:#dc2626">⚠ Sem morada</div>'}
+            </div>
+          `;
+          group.appendChild(stop);
+        });
+      }
+      stopList.appendChild(group);
+
+      // Desenhar no mapa (só agendamentos com morada)
+      const withAddr = appts.filter(a => apptAddress(a));
+      if (withAddr.length === 0) continue;
+
+      const result = await calcRoute(baseAddr, withAddr);
+      if (!result) continue;
+
+      // Polyline da rota
+      const renderer = new google.maps.DirectionsRenderer({
+        suppressMarkers: true,
+        polylineOptions: {
+          strokeColor: portal.color,
+          strokeOpacity: 0.85,
+          strokeWeight: 4,
+        },
+        map: map,
+      });
+      renderer.setDirections(result);
+      activeOverlays.push(renderer);
+
+      // Markers nas paragens
+      const legOffset = baseAddr ? 1 : 0;
+      result.routes[0].legs.forEach((leg, i) => {
+        let appt, pos;
+        if (baseAddr) {
+          if (i < withAddr.length) {
+            appt = withAddr[i];
+            pos = leg.end_location;
+          } else return;
+        } else {
+          appt = withAddr[i];
+          pos = leg.start_location;
+          if (i === result.routes[0].legs.length - 1) {
+            const last = withAddr[i + 1] || withAddr[i];
+            const lm = new google.maps.Marker({
+              position: leg.end_location, map: map,
+              icon: markerIcon(last.plate, portal.color), zIndex: 200,
+            });
+            activeOverlays.push(lm);
+            allBounds.extend(leg.end_location); hasBounds = true;
+          }
+        }
+        if (!appt) return;
+        const m = new google.maps.Marker({
+          position: pos, map: map,
+          icon: markerIcon(appt.plate, portal.color),
+          zIndex: 100 + i,
+          title: appt.plate + (appt.car ? ' — ' + appt.car : ''),
+        });
+        const iw = new google.maps.InfoWindow({
+          content: `<div style="font-family:system-ui;font-size:13px;min-width:180px;">
+            <div style="font-weight:800;font-size:15px;margin-bottom:4px;color:${portal.color};">${appt.plate}</div>
+            <div style="color:#475569;margin-bottom:2px;">${appt.car || ''}</div>
+            <div style="color:#64748b;font-size:12px;">${apptAddress(appt) || ''}</div>
+            <div style="color:#94a3b8;font-size:11px;margin-top:6px;font-style:italic;">${portal.name}</div>
+          </div>`,
+        });
+        m.addListener('click', () => iw.open(map, m));
+        activeOverlays.push(m);
+        allBounds.extend(pos); hasBounds = true;
+      });
+
+      // Marker base
+      if (baseAddr) {
+        try {
+          const baseGeo = await new Promise((res, rej) =>
+            new google.maps.Geocoder().geocode({ address: baseAddr },
+              (r, s) => s === 'OK' && r[0] ? res(r[0].geometry.location) : rej(s)
+            )
+          );
+          const bm = new google.maps.Marker({
+            position: baseGeo, map: map, zIndex: 300,
+            title: 'Base ' + portal.name,
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 11, fillColor: portal.color, fillOpacity: 1,
+              strokeColor: '#fff', strokeWeight: 2.5,
+            },
+          });
+          const biw = new google.maps.InfoWindow({
+            content: `<div style="font-size:13px;font-weight:700;color:${portal.color};">🏠 Base ${portal.name}</div>
+              <div style="font-size:11px;color:#64748b;margin-top:4px;">${baseAddr}</div>`,
+          });
+          bm.addListener('click', () => biw.open(map, bm));
+          activeOverlays.push(bm);
+          allBounds.extend(baseGeo); hasBounds = true;
+        } catch(e) {
+          console.warn('[RotaMapa] Base não geocodificada:', portal.name);
+        }
+      }
+
+      // Somar totais
+      result.routes[0].legs.forEach(leg => {
+        totalDist += leg.distance.value;
+        totalDur += leg.duration.value;
+      });
+    }
+
+    document.getElementById('rmStatStops').textContent = totalStops;
+    document.getElementById('rmStatDist').textContent = fmtKm(totalDist);
+    document.getElementById('rmStatTime').textContent = fmtDur(totalDur);
+
+    if (hasBounds) {
+      map.fitBounds(allBounds, { top: 60, right: 40, bottom: 40, left: 40 });
+    }
+
+    if (loading) loading.style.display = 'none';
+  }
+
+  async function calcRoute(baseAddr, withAddr) {
+    const dirSvc = new google.maps.DirectionsService();
+    const addresses = withAddr.map(a => apptAddress(a));
+    const origin = baseAddr || addresses[0];
+    const destination = baseAddr || addresses[addresses.length - 1];
+    const waypoints = baseAddr
+      ? addresses.map(addr => ({ location: addr, stopover: true }))
+      : addresses.slice(1, -1).map(addr => ({ location: addr, stopover: true }));
+
+    try {
+      return await new Promise((resolve, reject) => {
+        dirSvc.route({
+          origin, destination, waypoints,
+          travelMode: google.maps.TravelMode.DRIVING,
+          optimizeWaypoints: false,
+        }, (res, status) => {
+          if (status === 'OK') resolve(res);
+          else reject(new Error('Directions: ' + status));
+        });
+      });
+    } catch(e) {
+      console.warn('[RotaMapa] Directions falhou:', e.message);
+      return null;
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════
@@ -594,86 +621,56 @@
 
   function openRotaMap(date) {
     if (!window.google?.maps) {
-      alert('Google Maps ainda não carregou. Aguarda um momento e tenta novamente.');
+      alert('Google Maps ainda não carregou. Aguarda um momento.');
       return;
     }
 
-    const modal = buildModal();
+    const portals = getAvailablePortals();
+    if (portals.length === 0) {
+      alert('Não há SMs ou Pesados disponíveis para mostrar.');
+      return;
+    }
 
-    // Data inicial
+    // Guardar lista completa (com morada) para uso interno
+    window._rmAllPortals = portals;
+
+    const currentPortalId = window.portalConfig?.id || portals[0].id;
+    apptCache.clear();
+
+    buildModal(portals, currentPortalId);
+
     const dateInput = document.getElementById('rotaDateInput');
     dateInput.value = date || getSelectedDate();
 
-    // Fechar
     document.getElementById('rotaMapClose').addEventListener('click', () => {
-      modal.remove();
+      document.getElementById('rotaMapModal')?.remove();
       mapInstance = null;
-      directionsRenderer = null;
-      activeMarkers = [];
+      activeOverlays = [];
     });
 
-    // Mudar data
     dateInput.addEventListener('change', () => {
-      if (dateInput.value) renderRoute(dateInput.value);
+      apptCache.clear();
+      scheduleRender();
     });
 
-    // Fechar com Escape
-    const onKey = e => { if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', onKey); } };
+    const onKey = e => {
+      if (e.key === 'Escape') {
+        document.getElementById('rotaMapModal')?.remove();
+        document.removeEventListener('keydown', onKey);
+        mapInstance = null;
+        activeOverlays = [];
+      }
+    };
     document.addEventListener('keydown', onKey);
 
-    // Renderizar — requestAnimationFrame garante que o flex layout já tem dimensões
-    requestAnimationFrame(() => renderRoute(dateInput.value));
+    requestAnimationFrame(() => renderAll());
   }
 
   // ═══════════════════════════════════════════════════════════════════════
-  // INTERCEPTAR BOTÕES EXISTENTES
+  // INTERCEPTAR BOTÕES
   // ═══════════════════════════════════════════════════════════════════════
 
-  function hookButtons() {
-    // Desktop: #btnRotaDoDiaDesk
-    const desk = document.getElementById('btnRotaDoDiaDesk');
-    if (desk) {
-      desk.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        openRotaMap(getSelectedDate());
-      }, true); // capture para correr antes do handler original
-    }
-
-    // Mobile: #btnRotaDoDia (pode ter outro id)
-    ['btnRotaDoDia', 'btnRotaDoDiaMobile', 'rotaDoDiaBtn'].forEach(id => {
-      const btn = document.getElementById(id);
-      if (btn) {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopImmediatePropagation();
-          openRotaMap(getSelectedDate());
-        }, true);
-      }
-    });
-
-    // Botão verde "Ver Rota do Dia" no totalizador mobile
-    document.querySelectorAll('[id*="RotaDia"], [id*="rotaDia"], [id*="rota-dia"]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        openRotaMap(getSelectedDate());
-      }, true);
-    });
-
-    // Botão "📍 Ver Rota" verde (classe específica do screenshot)
-    document.querySelectorAll('.rota-dia-btn, .ver-rota-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        openRotaMap(getSelectedDate());
-      }, true);
-    });
-  }
-
-  // ── Arrancar ──────────────────────────────────────────────────────────
   function init() {
-    // Sobrescrever openRotaDoDia do script.js — assim todos os botões usam o mapa
     window.openRotaDoDia = function() {
       const date = window.currentMobileDay
         ? window.currentMobileDay.toISOString().split('T')[0]
@@ -681,38 +678,29 @@
       openRotaMap(date);
     };
 
-    // Sobrescrever onclick do botão desktop (por precaução)
     const desk = document.getElementById('btnRotaDoDiaDesk');
     if (desk) desk.onclick = () => window.openRotaDoDia();
 
-    // Expor para chamada directa
     window.openRotaDoMapa = openRotaMap;
   }
 
-  // ── Wrap de renderMobileDay para injectar botão em lojas ────────────
-  // O script.js usa list.innerHTML = ... por isso o MutationObserver não chega
-  // Fazemos wrap à função global após ela estar definida
   function patchRenderMobileDay() {
     if (window._rmPatched) return;
     if (typeof window.renderMobileDay !== 'function') return;
     window._rmPatched = true;
-
     const _orig = window.renderMobileDay;
     window.renderMobileDay = async function() {
       await _orig.apply(this, arguments);
       injectRotaBtnIfNeeded();
     };
-    console.log('[RotaMapa] renderMobileDay patchado');
   }
 
   function injectRotaBtnIfNeeded() {
     const list = document.getElementById('mobileDayList');
     if (!list) return;
-    // Se o script.js já injectou o botão (SMs), não duplicar
     if (list.querySelector('[onclick*="openRotaDoDia"]')) return;
     if (list.querySelector('.rm-rota-btn')) return;
 
-    // Verificar se há moradas no dia
     const dateStr = window.currentMobileDay
       ? window.currentMobileDay.toISOString().split('T')[0]
       : new Date().toISOString().split('T')[0];
@@ -729,7 +717,6 @@
     btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"></path></svg> 🗺️ Ver Rota do Dia';
     btn.onclick = () => window.openRotaDoDia();
 
-    // Inserir antes do primeiro card (após summary se existir)
     const firstCard = list.querySelector('.m-card');
     if (firstCard) list.insertBefore(btn, firstCard);
     else list.appendChild(btn);
@@ -740,7 +727,6 @@
   } else {
     init();
   }
-  // Garantir override após script.js definir renderMobileDay
   setTimeout(() => { init(); patchRenderMobileDay(); }, 400);
   setTimeout(() => { init(); patchRenderMobileDay(); }, 1500);
   window.addEventListener('portalReady', () => { init(); patchRenderMobileDay(); });
