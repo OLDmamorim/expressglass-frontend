@@ -77,23 +77,33 @@
       simCursor += exec;
     });
 
-    // Decidir após qual serviço inserir o almoço
+    // Decidir após qual serviço inserir o almoço.
+    // REGRA: almoçar após o ÚLTIMO serviço que acabe até 13:10.
+    // (Se um serviço cabe antes das 13:10, espremem-no e almoçam depois.)
+    const LIMITE = 13 * 60 + 10; // 13:10
     let lunchAfterIdx = -1;
+
     for (let i = 0; i < items.length; i++) {
-      const svcStep = STEPS.find(s => s.type === 'servico' && s.idx === i);
-      if (!svcStep) continue;
-      const endHour = svcStep.end / 60;
-      if (endHour >= ALMOCO_INICIO_MIN_H && endHour <= ALMOCO_INICIO_MAX_H) {
-        lunchAfterIdx = i;
-        break;
+      const svc = STEPS.find(s => s.type === 'servico' && s.idx === i);
+      if (!svc) continue;
+      if (svc.end <= LIMITE) {
+        lunchAfterIdx = i; // continua a actualizar — fica no último que cabe
+      } else {
+        break; // primeiro que passa das 13:10 → para
       }
     }
-    // Se nenhum serviço terminou no intervalo, mete almoço quando o cursor passar 12h
+
+    // Fallback: nenhum serviço cabe até às 13:10 → almoço logo após 1º que ultrapassa 12:00
     if (lunchAfterIdx === -1) {
       for (let i = 0; i < items.length; i++) {
-        const svcStep = STEPS.find(s => s.type === 'servico' && s.idx === i);
-        if (svcStep && svcStep.end >= ALMOCO_INICIO_MIN_H * 60) {
-          lunchAfterIdx = i;
+        const svc = STEPS.find(s => s.type === 'servico' && s.idx === i);
+        if (svc && svc.end >= 12 * 60) {
+          // se o 1º já passa das 13:10 às 12:00 não passou ainda — almoçar antes
+          if (i === 0) {
+            lunchAfterIdx = -1; // antes de tudo? quase impossível, mantém -1
+          } else {
+            lunchAfterIdx = i - 1;
+          }
           break;
         }
       }
