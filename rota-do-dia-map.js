@@ -117,7 +117,12 @@
       return [];
     }
     const onDay = (data.data || [])
-      .filter(a => a.date === date)
+      .filter(a => {
+        if (!a.date) return false;
+        // Normalizar para YYYY-MM-DD (backend pode devolver com timestamp)
+        const apptDate = String(a.date).slice(0, 10);
+        return apptDate === date;
+      })
       .sort((a, b) => (a.sortIndex ?? 999) - (b.sortIndex ?? 999));
     apptCache.set(key, onDay);
     return onDay;
