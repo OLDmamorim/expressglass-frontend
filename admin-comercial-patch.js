@@ -1,4 +1,4 @@
-// admin-comercial-patch.js - v3
+// admin-comercial-patch.js - v4
 // Adicionar ao admin.html DEPOIS de admin-script.js
 
 (function() {
@@ -54,24 +54,29 @@
   }
   window.populateComercialPortalCheckboxes = populateComercialPortalCheckboxes;
 
-  // A função patched que sabe lidar com comercial
+  // A função patched que sabe lidar com comercial + consultableGroup
   function togglePortalSelectPatched() {
-    var role         = document.getElementById('userRole').value;
-    var portalGroup  = document.getElementById('portalSelectGroup');
-    var multiGroup   = document.getElementById('multiPortalGroup');
-    var comGroup     = document.getElementById('comercialPortalGroup');
-    var portalSelect = document.getElementById('userPortal');
+    var role             = document.getElementById('userRole').value;
+    var portalGroup      = document.getElementById('portalSelectGroup');
+    var multiGroup       = document.getElementById('multiPortalGroup');
+    var comGroup         = document.getElementById('comercialPortalGroup');
+    var consultableGroup = document.getElementById('consultableGroup');
+    var portalSelect     = document.getElementById('userPortal');
 
-    if (portalGroup)  portalGroup.style.display  = 'none';
-    if (multiGroup)   multiGroup.style.display   = 'none';
-    if (comGroup)     comGroup.style.display     = 'none';
-    if (portalSelect) portalSelect.required      = false;
+    if (portalGroup)      portalGroup.style.display      = 'none';
+    if (multiGroup)       multiGroup.style.display       = 'none';
+    if (comGroup)         comGroup.style.display         = 'none';
+    if (consultableGroup) consultableGroup.style.display = 'none';
+    if (portalSelect)     portalSelect.required          = false;
     var tgGroup = document.getElementById('telegramChatIdGroup');
     if (tgGroup) tgGroup.style.display = 'none';
 
     if (role === 'coordenador') {
       if (multiGroup) multiGroup.style.display = 'block';
       if (typeof populateMultiPortalCheckboxes === 'function') populateMultiPortalCheckboxes();
+      // Portais de consulta — só para coordenadores
+      if (consultableGroup) consultableGroup.style.display = 'block';
+      if (typeof populateConsultablePortalCheckboxes === 'function') populateConsultablePortalCheckboxes();
     } else if (role === 'comercial') {
       if (comGroup) comGroup.style.display = 'block';
       populateComercialPortalCheckboxes();
@@ -85,7 +90,6 @@
   window.onRoleChange       = togglePortalSelectPatched;
 
   // Substituir o listener do botão "Novo Utilizador"
-  // (o original tem closure para a função antiga)
   function patchAddUserBtn() {
     var btn = document.getElementById('addUserBtn');
     if (!btn) return;
@@ -142,8 +146,13 @@
     document.getElementById('userRole').value = user.role;
     document.getElementById('userPortal').value = user.portalId || '';
     togglePortalSelectPatched();
-    if (user.role === 'coordenador' && user.portalIds && typeof populateMultiPortalCheckboxes === 'function')
-      populateMultiPortalCheckboxes(user.portalIds);
+    if (user.role === 'coordenador') {
+      if (user.portalIds && typeof populateMultiPortalCheckboxes === 'function')
+        populateMultiPortalCheckboxes(user.portalIds);
+      // Preencher portais de consulta ao editar coordenador
+      if (typeof populateConsultablePortalCheckboxes === 'function')
+        populateConsultablePortalCheckboxes(user.consultablePortalIds || []);
+    }
     if (user.role === 'comercial' && user.portalIds)
       populateComercialPortalCheckboxes(user.portalIds);
     var tgInput = document.getElementById('userTelegramChatId');
@@ -182,6 +191,9 @@
         if (!ids.length) { if (typeof showToast==='function') showToast('Selecione pelo menos um portal','error'); return; }
         userData.portal_id  = ids[0];
         userData.portal_ids = ids;
+        // Recolher portais de consulta (opcional — pode ser 0)
+        var consultableIds = Array.from(document.querySelectorAll('.consultable-portal-cb:checked')).map(function(cb){ return parseInt(cb.value); });
+        userData.consultable_portal_ids = consultableIds;
       }
       if (role === 'comercial') {
         var ids = Array.from(document.querySelectorAll('.comercial-portal-cb:checked')).map(function(cb){ return parseInt(cb.value); });
@@ -219,7 +231,7 @@
     injectComercialRole();
     injectComercialGroup();
     patchForm();
-    patchAddUserBtn(); // <-- FIX: substituir o listener do botão
+    patchAddUserBtn();
     // Re-ligar onchange ao role select
     var roleSel = document.getElementById('userRole');
     if (roleSel) {
@@ -227,7 +239,7 @@
       roleSel.parentNode.replaceChild(newRoleSel, roleSel);
       newRoleSel.addEventListener('change', togglePortalSelectPatched);
     }
-    console.log('Patch comercial v3 OK');
+    console.log('Patch comercial v4 OK');
   }
 
   if (document.readyState === 'loading') {
