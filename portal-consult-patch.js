@@ -218,11 +218,11 @@
     if (window.apiClient.createAppointment._consultPatched) return;
     var orig = window.apiClient.createAppointment.bind(window.apiClient);
     window.apiClient.createAppointment = async function(data) {
+      // Capturar ANTES de orig() — o modal fecha durante a chamada e limpa _pendingConsultTransfer
+      var transfer = window._pendingConsultTransfer || null;
+      window._pendingConsultTransfer = null;
       var result = await orig(data);
-      if (result && result.id && window._pendingConsultTransfer) {
-        var transfer = window._pendingConsultTransfer;
-        window._pendingConsultTransfer = null;
-        removeConsultInfo();
+      if (result && result.id && transfer) {
         try { await doTransfer(data, result, transfer.portalId, transfer.portalName); } catch(e) { console.error('transfer:', e); }
       }
       return result;
