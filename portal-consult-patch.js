@@ -273,19 +273,26 @@
   }
 
   // ============================================================
-  // 6. INIT — aguardar portalReady
+  // 6. INIT
   // ============================================================
   function init() {
-    patchCardRenderers();
+    // Hook imediato — apiClient já existe quando este script carrega
     hookCreateAppointment();
+    // Card renderers: buildDesktopCard pode ainda não estar definido
+    if (typeof window.buildDesktopCard === 'function') {
+      patchCardRenderers();
+    } else {
+      window.addEventListener('portalReady', patchCardRenderers, { once: true });
+      setTimeout(patchCardRenderers, 1500);
+    }
     console.log('portal-consult-patch v1 OK');
   }
 
+  // Correr sempre — portalReady pode já ter disparado antes deste script carregar
   if (document.readyState === 'loading') {
-    window.addEventListener('portalReady', init, { once: true });
+    document.addEventListener('DOMContentLoaded', init);
   } else {
-    // portalReady já disparou — aguardar um tick para scripts estarem prontos
-    setTimeout(init, 500);
+    init();
   }
 
 })();
