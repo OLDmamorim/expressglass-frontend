@@ -157,9 +157,10 @@
     var byPortal = {};
     matches.forEach(function(m) {
       if (!byPortal[m.portalId]) byPortal[m.portalId] = { name: m.portalName, id: m.portalId, days: [] };
-      var dt = new Date(m.date + 'T00:00:00');
-      var label = dt.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit' });
-      byPortal[m.portalId].days.push(label + ' (' + m.count + ')');
+      var raw = m.date ? String(m.date).slice(0,10) : '';
+      var dt = raw ? new Date(raw + 'T00:00:00') : null;
+      var label = dt ? dt.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit' }) : m.date;
+      if (dt) byPortal[m.portalId].days.push(label + ' (' + m.count + ')');
     });
 
     var div = document.createElement('div');
