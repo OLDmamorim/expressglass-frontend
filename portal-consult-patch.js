@@ -219,15 +219,35 @@
     console.log('portal-consult-patch v2 OK');
   }
 
-  function tryInit() {
-    if (window.selectLocality) { init(); }
-    else { setTimeout(tryInit, 200); }
+  // Patch aplicado agora E re-aplicado apos portalReady (script.js pode redefinir selectLocality)
+  function applyPatch() {
+    hookCreateAppointment();
+    patchCardRenderers();
+    patchSelectLocality();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', tryInit);
-  } else {
-    tryInit();
-  }
+  // Correr imediatamente
+  applyPatch();
+
+  // Re-correr apos portalReady por seguranca (script.js redefine selectLocality no boot)
+  window.addEventListener('portalReady', function() {
+    setTimeout(applyPatch, 100);
+  });
+
+  // Fallback extra aos 2s caso portalReady ja tenha disparado
+  setTimeout(applyPatch, 2000);
+
+  // Modal observer
+  (function() {
+    var modal = document.getElementById('appointmentModal');
+    if (modal) {
+      new MutationObserver(function() {
+        var isOpen = modal.classList.contains('show') || modal.style.display === 'flex' || modal.style.display === 'block';
+        if (!isOpen) removeConsultInfo();
+      }).observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+  })();
+
+  console.log('portal-consult-patch v2 OK');
 
 })();
