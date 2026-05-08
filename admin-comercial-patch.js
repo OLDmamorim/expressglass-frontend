@@ -1,4 +1,4 @@
-// admin-comercial-patch.js - v5
+// admin-comercial-patch.js - v6
 // Adicionar ao admin.html DEPOIS de admin-script.js
 
 (function() {
@@ -54,8 +54,11 @@
     selectedIds = selectedIds || [];
     var container = document.getElementById('consultablePortalCheckboxes');
     if (!container) return;
+    // Excluir portais que o coordenador já coordena (coord-portal-cb:checked)
+    var coordIds = Array.from(document.querySelectorAll('.coord-portal-cb:checked'))
+      .map(function(cb) { return parseInt(cb.value); });
     var smPortals = (portals || []).filter(function(p) {
-      return p.portal_type !== 'loja';
+      return p.portal_type !== 'loja' && coordIds.indexOf(p.id) < 0;
     });
     if (!smPortals.length) {
       container.innerHTML = '<p style="color:#9ca3af;font-size:13px;padding:8px;">Nenhum portal SM disponivel.</p>';
@@ -118,6 +121,17 @@
       // Portais de consulta — só para coordenadores
       if (consultableGroup) consultableGroup.style.display = 'block';
       if (typeof populateConsultablePortalCheckboxes === 'function') populateConsultablePortalCheckboxes();
+      // Re-renderizar lista de consulta sempre que coord checkboxes mudam
+      setTimeout(function() {
+        document.querySelectorAll('.coord-portal-cb').forEach(function(cb) {
+          cb.addEventListener('change', function() {
+            // Preservar seleções actuais de consulta antes de re-renderizar
+            var currentConsultable = Array.from(document.querySelectorAll('.consultable-portal-cb:checked'))
+              .map(function(c) { return parseInt(c.value); });
+            populateConsultablePortalCheckboxes(currentConsultable);
+          });
+        });
+      }, 100);
     } else if (role === 'comercial') {
       if (comGroup) comGroup.style.display = 'block';
       populateComercialPortalCheckboxes();
@@ -281,7 +295,7 @@
       roleSel.parentNode.replaceChild(newRoleSel, roleSel);
       newRoleSel.addEventListener('change', togglePortalSelectPatched);
     }
-    console.log('Patch comercial v5 OK');
+    console.log('Patch comercial v6 OK');
   }
 
   if (document.readyState === 'loading') {
