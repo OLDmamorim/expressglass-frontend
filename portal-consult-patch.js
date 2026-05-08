@@ -264,7 +264,22 @@
         if (!isOpen) removeConsultInfo();
       }).observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
     }
-    console.log('portal-consult-patch v2 OK');
+    // Expor globalmente para debug e watcher permanente de modal
+  window._consultStartPoll = startPoll;
+  window._consultStopPoll = stopPoll;
+
+  // Watcher permanente: verifica estado do modal a cada 1s
+  setInterval(function() {
+    var modal = document.getElementById('appointmentModal');
+    if (!modal) return;
+    if (modal.classList.contains('show')) {
+      startPoll();
+    } else {
+      stopPoll();
+    }
+  }, 1000);
+
+  console.log('portal-consult-patch v2 OK');
   }
 
   hookCreateAppointment();
