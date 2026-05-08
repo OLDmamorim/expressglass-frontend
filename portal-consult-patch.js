@@ -61,19 +61,49 @@
   };
 
   // ============================================================
-  // 3. INTERCEPTAR selectLocality — injetar info SM de consulta
-  //    no bloco #crDateSuggestion que o script.js ja cria
+  // 3. INTERCEPTAR selectLocality via Object.defineProperty
+  //    Garante que qualquer redefinicao futura tambem e interceptada
   // ============================================================
-  function patchSelectLocality() {
-    if (!window.selectLocality || window.selectLocality._consultPatched) return;
-    var orig = window.selectLocality;
-    window.selectLocality = function(value) {
-      orig(value);
-      if (value) setTimeout(function() { injectConsultInfo(value); }, 150);
-      else removeConsultInfo();
-    };
-    window.selectLocality._consultPatched = true;
+  var _realSelectLocality = null;
+  var _selectLocalityInstalled = false;
+
+  function installSelectLocalityTrap() {
+    if (_selectLocalityInstalled) return;
+    _selectLocalityInstalled = true;
+    // Guardar valor atual se ja existir
+    if (window.selectLocality) _realSelectLocality = window.selectLocality;
+    try {
+      Object.defineProperty(window, 'selectLocality', {
+        configurable: true,
+        get: function() {
+          return function(value) {
+            if (_realSelectLocality) _realSelectLocality(value);
+            if (value) setTimeout(function() { injectConsultInfo(value); }, 150);
+            else removeConsultInfo();
+          };
+        },
+        set: function(fn) {
+          // script.js redefine — guardar a nova versao real e continuar a interceptar
+          _realSelectLocality = fn;
+        }
+      });
+      console.log('selectLocality trap instalada');
+    } catch(e) {
+      console.warn('trap falhou, fallback direto:', e);
+      // Fallback: patch direto
+      if (window.selectLocality && !window.selectLocality._consultPatched) {
+        var orig = window.selectLocality;
+        window.selectLocality = function(value) {
+          orig(value);
+          if (value) setTimeout(function() { injectConsultInfo(value); }, 150);
+          else removeConsultInfo();
+        };
+        window.selectLocality._consultPatched = true;
+      }
+    }
   }
+
+  function patchSelectLocality() { installSelectLocalityTrap(); }
 
   async function injectConsultInfo(locality) {
     var consultable = window.consultablePortals || [];
@@ -219,23 +249,10 @@
     console.log('portal-consult-patch v2 OK');
   }
 
-  // Patch aplicado agora E re-aplicado apos portalReady (script.js pode redefinir selectLocality)
-  function applyPatch() {
-    hookCreateAppointment();
-    patchCardRenderers();
-    patchSelectLocality();
-  }
-
-  // Correr imediatamente
-  applyPatch();
-
-  // Re-correr apos portalReady por seguranca (script.js redefine selectLocality no boot)
-  window.addEventListener('portalReady', function() {
-    setTimeout(applyPatch, 100);
-  });
-
-  // Fallback extra aos 2s caso portalReady ja tenha disparado
-  setTimeout(applyPatch, 2000);
+  // Instalar trap imediatamente (antes de script.js definir selectLocality)
+  installSelectLocalityTrap();
+  hookCreateAppointment();
+  patchCardRenderers();
 
   // Modal observer
   (function() {
