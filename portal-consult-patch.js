@@ -85,15 +85,40 @@
   }
 
   function watchModal() {
+    // Ligar ao clique nos botoes que abrem o modal
+    var btnIds = ['addServiceBtn','addServiceMobile','addServiceBtnDesktop'];
+    function onOpen() { setTimeout(startPoll, 200); }
+    btnIds.forEach(function(id) {
+      var btn = document.getElementById(id);
+      if (btn && !btn._consultBound) { btn.addEventListener('click', onOpen); btn._consultBound = true; }
+    });
+    // Delegacao global para apanhar botoes dinamicos
+    if (!document._consultOpenBound) {
+      document.addEventListener('click', function(e) {
+        var t = e.target;
+        if (!t) return;
+        var id = t.id || (t.closest && t.closest('[id]') && t.closest('[id]').id) || '';
+        if (/addService/i.test(id)) onOpen();
+      });
+      document._consultOpenBound = true;
+    }
+    // Fechar modal para o poll
+    document.addEventListener('click', function(e) {
+      var closeBtn = e.target && (
+        e.target.classList.contains('modal-close') ||
+        e.target.closest && e.target.closest('.modal-close')
+      );
+      var backdrop = e.target && e.target.id === 'appointmentModal';
+      if (closeBtn || backdrop) stopPoll();
+    });
+    // MutationObserver como fallback
     var modal = document.getElementById('appointmentModal');
-    if (!modal) { setTimeout(watchModal, 500); return; }
-    new MutationObserver(function() {
-      var open = modal.classList.contains('show') ||
-                 modal.style.display === 'flex' ||
-                 modal.style.display === 'block';
-      if (open) startPoll();
-      else stopPoll();
-    }).observe(modal, { attributes: true, attributeFilter: ['class','style'] });
+    if (modal) {
+      new MutationObserver(function() {
+        if (modal.classList.contains('show')) startPoll();
+        else stopPoll();
+      }).observe(modal, { attributes: true, attributeFilter: ['class'] });
+    }
   }
 
   function patchSelectLocality() { watchModal(); }
