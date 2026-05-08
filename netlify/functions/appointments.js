@@ -43,6 +43,10 @@ exports.handler = async (event) => {
       }
       if (requestedId && user.portalIds.includes(requestedId)) {
         portalId = requestedId;
+      } else if (requestedId && event.httpMethod === 'GET' &&
+                 (user.consultablePortalIds || []).includes(requestedId)) {
+        // Acesso de leitura a portal de consulta
+        portalId = requestedId;
       } else if (!portalId && user.portalIds.length > 0) {
         portalId = user.portalIds[0];
       }
@@ -59,7 +63,7 @@ exports.handler = async (event) => {
                notes, address, extra, phone, km, sortIndex, "glassOrdered",
                vehicle_type, travel_time, auto_imported, executed, confirmed,
                calibration, first_of_day, not_done_reason, commercial_user_id,
-               return_km, return_time, client_name, damage_details, created_at, updated_at
+               return_km, return_time, client_name, damage_details, pending_confirmation, referred_from_portal_id, created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -93,11 +97,16 @@ exports.handler = async (event) => {
           date, period, plate, car, service, locality, status,
           notes, address, extra, phone, km, sortIndex, "glassOrdered",
           vehicle_type, travel_time, confirmed, calibration, first_of_day,
-          not_done_reason, commercial_user_id, return_km, return_time, client_name, damage_details, portal_id, created_at, updated_at
+          not_done_reason, commercial_user_id, return_km, return_time, client_name, damage_details,
+          pending_confirmation, referred_from_portal_id, portal_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30
         ) RETURNING *
       `;
+      // Para sugestão cruzada: coordenador pode enviar _targetPortalId (um portal de consulta)
+      const targetPortalId = data._targetPortalId && (user.consultablePortalIds || []).includes(parseInt(data._targetPortalId))
+        ? parseInt(data._targetPortalId)
+        : portalId;
       const v = [
         data.date || null, data.period || null,
         String(data.plate).trim(), String(data.car).trim(),
@@ -115,7 +124,9 @@ exports.handler = async (event) => {
         data.return_time != null ? parseInt(data.return_time) : null,
         data.client_name || null,
         data.damage_details || null,
-        portalId, createdAt, new Date().toISOString()
+        data.pending_confirmation === true,
+        data.referred_from_portal_id ? parseInt(data.referred_from_portal_id) : null,
+        targetPortalId, createdAt, new Date().toISOString()
       ];
       const { rows } = await pool.query(q, v);
       return { statusCode: 201, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
@@ -128,7 +139,7 @@ exports.handler = async (event) => {
 
       // Ler valores atuais para preservar executed e not_done_reason
       const checkResult = await pool.query(
-        'SELECT id, executed, not_done_reason FROM appointments WHERE id = $1 AND portal_id = $2',
+        'SELECT id, executed, not_done_reason, pending_confirmation, referred_from_portal_id FROM appointments WHERE id = $1 AND portal_id = $2',
         [id, portalId]
       );
       if (checkResult.rows.length === 0) {
@@ -147,8 +158,9 @@ exports.handler = async (event) => {
           vehicle_type = $15, travel_time = $16, auto_imported = $17,
           executed = $18, confirmed = $19, calibration = $20,
           first_of_day = $21, not_done_reason = $22, commercial_user_id = $23,
-          return_km = $24, return_time = $25, client_name = $26, damage_details = $27, updated_at = $28
-        WHERE id = $29 AND portal_id = $30
+          return_km = $24, return_time = $25, client_name = $26, damage_details = $27,
+          pending_confirmation = $28, referred_from_portal_id = $29, updated_at = $30
+        WHERE id = $31 AND portal_id = $32
         RETURNING *
       `;
       const v = [
@@ -172,6 +184,8 @@ exports.handler = async (event) => {
         data.return_time != null ? parseInt(data.return_time) : null,
         data.client_name !== undefined ? (data.client_name || null) : null,
         data.damage_details !== undefined ? (data.damage_details || null) : null,
+        data.pending_confirmation !== undefined ? data.pending_confirmation : existing.pending_confirmation,
+        data.referred_from_portal_id !== undefined ? (data.referred_from_portal_id || null) : existing.referred_from_portal_id,
         new Date().toISOString(), id, portalId
       ];
       const { rows } = await pool.query(q, v);
