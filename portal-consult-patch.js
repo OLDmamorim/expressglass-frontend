@@ -1,17 +1,14 @@
-// portal-consult-patch.js - v1
+// portal-consult-patch.js - v2
 // Parte 2: SM Relacionados / Portais de Consulta
 // Incluir no index.html DEPOIS de portal-init.js e script.js
 
 (function() {
 
   // ============================================================
-  // 1. DRAG & DROP — bloquear em modo só-leitura
+  // 1. DRAG & DROP — bloquear em modo so-leitura
   // ============================================================
   document.addEventListener('dragstart', function(e) {
-    if (window._readOnlyMode) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    if (window._readOnlyMode) { e.preventDefault(); e.stopPropagation(); }
   }, true);
 
   // ============================================================
@@ -19,102 +16,72 @@
   // ============================================================
   function patchCardRenderers() {
     var _origDesktop = window.buildDesktopCard;
-    if (_origDesktop && !_origDesktop._patched) {
+    if (_origDesktop && !_origDesktop._consultPatched) {
       window.buildDesktopCard = function(a) {
         var html = _origDesktop(a);
-        if (a.pending_confirmation) {
-          html = injectPendingBadge(html, a, 'desktop');
-        }
+        if (a.pending_confirmation) html = injectPendingBadge(html, a);
         return html;
       };
-      window.buildDesktopCard._patched = true;
+      window.buildDesktopCard._consultPatched = true;
     }
-
     var _origMobile = window.buildMobileCard;
-    if (_origMobile && !_origMobile._patched) {
+    if (_origMobile && !_origMobile._consultPatched) {
       window.buildMobileCard = function(a) {
         var html = _origMobile(a);
-        if (a.pending_confirmation) {
-          html = injectPendingBadge(html, a, 'mobile');
-        }
+        if (a.pending_confirmation) html = injectPendingBadge(html, a);
         return html;
       };
-      window.buildMobileCard._patched = true;
+      window.buildMobileCard._consultPatched = true;
     }
   }
 
-  function injectPendingBadge(html, a, type) {
-    // Encontrar nome do portal de origem
-    var fromPortalName = '';
-    if (a.referred_from_portal_id) {
-      var fromPortal = (window.coordPortals || []).find(function(p) {
-        return p.id === a.referred_from_portal_id;
-      });
-      fromPortalName = fromPortal ? fromPortal.name : 'outro SM';
-    }
-
+  function injectPendingBadge(html, a) {
+    var fromPortal = (window.coordPortals || []).find(function(p) { return p.id === a.referred_from_portal_id; });
+    var fromName = fromPortal ? fromPortal.name : 'outro SM';
     var badge = '<div style="margin:6px 0;padding:5px 10px;background:rgba(234,179,8,0.15);' +
       'border-left:3px solid #eab308;border-radius:5px;font-size:12px;font-weight:700;' +
       'color:#854d0e;animation:blink 1.2s infinite;">' +
-      '\uD83D\uDD04 Serviço passa pelo SM' + (fromPortalName ? ' ' + fromPortalName : '') +
-      ' \u2014 a confirmar' +
-      '<button onclick="rejectPendingConsult(\'' + a.id + '\')" style="margin-left:10px;' +
+      '\uD83D\uDD04 Passa pelo SM ' + fromName + ' \u2014 a confirmar' +
+      '<button onclick="window.rejectPendingConsult(\'' + a.id + '\')" style="margin-left:10px;' +
       'background:#dc2626;color:#fff;border:none;border-radius:4px;padding:2px 7px;' +
       'font-size:11px;cursor:pointer;font-weight:700;">Rejeitar</button>' +
       '</div>';
-
-    // Inserir antes do fecho do card (antes de </div> final)
     return html.replace(/(<div class="card-actions">)/, badge + '$1');
   }
 
-  // Rejeitar sugestão: limpar pending_confirmation e referred_from_portal_id
   window.rejectPendingConsult = async function(id) {
     try {
-      await window.authClient.authenticatedFetch(
-        '/.netlify/functions/appointments/' + id, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            pending_confirmation: false,
-            referred_from_portal_id: null
-          })
-        }
-      );
+      await window.authClient.authenticatedFetch('/.netlify/functions/appointments/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pending_confirmation: false, referred_from_portal_id: null })
+      });
       if (typeof window.reloadAppointments === 'function') await window.reloadAppointments();
-    } catch(e) {
-      console.error('Erro ao rejeitar sugestão:', e);
-    }
+    } catch(e) { console.error('rejectPendingConsult:', e); }
   };
 
   // ============================================================
-  // 3. ALERTA EM TEMPO REAL — ao preencher data/localidade no modal
+  // 3. INTERCEPTAR selectLocality — injetar info SM de consulta
+  //    no bloco #crDateSuggestion que o script.js ja cria
   // ============================================================
-  var _lastCheckedKey = null;
+  function patchSelectLocality() {
+    if (!window.selectLocality || window.selectLocality._consultPatched) return;
+    var orig = window.selectLocality;
+    window.selectLocality = function(value) {
+      orig(value);
+      if (value) setTimeout(function() { injectConsultInfo(value); }, 150);
+      else removeConsultInfo();
+    };
+    window.selectLocality._consultPatched = true;
+  }
 
-  async function checkRealtime() {
+  async function injectConsultInfo(locality) {
     var consultable = window.consultablePortals || [];
     if (!consultable.length || window._readOnlyMode) return;
 
-    var dateEl = document.getElementById('appointmentDate');
-    var localityEl = document.getElementById('appointmentLocality');
-    if (!dateEl || !localityEl) return;
-
-    var date = dateEl.value;
-    var locality = localityEl.value;
-    if (!date || !locality) return;
-
-    // Evitar chamadas repetidas para a mesma combinação
-    var key = date + '|' + locality;
-    if (key === _lastCheckedKey) return;
-    _lastCheckedKey = key;
-
-    var today = new Date();
-    var todayISO = today.toISOString().slice(0, 10);
-    var limit = new Date(today); limit.setDate(limit.getDate() + 5);
+    var todayISO = new Date().toISOString().slice(0, 10);
+    var limit = new Date(); limit.setDate(limit.getDate() + 5);
     var limitISO = limit.toISOString().slice(0, 10);
-
-    // Só alertar se a data está dentro da janela dos próximos 5 dias
-    if (date < todayISO || date > limitISO) return;
 
     var matches = [];
     for (var i = 0; i < consultable.length; i++) {
@@ -125,301 +92,142 @@
         );
         var data = await resp.json();
         if (!data.success) continue;
-        var found = (data.data || []).filter(function(a) {
-          return a.locality === locality && a.date === date;
+        var inWindow = (data.data || []).filter(function(a) {
+          return a.locality === locality && a.date >= todayISO && a.date <= limitISO;
         });
-        if (found.length > 0) {
-          matches.push({ portalId: portal.id, portalName: portal.name, count: found.length, date: date });
-        }
+        inWindow.forEach(function(a) {
+          var existing = matches.find(function(m) { return m.portalId === portal.id && m.date === a.date; });
+          if (existing) existing.count++;
+          else matches.push({ portalId: portal.id, portalName: portal.name, date: a.date, count: 1 });
+        });
       } catch(e) {}
     }
 
-    if (matches.length > 0) {
-      showInlineAlert(matches, locality);
-    } else {
-      removeInlineAlert();
-    }
-  }
+    removeConsultInfo();
+    if (!matches.length) return;
 
-  function showInlineAlert(matches, locality) {
-    removeInlineAlert();
-    var modal = document.getElementById('appointmentModal');
-    if (!modal) return;
-    var formTop = modal.querySelector('form, .modal-body, .modal-content');
-    if (!formTop) formTop = modal;
+    var byPortal = {};
+    matches.forEach(function(m) {
+      if (!byPortal[m.portalId]) byPortal[m.portalId] = { name: m.portalName, id: m.portalId, days: [] };
+      var dt = new Date(m.date + 'T00:00:00');
+      var label = dt.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      byPortal[m.portalId].days.push(label + ' (' + m.count + ')');
+    });
 
-    var banner = document.createElement('div');
-    banner.id = 'consultAlertBanner';
-    banner.style.cssText = 'background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;' +
-      'padding:10px 14px;margin-bottom:12px;font-size:13px;color:#92400e;font-weight:600;';
+    var div = document.createElement('div');
+    div.id = 'crConsultInfo';
+    div.style.cssText = 'background:#f0fdf4;border:1.5px solid #16a34a;border-radius:10px;' +
+      'padding:10px 14px;margin:6px 0;font-size:13px;';
 
-    var text = matches.map(function(m) {
-      return m.portalName + ' (' + m.count + ' serv.)';
-    }).join(', ');
+    var rows = Object.values(byPortal).map(function(p) {
+      return '<div style="margin:4px 0;">' +
+        '<span style="font-weight:700;color:#15803d;">' + p.name + '</span>' +
+        ' \u2014 ' + p.days.join(', ') +
+        '<button class="cr-send-btn" data-portal="' + p.id + '" data-name="' + p.name + '"' +
+        ' style="margin-left:10px;background:#16a34a;color:#fff;border:none;border-radius:6px;' +
+        'padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer;">' +
+        'Encaminhar \u2192</button></div>';
+    }).join('');
 
-    banner.innerHTML = '⚠️ <strong>' + locality + '</strong> neste dia: ' + text +
-      '. Quer que o serviço passe por este SM?';
+    div.innerHTML = '<div style="font-weight:700;color:#15803d;margin-bottom:4px;">' +
+      '\uD83D\uDCCC ' + locality + ' \u2014 SM com servi\u00E7os nos pr\u00F3ximos 5 dias:</div>' + rows;
 
-    var firstChild = formTop.firstChild;
-    formTop.insertBefore(banner, firstChild);
-  }
-
-  function removeInlineAlert() {
-    var el = document.getElementById('consultAlertBanner');
-    if (el) el.remove();
-    _lastCheckedKey = null;
-  }
-
-  function attachModalListeners() {
-    var dateEl = document.getElementById('appointmentDate');
-    var localityEl = document.getElementById('appointmentLocality');
-    var modal = document.getElementById('appointmentModal');
-
-    if (dateEl && !dateEl._consultPatchBound) {
-      dateEl.addEventListener('change', checkRealtime);
-      dateEl._consultPatchBound = true;
+    // Inserir a seguir ao #crDateSuggestion se existir, senao no topo do form
+    var anchor = document.getElementById('crDateSuggestion');
+    var form = document.getElementById('appointmentForm');
+    if (anchor && anchor.parentNode) {
+      anchor.parentNode.insertBefore(div, anchor.nextSibling);
+    } else if (form) {
+      form.insertBefore(div, form.firstChild);
     }
 
-    // localityEl é hidden — observar mudanças via MutationObserver no display do dropdown
-    if (localityEl && !localityEl._consultPatchBound) {
-      var obs = new MutationObserver(function() { checkRealtime(); });
-      obs.observe(localityEl, { attributes: true, attributeFilter: ['value'] });
-      // Fallback: evento change
-      localityEl.addEventListener('change', checkRealtime);
-      // Intercept clicks nas opções de localidade
-      var opts = document.getElementById('localityOptions');
-      if (opts) {
-        opts.addEventListener('click', function() {
-          setTimeout(checkRealtime, 100);
-        });
-      }
-      localityEl._consultPatchBound = true;
-    }
-
-    // Limpar alerta ao fechar modal
-    if (modal && !modal._consultPatchBound) {
-      modal.addEventListener('click', function(e) {
-        if (e.target === modal) removeInlineAlert();
+    div.querySelectorAll('.cr-send-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var portalId = parseInt(btn.dataset.portal);
+        var portalName = btn.dataset.name;
+        window._pendingConsultTransfer = { portalId: portalId, portalName: portalName };
+        if (typeof window.showToast === 'function') {
+          window.showToast('Ao guardar, o servico sera encaminhado para ' + portalName, 'info');
+        }
+        btn.textContent = '\u2713 Selecionado';
+        btn.style.background = '#15803d';
+        div.querySelectorAll('.cr-send-btn').forEach(function(b) { if (b !== btn) b.style.display = 'none'; });
       });
-      modal._consultPatchBound = true;
-    }
+    });
+  }
+
+  function removeConsultInfo() {
+    var el = document.getElementById('crConsultInfo');
+    if (el) el.remove();
+    window._pendingConsultTransfer = null;
   }
 
   // ============================================================
-  // 3. HOOK em apiClient.createAppointment — verificar sugestões
+  // 4. HOOK createAppointment — executar encaminhamento se selecionado
   // ============================================================
   function hookCreateAppointment() {
+    if (window.apiClient.createAppointment._consultPatched) return;
     var orig = window.apiClient.createAppointment.bind(window.apiClient);
-    if (orig._patched) return;
-
     window.apiClient.createAppointment = async function(data) {
       var result = await orig(data);
-      // Só verificar sugestões em modo não-readonly, com localidade preenchida
-      if (!window._readOnlyMode && data.locality && result && result.id) {
-        try {
-          await checkCrossSmSuggestions(data, result);
-        } catch(e) {
-          console.warn('Sugestão cruzada: erro ao verificar', e);
-        }
+      if (result && result.id && window._pendingConsultTransfer) {
+        var transfer = window._pendingConsultTransfer;
+        window._pendingConsultTransfer = null;
+        removeConsultInfo();
+        try { await doTransfer(data, result, transfer.portalId, transfer.portalName); } catch(e) { console.error('transfer:', e); }
       }
       return result;
     };
-    window.apiClient.createAppointment._patched = true;
+    window.apiClient.createAppointment._consultPatched = true;
   }
 
-  // ============================================================
-  // 4. LÓGICA DE SUGESTÕES CRUZADAS
-  // ============================================================
-  async function checkCrossSmSuggestions(payload, createdAppt) {
-    var consultable = window.consultablePortals || [];
-    if (!consultable.length) return;
-
-    var locality = payload.locality;
-    var today = new Date();
-    var todayISO = today.toISOString().slice(0, 10);
-    var limit = new Date(today); limit.setDate(limit.getDate() + 5);
-    var limitISO = limit.toISOString().slice(0, 10);
-
-    var matches = []; // [{portalName, portalId, date, count}]
-
-    for (var i = 0; i < consultable.length; i++) {
-      var portal = consultable[i];
-      try {
-        var resp = await window.authClient.authenticatedFetch(
-          '/.netlify/functions/appointments?portal_id=' + portal.id
-        );
-        var data = await resp.json();
-        if (!data.success) continue;
-        var appts = data.data || [];
-        // Filtrar por localidade + janela de 5 dias (incluindo hoje)
-        var inWindow = appts.filter(function(a) {
-          return a.locality === locality &&
-                 a.date && a.date >= todayISO && a.date <= limitISO;
-        });
-        if (inWindow.length > 0) {
-          // Agrupar por dia
-          var byDay = {};
-          inWindow.forEach(function(a) {
-            byDay[a.date] = (byDay[a.date] || 0) + 1;
-          });
-          Object.keys(byDay).forEach(function(date) {
-            matches.push({
-              portalId: portal.id,
-              portalName: portal.name,
-              date: date,
-              count: byDay[date]
-            });
-          });
-        }
-      } catch(e) {
-        console.warn('Sugestão: erro ao consultar portal ' + portal.name, e);
-      }
+  async function doTransfer(payload, createdAppt, targetPortalId, targetName) {
+    await window.authClient.authenticatedFetch('/.netlify/functions/appointments/' + createdAppt.id, { method: 'DELETE' });
+    if (Array.isArray(window.appointments)) {
+      window.appointments = window.appointments.filter(function(a) { return String(a.id) !== String(createdAppt.id); });
     }
-
-    if (matches.length > 0) {
-      showSuggestionModal(payload, createdAppt, matches);
-    }
+    var newPayload = Object.assign({}, payload, {
+      _targetPortalId: targetPortalId,
+      pending_confirmation: true,
+      referred_from_portal_id: window.activePortalId,
+      notes: (payload.notes ? payload.notes + ' | ' : '') + 'Encaminhado de ' + (window.portalConfig && window.portalConfig.name ? window.portalConfig.name : 'SM')
+    });
+    delete newPayload.id;
+    await window.authClient.authenticatedFetch('/.netlify/functions/appointments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newPayload)
+    });
+    if (typeof window.showToast === 'function') window.showToast('Servico encaminhado para ' + targetName, 'success');
+    if (typeof window.reloadAppointments === 'function') await window.reloadAppointments();
   }
 
   // ============================================================
-  // 5. MODAL DE SUGESTÃO
-  // ============================================================
-  function showSuggestionModal(payload, createdAppt, matches) {
-    var existing = document.getElementById('consultSuggestionOverlay');
-    if (existing) existing.remove();
-
-    var overlay = document.createElement('div');
-    overlay.id = 'consultSuggestionOverlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
-      'background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
-
-    // Agrupar por portal
-    var byPortal = {};
-    matches.forEach(function(m) {
-      if (!byPortal[m.portalId]) byPortal[m.portalId] = { name: m.portalName, days: [] };
-      byPortal[m.portalId].days.push({ date: m.date, count: m.count });
-    });
-
-    var rows = Object.keys(byPortal).map(function(pid) {
-      var p = byPortal[pid];
-      var dayList = p.days.map(function(d) {
-        var dt = new Date(d.date + 'T00:00:00');
-        var label = dt.toLocaleDateString('pt-PT', { weekday:'short', day:'2-digit', month:'2-digit' });
-        return label + ' (' + d.count + ' serv.)';
-      }).join(', ');
-      return '<div style="margin:8px 0;padding:10px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">' +
-        '<strong>' + p.name + '</strong><br>' +
-        '<span style="font-size:13px;color:#6b7280;">' + dayList + '</span><br>' +
-        '<button class="suggest-accept-btn" data-portal="' + pid + '" data-name="' + p.name + '"' +
-        ' style="margin-top:8px;background:#2563eb;color:#fff;border:none;border-radius:6px;' +
-        'padding:6px 14px;font-weight:700;cursor:pointer;font-size:13px;">' +
-        'Aceitar \u2014 passa pelo ' + p.name + '</button>' +
-        '</div>';
-    }).join('');
-
-    overlay.innerHTML =
-      '<div style="background:#fff;border-radius:14px;padding:24px;max-width:460px;width:90%;max-height:80vh;overflow-y:auto;">' +
-        '<h3 style="margin:0 0 6px;font-size:17px;">&#x1F4CB; Sugest\u00E3o de encaminhamento</h3>' +
-        '<p style="margin:0 0 14px;font-size:14px;color:#374151;">' +
-          'O SM abaixo j\u00E1 tem servi\u00E7os em <strong>' + payload.locality + '</strong> nos pr\u00F3ximos 5 dias.' +
-          ' Quer que este servi\u00E7o passe pelo SM correspondente?' +
-        '</p>' +
-        rows +
-        '<div style="margin-top:14px;text-align:right;">' +
-          '<button id="consultSuggestionClose" style="background:#f3f4f6;color:#374151;border:none;' +
-          'border-radius:6px;padding:8px 20px;font-weight:600;cursor:pointer;">Ignorar</button>' +
-        '</div>' +
-      '</div>';
-
-    document.body.appendChild(overlay);
-
-    document.getElementById('consultSuggestionClose').addEventListener('click', function() {
-      overlay.remove();
-    });
-
-    overlay.querySelectorAll('.suggest-accept-btn').forEach(function(btn) {
-      btn.addEventListener('click', async function() {
-        var targetPortalId = parseInt(btn.dataset.portal);
-        var targetName = btn.dataset.name;
-        btn.disabled = true;
-        btn.textContent = 'A enviar...';
-        await acceptSuggestion(payload, createdAppt, targetPortalId, targetName);
-        overlay.remove();
-      });
-    });
-  }
-
-  // Aceitar sugestão: apagar do portal atual + criar no portal de consulta com pending_confirmation
-  async function acceptSuggestion(payload, createdAppt, targetPortalId, targetName) {
-    try {
-      // 1. Eliminar do portal atual
-      await window.authClient.authenticatedFetch(
-        '/.netlify/functions/appointments/' + createdAppt.id, { method: 'DELETE' }
-      );
-      // Remover do array local
-      if (Array.isArray(window.appointments)) {
-        window.appointments = window.appointments.filter(function(a) {
-          return String(a.id) !== String(createdAppt.id);
-        });
-      }
-
-      // 2. Criar no portal de consulta (backend valida que targetPortalId em consultablePortalIds)
-      var newPayload = Object.assign({}, payload, {
-        _targetPortalId: targetPortalId,
-        pending_confirmation: true,
-        referred_from_portal_id: window.activePortalId,
-        notes: (payload.notes ? payload.notes + ' | ' : '') +
-               'Serv. passa pelo ' + (window.portalConfig && window.portalConfig.name ? window.portalConfig.name : 'SM')
-      });
-      delete newPayload.id;
-
-      await window.authClient.authenticatedFetch('/.netlify/functions/appointments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPayload)
-      });
-
-      if (typeof window.showToast === 'function') {
-        window.showToast('Servi\u00E7o enviado para ' + targetName + ' (a confirmar)', 'success');
-      }
-      if (typeof window.reloadAppointments === 'function') await window.reloadAppointments();
-    } catch(e) {
-      console.error('Erro ao aceitar sugest\u00E3o:', e);
-      if (typeof window.showToast === 'function') {
-        window.showToast('Erro ao enviar para ' + targetName, 'error');
-      }
-    }
-  }
-
-  // ============================================================
-  // 6. INIT
+  // 5. INIT
   // ============================================================
   function init() {
-    // Hook imediato — apiClient já existe quando este script carrega
     hookCreateAppointment();
-    attachModalListeners();
-    // Re-attach quando o modal abre (pode ser reiniciado pelo script.js)
-    document.addEventListener('click', function(e) {
-      if (e.target && (e.target.id === 'addServiceBtn' || e.target.id === 'addServiceMobile' ||
-          e.target.closest && e.target.closest('#addServiceBtn, #addServiceMobile'))) {
-        setTimeout(function() { attachModalListeners(); removeInlineAlert(); }, 200);
-      }
-    });
-    // Card renderers: buildDesktopCard pode ainda não estar definido
-    if (typeof window.buildDesktopCard === 'function') {
-      patchCardRenderers();
-    } else {
-      window.addEventListener('portalReady', patchCardRenderers, { once: true });
-      setTimeout(patchCardRenderers, 1500);
+    patchCardRenderers();
+    patchSelectLocality();
+    var modal = document.getElementById('appointmentModal');
+    if (modal) {
+      new MutationObserver(function() {
+        var isOpen = modal.classList.contains('show') || modal.style.display === 'flex' || modal.style.display === 'block';
+        if (!isOpen) removeConsultInfo();
+      }).observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
     }
-    console.log('portal-consult-patch v1 OK');
+    console.log('portal-consult-patch v2 OK');
   }
 
-  // Correr sempre — portalReady pode já ter disparado antes deste script carregar
+  function tryInit() {
+    if (window.selectLocality) { init(); }
+    else { setTimeout(tryInit, 200); }
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', tryInit);
   } else {
-    init();
+    tryInit();
   }
 
 })();
