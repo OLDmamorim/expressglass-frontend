@@ -1,4 +1,4 @@
-// admin-comercial-patch.js - v4
+// admin-comercial-patch.js - v5
 // Adicionar ao admin.html DEPOIS de admin-script.js
 
 (function() {
@@ -31,6 +31,47 @@
     }
 
     // telegramChatIdGroup já existe no admin.html
+  }
+
+  function injectConsultableGroup() {
+    if (document.getElementById('consultableGroup')) return; // já existe (Parte 1 injetou)
+    var multiGroup = document.getElementById('multiPortalGroup');
+    if (!multiGroup) return;
+    var div = document.createElement('div');
+    div.className = 'form-group';
+    div.id = 'consultableGroup';
+    div.style.display = 'none';
+    div.innerHTML =
+      '<label>🔒 Portais de Consulta</label>' +
+      '<div id="consultablePortalCheckboxes" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;"></div>' +
+      '<small>Portais que este coordenador pode consultar em modo só-leitura</small>';
+    // Inserir depois do multiPortalGroup
+    multiGroup.parentNode.insertBefore(div, multiGroup.nextSibling);
+  }
+
+  function populateConsultablePortalCheckboxes(selectedIds) {
+    // Se admin-script.js já definiu esta função, usa essa; caso contrário usa esta.
+    selectedIds = selectedIds || [];
+    var container = document.getElementById('consultablePortalCheckboxes');
+    if (!container) return;
+    var smPortals = (portals || []).filter(function(p) {
+      return p.portal_type !== 'loja';
+    });
+    if (!smPortals.length) {
+      container.innerHTML = '<p style="color:#9ca3af;font-size:13px;padding:8px;">Nenhum portal SM disponivel.</p>';
+      return;
+    }
+    container.innerHTML = smPortals.map(function(p) {
+      var checked = selectedIds.indexOf(p.id) >= 0 ? 'checked' : '';
+      return '<label style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;">' +
+        '<input type="checkbox" class="consultable-portal-cb" value="' + p.id + '" ' + checked + ' style="width:18px;height:18px;min-width:18px;">' +
+        '<span style="flex:1;">' + p.name + ' <span style="color:#9ca3af;font-size:12px;">(consulta)</span></span>' +
+        '</label>';
+    }).join('');
+  }
+  // Expor globalmente para ser usada pelo admin-script.js se necessário
+  if (typeof window.populateConsultablePortalCheckboxes !== 'function') {
+    window.populateConsultablePortalCheckboxes = populateConsultablePortalCheckboxes;
   }
 
   function populateComercialPortalCheckboxes(selectedIds) {
@@ -230,6 +271,7 @@
   function init() {
     injectComercialRole();
     injectComercialGroup();
+    injectConsultableGroup();
     patchForm();
     patchAddUserBtn();
     // Re-ligar onchange ao role select
@@ -239,7 +281,7 @@
       roleSel.parentNode.replaceChild(newRoleSel, roleSel);
       newRoleSel.addEventListener('change', togglePortalSelectPatched);
     }
-    console.log('Patch comercial v4 OK');
+    console.log('Patch comercial v5 OK');
   }
 
   if (document.readyState === 'loading') {
