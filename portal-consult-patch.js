@@ -61,49 +61,36 @@
   };
 
   // ============================================================
-  // 3. INTERCEPTAR selectLocality via Object.defineProperty
-  //    Garante que qualquer redefinicao futura tambem e interceptada
+  // 3. DETETAR selecao de localidade via evento no DOM
+  //    Ouve cliques em #localityOptions e mudancas em #appointmentLocality
   // ============================================================
-  var _realSelectLocality = null;
-  var _selectLocalityInstalled = false;
+  var _lastLocality = null;
 
-  function installSelectLocalityTrap() {
-    if (_selectLocalityInstalled) return;
-    _selectLocalityInstalled = true;
-    // Guardar valor atual se ja existir
-    if (window.selectLocality) _realSelectLocality = window.selectLocality;
-    try {
-      Object.defineProperty(window, 'selectLocality', {
-        configurable: true,
-        get: function() {
-          return function(value) {
-            if (_realSelectLocality) _realSelectLocality(value);
-            if (value) setTimeout(function() { injectConsultInfo(value); }, 150);
-            else removeConsultInfo();
-          };
-        },
-        set: function(fn) {
-          // script.js redefine — guardar a nova versao real e continuar a interceptar
-          _realSelectLocality = fn;
-        }
-      });
-      console.log('selectLocality trap instalada');
-    } catch(e) {
-      console.warn('trap falhou, fallback direto:', e);
-      // Fallback: patch direto
-      if (window.selectLocality && !window.selectLocality._consultPatched) {
-        var orig = window.selectLocality;
-        window.selectLocality = function(value) {
-          orig(value);
-          if (value) setTimeout(function() { injectConsultInfo(value); }, 150);
-          else removeConsultInfo();
-        };
-        window.selectLocality._consultPatched = true;
-      }
-    }
+  function onLocalityChange() {
+    var loc = (document.getElementById('appointmentLocality') || {}).value;
+    if (!loc || loc === _lastLocality) return;
+    _lastLocality = loc;
+    injectConsultInfo(loc);
   }
 
-  function patchSelectLocality() { installSelectLocalityTrap(); }
+  function bindLocalityEvents() {
+    // Clique nas opcoes do dropdown de localidade
+    document.addEventListener('click', function(e) {
+      var opts = document.getElementById('localityOptions');
+      if (opts && opts.contains(e.target)) {
+        _lastLocality = null; // reset para forcar re-check
+        setTimeout(onLocalityChange, 100);
+      }
+    }, true);
+
+    // Fechar modal limpa estado
+    document.addEventListener('click', function(e) {
+      var modal = document.getElementById('appointmentModal');
+      if (modal && !modal.contains(e.target)) { removeConsultInfo(); _lastLocality = null; }
+    });
+  }
+
+  function patchSelectLocality() { bindLocalityEvents(); }
 
   async function injectConsultInfo(locality) {
     var consultable = window.consultablePortals || [];
@@ -249,10 +236,9 @@
     console.log('portal-consult-patch v2 OK');
   }
 
-  // Instalar trap imediatamente (antes de script.js definir selectLocality)
-  installSelectLocalityTrap();
   hookCreateAppointment();
   patchCardRenderers();
+  bindLocalityEvents();
 
   // Modal observer
   (function() {
