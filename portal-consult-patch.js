@@ -231,7 +231,7 @@
   }
 
   async function doTransfer(payload, createdAppt, targetPortalId, targetName) {
-    await window.authClient.authenticatedFetch('/.netlify/functions/appointments/' + createdAppt.id, { method: 'DELETE' });
+    await window.authClient.authenticatedFetch('/.netlify/functions/appointments/' + createdAppt.id + '?portal_id=' + window.activePortalId, { method: 'DELETE' });
     if (Array.isArray(window.appointments)) {
       window.appointments = window.appointments.filter(function(a) { return String(a.id) !== String(createdAppt.id); });
     }
