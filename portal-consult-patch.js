@@ -61,36 +61,42 @@
   };
 
   // ============================================================
-  // 3. DETETAR selecao de localidade via evento no DOM
-  //    Ouve cliques em #localityOptions e mudancas em #appointmentLocality
+  // 3. POLLING — verifica localidade enquanto modal esta aberto
   // ============================================================
-  var _lastLocality = null;
+  var _pollTimer = null;
+  var _lastChecked = '';
 
-  function onLocalityChange() {
-    var loc = (document.getElementById('appointmentLocality') || {}).value;
-    if (!loc || loc === _lastLocality) return;
-    _lastLocality = loc;
-    injectConsultInfo(loc);
+  function startPoll() {
+    _lastChecked = '';
+    if (_pollTimer) clearInterval(_pollTimer);
+    _pollTimer = setInterval(function() {
+      var loc = (document.getElementById('appointmentLocality') || {}).value || '';
+      if (loc === _lastChecked) return;
+      _lastChecked = loc;
+      if (loc) injectConsultInfo(loc);
+      else removeConsultInfo();
+    }, 500);
   }
 
-  function bindLocalityEvents() {
-    // Clique nas opcoes do dropdown de localidade
-    document.addEventListener('click', function(e) {
-      var opts = document.getElementById('localityOptions');
-      if (opts && opts.contains(e.target)) {
-        _lastLocality = null; // reset para forcar re-check
-        setTimeout(onLocalityChange, 100);
-      }
-    }, true);
-
-    // Fechar modal limpa estado
-    document.addEventListener('click', function(e) {
-      var modal = document.getElementById('appointmentModal');
-      if (modal && !modal.contains(e.target)) { removeConsultInfo(); _lastLocality = null; }
-    });
+  function stopPoll() {
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+    removeConsultInfo();
+    _lastChecked = '';
   }
 
-  function patchSelectLocality() { bindLocalityEvents(); }
+  function watchModal() {
+    var modal = document.getElementById('appointmentModal');
+    if (!modal) { setTimeout(watchModal, 500); return; }
+    new MutationObserver(function() {
+      var open = modal.classList.contains('show') ||
+                 modal.style.display === 'flex' ||
+                 modal.style.display === 'block';
+      if (open) startPoll();
+      else stopPoll();
+    }).observe(modal, { attributes: true, attributeFilter: ['class','style'] });
+  }
+
+  function patchSelectLocality() { watchModal(); }
 
   async function injectConsultInfo(locality) {
     var consultable = window.consultablePortals || [];
@@ -238,7 +244,7 @@
 
   hookCreateAppointment();
   patchCardRenderers();
-  bindLocalityEvents();
+  watchModal();
 
   // Modal observer
   (function() {
