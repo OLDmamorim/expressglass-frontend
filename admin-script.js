@@ -75,25 +75,17 @@ navTabs.forEach(tab => {
 // ===== CARREGAR PORTAIS PARA RELATÓRIOS (coordenador) =====
 async function loadPortalsForReports() {
   const user = authClient.getUser();
-
-  // Coordenador NÃO pode chamar /.netlify/functions/portals (403 — só admin)
-  // Em vez disso, usar directamente user.portals (já vem com {id, name, ...} no token)
-  let portalList = [];
-  if (Array.isArray(user.portals) && user.portals.length) {
-    portalList = user.portals.filter(p => p && p.id && p.name);
-  } else if (Array.isArray(user.portalIds) && user.portalIds.length) {
-    // Fallback: só temos IDs, sem nomes — chamar API (vai falhar para coordenador, mas tentar)
-    try {
-      const resp = await authClient.authenticatedFetch('/.netlify/functions/portals');
-      const data = await resp.json();
-      if (data.success) portalList = data.data.filter(p => user.portalIds.includes(p.id));
-    } catch(e) { console.error('Erro ao carregar portais:', e); }
-  }
-
-  if (!portalList.length) return;
-  portals = portalList;
-  window._adminPortals = portals;
-  populateReportPortalSelect(portals);
+  const portalIds = user.portalIds || [];
+  if (!portalIds.length) return;
+  try {
+    const resp = await authClient.authenticatedFetch('/.netlify/functions/portals');
+    const data = await resp.json();
+    if (data.success) {
+      portals = data.data.filter(p => portalIds.includes(p.id));
+      window._adminPortals = portals;
+      populateReportPortalSelect(portals);
+    }
+  } catch(e) { console.error('Erro ao carregar portais:', e); }
 }
 
 function populateReportPortalSelect(portalList) {
@@ -478,6 +470,8 @@ function editUser(id) {
   // Se coordenador, carregar portais atribuídos
   if (user.role === 'coordenador' && user.portalIds) {
     populateMultiPortalCheckboxes(user.portalIds);
+    // E também carregar os portais de consulta (apenas leitura)
+    populateConsultablePortalCheckboxes(user.consultablePortalIds || []);
   }
   // Se comercial, carregar SMs atribuídos
   if (user.role === 'comercial') {
@@ -545,27 +539,75 @@ function populateMultiPortalCheckboxes(selectedIds = []) {
       <span style="flex:1;text-align:left;">${p.name} <span style="color:#9ca3af;font-size:12px;">(${p.portal_type === 'loja' ? 'Loja' : p.portal_type === 'pesados' ? 'Pesados' : 'SM'})</span></span>
     </label>
   `).join('');
+  // Quando muda os coordenados, refrescar consulta para desactivar os que estão coordenados
+  container.querySelectorAll('.coord-portal-cb').forEach(cb => {
+    cb.addEventListener('change', refreshConsultableCheckboxesAvailability);
+  });
+}
+
+// Popular checkboxes de Portais de Consulta (coordenador)
+// Mostra apenas portais SM e Pesados (não Loja). Desactiva os que já estão na lista de coordenados.
+function populateConsultablePortalCheckboxes(selectedIds = []) {
+  const container = document.getElementById('consultablePortalCheckboxes');
+  if (!container) return;
+  // IDs já selecionados como coordenados (para não permitir duplicação)
+  const coordCbs = Array.from(document.querySelectorAll('.coord-portal-cb:checked'));
+  const coordIds = new Set(coordCbs.map(cb => parseInt(cb.value)));
+  // Normalizar IDs selecionados para inteiros
+  const normalizedIds = (selectedIds || []).map(id => parseInt(id)).filter(id => !isNaN(id));
+  // Mostrar apenas portais SM e Pesados (faz sentido consultar agendas operacionais)
+  const filtered = portals.filter(p => (p.portal_type || 'sm') !== 'loja');
+  container.innerHTML = filtered.map(p => {
+    const isCoord = coordIds.has(parseInt(p.id));
+    const isChecked = normalizedIds.includes(parseInt(p.id)) && !isCoord;
+    const typeLabel = p.portal_type === 'pesados' ? 'Pesados' : 'SM';
+    return `
+      <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:${isCoord ? 'not-allowed' : 'pointer'};border-bottom:1px solid #f3f4f6;text-align:left;${isCoord ? 'opacity:0.45;' : ''}">
+        <input type="checkbox" class="consult-portal-cb" value="${p.id}"
+               ${isChecked ? 'checked' : ''} ${isCoord ? 'disabled' : ''}
+               style="width:18px;height:18px;min-width:18px;">
+        <span style="flex:1;text-align:left;">${p.name}
+          <span style="color:#9ca3af;font-size:12px;">(${typeLabel})</span>
+          ${isCoord ? '<span style="color:#7c3aed;font-size:11px;margin-left:6px;font-weight:700;">já coordena</span>' : ''}
+        </span>
+      </label>
+    `;
+  }).join('');
+}
+
+// Quando muda a lista de coordenados, atualizar a lista de consulta
+// (preserva escolhas mas desactiva portais que passaram a ser coordenados)
+function refreshConsultableCheckboxesAvailability() {
+  const cg = document.getElementById('consultablePortalGroup');
+  if (!cg || cg.style.display === 'none') return;
+  const currentChecked = Array.from(document.querySelectorAll('.consult-portal-cb:checked')).map(cb => parseInt(cb.value));
+  populateConsultablePortalCheckboxes(currentChecked);
 }
 
 function togglePortalSelect() {
   const role = document.getElementById('userRole').value;
   const portalGroup = document.getElementById('portalSelectGroup');
   const multiGroup = document.getElementById('multiPortalGroup');
+  const consultableGroup = document.getElementById('consultablePortalGroup');
   const portalSelect = document.getElementById('userPortal');
   
   if (role === 'admin') {
     portalGroup.style.display = 'none';
     multiGroup.style.display = 'none';
+    if (consultableGroup) consultableGroup.style.display = 'none';
     portalSelect.required = false;
   } else if (role === 'coordenador') {
     portalGroup.style.display = 'none';
     multiGroup.style.display = 'block';
+    if (consultableGroup) consultableGroup.style.display = 'block';
     portalSelect.required = false;
     document.getElementById('comercialPortalGroup').style.display = 'none';
     populateMultiPortalCheckboxes();
+    populateConsultablePortalCheckboxes();
   } else if (role === 'comercial') {
     portalGroup.style.display = 'none';
     multiGroup.style.display = 'none';
+    if (consultableGroup) consultableGroup.style.display = 'none';
     portalSelect.required = false;
     const cg = document.getElementById('comercialPortalGroup');
     if (cg) { cg.style.display = 'block'; populateComercialPortalCheckboxes(); }
@@ -573,6 +615,7 @@ function togglePortalSelect() {
     portalGroup.style.display = 'block';
     if (document.getElementById('comercialPortalGroup')) document.getElementById('comercialPortalGroup').style.display = 'none';
     multiGroup.style.display = 'none';
+    if (consultableGroup) consultableGroup.style.display = 'none';
     portalSelect.required = true;
   }
 }
@@ -611,6 +654,14 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
     }
     userData.portal_id = portalIds[0]; // Portal principal (primeiro)
     userData.portal_ids = portalIds;   // Todos os portais
+
+    // Recolher portais de consulta (read-only)
+    const consultChecked = document.querySelectorAll('.consult-portal-cb:checked');
+    const consultIds = Array.from(consultChecked).map(cb => parseInt(cb.value));
+    // Filtrar IDs que já estão na lista de coordenados (evitar duplicação no servidor)
+    const coordSet = new Set(portalIds);
+    userData.consultable_portal_ids = consultIds.filter(id => !coordSet.has(id));
+    console.log('[admin] coordenador portalIds:', portalIds, 'consultableIds:', userData.consultable_portal_ids);
   }
 
   if (role === 'comercial') {

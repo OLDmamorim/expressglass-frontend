@@ -9,7 +9,6 @@ const pool = new Pool({
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
-// Sem expiração — token válido até logout manual
 
 // ── Rate Limiting ────────────────────────────────────────────────────────────
 const MAX_ATTEMPTS = 5;
@@ -157,6 +156,31 @@ exports.handler = async (event) => {
       tokenPayload.portalIds = multiPortals.map(p => p.id);
     }
 
+    // Coordenador: buscar portais DE CONSULTA (read-only)
+    let consultablePortals = [];
+    if (user.role === 'coordenador') {
+      const consult = await pool.query(`
+        SELECT p.id, p.name, p.departure_address, p.localities, p.portal_type
+        FROM consultable_portals cpc
+        JOIN portals p ON cpc.portal_id = p.id
+        WHERE cpc.user_id = $1
+        ORDER BY p.name
+      `, [user.id]);
+
+      consultablePortals = consult.rows.map(p => ({
+        id: p.id,
+        name: p.name,
+        departureAddress: p.departure_address,
+        localities: p.localities,
+        portalType: p.portal_type || 'sm',
+        readOnly: true
+      }));
+
+      if (consultablePortals.length > 0) {
+        tokenPayload.consultablePortalIds = consultablePortals.map(p => p.id);
+      }
+    }
+
     const token = jwt.sign(tokenPayload, JWT_SECRET);
 
     const userData = {
@@ -176,6 +200,10 @@ exports.handler = async (event) => {
       userData.portals = multiPortals;
     }
 
+    if (user.role === 'coordenador' && consultablePortals.length > 0) {
+      userData.consultablePortals = consultablePortals;
+    }
+
     // Limpar tentativas após login bem-sucedido
     await clearAttempts(username, event);
 
@@ -184,11 +212,15 @@ exports.handler = async (event) => {
       user_id: user.id,
       username: user.username,
       action: 'login',
-      details: { role: user.role, portal: user.portal_name || null },
+      details: { 
+        role: user.role, 
+        portal: user.portal_name || null,
+        consultable_count: consultablePortals.length 
+      },
       event
     });
 
-    console.log(`✅ Login bem-sucedido: ${username} (${user.role})`);
+    console.log(`✅ Login bem-sucedido: ${username} (${user.role})${consultablePortals.length > 0 ? ' [+' + consultablePortals.length + ' consulta]' : ''}`);
 
     return {
       statusCode: 200,

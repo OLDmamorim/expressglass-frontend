@@ -112,6 +112,31 @@ const headers = {
           }
         }
 
+        // Coordenador: carregar lista de portais DE CONSULTA
+        if (user.role === 'coordenador') {
+          try {
+            const cpc = await pool.query(
+              'SELECT portal_id FROM consultable_portals WHERE user_id = $1',
+              [user.id]
+            );
+            u.consultablePortalIds = cpc.rows.map(r => r.portal_id);
+            if (u.consultablePortalIds.length > 0) {
+              const cpNames = await pool.query(
+                'SELECT id, name FROM portals WHERE id = ANY($1)',
+                [u.consultablePortalIds]
+              );
+              u.consultablePortalNames = cpNames.rows.map(r => r.name);
+            } else {
+              u.consultablePortalNames = [];
+            }
+          } catch (e) {
+            // Tabela pode ainda não existir — silenciar
+            console.warn('[users] consultable_portals query falhou:', e.message);
+            u.consultablePortalIds = [];
+            u.consultablePortalNames = [];
+          }
+        }
+
         users.push(u);
       }
 
@@ -168,6 +193,19 @@ const headers = {
         }
       }
 
+      // Coordenador: guardar lista de portais DE CONSULTA
+      if (data.role === 'coordenador' && Array.isArray(data.consultable_portal_ids) && data.consultable_portal_ids.length > 0) {
+        // Filtrar IDs que já estão na lista de coordenados (não pode ser consulta E coordenado ao mesmo tempo)
+        const coordIds = new Set((data.portal_ids || []).map(Number));
+        const consultIds = data.consultable_portal_ids.map(Number).filter(pid => !coordIds.has(pid));
+        for (const pid of consultIds) {
+          await pool.query(
+            'INSERT INTO consultable_portals (user_id, portal_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [newUser.id, pid]
+          );
+        }
+      }
+
       console.log('Utilizador criado:', data.username, '(' + data.role + ')');
       return { statusCode: 201, headers, body: JSON.stringify({ success: true, data: newUser }) };
     }
@@ -218,6 +256,25 @@ const headers = {
         await pool.query('DELETE FROM coordinator_portals WHERE user_id = $1', [id]);
       }
 
+      // Coordenador: atualizar lista de portais DE CONSULTA
+      if (data.role === 'coordenador' && Array.isArray(data.consultable_portal_ids)) {
+        await pool.query('DELETE FROM consultable_portals WHERE user_id = $1', [id]);
+        // Filtrar IDs que estão na lista de coordenados (não pode ser consulta E coordenado)
+        const coordIds = new Set((data.portal_ids || []).map(Number));
+        const consultIds = data.consultable_portal_ids.map(Number).filter(pid => !coordIds.has(pid));
+        for (const pid of consultIds) {
+          await pool.query(
+            'INSERT INTO consultable_portals (user_id, portal_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [id, pid]
+          );
+        }
+      } else if (data.role && data.role !== 'coordenador') {
+        // Se mudou para outro role, limpar portais de consulta
+        try {
+          await pool.query('DELETE FROM consultable_portals WHERE user_id = $1', [id]);
+        } catch(e) { /* tabela pode não existir ainda */ }
+      }
+
       await auditLog({ user_id: decoded.userId, username: decoded.username, action: 'user_updated',
         entity: 'user', entity_id: rows[0].id, details: { updated_username: rows[0].username }, event });
       console.log('Utilizador atualizado:', rows[0].username);
@@ -228,6 +285,7 @@ const headers = {
     if (event.httpMethod === 'DELETE') {
       const id = (event.path || '').split('/').pop();
       await pool.query('DELETE FROM coordinator_portals WHERE user_id = $1', [id]);
+      try { await pool.query('DELETE FROM consultable_portals WHERE user_id = $1', [id]); } catch(e) {}
       const { rows } = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id, username', [id]);
       if (rows.length === 0) {
         return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Utilizador não encontrado' }) };

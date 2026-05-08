@@ -436,7 +436,14 @@
         <div class="form-group" id="multiPortalGroup" style="display:none;">
           <label>Portais do Coordenador *</label>
           <div id="multiPortalCheckboxes" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;"></div>
-          <small>Selecione os portais a que o coordenador terá acesso</small>
+          <small>Selecione os portais que o coordenador <strong>coordena</strong> (acesso total)</small>
+        </div>
+
+        <!-- Portais de Consulta (coordenador) — apenas leitura -->
+        <div class="form-group" id="consultablePortalGroup" style="display:none;">
+          <label>🔒 Portais de Consulta (apenas leitura)</label>
+          <div id="consultablePortalCheckboxes" style="max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;"></div>
+          <small>Portais que o coordenador pode <strong>consultar</strong> mas não editar. Quando regista um serviço, o sistema sugere passá-lo a estes SMs se já tiverem serviços na mesma localidade nos próximos 5 dias.</small>
         </div>
 
         <!-- Vários SM (comercial) -->
@@ -479,9 +486,7 @@
       #reportContent { display: block !important; }
       #reportComercialSection { display: block !important; }
       #reportMotivosSection { display: block !important; }
-      /* Esconder outras tabs no print (manter só Relatórios) */
-      .tab-content { display: none !important; }
-      #reportsTab.tab-content { display: block !important; }
+      .tab-content { display: block !important; }
       canvas { max-width: 100%; height: auto !important; }
       .report-charts-grid { grid-template-columns: 1fr !important; }
       .chart-card { break-inside: avoid; page-break-inside: avoid; margin-bottom: 20px; }
