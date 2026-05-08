@@ -87,6 +87,125 @@
   };
 
   // ============================================================
+  // 3. ALERTA EM TEMPO REAL — ao preencher data/localidade no modal
+  // ============================================================
+  var _lastCheckedKey = null;
+
+  async function checkRealtime() {
+    var consultable = window.consultablePortals || [];
+    if (!consultable.length || window._readOnlyMode) return;
+
+    var dateEl = document.getElementById('appointmentDate');
+    var localityEl = document.getElementById('appointmentLocality');
+    if (!dateEl || !localityEl) return;
+
+    var date = dateEl.value;
+    var locality = localityEl.value;
+    if (!date || !locality) return;
+
+    // Evitar chamadas repetidas para a mesma combinação
+    var key = date + '|' + locality;
+    if (key === _lastCheckedKey) return;
+    _lastCheckedKey = key;
+
+    var today = new Date();
+    var todayISO = today.toISOString().slice(0, 10);
+    var limit = new Date(today); limit.setDate(limit.getDate() + 5);
+    var limitISO = limit.toISOString().slice(0, 10);
+
+    // Só alertar se a data está dentro da janela dos próximos 5 dias
+    if (date < todayISO || date > limitISO) return;
+
+    var matches = [];
+    for (var i = 0; i < consultable.length; i++) {
+      var portal = consultable[i];
+      try {
+        var resp = await window.authClient.authenticatedFetch(
+          '/.netlify/functions/appointments?portal_id=' + portal.id
+        );
+        var data = await resp.json();
+        if (!data.success) continue;
+        var found = (data.data || []).filter(function(a) {
+          return a.locality === locality && a.date === date;
+        });
+        if (found.length > 0) {
+          matches.push({ portalId: portal.id, portalName: portal.name, count: found.length, date: date });
+        }
+      } catch(e) {}
+    }
+
+    if (matches.length > 0) {
+      showInlineAlert(matches, locality);
+    } else {
+      removeInlineAlert();
+    }
+  }
+
+  function showInlineAlert(matches, locality) {
+    removeInlineAlert();
+    var modal = document.getElementById('appointmentModal');
+    if (!modal) return;
+    var formTop = modal.querySelector('form, .modal-body, .modal-content');
+    if (!formTop) formTop = modal;
+
+    var banner = document.createElement('div');
+    banner.id = 'consultAlertBanner';
+    banner.style.cssText = 'background:#fef3c7;border:1.5px solid #f59e0b;border-radius:10px;' +
+      'padding:10px 14px;margin-bottom:12px;font-size:13px;color:#92400e;font-weight:600;';
+
+    var text = matches.map(function(m) {
+      return m.portalName + ' (' + m.count + ' serv.)';
+    }).join(', ');
+
+    banner.innerHTML = '⚠️ <strong>' + locality + '</strong> neste dia: ' + text +
+      '. Quer que o serviço passe por este SM?';
+
+    var firstChild = formTop.firstChild;
+    formTop.insertBefore(banner, firstChild);
+  }
+
+  function removeInlineAlert() {
+    var el = document.getElementById('consultAlertBanner');
+    if (el) el.remove();
+    _lastCheckedKey = null;
+  }
+
+  function attachModalListeners() {
+    var dateEl = document.getElementById('appointmentDate');
+    var localityEl = document.getElementById('appointmentLocality');
+    var modal = document.getElementById('appointmentModal');
+
+    if (dateEl && !dateEl._consultPatchBound) {
+      dateEl.addEventListener('change', checkRealtime);
+      dateEl._consultPatchBound = true;
+    }
+
+    // localityEl é hidden — observar mudanças via MutationObserver no display do dropdown
+    if (localityEl && !localityEl._consultPatchBound) {
+      var obs = new MutationObserver(function() { checkRealtime(); });
+      obs.observe(localityEl, { attributes: true, attributeFilter: ['value'] });
+      // Fallback: evento change
+      localityEl.addEventListener('change', checkRealtime);
+      // Intercept clicks nas opções de localidade
+      var opts = document.getElementById('localityOptions');
+      if (opts) {
+        opts.addEventListener('click', function() {
+          setTimeout(checkRealtime, 100);
+        });
+      }
+      localityEl._consultPatchBound = true;
+    }
+
+    // Limpar alerta ao fechar modal
+    if (modal && !modal._consultPatchBound) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) removeInlineAlert();
+      });
+      modal._consultPatchBound = true;
+    }
+  }
+
+  // ============================================================
   // 3. HOOK em apiClient.createAppointment — verificar sugestões
   // ============================================================
   function hookCreateAppointment() {
@@ -278,6 +397,14 @@
   function init() {
     // Hook imediato — apiClient já existe quando este script carrega
     hookCreateAppointment();
+    attachModalListeners();
+    // Re-attach quando o modal abre (pode ser reiniciado pelo script.js)
+    document.addEventListener('click', function(e) {
+      if (e.target && (e.target.id === 'addServiceBtn' || e.target.id === 'addServiceMobile' ||
+          e.target.closest && e.target.closest('#addServiceBtn, #addServiceMobile'))) {
+        setTimeout(function() { attachModalListeners(); removeInlineAlert(); }, 200);
+      }
+    });
     // Card renderers: buildDesktopCard pode ainda não estar definido
     if (typeof window.buildDesktopCard === 'function') {
       patchCardRenderers();
