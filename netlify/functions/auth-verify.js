@@ -84,6 +84,30 @@ exports.handler = async (event) => {
       userData.portals = multiPortals;
     }
 
+    // Coordenador: buscar portais de consulta (read-only)
+    if (user.role === 'coordenador') {
+      const consult = await pool.query(`
+        SELECT p.id, p.name, p.departure_address, p.localities, p.portal_type
+        FROM consultable_portals cpc
+        JOIN portals p ON cpc.portal_id = p.id
+        WHERE cpc.user_id = $1
+        ORDER BY p.name
+      `, [user.id]);
+
+      const consultablePortals = consult.rows.map(p => ({
+        id: p.id,
+        name: p.name,
+        departureAddress: p.departure_address,
+        localities: p.localities,
+        portalType: p.portal_type || 'sm',
+        readOnly: true
+      }));
+
+      if (consultablePortals.length > 0) {
+        userData.consultablePortals = consultablePortals;
+      }
+    }
+
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, user: userData }) };
 
   } catch (error) {
