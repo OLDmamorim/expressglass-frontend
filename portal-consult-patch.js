@@ -5,7 +5,7 @@
 (function() {
 
   // ============================================================
-  // 1. DRAG & DROP — bloquear em modo so-leitura
+  // 1. DRAG & DROP — bloquear em modo só-leitura
   // ============================================================
   document.addEventListener('dragstart', function(e) {
     if (window._readOnlyMode) { e.preventDefault(); e.stopPropagation(); }
@@ -61,67 +61,19 @@
   };
 
   // ============================================================
-  // 3. POLLING — verifica localidade enquanto modal esta aberto
+  // 3. INTERCEPTAR selectLocality — injetar info SM de consulta
+  //    no bloco #crDateSuggestion que o script.js já cria
   // ============================================================
-  var _pollTimer = null;
-  var _lastChecked = '';
-
-  function startPoll() {
-    _lastChecked = '';
-    if (_pollTimer) clearInterval(_pollTimer);
-    _pollTimer = setInterval(function() {
-      var loc = (document.getElementById('appointmentLocality') || {}).value || '';
-      if (loc === _lastChecked) return;
-      _lastChecked = loc;
-      if (loc) injectConsultInfo(loc);
+  function patchSelectLocality() {
+    if (!window.selectLocality || window.selectLocality._consultPatched) return;
+    var orig = window.selectLocality;
+    window.selectLocality = function(value) {
+      orig(value);
+      if (value) setTimeout(function() { injectConsultInfo(value); }, 150);
       else removeConsultInfo();
-    }, 500);
+    };
+    window.selectLocality._consultPatched = true;
   }
-
-  function stopPoll() {
-    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
-    removeConsultInfo();
-    _lastChecked = '';
-  }
-
-  function watchModal() {
-    // Ligar ao clique nos botoes que abrem o modal
-    var btnIds = ['addServiceBtn','addServiceMobile','addServiceBtnDesktop'];
-    function onOpen() { setTimeout(startPoll, 200); }
-    btnIds.forEach(function(id) {
-      var btn = document.getElementById(id);
-      if (btn && !btn._consultBound) { btn.addEventListener('click', onOpen); btn._consultBound = true; }
-    });
-    // Delegacao global para apanhar botoes dinamicos
-    if (!document._consultOpenBound) {
-      document.addEventListener('click', function(e) {
-        var t = e.target;
-        if (!t) return;
-        var id = t.id || (t.closest && t.closest('[id]') && t.closest('[id]').id) || '';
-        if (/addService/i.test(id)) onOpen();
-      });
-      document._consultOpenBound = true;
-    }
-    // Fechar modal para o poll
-    document.addEventListener('click', function(e) {
-      var closeBtn = e.target && (
-        e.target.classList.contains('modal-close') ||
-        e.target.closest && e.target.closest('.modal-close')
-      );
-      var backdrop = e.target && e.target.id === 'appointmentModal';
-      if (closeBtn || backdrop) stopPoll();
-    });
-    // MutationObserver como fallback
-    var modal = document.getElementById('appointmentModal');
-    if (modal) {
-      new MutationObserver(function() {
-        if (modal.classList.contains('show')) startPoll();
-        else stopPoll();
-      }).observe(modal, { attributes: true, attributeFilter: ['class'] });
-    }
-  }
-
-  function patchSelectLocality() { watchModal(); }
 
   async function injectConsultInfo(locality) {
     var consultable = window.consultablePortals || [];
@@ -131,7 +83,8 @@
     var limit = new Date(); limit.setDate(limit.getDate() + 5);
     var limitISO = limit.toISOString().slice(0, 10);
 
-    var matches = [];
+    var matches = []; // [{portalId, portalName, date, count}]
+
     for (var i = 0; i < consultable.length; i++) {
       var portal = consultable[i];
       try {
@@ -151,17 +104,23 @@
       } catch(e) {}
     }
 
-    removeConsultInfo();
-    if (!matches.length) return;
+    if (!matches.length) { removeConsultInfo(); return; }
 
+    // Agrupar por portal
     var byPortal = {};
     matches.forEach(function(m) {
       if (!byPortal[m.portalId]) byPortal[m.portalId] = { name: m.portalName, id: m.portalId, days: [] };
-      var raw = m.date ? String(m.date).slice(0,10) : '';
-      var dt = raw ? new Date(raw + 'T00:00:00') : null;
-      var label = dt ? dt.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit' }) : m.date;
-      if (dt) byPortal[m.portalId].days.push(label + ' (' + m.count + ')');
+      var dt = new Date(m.date + 'T00:00:00');
+      var label = dt.toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit' });
+      byPortal[m.portalId].days.push(label + ' (' + m.count + ')');
     });
+
+    removeConsultInfo();
+
+    // Injetar dentro ou a seguir ao #crDateSuggestion
+    var anchor = document.getElementById('crDateSuggestion');
+    var form = document.getElementById('appointmentForm');
+    var insertAfter = anchor || null;
 
     var div = document.createElement('div');
     div.id = 'crConsultInfo';
@@ -171,35 +130,34 @@
     var rows = Object.values(byPortal).map(function(p) {
       return '<div style="margin:4px 0;">' +
         '<span style="font-weight:700;color:#15803d;">' + p.name + '</span>' +
-        ' \u2014 ' + p.days.join(', ') +
+        ' &mdash; ' + p.days.join(', ') +
         '<button class="cr-send-btn" data-portal="' + p.id + '" data-name="' + p.name + '"' +
         ' style="margin-left:10px;background:#16a34a;color:#fff;border:none;border-radius:6px;' +
         'padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer;">' +
-        'Encaminhar \u2192</button></div>';
+        'Encaminhar \u2192</button>' +
+        '</div>';
     }).join('');
 
     div.innerHTML = '<div style="font-weight:700;color:#15803d;margin-bottom:4px;">' +
-      '\uD83D\uDCCC ' + locality + ' \u2014 SM com servi\u00E7os nos pr\u00F3ximos 5 dias:</div>' + rows;
+      '\uD83D\uDCCC ' + locality + ' — SM com servi\u00E7os nos pr\u00F3ximos 5 dias:</div>' + rows;
 
-    // Inserir a seguir ao #crDateSuggestion se existir, senao no topo do form
-    var anchor = document.getElementById('crDateSuggestion');
-    var form = document.getElementById('appointmentForm');
-    if (anchor && anchor.parentNode) {
-      anchor.parentNode.insertBefore(div, anchor.nextSibling);
+    if (insertAfter && insertAfter.parentNode) {
+      insertAfter.parentNode.insertBefore(div, insertAfter.nextSibling);
     } else if (form) {
       form.insertBefore(div, form.firstChild);
     }
 
+    // Botões de encaminhar
     div.querySelectorAll('.cr-send-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var portalId = parseInt(btn.dataset.portal);
         var portalName = btn.dataset.name;
         window._pendingConsultTransfer = { portalId: portalId, portalName: portalName };
         if (typeof window.showToast === 'function') {
-          window.showToast('Ao guardar, o servico sera encaminhado para ' + portalName, 'info');
+          window.showToast('Ao guardar, o servi\u00E7o ser\u00E1 encaminhado para ' + portalName, 'info');
         }
-        btn.textContent = '\u2713 Selecionado';
         btn.style.background = '#15803d';
+        btn.textContent = '\u2713 Selecionado';
         div.querySelectorAll('.cr-send-btn').forEach(function(b) { if (b !== btn) b.style.display = 'none'; });
       });
     });
@@ -218,11 +176,11 @@
     if (window.apiClient.createAppointment._consultPatched) return;
     var orig = window.apiClient.createAppointment.bind(window.apiClient);
     window.apiClient.createAppointment = async function(data) {
-      // Capturar ANTES de orig() — o modal fecha durante a chamada e limpa _pendingConsultTransfer
-      var transfer = window._pendingConsultTransfer || null;
-      window._pendingConsultTransfer = null;
       var result = await orig(data);
-      if (result && result.id && transfer) {
+      if (result && result.id && window._pendingConsultTransfer) {
+        var transfer = window._pendingConsultTransfer;
+        window._pendingConsultTransfer = null;
+        removeConsultInfo();
         try { await doTransfer(data, result, transfer.portalId, transfer.portalName); } catch(e) { console.error('transfer:', e); }
       }
       return result;
@@ -231,10 +189,12 @@
   }
 
   async function doTransfer(payload, createdAppt, targetPortalId, targetName) {
-    await window.authClient.authenticatedFetch('/.netlify/functions/appointments/' + createdAppt.id + '?portal_id=' + window.activePortalId, { method: 'DELETE' });
+    // Eliminar do portal atual
+    await window.authClient.authenticatedFetch('/.netlify/functions/appointments/' + createdAppt.id, { method: 'DELETE' });
     if (Array.isArray(window.appointments)) {
       window.appointments = window.appointments.filter(function(a) { return String(a.id) !== String(createdAppt.id); });
     }
+    // Criar no portal de consulta com pending_confirmation
     var newPayload = Object.assign({}, payload, {
       _targetPortalId: targetPortalId,
       pending_confirmation: true,
@@ -247,7 +207,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newPayload)
     });
-    if (typeof window.showToast === 'function') window.showToast('Servico encaminhado para ' + targetName, 'success');
+    if (typeof window.showToast === 'function') window.showToast('Servi\u00E7o encaminhado para ' + targetName, 'success');
     if (typeof window.reloadAppointments === 'function') await window.reloadAppointments();
   }
 
@@ -258,6 +218,7 @@
     hookCreateAppointment();
     patchCardRenderers();
     patchSelectLocality();
+    // Limpar estado ao fechar modal
     var modal = document.getElementById('appointmentModal');
     if (modal) {
       new MutationObserver(function() {
@@ -265,39 +226,19 @@
         if (!isOpen) removeConsultInfo();
       }).observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
     }
-    // Expor globalmente para debug e watcher permanente de modal
-  window._consultStartPoll = startPoll;
-  window._consultStopPoll = stopPoll;
-
-  // Watcher permanente: verifica estado do modal a cada 1s
-  setInterval(function() {
-    var modal = document.getElementById('appointmentModal');
-    if (!modal) return;
-    if (modal.classList.contains('show')) {
-      startPoll();
-    } else {
-      stopPoll();
-    }
-  }, 1000);
-
-  console.log('portal-consult-patch v2 OK');
+    console.log('portal-consult-patch v2 OK');
   }
 
-  hookCreateAppointment();
-  patchCardRenderers();
-  watchModal();
+  // selectLocality é definido tarde no script.js — aguardar portalReady ou usar retry
+  function tryInit() {
+    if (window.selectLocality) { init(); }
+    else { setTimeout(tryInit, 200); }
+  }
 
-  // Modal observer
-  (function() {
-    var modal = document.getElementById('appointmentModal');
-    if (modal) {
-      new MutationObserver(function() {
-        var isOpen = modal.classList.contains('show') || modal.style.display === 'flex' || modal.style.display === 'block';
-        if (!isOpen) removeConsultInfo();
-      }).observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
-    }
-  })();
-
-  console.log('portal-consult-patch v2 OK');
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', tryInit);
+  } else {
+    tryInit();
+  }
 
 })();
