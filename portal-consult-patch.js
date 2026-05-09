@@ -42,7 +42,7 @@
       'border-left:3px solid #eab308;border-radius:5px;font-size:12px;font-weight:700;' +
       'color:#854d0e;animation:blink 1.2s infinite;">' +
       '\uD83D\uDD04 Passa pelo SM ' + fromName + ' \u2014 a confirmar' +
-      '<button onclick="window.rejectPendingConsult(\'' + a.id + '\')" style="margin-left:10px;' +
+      '<button onclick="event.stopPropagation();window.rejectPendingConsult(\'' + a.id + '\')" style="margin-left:10px;' +
       'background:#dc2626;color:#fff;border:none;border-radius:4px;padding:2px 7px;' +
       'font-size:11px;cursor:pointer;font-weight:700;">Rejeitar</button>' +
       '</div>';
