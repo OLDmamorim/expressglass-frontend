@@ -100,13 +100,19 @@
   function startPoll() {
     if (_pollTimer) clearInterval(_pollTimer);
     removeConsultInfo();
-    // Guardar valor stale para comparação
-    var staleVal = (document.getElementById('appointmentLocality') || {}).value || '';
-    _lastChecked = staleVal;
     _userOpenedDropdown = false;
 
-    // Detetar quando utilizador abre o dropdown (foca localitySearch)
-    // Nesse momento reset _lastChecked para '' para garantir que deteta nova selecao
+    // Se for "Novo Agendamento", limpar o campo hidden que fica com valor antigo
+    var title = (document.getElementById('modalTitle') || {}).textContent || '';
+    var isNew = title.toLowerCase().indexOf('novo') >= 0 || title.toLowerCase().indexOf('new') >= 0;
+    if (isNew) {
+      var hiddenLoc = document.getElementById('appointmentLocality');
+      if (hiddenLoc) hiddenLoc.value = '';
+    }
+
+    _lastChecked = (document.getElementById('appointmentLocality') || {}).value || '';
+
+    // Detetar quando utilizador abre o dropdown
     var lsEl = document.getElementById('localitySearch');
     if (lsEl) {
       lsEl.removeEventListener('focus', onDropdownOpen);
