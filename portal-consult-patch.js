@@ -146,18 +146,15 @@
   function startPoll() {
     if (_pollTimer) clearInterval(_pollTimer);
     removeConsultInfo();
-    // Aguardar 1s para o form resetar antes de começar a verificar
-    _lastChecked = '__init__';
-    setTimeout(function() {
-      _lastChecked = '';
-      _pollTimer = setInterval(function() {
-        var loc = (document.getElementById('appointmentLocality') || {}).value || '';
-        if (loc === _lastChecked) return;
-        _lastChecked = loc;
-        if (loc) injectConsultInfo(loc);
-        else removeConsultInfo();
-      }, 500);
-    }, 1000);
+    // Usar valor atual como baseline — só disparar quando o utilizador mudar a localidade
+    _lastChecked = (document.getElementById('appointmentLocality') || {}).value || '';
+    _pollTimer = setInterval(function() {
+      var loc = (document.getElementById('appointmentLocality') || {}).value || '';
+      if (loc === _lastChecked) return;
+      _lastChecked = loc;
+      if (loc) injectConsultInfo(loc);
+      else removeConsultInfo();
+    }, 500);
   }
 
   function stopPoll() {
@@ -167,40 +164,19 @@
   }
 
   function watchModal() {
-    // Ligar ao clique nos botoes que abrem o modal
-    var btnIds = ['addServiceBtn','addServiceMobile','addServiceBtnDesktop'];
-    function onOpen() { setTimeout(startPoll, 200); }
-    btnIds.forEach(function(id) {
-      var btn = document.getElementById(id);
-      if (btn && !btn._consultBound) { btn.addEventListener('click', onOpen); btn._consultBound = true; }
-    });
-    // Delegacao global para apanhar botoes dinamicos
-    if (!document._consultOpenBound) {
-      document.addEventListener('click', function(e) {
-        var t = e.target;
-        if (!t) return;
-        var id = t.id || (t.closest && t.closest('[id]') && t.closest('[id]').id) || '';
-        if (/addService/i.test(id)) onOpen();
-      });
-      document._consultOpenBound = true;
-    }
-    // Fechar modal para o poll
-    document.addEventListener('click', function(e) {
-      var closeBtn = e.target && (
-        e.target.classList.contains('modal-close') ||
-        e.target.closest && e.target.closest('.modal-close')
-      );
-      var backdrop = e.target && e.target.id === 'appointmentModal';
-      if (closeBtn || backdrop) stopPoll();
-    });
-    // MutationObserver como fallback
-    var modal = document.getElementById('appointmentModal');
-    if (modal) {
-      new MutationObserver(function() {
-        if (modal.classList.contains('show')) startPoll();
-        else stopPoll();
-      }).observe(modal, { attributes: true, attributeFilter: ['class'] });
-    }
+    var _modalWasOpen = false;
+    // Verificar estado do modal a cada 300ms — robusto contra recriação do elemento
+    setInterval(function() {
+      var modal = document.getElementById('appointmentModal');
+      var isOpen = !!(modal && modal.classList.contains('show'));
+      if (isOpen && !_modalWasOpen) {
+        _modalWasOpen = true;
+        startPoll();
+      } else if (!isOpen && _modalWasOpen) {
+        _modalWasOpen = false;
+        stopPoll();
+      }
+    }, 300);
   }
 
   function patchSelectLocality() { watchModal(); }
@@ -370,16 +346,7 @@
   patchCardRenderers();
   watchModal();
 
-  // Modal observer
-  (function() {
-    var modal = document.getElementById('appointmentModal');
-    if (modal) {
-      new MutationObserver(function() {
-        var isOpen = modal.classList.contains('show') || modal.style.display === 'flex' || modal.style.display === 'block';
-        if (!isOpen) removeConsultInfo();
-      }).observe(modal, { attributes: true, attributeFilter: ['class', 'style'] });
-    }
-  })();
+  // watchModal já trata do observer
 
   console.log('portal-consult-patch v2 OK');
 
