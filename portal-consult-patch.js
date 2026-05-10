@@ -263,6 +263,83 @@
     }
   }, true);
 
+  // ── 8. POPUP — serviços importados a aguardar confirmação ──
+  function checkImportedPending() {
+    var user = window.authClient && window.authClient.getUser && window.authClient.getUser();
+    if (!user) return;
+    var role = user.role;
+    if (role !== 'coordenador' && role !== 'admin') return;
+
+    // Só uma vez por dia
+    var todayKey = 'eg_import_popup_' + new Date().toISOString().slice(0, 10);
+    if (localStorage.getItem(todayKey)) return;
+
+    // Esta semana: segunda a sábado da semana atual
+    var now = new Date();
+    var dow = now.getDay() || 7; // 1=seg, 7=dom
+    var monday = new Date(now); monday.setDate(now.getDate() - (dow - 1)); monday.setHours(0,0,0,0);
+    var saturday = new Date(monday); saturday.setDate(monday.getDate() + 5); saturday.setHours(23,59,59,999);
+    var monISO = monday.toISOString().slice(0,10);
+    var satISO = saturday.toISOString().slice(0,10);
+
+    var pending = (window.appointments || []).filter(function(a) {
+      var d = a.date ? String(a.date).slice(0,10) : '';
+      return a.auto_imported && !a.confirmed && d >= monISO && d <= satISO;
+    });
+
+    if (!pending.length) return;
+
+    localStorage.setItem(todayKey, '1');
+
+    // Mostrar popup
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:9998;display:flex;align-items:center;justify-content:center;';
+
+    var grouped = {};
+    pending.forEach(function(a) {
+      var d = a.date ? String(a.date).slice(0,10) : 'sem data';
+      grouped[d] = (grouped[d] || 0) + 1;
+    });
+    var rows = Object.keys(grouped).sort().map(function(d) {
+      var dt = new Date(d + 'T00:00:00');
+      var label = dt.toLocaleDateString('pt-PT', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;">' +
+        '<span style="color:#374151;">' + label + '</span>' +
+        '<span style="font-weight:700;color:#1d4ed8;">' + grouped[d] + ' serv.</span>' +
+        '</div>';
+    }).join('');
+
+    ov.innerHTML =
+      '<div style="background:#fff;border-radius:16px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);">' +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
+          '<div style="background:#fef3c7;border-radius:10px;padding:10px;font-size:24px;">📋</div>' +
+          '<div>' +
+            '<div style="font-weight:800;font-size:17px;color:#1f2937;">Serviços importados pendentes</div>' +
+            '<div style="font-size:13px;color:#6b7280;">Esta semana — aguardam confirmação</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="background:#fafafa;border-radius:10px;padding:12px 16px;margin-bottom:20px;">' +
+          rows +
+          '<div style="display:flex;justify-content:space-between;padding:8px 0 0;font-weight:800;font-size:15px;">' +
+            '<span>Total</span><span style="color:#1d4ed8;">' + pending.length + ' serviços</span>' +
+          '</div>' +
+        '</div>' +
+        '<button id="_importPopupClose" style="width:100%;background:#1d4ed8;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;">Ver na agenda</button>' +
+      '</div>';
+
+    document.body.appendChild(ov);
+
+    ov.querySelector('#_importPopupClose').onclick = function() { ov.remove(); };
+    ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+  }
+
+  // Correr após os agendamentos estarem carregados
+  window.addEventListener('portalReady', function() {
+    setTimeout(checkImportedPending, 1500);
+  }, { once: true });
+  // Fallback se portalReady já disparou
+  setTimeout(checkImportedPending, 3000);
+
   console.log('portal-consult-patch v4 OK');
 
 })();
