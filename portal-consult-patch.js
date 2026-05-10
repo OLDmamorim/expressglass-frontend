@@ -96,13 +96,22 @@
   var _lastChecked = '';
   var _modalWasOpen = false;
 
+  function getSelectedLocality() {
+    // localitySearch reseta corretamente ao abrir novo modal
+    // appointmentLocality mantem valor antigo (bug do script.js)
+    var search = document.getElementById('localitySearch');
+    if (search && search.value) return search.value;
+    var hidden = document.getElementById('appointmentLocality');
+    // So usar hidden se localitySearch confirmar que ha selecao
+    return '';
+  }
+
   function startPoll() {
     if (_pollTimer) clearInterval(_pollTimer);
     removeConsultInfo();
-    // Usar valor atual como baseline — só disparar quando utilizador MUDAR a localidade
-    _lastChecked = (document.getElementById('appointmentLocality') || {}).value || '';
+    _lastChecked = '';
     _pollTimer = setInterval(function() {
-      var loc = (document.getElementById('appointmentLocality') || {}).value || '';
+      var loc = getSelectedLocality();
       if (loc === _lastChecked) return;
       _lastChecked = loc;
       if (loc) injectConsultInfo(loc);
