@@ -144,15 +144,20 @@
   var _lastChecked = '';
 
   function startPoll() {
-    _lastChecked = '';
     if (_pollTimer) clearInterval(_pollTimer);
-    _pollTimer = setInterval(function() {
-      var loc = (document.getElementById('appointmentLocality') || {}).value || '';
-      if (loc === _lastChecked) return;
-      _lastChecked = loc;
-      if (loc) injectConsultInfo(loc);
-      else removeConsultInfo();
-    }, 500);
+    removeConsultInfo();
+    // Aguardar 1s para o form resetar antes de começar a verificar
+    _lastChecked = '__init__';
+    setTimeout(function() {
+      _lastChecked = '';
+      _pollTimer = setInterval(function() {
+        var loc = (document.getElementById('appointmentLocality') || {}).value || '';
+        if (loc === _lastChecked) return;
+        _lastChecked = loc;
+        if (loc) injectConsultInfo(loc);
+        else removeConsultInfo();
+      }, 500);
+    }, 1000);
   }
 
   function stopPoll() {
