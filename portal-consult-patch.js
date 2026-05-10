@@ -282,9 +282,11 @@
     var monISO = monday.toISOString().slice(0,10);
     var satISO = saturday.toISOString().slice(0,10);
 
+    var todayISO = new Date().toISOString().slice(0,10);
     var pending = (window.appointments || []).filter(function(a) {
       var d = a.date ? String(a.date).slice(0,10) : '';
-      return a.auto_imported && !a.confirmed && d >= monISO && d <= satISO;
+      // Sem data OU data de hoje em diante
+      return a.auto_imported && !a.confirmed && (!d || d >= todayISO);
     });
 
     if (!pending.length) return;
