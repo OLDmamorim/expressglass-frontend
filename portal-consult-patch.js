@@ -248,6 +248,21 @@
   window.addEventListener('portalReady', patchCardRenderers, { once: true });
   setTimeout(patchCardRenderers, 2000);
 
+  // Limpar locality stale ao abrir novo agendamento
+  // _injectLocalityFirstOverlay corre a 50ms — limpar antes disso
+  document.addEventListener('click', function(e) {
+    var t = e.target;
+    if (!t) return;
+    var isAddBtn = t.id === 'addServiceBtn' || t.id === 'addServiceMobile' ||
+      (t.closest && (t.closest('#addServiceBtn') || t.closest('#addServiceMobile')));
+    if (isAddBtn) {
+      setTimeout(function() {
+        var hidden = document.getElementById('appointmentLocality');
+        if (hidden) hidden.value = '';
+      }, 20);
+    }
+  }, true);
+
   console.log('portal-consult-patch v4 OK');
 
 })();
