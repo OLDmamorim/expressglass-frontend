@@ -337,12 +337,21 @@
 
   window._checkImportedPending = checkImportedPending;
 
-  // Correr após os agendamentos estarem carregados
+  // Hookar no reloadAppointments para correr depois dos dados estarem prontos
+  var _origReload = window.reloadAppointments;
+  if (typeof _origReload === 'function') {
+    window.reloadAppointments = async function() {
+      var result = await _origReload.apply(this, arguments);
+      setTimeout(checkImportedPending, 500);
+      return result;
+    };
+  }
+
+  // Fallback: portalReady + timeout generoso
   window.addEventListener('portalReady', function() {
-    setTimeout(checkImportedPending, 1500);
+    setTimeout(checkImportedPending, 3000);
   }, { once: true });
-  // Fallback se portalReady já disparou
-  setTimeout(checkImportedPending, 3000);
+  setTimeout(checkImportedPending, 6000);
 
   console.log('portal-consult-patch v4 OK');
 
