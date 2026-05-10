@@ -1,4 +1,4 @@
-// portal-consult-patch.js - v3 (clean rewrite)
+// portal-consult-patch.js - v4
 
 (function() {
 
@@ -7,7 +7,7 @@
     if (window._readOnlyMode) { e.preventDefault(); e.stopPropagation(); }
   }, true);
 
-  // ── 2. BADGE "Aguarda confirmação" nos cards ─────────────────
+  // ── 2. BADGE nos cards com pending_confirmation ──────────────
   function patchCardRenderers() {
     ['buildDesktopCard','buildMobileCard'].forEach(function(name) {
       var orig = window[name];
@@ -32,7 +32,9 @@
       'style="margin-left:8px;background:#dc2626;color:#fff;border:none;border-radius:4px;' +
       'padding:2px 8px;font-size:11px;cursor:pointer;font-weight:700;">Rejeitar</button>' +
       '</div>';
-    return html.replace(/(<div[^>]*class="card-actions[^"]*">)/, badge + '$1') || html + badge;
+    // tentar inserir antes de card-actions, senao no fim
+    var replaced = html.replace(/(<div[^>]*class="[^"]*card-actions[^"]*">)/, badge + '$1');
+    return replaced !== html ? replaced : html + badge;
   }
 
   // ── 3. MODAL DE REJEIÇÃO ─────────────────────────────────────
@@ -44,24 +46,23 @@
     var fromName = fromPortal ? fromPortal.name : 'SM de origem';
 
     var ov = document.createElement('div');
-    ov.id = 'rejectConsultOverlay';
     ov.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;display:flex;align-items:center;justify-content:center;';
     ov.innerHTML =
       '<div style="background:#fff;border-radius:14px;padding:24px;max-width:420px;width:90%;">' +
       '<h3 style="margin:0 0 10px;font-size:16px;color:#dc2626;">\u274C Rejeitar encaminhamento</h3>' +
       '<p style="margin:0 0 12px;font-size:14px;color:#374151;">O servi\u00E7o volta para <strong>' + fromName + '</strong>.<br>Indica o motivo:</p>' +
-      '<textarea id="rejectMotivo" rows="3" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px;font-size:14px;resize:vertical;box-sizing:border-box;" placeholder="Ex: Sem disponibilidade nesse dia..."></textarea>' +
+      '<textarea id="_rejectMotivo" rows="3" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:8px;font-size:14px;resize:vertical;box-sizing:border-box;" placeholder="Ex: Sem disponibilidade nesse dia..."></textarea>' +
       '<div style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end;">' +
-      '<button id="rejectCancel" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:8px 18px;font-weight:600;cursor:pointer;">Cancelar</button>' +
-      '<button id="rejectConfirm" style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-weight:700;cursor:pointer;">Rejeitar e devolver</button>' +
+      '<button id="_rejectCancel" style="background:#f3f4f6;color:#374151;border:none;border-radius:6px;padding:8px 18px;font-weight:600;cursor:pointer;">Cancelar</button>' +
+      '<button id="_rejectConfirm" style="background:#dc2626;color:#fff;border:none;border-radius:6px;padding:8px 18px;font-weight:700;cursor:pointer;">Rejeitar e devolver</button>' +
       '</div></div>';
     document.body.appendChild(ov);
 
-    ov.querySelector('#rejectCancel').onclick = function() { ov.remove(); };
-    ov.querySelector('#rejectConfirm').onclick = async function() {
-      var motivo = ov.querySelector('#rejectMotivo').value.trim();
-      if (!motivo) { ov.querySelector('#rejectMotivo').style.border = '1.5px solid #dc2626'; return; }
-      var btn = ov.querySelector('#rejectConfirm');
+    ov.querySelector('#_rejectCancel').onclick = function() { ov.remove(); };
+    ov.querySelector('#_rejectConfirm').onclick = async function() {
+      var motivo = ov.querySelector('#_rejectMotivo').value.trim();
+      if (!motivo) { ov.querySelector('#_rejectMotivo').style.border = '1.5px solid #dc2626'; return; }
+      var btn = ov.querySelector('#_rejectConfirm');
       btn.disabled = true; btn.textContent = 'A processar...';
       try {
         await window.authClient.authenticatedFetch(
@@ -73,7 +74,7 @@
             _targetPortalId: fromPortal.id,
             pending_confirmation: false,
             referred_from_portal_id: null,
-            notes: (appt.notes ? appt.notes + ' | ' : '') + 'Rejeitado por ' + (window.portalConfig && window.portalConfig.name || 'SM') + ': ' + motivo
+            notes: (appt.notes ? appt.notes + ' | ' : '') + 'Rejeitado por ' + ((window.portalConfig && window.portalConfig.name) || 'SM') + ': ' + motivo
           });
           ['id','created_at','updated_at'].forEach(function(k) { delete payload[k]; });
           await window.authClient.authenticatedFetch('/.netlify/functions/appointments', {
@@ -85,7 +86,6 @@
         if (typeof window.reloadAppointments === 'function') await window.reloadAppointments();
       } catch(e) {
         console.error('rejectPendingConsult:', e);
-        if (typeof window.showToast === 'function') window.showToast('Erro ao rejeitar', 'error');
         btn.disabled = false; btn.textContent = 'Rejeitar e devolver';
       }
     };
@@ -95,23 +95,26 @@
   var _pollTimer = null;
   var _lastChecked = '';
   var _modalWasOpen = false;
-
-  function getSelectedLocality() {
-    // localitySearch reseta corretamente ao abrir novo modal
-    // appointmentLocality mantem valor antigo (bug do script.js)
-    var search = document.getElementById('localitySearch');
-    if (search && search.value) return search.value;
-    var hidden = document.getElementById('appointmentLocality');
-    // So usar hidden se localitySearch confirmar que ha selecao
-    return '';
-  }
+  var _userOpenedDropdown = false;
 
   function startPoll() {
     if (_pollTimer) clearInterval(_pollTimer);
     removeConsultInfo();
-    _lastChecked = '';
+    // Guardar valor stale para comparação
+    var staleVal = (document.getElementById('appointmentLocality') || {}).value || '';
+    _lastChecked = staleVal;
+    _userOpenedDropdown = false;
+
+    // Detetar quando utilizador abre o dropdown (foca localitySearch)
+    // Nesse momento reset _lastChecked para '' para garantir que deteta nova selecao
+    var lsEl = document.getElementById('localitySearch');
+    if (lsEl) {
+      lsEl.removeEventListener('focus', onDropdownOpen);
+      lsEl.addEventListener('focus', onDropdownOpen);
+    }
+
     _pollTimer = setInterval(function() {
-      var loc = getSelectedLocality();
+      var loc = (document.getElementById('appointmentLocality') || {}).value || '';
       if (loc === _lastChecked) return;
       _lastChecked = loc;
       if (loc) injectConsultInfo(loc);
@@ -119,10 +122,18 @@
     }, 400);
   }
 
+  function onDropdownOpen() {
+    _lastChecked = '';
+    _userOpenedDropdown = true;
+  }
+
   function stopPoll() {
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+    var lsEl = document.getElementById('localitySearch');
+    if (lsEl) lsEl.removeEventListener('focus', onDropdownOpen);
     removeConsultInfo();
     _lastChecked = '';
+    _userOpenedDropdown = false;
   }
 
   // Watcher de modal — verifica transições a cada 300ms
@@ -225,7 +236,6 @@
     );
     if (Array.isArray(window.appointments))
       window.appointments = window.appointments.filter(function(a) { return String(a.id) !== String(created.id); });
-
     var np = Object.assign({}, payload, {
       _targetPortalId: targetPortalId, pending_confirmation: true,
       referred_from_portal_id: window.activePortalId,
@@ -240,11 +250,10 @@
   }
 
   // ── 7. PATCH CARD RENDERERS ──────────────────────────────────
-  // Tentar agora e novamente após portalReady
   patchCardRenderers();
   window.addEventListener('portalReady', patchCardRenderers, { once: true });
   setTimeout(patchCardRenderers, 2000);
 
-  console.log('portal-consult-patch v3 OK');
+  console.log('portal-consult-patch v4 OK');
 
 })();
