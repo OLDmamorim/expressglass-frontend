@@ -97,30 +97,26 @@
   var _modalWasOpen = false;
   var _userOpenedDropdown = false;
 
+  function getActiveLocality() {
+    // selectedLocalityText e sempre corretamente resetado pelo script.js
+    // appointmentLocality (hidden) pode ter valor antigo — usar o display como fonte de verdade
+    var displayEl = document.getElementById('selectedLocalityText');
+    var placeholder = 'Selecione a localidade';
+    if (!displayEl || !displayEl.textContent.trim() || displayEl.textContent.trim() === placeholder) {
+      return ''; // nada selecionado
+    }
+    // Display tem valor real — confirmar com o hidden
+    return (document.getElementById('appointmentLocality') || {}).value || displayEl.textContent.trim();
+  }
+
   function startPoll() {
     if (_pollTimer) clearInterval(_pollTimer);
     removeConsultInfo();
+    _lastChecked = getActiveLocality(); // '' se display mostra placeholder
     _userOpenedDropdown = false;
 
-    // Se for "Novo Agendamento", limpar o campo hidden que fica com valor antigo
-    var title = (document.getElementById('modalTitle') || {}).textContent || '';
-    var isNew = title.toLowerCase().indexOf('novo') >= 0 || title.toLowerCase().indexOf('new') >= 0;
-    if (isNew) {
-      var hiddenLoc = document.getElementById('appointmentLocality');
-      if (hiddenLoc) hiddenLoc.value = '';
-    }
-
-    _lastChecked = (document.getElementById('appointmentLocality') || {}).value || '';
-
-    // Detetar quando utilizador abre o dropdown
-    var lsEl = document.getElementById('localitySearch');
-    if (lsEl) {
-      lsEl.removeEventListener('focus', onDropdownOpen);
-      lsEl.addEventListener('focus', onDropdownOpen);
-    }
-
     _pollTimer = setInterval(function() {
-      var loc = (document.getElementById('appointmentLocality') || {}).value || '';
+      var loc = getActiveLocality();
       if (loc === _lastChecked) return;
       _lastChecked = loc;
       if (loc) injectConsultInfo(loc);
@@ -128,18 +124,10 @@
     }, 400);
   }
 
-  function onDropdownOpen() {
-    _lastChecked = '';
-    _userOpenedDropdown = true;
-  }
-
   function stopPoll() {
     if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
-    var lsEl = document.getElementById('localitySearch');
-    if (lsEl) lsEl.removeEventListener('focus', onDropdownOpen);
     removeConsultInfo();
     _lastChecked = '';
-    _userOpenedDropdown = false;
   }
 
   // Watcher de modal — verifica transições a cada 300ms
