@@ -4092,7 +4092,12 @@ function sugerirDataParaLocalidade(locality) {
     if (dia.count >= MAX_SERVICOS) continue;
     var temMesma = dia.localidades.some(function(l) { return l && l.toLowerCase() === locality.toLowerCase(); });
     var temProxima = !temMesma && dia.localidades.some(function(l) {
-      return l && proximas.some(function(p) { return p.toLowerCase() === l.toLowerCase(); });
+      if (!l) return false;
+      var ll = l.toLowerCase();
+      return proximas.some(function(p) {
+        var pl = p.toLowerCase();
+        return pl === ll || ll.includes(pl) || pl.includes(ll);
+      });
     });
     candidatos.push({ date: iso, count: dia.count, localidades: dia.localidades, score: temMesma ? 100 : temProxima ? 50 : 0, temMesma: temMesma, temProxima: temProxima });
   }
