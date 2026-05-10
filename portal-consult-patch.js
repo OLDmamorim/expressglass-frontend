@@ -335,6 +335,8 @@
     ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
   }
 
+  window._checkImportedPending = checkImportedPending;
+
   // Correr após os agendamentos estarem carregados
   window.addEventListener('portalReady', function() {
     setTimeout(checkImportedPending, 1500);
