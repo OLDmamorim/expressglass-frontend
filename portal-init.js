@@ -126,56 +126,22 @@
 
   // === COORDENADOR: guardar lista de portais e montar switcher ===
   if (user.role === 'coordenador' && user.portals && user.portals.length > 0) {
-    const consultable = (user.consultablePortals || []).map(function(p) {
-      return Object.assign({}, p, { _readonly: true });
-    });
-    window.consultablePortals = consultable;
-    window.coordPortals = user.portals.concat(consultable);
+    window.coordPortals = user.portals;
 
     const savedPortalId = sessionStorage.getItem('eg_active_portal');
     const activePortal = savedPortalId
-      ? window.coordPortals.find(p => String(p.id) === savedPortalId) || user.portals[0]
+      ? user.portals.find(p => String(p.id) === savedPortalId) || user.portals[0]
       : user.portals[0];
 
     window.activePortalId = activePortal.id;
-    window.isReadOnlyPortal = !!activePortal._readonly;
     applyPortalConfig(activePortal);
-    buildPortalSwitcher(window.coordPortals, activePortal.id);
-    applyReadOnlyMode(window.isReadOnlyPortal);
+    buildPortalSwitcher(user.portals, activePortal.id);
   } else {
     // Técnico: portal único
     applyPortalConfig(user.portal);
   }
 
-  // === MODO SÓ-LEITURA (portais de consulta) ===
-function applyReadOnlyMode(isReadOnly) {
-  var ids = ['addServiceBtn','addServiceMobile','calculateRoutes','calculateRoutesMobile','importExcelBtn'];
-  ids.forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) el.style.display = isReadOnly ? 'none' : '';
-  });
-  // Sinalizar para portal-consult-patch.js e script.js
-  window._readOnlyMode = isReadOnly;
-  // Banner visual
-  var existing = document.getElementById('readonlyBanner');
-  if (isReadOnly) {
-    if (!existing) {
-      var banner = document.createElement('div');
-      banner.id = 'readonlyBanner';
-      banner.style.cssText = 'background:#fef3c7;color:#92400e;text-align:center;padding:6px 16px;font-size:13px;font-weight:600;border-bottom:1px solid #fcd34d;';
-      banner.textContent = '\uD83D\uDD12 Modo consulta - vista de leitura';
-      var switcher = document.getElementById('portalSwitcher');
-      if (switcher && switcher.nextSibling) switcher.parentNode.insertBefore(banner, switcher.nextSibling);
-      else if (switcher) switcher.parentNode.appendChild(banner);
-      else document.body.prepend(banner);
-    }
-  } else {
-    if (existing) existing.remove();
-  }
-}
-window.applyReadOnlyMode = applyReadOnlyMode;
-
-// Adicionar botão de logout no header
+  // Adicionar botão de logout no header
   addLogoutButton();
 
   // Controlo de visibilidade por role
@@ -275,12 +241,9 @@ function buildPortalSwitcher(portals, activeId) {
   portals.forEach(function(p) {
     const opt = document.createElement('option');
     opt.value = p.id;
-    const isReadonly = !!p._readonly;
-    const typeLabel = isReadonly ? ' [consulta]'
-      : p.portalType === 'loja' ? ' (Loja)' : p.portalType === 'pesados' ? ' (Pesados)' : ' (SM)';
+    const typeLabel = p.portalType === 'loja' ? ' (Loja)' : p.portalType === 'pesados' ? ' (Pesados)' : ' (SM)';
     opt.textContent = p.name + typeLabel;
-    opt.dataset.readonly = isReadonly ? '1' : '0';
-    opt.style.cssText = isReadonly ? 'color:#6b7280;background:#f9fafb;font-style:italic;' : 'color:#1f2937;background:white;';
+    opt.style.cssText = 'color:#1f2937;background:white;';
     if (p.id === activeId) opt.selected = true;
     select.appendChild(opt);
   });
@@ -304,9 +267,6 @@ function buildPortalSwitcher(portals, activeId) {
 async function switchPortal(newPortalId) {
   var portal = window.coordPortals.find(function(p) { return p.id === newPortalId; });
   if (!portal) return;
-  var isReadOnly = !!portal._readonly;
-  window.isReadOnlyPortal = isReadOnly;
-  applyReadOnlyMode(isReadOnly);
 
   sessionStorage.setItem('eg_active_portal', String(newPortalId));
   window.activePortalId = newPortalId;
@@ -317,6 +277,7 @@ async function switchPortal(newPortalId) {
   }
 
   applyPortalConfig(portal);
+  if (typeof applyReadOnlyMode === 'function') applyReadOnlyMode(!!portal._readonly);
 
   try {
     if (typeof window.reloadAppointments === 'function') {
