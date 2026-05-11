@@ -932,8 +932,8 @@ const ROUTE_CONFIG = {
   fuelPricePerLiter: 1.65
 };
 const SERVICE_TIMES = { 
-  PB_L: 90, LT_L: 45, OC_L: 60, REP_L: 30, POL_L: 45,
-  PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60,
+  PB_L: 90, LT_L: 45, OC_L: 60, REP_L: 30, POL_L: 45, OUT_L: 60,
+  PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60, OUT_P: 90,
   // Tempo extra por calibragem ADAS (em minutos, somado ao serviço base)
   CALIB_EXTRA_L: 30,
   CALIB_EXTRA_P: 45
@@ -985,9 +985,15 @@ async function loadRouteSettings() {
 }
 
 // Obter tempo de execução de um serviço (baseado no tipo + veículo + calibragem)
-function getServiceTime(serviceCode, vehicleType, calibration) {
+function getServiceTime(serviceCode, vehicleType, calibration, customTime) {
   const code = serviceCode ? String(serviceCode).toUpperCase().trim().split(' ')[0].split('-')[0] : 'PB';
   const vt = (vehicleType || 'L').toUpperCase().charAt(0); // L ou P
+  // OUT com tempo personalizado
+  if (code === 'OUT' && customTime && parseInt(customTime) > 0) {
+    const base = parseInt(customTime);
+    const extra = calibration ? (SERVICE_TIMES['CALIB_EXTRA_' + vt] || 30) : 0;
+    return base + extra;
+  }
   const key = code + '_' + vt;
   const base = SERVICE_TIMES[key] || SERVICE_TIMES[code + '_L'] || SERVICE_TIMES['PB_L'] || 90;
   const extra = calibration ? (SERVICE_TIMES['CALIB_EXTRA_' + vt] || SERVICE_TIMES['CALIB_EXTRA_L'] || 30) : 0;
@@ -1365,14 +1371,7 @@ function bucketOf(a){
   if(isLoja()) return `${a.date}|${a.period || 'Manhã'}`;
   return a.date; 
 }
-function getBucketList(bucket){
-  return appointments.filter(x=>bucketOf(x)===bucket).sort(function(a,b){
-    // first_of_day sempre no topo
-    if (a.first_of_day && !b.first_of_day) return -1;
-    if (!a.first_of_day && b.first_of_day) return 1;
-    return (a.sortIndex||0)-(b.sortIndex||0);
-  });
-}
+function getBucketList(bucket){ return appointments.filter(x=>bucketOf(x)===bucket).sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0)); }
 function normalizeBucketOrder(bucket){ appointments.filter(a=>bucketOf(a)===bucket).forEach((x,i)=>x.sortIndex=i+1); }
 
 // ---------- Toast ----------
@@ -1801,12 +1800,8 @@ async function runPersistFlush(){
 
 function enableDragDrop(scope){
   (scope||document).querySelectorAll('.appointment[data-id]').forEach(card=>{
-    var _cardId = card.getAttribute('data-id');
-    var _cardAppt = appointments.find(a => String(a.id) === String(_cardId));
-    card.draggable = !(_cardAppt && _cardAppt.first_of_day);
+    card.draggable=true;
     card.addEventListener('dragstart',e=>{
-      var _appt = appointments.find(a => String(a.id) === String(card.getAttribute('data-id')));
-      if (_appt && _appt.first_of_day) { e.preventDefault(); showToast('🔒 Primeiro serviço do dia está fixo no topo', 'info'); return; }
       e.dataTransfer.setData('text/plain',card.getAttribute('data-id'));
       e.dataTransfer.effectAllowed='move';
       card.classList.add('dragging');
@@ -1858,14 +1853,8 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   }
 
   const dest = getBucketList(targetBucket).filter(x=>String(x.id)!==String(a.id));
-  // Se o bucket já tem first_of_day e o card arrastado não é, não deixar ir para posição 0
-  var hasFirstOfDay = dest.some(x => x.first_of_day);
-  var insertIdx = Math.min(targetIndex, dest.length);
-  if (hasFirstOfDay && !a.first_of_day && insertIdx === 0) insertIdx = 1;
-  dest.splice(insertIdx, 0, a);
+  dest.splice(Math.min(targetIndex, dest.length), 0, a);
   dest.forEach((x,idx)=> x.sortIndex = idx+1);
-  // Garantir first_of_day com sortIndex=1
-  dest.forEach(function(x) { if (x.first_of_day) x.sortIndex = 1; });
 
   if (oldBucket !== targetBucket){
     const orig = getBucketList(oldBucket);
@@ -2053,6 +2042,15 @@ function editAppointment(id) {
   // Alterar modal para modo edição
   document.getElementById('modalTitle').textContent = 'Editar Agendamento';
   document.getElementById('deleteAppointment').classList.remove('hidden');
+  // Campos extras
+  var fp2 = document.getElementById('foreignPlate');
+  if (fp2) { fp2.checked = !!(appointment.foreign_plate); window.toggleForeignPlate && window.toggleForeignPlate(fp2.checked); }
+  var svcSel = document.getElementById('appointmentService');
+  var ctg2 = document.getElementById('customServiceTimeGroup');
+  if (ctg2) ctg2.style.display = (appointment.service === 'OUT') ? 'block' : 'none';
+  var ct2 = document.getElementById('appointmentCustomTime');
+  if (ct2) ct2.value = appointment.custom_service_time || '';
+
   document.getElementById('appointmentModal').classList.add('show');
 }
 
@@ -2131,6 +2129,13 @@ function cancelEdit() {
     selectedText.textContent = 'Selecione a localidade';
     selectedDot.style.backgroundColor = '';
   }
+  // Limpar campos extras
+  var fp = document.getElementById('foreignPlate');
+  if (fp) { fp.checked = false; window.toggleForeignPlate && window.toggleForeignPlate(false); }
+  var ct = document.getElementById('appointmentCustomTime');
+  if (ct) ct.value = '';
+  var ctg = document.getElementById('customServiceTimeGroup');
+  if (ctg) ctg.style.display = 'none';
   
   document.getElementById('appointmentModal').classList.remove('show');
 }
@@ -2293,11 +2298,7 @@ function renderSchedule(){
       const iso = localISO(dayDate);
       const items = filterAppointments(
         appointments.filter(a => a.date && a.date === iso && (a.period || 'Manhã') === period)
-          .sort(function(a,b){
-            if (a.first_of_day && !b.first_of_day) return -1;
-            if (!a.first_of_day && b.first_of_day) return 1;
-            return (a.sortIndex||0)-(b.sortIndex||0);
-          })
+          .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
       );
       const blocks = items.map(buildDesktopCard).join('');
       return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
@@ -2319,11 +2320,7 @@ function renderSchedule(){
       const iso = localISO(dayDate);
       let items = filterAppointments(
         appointments.filter(a => a.date && a.date === iso)
-          .sort(function(a,b){
-            if (a.first_of_day && !b.first_of_day) return -1;
-            if (!a.first_of_day && b.first_of_day) return 1;
-            return (a.sortIndex||0)-(b.sortIndex||0);
-          })
+          .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
       );
       // Técnicos: esconder serviços SM sem localidade
       if (!canSeeUnconfirmed) {
@@ -2947,7 +2944,7 @@ function buildRelatorio() {
       totalTravelMin += dayTravel + returnMin;
 
       // Tempo de execução
-      items.forEach(a => { totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration); });
+      items.forEach(a => { totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration, a.custom_service_time); });
     });
 
     const totalMin = totalTravelMin + totalServiceMin;
@@ -3358,7 +3355,11 @@ function bootApp() {
         ? parseInt(document.getElementById('appointmentCommercial').value)
         : null,
       client_name: (document.getElementById('appointmentClientName')?.value || '').trim() || null,
-      damage_details: (document.getElementById('appointmentDamageDetails')?.value || '').trim() || null
+      damage_details: (document.getElementById('appointmentDamageDetails')?.value || '').trim() || null,
+      custom_service_time: document.getElementById('appointmentService')?.value === 'OUT'
+        ? (parseInt(document.getElementById('appointmentCustomTime')?.value) || null)
+        : null,
+      foreign_plate: document.getElementById('foreignPlate')?.checked || false
     };
   }
 
@@ -3760,6 +3761,7 @@ window.addEventListener('portalReady', bootApp, { once: true });
   if (!el) return;
 
   el.addEventListener('input', (e) => {
+    if (e.target._foreignMode) return; // sem máscara para estrangeiras
     const raw = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
     const parts = [raw.slice(0, 2), raw.slice(2, 4), raw.slice(4, 6)].filter(Boolean);
     e.target.value = parts.join('-');
@@ -4127,6 +4129,33 @@ function sugerirDataParaLocalidade(locality) {
 }
 
 window.sugerirDataParaLocalidade = sugerirDataParaLocalidade;
+
+// Mostrar campo de tempo personalizado quando OUT selecionado
+document.addEventListener('change', function(e) {
+  if (e.target.id === 'appointmentService') {
+    var grp = document.getElementById('customServiceTimeGroup');
+    if (grp) grp.style.display = e.target.value === 'OUT' ? 'block' : 'none';
+  }
+});
+
+// Toggle matrícula estrangeira
+window.toggleForeignPlate = function(isForign) {
+  var plate = document.getElementById('appointmentPlate');
+  if (!plate) return;
+  if (isForign) {
+    plate.removeAttribute('pattern');
+    plate.removeAttribute('maxlength');
+    plate.placeholder = 'Ex: AB12 CDE ou 1234-XY-56';
+    plate.style.fontStyle = 'italic';
+    plate._foreignMode = true;
+  } else {
+    plate.setAttribute('pattern', '^[A-Za-z0-9]{2}-[A-Za-z0-9]{2}-[A-Za-z0-9]{2}$');
+    plate.setAttribute('maxlength', '8');
+    plate.placeholder = 'XX-XX-XX';
+    plate.style.fontStyle = '';
+    plate._foreignMode = false;
+  }
+};
 
 window.selectLocality = function (value) {
   const field = document.getElementById('appointmentLocality');
