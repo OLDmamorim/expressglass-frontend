@@ -2293,7 +2293,11 @@ function renderSchedule(){
       const iso = localISO(dayDate);
       const items = filterAppointments(
         appointments.filter(a => a.date && a.date === iso && (a.period || 'Manhã') === period)
-          .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
+          .sort(function(a,b){
+            if (a.first_of_day && !b.first_of_day) return -1;
+            if (!a.first_of_day && b.first_of_day) return 1;
+            return (a.sortIndex||0)-(b.sortIndex||0);
+          })
       );
       const blocks = items.map(buildDesktopCard).join('');
       return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
@@ -2315,7 +2319,11 @@ function renderSchedule(){
       const iso = localISO(dayDate);
       let items = filterAppointments(
         appointments.filter(a => a.date && a.date === iso)
-          .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
+          .sort(function(a,b){
+            if (a.first_of_day && !b.first_of_day) return -1;
+            if (!a.first_of_day && b.first_of_day) return 1;
+            return (a.sortIndex||0)-(b.sortIndex||0);
+          })
       );
       // Técnicos: esconder serviços SM sem localidade
       if (!canSeeUnconfirmed) {
