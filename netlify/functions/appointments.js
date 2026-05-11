@@ -63,7 +63,7 @@ exports.handler = async (event) => {
                notes, address, extra, phone, km, sortIndex, "glassOrdered",
                vehicle_type, travel_time, auto_imported, executed, confirmed,
                calibration, first_of_day, not_done_reason, commercial_user_id,
-               return_km, return_time, client_name, damage_details, pending_confirmation, referred_from_portal_id, created_at, updated_at
+               return_km, return_time, client_name, damage_details, pending_confirmation, referred_from_portal_id, custom_service_time, foreign_plate, created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -98,9 +98,9 @@ exports.handler = async (event) => {
           notes, address, extra, phone, km, sortIndex, "glassOrdered",
           vehicle_type, travel_time, confirmed, calibration, first_of_day,
           not_done_reason, commercial_user_id, return_km, return_time, client_name, damage_details,
-          pending_confirmation, referred_from_portal_id, portal_id, created_at, updated_at
+          pending_confirmation, referred_from_portal_id, custom_service_time, foreign_plate, portal_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32
         ) RETURNING *
       `;
       // Para sugestão cruzada: coordenador pode enviar _targetPortalId (um portal de consulta)
@@ -126,6 +126,8 @@ exports.handler = async (event) => {
         data.damage_details || null,
         data.pending_confirmation === true,
         data.referred_from_portal_id ? parseInt(data.referred_from_portal_id) : null,
+        data.custom_service_time ? parseInt(data.custom_service_time) : null,
+        data.foreign_plate === true,
         targetPortalId, createdAt, new Date().toISOString()
       ];
       const { rows } = await pool.query(q, v);
@@ -139,7 +141,7 @@ exports.handler = async (event) => {
 
       // Ler valores atuais para preservar executed e not_done_reason
       const checkResult = await pool.query(
-        'SELECT id, executed, not_done_reason, pending_confirmation, referred_from_portal_id FROM appointments WHERE id = $1 AND portal_id = $2',
+        'SELECT id, executed, not_done_reason, pending_confirmation, referred_from_portal_id, custom_service_time, foreign_plate FROM appointments WHERE id = $1 AND portal_id = $2',
         [id, portalId]
       );
       if (checkResult.rows.length === 0) {
@@ -159,8 +161,9 @@ exports.handler = async (event) => {
           executed = $18, confirmed = $19, calibration = $20,
           first_of_day = $21, not_done_reason = $22, commercial_user_id = $23,
           return_km = $24, return_time = $25, client_name = $26, damage_details = $27,
-          pending_confirmation = $28, referred_from_portal_id = $29, updated_at = $30
-        WHERE id = $31 AND portal_id = $32
+          pending_confirmation = $28, referred_from_portal_id = $29,
+          custom_service_time = $30, foreign_plate = $31, updated_at = $32
+        WHERE id = $33 AND portal_id = $34
         RETURNING *
       `;
       const v = [
@@ -186,6 +189,8 @@ exports.handler = async (event) => {
         data.damage_details !== undefined ? (data.damage_details || null) : null,
         data.pending_confirmation !== undefined ? data.pending_confirmation : existing.pending_confirmation,
         data.referred_from_portal_id !== undefined ? (data.referred_from_portal_id || null) : existing.referred_from_portal_id,
+        data.custom_service_time !== undefined ? (data.custom_service_time ? parseInt(data.custom_service_time) : null) : existing.custom_service_time,
+        data.foreign_plate !== undefined ? (!!data.foreign_plate) : existing.foreign_plate,
         new Date().toISOString(), id, portalId
       ];
       const { rows } = await pool.query(q, v);
