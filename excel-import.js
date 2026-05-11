@@ -433,45 +433,72 @@ class ExcelImporter {
       details: []
     };
     
-    // Obter lista de matrículas já existentes (serviços pendentes)
     const existingAppointments = window.appointments || [];
-    const existingPlates = new Set(
-      existingAppointments
-        .filter(a => !a.date || a.status !== 'ST') // Apenas pendentes ou não finalizados
-        .map(a => String(a.plate).toUpperCase().trim())
-    );
-    
-    console.log('📋 Matrículas já existentes:', existingPlates.size);
-    
+    const todayISO = new Date().toISOString().slice(0, 10);
+
+    // Indexar por matrícula para acesso rápido
+    const existingMap = {};
+    existingAppointments.forEach(a => {
+      existingMap[String(a.plate).toUpperCase().trim()] = a;
+    });
+
+    // Controlo de duplicados dentro do mesmo ficheiro Excel
+    const processedThisBatch = new Set();
+
+    console.log('📋 Total existentes no sistema:', Object.keys(existingMap).length);
+
     for (const service of processedData) {
       try {
         const plateNormalized = String(service.plate).toUpperCase().trim();
 
-        // Verificar duplicado no mesmo lote (evita chamadas duplas ao backend)
-        if (existingPlates.has(plateNormalized)) {
-          // Se tem damage_details, tentar atualizar registo existente
-          if (service.damage_details) {
-            const existing = existingAppointments.find(a =>
-              String(a.plate).toUpperCase().trim() === plateNormalized
-            );
-            if (existing?.id) {
-              try {
-                await window.apiClient.updateAppointment(existing.id, {
-                  ...existing,
-                  damage_details: service.damage_details
-                });
-                results.details.push({ plate: service.plate, status: 'updated', reason: 'damage_details atualizado' });
-              } catch (e) {
-                results.skipped++;
-                results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no lote' });
-              }
-            } else {
-              results.skipped++;
-              results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no lote' });
-            }
-          } else {
+        // Duplicado no mesmo ficheiro Excel → ignorar
+        if (processedThisBatch.has(plateNormalized)) {
+          results.skipped++;
+          results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no ficheiro Excel' });
+          continue;
+        }
+
+        const existing = existingMap[plateNormalized];
+
+        if (existing) {
+          const existingDate = existing.date ? String(existing.date).slice(0, 10) : null;
+          const excelDate = service.date ? String(service.date).slice(0, 10) : null;
+
+          // JÁ AGENDADO NO FUTURO → não tocar
+          if (existingDate && existingDate >= todayISO) {
             results.skipped++;
-            results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no lote' });
+            results.details.push({ plate: service.plate, status: 'skipped', reason: 'Já agendado para ' + existingDate });
+            processedThisBatch.add(plateNormalized);
+            continue;
+          }
+
+          // DATA PASSADA OU SEM DATA → atualizar
+          // Se Excel tem data futura e sistema tem data passada → atualizar data
+          // Se sistema não tem data → atualizar com dados novos
+          const shouldUpdateDate = excelDate && excelDate >= todayISO && (!existingDate || existingDate < todayISO);
+
+          try {
+            await window.apiClient.updateAppointment(existing.id, {
+              ...existing,
+              car: service.car || existing.car,
+              notes: service.notes || existing.notes,
+              address: service.address || existing.address,
+              phone: service.phone || existing.phone,
+              extra: service.extra || existing.extra,
+              damage_details: service.damage_details || existing.damage_details,
+              service: service.service || existing.service,
+              locality: service.locality || existing.locality,
+              auto_imported: true,
+              ...(shouldUpdateDate ? { date: excelDate } : {})
+            });
+            const reason = shouldUpdateDate
+              ? 'Data atualizada: ' + existingDate + ' → ' + excelDate
+              : 'Dados atualizados';
+            results.details.push({ plate: service.plate, status: 'updated', reason });
+            processedThisBatch.add(plateNormalized);
+          } catch (e) {
+            results.errors++;
+            results.details.push({ plate: service.plate, status: 'error', error: e.message });
           }
           continue;
         }
