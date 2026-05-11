@@ -140,14 +140,18 @@ exports.handler = async (event) => {
       const data = JSON.parse(event.body || '{}');
 
       // Ler valores atuais para preservar executed e not_done_reason
-      const checkResult = await pool.query(
-        'SELECT id, executed, not_done_reason, pending_confirmation, referred_from_portal_id, custom_service_time, foreign_plate FROM appointments WHERE id = $1 AND portal_id = $2',
-        [id, portalId]
-      );
+      // Admin pode editar agendamentos de qualquer portal
+      const checkQ = user.role === 'admin'
+        ? 'SELECT id, portal_id, executed, not_done_reason, pending_confirmation, referred_from_portal_id, custom_service_time, foreign_plate FROM appointments WHERE id = $1'
+        : 'SELECT id, portal_id, executed, not_done_reason, pending_confirmation, referred_from_portal_id, custom_service_time, foreign_plate FROM appointments WHERE id = $1 AND portal_id = $2';
+      const checkParams = user.role === 'admin' ? [id] : [id, portalId];
+      const checkResult = await pool.query(checkQ, checkParams);
       if (checkResult.rows.length === 0) {
         return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
       }
       const existing = checkResult.rows[0];
+      // Para admin: usar o portal_id real do agendamento
+      if (user.role === 'admin') portalId = existing.portal_id;
       const executedVal = data.executed !== undefined ? data.executed : existing.executed;
       const notDoneReasonVal = data.not_done_reason !== undefined ? data.not_done_reason : existing.not_done_reason;
 

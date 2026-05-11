@@ -3768,6 +3768,7 @@ window.addEventListener('portalReady', bootApp, { once: true });
   });
 
   el.addEventListener('blur', (e) => {
+    if (e.target._foreignMode) { e.target.setCustomValidity(''); return; }
     const ok = /^[A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2}$/.test(e.target.value);
     e.target.setCustomValidity(ok ? '' : 'Use o formato XX-XX-XX');
     tryAutoFill(e.target.value);
@@ -4145,6 +4146,7 @@ window.toggleForeignPlate = function(isForign) {
   if (isForign) {
     plate.removeAttribute('pattern');
     plate.removeAttribute('maxlength');
+    plate.setCustomValidity('');
     plate.placeholder = 'Ex: AB12 CDE ou 1234-XY-56';
     plate.style.fontStyle = 'italic';
     plate._foreignMode = true;
