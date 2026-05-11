@@ -1365,7 +1365,14 @@ function bucketOf(a){
   if(isLoja()) return `${a.date}|${a.period || 'Manhã'}`;
   return a.date; 
 }
-function getBucketList(bucket){ return appointments.filter(x=>bucketOf(x)===bucket).sort((a,b)=>(a.sortIndex||0)-(b.sortIndex||0)); }
+function getBucketList(bucket){
+  return appointments.filter(x=>bucketOf(x)===bucket).sort(function(a,b){
+    // first_of_day sempre no topo
+    if (a.first_of_day && !b.first_of_day) return -1;
+    if (!a.first_of_day && b.first_of_day) return 1;
+    return (a.sortIndex||0)-(b.sortIndex||0);
+  });
+}
 function normalizeBucketOrder(bucket){ appointments.filter(a=>bucketOf(a)===bucket).forEach((x,i)=>x.sortIndex=i+1); }
 
 // ---------- Toast ----------
@@ -1794,8 +1801,12 @@ async function runPersistFlush(){
 
 function enableDragDrop(scope){
   (scope||document).querySelectorAll('.appointment[data-id]').forEach(card=>{
-    card.draggable=true;
+    var _cardId = card.getAttribute('data-id');
+    var _cardAppt = appointments.find(a => String(a.id) === String(_cardId));
+    card.draggable = !(_cardAppt && _cardAppt.first_of_day);
     card.addEventListener('dragstart',e=>{
+      var _appt = appointments.find(a => String(a.id) === String(card.getAttribute('data-id')));
+      if (_appt && _appt.first_of_day) { e.preventDefault(); showToast('🔒 Primeiro serviço do dia está fixo no topo', 'info'); return; }
       e.dataTransfer.setData('text/plain',card.getAttribute('data-id'));
       e.dataTransfer.effectAllowed='move';
       card.classList.add('dragging');
@@ -1847,8 +1858,14 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   }
 
   const dest = getBucketList(targetBucket).filter(x=>String(x.id)!==String(a.id));
-  dest.splice(Math.min(targetIndex, dest.length), 0, a);
+  // Se o bucket já tem first_of_day e o card arrastado não é, não deixar ir para posição 0
+  var hasFirstOfDay = dest.some(x => x.first_of_day);
+  var insertIdx = Math.min(targetIndex, dest.length);
+  if (hasFirstOfDay && !a.first_of_day && insertIdx === 0) insertIdx = 1;
+  dest.splice(insertIdx, 0, a);
   dest.forEach((x,idx)=> x.sortIndex = idx+1);
+  // Garantir first_of_day com sortIndex=1
+  dest.forEach(function(x) { if (x.first_of_day) x.sortIndex = 1; });
 
   if (oldBucket !== targetBucket){
     const orig = getBucketList(oldBucket);
@@ -4092,12 +4109,7 @@ function sugerirDataParaLocalidade(locality) {
     if (dia.count >= MAX_SERVICOS) continue;
     var temMesma = dia.localidades.some(function(l) { return l && l.toLowerCase() === locality.toLowerCase(); });
     var temProxima = !temMesma && dia.localidades.some(function(l) {
-      if (!l) return false;
-      var ll = l.toLowerCase();
-      return proximas.some(function(p) {
-        var pl = p.toLowerCase();
-        return pl === ll || ll.includes(pl) || pl.includes(ll);
-      });
+      return l && proximas.some(function(p) { return p.toLowerCase() === l.toLowerCase(); });
     });
     candidatos.push({ date: iso, count: dia.count, localidades: dia.localidades, score: temMesma ? 100 : temProxima ? 50 : 0, temMesma: temMesma, temProxima: temProxima });
   }
@@ -4141,7 +4153,7 @@ window.selectLocality = function (value) {
       badge.innerHTML = '<div style="font-weight:700;color:#1d4ed8;margin-bottom:2px;">💡 Sugestão de data</div>'
         + '<div style="color:#1e40af;font-size:14px;font-weight:600;">' + dateStr + ' (' + sug.count + ' serviços)</div>'
         + '<div style="color:#64748b;font-size:11px;margin-top:2px;">' + motivo + '</div>'
-        + '<button type="button" id="crApplyDateBtn" style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>';
+        + '<button id="crApplyDateBtn" style="margin-top:8px;background:#3b82f6;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;">✓ Usar esta data</button>';
       var form = document.getElementById('appointmentForm');
       if (form) {
         form.insertBefore(badge, form.firstChild);
