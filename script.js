@@ -1066,7 +1066,7 @@ function buildDaySummary(dayDate, isMobile) {
   // Tempo de execução (por tipo de serviço × veículo)
   let totalServiceMin = 0;
   items.forEach(a => {
-    totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration);
+    totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration, a.custom_service_time);
   });
 
   if (!hasKm) {
