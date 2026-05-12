@@ -371,6 +371,9 @@ async function importData() {
 function showImportResults(results) {
   document.getElementById('successCount').textContent = results.success;
   document.getElementById('failCount').textContent = results.errors;
+  // Mostrar contador de removidos se existir
+  var delEl = document.getElementById('deletedCount');
+  if (delEl) delEl.textContent = results.deleted || 0;
   
   // Detalhes
   const detailsContainer = document.getElementById('importDetails');
@@ -380,7 +383,18 @@ function showImportResults(results) {
     const successList = results.details.filter(d => d.status === 'success');
     const errorList = results.details.filter(d => d.status === 'error');
     const skippedList = results.details.filter(d => d.status === 'skipped');
+    const deletedList = results.details.filter(d => d.status === 'deleted');
     
+    if (deletedList.length > 0) {
+      const deletedDiv = document.createElement('div');
+      deletedDiv.innerHTML = `
+        <h5 style="color:#dc2626;">🗑️ Removidos — não estão no Excel (${deletedList.length})</h5>
+        <div style="max-height:150px;overflow-y:auto;background:#fee2e2;padding:10px;border-radius:4px;margin-bottom:15px;">
+          ${deletedList.map(s => `<div>• ${s.plate}</div>`).join('')}
+        </div>`;
+      detailsContainer.appendChild(deletedDiv);
+    }
+
     if (successList.length > 0) {
       const successDiv = document.createElement('div');
       successDiv.innerHTML = `
