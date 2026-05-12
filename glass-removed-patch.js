@@ -95,7 +95,8 @@
         const btn = row.nextElementSibling.querySelector('[data-gr]');
         if (btn) {
           const isActive = !!appt.glass_removed;
-          btn.style.cssText = isActive ? 'background:#2563eb;color:#fff;border-color:#2563eb;width:100%;' : 'width:100%;';
+          btn.className = 'dc-exec-btn' + (isActive ? ' dc-exec-gr' : '');
+          btn.style.cssText = 'width:100%;';
           btn.innerHTML = isActive ? '🪟 Vidro Retirado' : '🪟 Retirar Vidro';
         }
         return;
@@ -110,7 +111,8 @@
       const btn = document.createElement('button');
       btn.className = 'dc-exec-btn';
       btn.setAttribute('data-gr', id);
-      btn.style.cssText = isActive ? 'background:#2563eb;color:#fff;border-color:#2563eb;width:100%;' : 'width:100%;';
+      btn.className = 'dc-exec-btn' + (isActive ? ' dc-exec-gr' : '');
+      btn.style.cssText = 'width:100%;';
       btn.innerHTML = isActive ? '🪟 Vidro Retirado' : '🪟 Retirar Vidro';
       btnRow.appendChild(btn);
       row.insertAdjacentElement('afterend', btnRow);
@@ -153,7 +155,7 @@
 
   // CSS
   const style = document.createElement('style');
-  style.textContent = `.m-status-active-gr{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important;} .m-status-active-gr .m-status-dot{background:#fff!important;}`;
+  style.textContent = `.m-status-active-gr{background:#2563eb!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#2563eb!important;} .m-status-active-gr .m-status-dot{background:#fff!important;} .dc-exec-gr{background:#2563eb!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#2563eb!important;}`;
   document.head.appendChild(style);
 
   console.log('🪟 Glass Removed Patch carregado');
