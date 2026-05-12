@@ -1154,7 +1154,7 @@ async function startSync() {
   }
 
   document.getElementById('importProgress').style.display = 'block';
-  document.getElementById('btnImport').disabled = true;
+  document.getElementById('btnSyncImport').disabled = true;
 
   let totalCreated = 0, totalUpdated = 0, totalDeleted = 0, totalSkipped = 0, totalErrors = 0;
   let done = 0;
@@ -1189,7 +1189,7 @@ async function startSync() {
 
   document.getElementById('importProgressBar').style.width = '100%';
   document.getElementById('importProgressText').textContent = 'Sincronização concluída!';
-  document.getElementById('btnImport').disabled = false;
+  document.getElementById('btnSyncImport').disabled = false;
 
   document.getElementById('importResultsContent').innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px;">
