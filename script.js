@@ -2644,6 +2644,9 @@ async function renderMobileDay(){
         if (isLoja()) {
           return (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0);
         }
+        // first_of_day sempre no topo
+        if (a.first_of_day && !b.first_of_day) return -1;
+        if (!a.first_of_day && b.first_of_day) return 1;
         return (a.sortIndex||0) - (b.sortIndex||0);
       })
   );
