@@ -1002,7 +1002,6 @@ async function startImport() {
 
   // Mostrar progress
   document.getElementById('importProgress').style.display = 'block';
-  document.getElementById('btnStartImport').disabled = true;
 
   // Enviar em batches de 50
   const batchSize = 50;
@@ -1036,7 +1035,6 @@ async function startImport() {
   // Mostrar resultados
   document.getElementById('importProgressBar').style.width = '100%';
   document.getElementById('importProgressText').textContent = 'Concluído!';
-  document.getElementById('btnStartImport').disabled = false;
 
   const resultsHtml = `
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;">
@@ -1156,8 +1154,7 @@ async function startSync() {
   }
 
   document.getElementById('importProgress').style.display = 'block';
-  document.getElementById('btnSyncImport').disabled = true;
-  document.getElementById('btnStartImport').disabled = true;
+  document.getElementById('btnImport').disabled = true;
 
   let totalCreated = 0, totalUpdated = 0, totalDeleted = 0, totalSkipped = 0, totalErrors = 0;
   let done = 0;
@@ -1192,8 +1189,7 @@ async function startSync() {
 
   document.getElementById('importProgressBar').style.width = '100%';
   document.getElementById('importProgressText').textContent = 'Sincronização concluída!';
-  document.getElementById('btnSyncImport').disabled = false;
-  document.getElementById('btnStartImport').disabled = false;
+  document.getElementById('btnImport').disabled = false;
 
   document.getElementById('importResultsContent').innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px;">

@@ -76,29 +76,86 @@ exports.handler = async (event) => {
     const deleted = delResult.rowCount;
 
     const results = { created: 0, updated: 0, skipped: 0, errors: 0, deleted, details: [] };
+    const todayISO = new Date().toISOString().slice(0, 10);
 
     for (const svc of services) {
       const plateNorm = norm(svc.plate);
       if (!plateNorm) { results.errors++; continue; }
 
       try {
-        // Verificar se já existe realmente agendado — não tocar
-        const { rows } = await pool.query(
-          `SELECT id FROM appointments
+        // Verificar se já existe com data (agendado)
+        const { rows: scheduledRows } = await pool.query(
+          `SELECT id, date, locality FROM appointments
            WHERE portal_id = $1
              AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = $2
-             AND (${reallyScheduledCondition})
+             AND date IS NOT NULL
            LIMIT 1`,
           [portal_id, plateNorm]
         );
 
-        if (rows.length > 0) {
-          // Já está agendado — ignorar completamente
-          results.skipped++;
+        if (scheduledRows.length > 0) {
+          const existing = scheduledRows[0];
+          const existingDate = existing.date ? String(existing.date).slice(0, 10) : null;
+          const excelDate = svc.date ? String(svc.date).slice(0, 10) : null;
+
+          // Data futura → só atualizar dados, nunca a data
+          if (existingDate && existingDate >= todayISO) {
+            await pool.query(
+              `UPDATE appointments SET
+                 car = $1, service = $2, notes = $3, extra = $4,
+                 phone = $5, client_name = $6, updated_at = $7
+               WHERE id = $8`,
+              [
+                svc.car || null, svc.service || null,
+                svc.notes || null, svc.extra || null,
+                svc.phone || null, svc.client_name || null,
+                new Date().toISOString(), existing.id
+              ]
+            );
+            results.updated++;
+            results.details.push({ plate: svc.plate, status: 'updated', reason: 'dados atualizados' });
+            continue;
+          }
+
+          // Data passada + Excel tem data futura → atualizar data e dados
+          if (existingDate && existingDate < todayISO && excelDate && excelDate >= todayISO) {
+            await pool.query(
+              `UPDATE appointments SET
+                 date = $1, period = $2, car = $3, service = $4,
+                 notes = $5, extra = $6, phone = $7, client_name = $8,
+                 auto_imported = $9, confirmed = false, updated_at = $10
+               WHERE id = $11`,
+              [
+                excelDate, svc.period || null,
+                svc.car || null, svc.service || null,
+                svc.notes || null, svc.extra || null,
+                svc.phone || null, svc.client_name || null,
+                !!excelDate, new Date().toISOString(), existing.id
+              ]
+            );
+            results.updated++;
+            results.details.push({ plate: svc.plate, status: 'updated', reason: 'data atualizada: ' + existingDate + ' → ' + excelDate });
+            continue;
+          }
+
+          // Data passada + Excel sem data futura → atualizar dados, manter data
+          await pool.query(
+            `UPDATE appointments SET
+               car = $1, service = $2, notes = $3, extra = $4,
+               phone = $5, client_name = $6, updated_at = $7
+             WHERE id = $8`,
+            [
+              svc.car || null, svc.service || null,
+              svc.notes || null, svc.extra || null,
+              svc.phone || null, svc.client_name || null,
+              new Date().toISOString(), existing.id
+            ]
+          );
+          results.updated++;
           continue;
         }
 
-        // Não existe (ou foi apagado por ser pendente) → criar
+        // Não existe (foi apagado por ser pendente, ou nunca existiu) → criar
         await pool.query(
           `INSERT INTO appointments (
              date, period, plate, car, service, locality, status,
