@@ -96,41 +96,45 @@
 
   // Injectar botão "Vidro Retirado" após cada render
   function injectGlassRemovedButtons() {
-    // Desktop: dc-exec-row
+    // Desktop: inserir linha própria APÓS dc-exec-row
     document.querySelectorAll('.dc-exec-row').forEach(row => {
-      if (row.querySelector('[data-gr]')) return; // já injectado
+      if (row.nextElementSibling && row.nextElementSibling.classList.contains('gr-btn-row')) return;
       const id = row.dataset.id;
       const appt = (window.appointments || []).find(a => String(a.id) === String(id));
       if (!appt) return;
       const isActive = appt.glass_removed;
+      const btnRow = document.createElement('div');
+      btnRow.className = 'gr-btn-row';
+      btnRow.style.cssText = 'margin:4px 0 0;';
       const btn = document.createElement('button');
       btn.className = 'dc-exec-btn';
       btn.setAttribute('data-gr', id);
       btn.style.cssText = isActive
-        ? 'background:#2563eb;color:#fff;border-color:#2563eb;'
-        : '';
+        ? 'background:#2563eb;color:#fff;border-color:#2563eb;width:100%;'
+        : 'width:100%;';
       btn.innerHTML = isActive ? '🪟 Vidro Retirado' : '🪟 Retirar Vidro';
-      // Inserir entre os dois botões existentes
-      const realizadoBtn = row.querySelector('[data-exec="true"]');
-      if (realizadoBtn) row.insertBefore(btn, realizadoBtn);
-      else row.appendChild(btn);
+      btnRow.appendChild(btn);
+      row.insertAdjacentElement('afterend', btnRow);
     });
 
-    // Mobile: m-status-row
+    // Mobile: linha própria APÓS m-status-row
     document.querySelectorAll('.m-status-row').forEach(row => {
-      if (row.querySelector('[data-gr]')) return;
+      if (row.nextElementSibling && row.nextElementSibling.classList.contains('gr-btn-row-m')) return;
       const id = row.querySelector('[data-exec]')?.dataset?.id;
       if (!id) return;
       const appt = (window.appointments || []).find(a => String(a.id) === String(id));
       if (!appt) return;
       const isActive = appt.glass_removed;
+      const btnRow = document.createElement('div');
+      btnRow.className = 'gr-btn-row-m';
+      btnRow.style.cssText = 'margin:6px 8px 0;';
       const btn = document.createElement('button');
       btn.className = 'm-status-btn' + (isActive ? ' m-status-active-gr' : '');
       btn.setAttribute('data-gr', id);
-      btn.innerHTML = `<span class="m-status-dot" style="background:#2563eb;"></span>${isActive ? 'Vidro Retirado' : 'Retirar Vidro'}`;
-      const realizadoBtn = row.querySelector('[data-exec="true"]');
-      if (realizadoBtn) row.insertBefore(btn, realizadoBtn);
-      else row.appendChild(btn);
+      btn.style.cssText = 'width:100%;justify-content:center;';
+      btn.innerHTML = `<span class="m-status-dot" style="background:${isActive?'#fff':'#2563eb'};"></span>${isActive ? 'Vidro Retirado' : 'Retirar Vidro'}`;
+      btnRow.appendChild(btn);
+      row.insertAdjacentElement('afterend', btnRow);
     });
 
     // Badge no card desktop para glass_removed com data sugerida
