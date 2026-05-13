@@ -78,24 +78,8 @@ function injectMultiServiceUI() {
     meta.dataset.msPatched = '1';
   });
 
-  // Injectar badges extra nos cards mobile
-  document.querySelectorAll('.m-card[data-id]').forEach(card => {
-    const id = card.dataset.id;
-    const a = (window.appointments||[]).find(x => String(x.id) === String(id));
-    if (!a) return;
-    const extras = Array.isArray(a.extra_services) ? a.extra_services : [];
-    if (!extras.length) return;
-    const chips = card.querySelector('.m-chips');
-    if (!chips || chips.dataset.msPatched) return;
-    extras.forEach(s => {
-      if (!s.service) return;
-      const chip = document.createElement('span');
-      chip.className = 'm-chip';
-      chip.textContent = s.service;
-      chips.appendChild(chip);
-    });
-    chips.dataset.msPatched = '1';
-  });
+  // Nota: chips mobile são agora gerados diretamente em buildMobileCard (inclui extra_services)
+  // Não é necessário injectar aqui — evita duplicados.
 }
 
 // ── Botão "+ Adicionar serviço" no modal ──────────────────────────

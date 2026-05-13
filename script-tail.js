@@ -43,9 +43,18 @@ const telBtn = phone ? `
 
   const plate = (a.plate || '').toUpperCase();
   const car = (a.car || '').toUpperCase();
+  // Construir lista de serviços: primário + extra_services (sem duplicados)
+  const _allSvcs = (function() {
+    const primary = a.service ? [a.service] : [];
+    let extra = a.extra_services || [];
+    if (typeof extra === 'string') { try { extra = JSON.parse(extra); } catch(e) { extra = []; } }
+    if (!Array.isArray(extra)) extra = [];
+    const extraNames = extra.map(function(s) { return s && s.service ? s.service : ''; }).filter(Boolean);
+    return [...primary, ...extraNames];
+  })();
   const chips = [
     a.period ? `<span class="m-chip">${a.period}</span>` : '',
-    a.service ? `<span class="m-chip">${a.service}</span>` : '',
+    ..._allSvcs.map(function(s) { return `<span class="m-chip">${s}</span>`; }),
     !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : '',
     a.calibration ? `<span class="m-chip m-chip-calib">⊕ CALIB</span>` : '',
     a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : ''
