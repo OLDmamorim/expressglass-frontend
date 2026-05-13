@@ -1054,7 +1054,7 @@ function buildDaySummary(dayDate, isMobile) {
   // Regresso: usar km e tempo reais calculados durante otimização
   const lastItem = items[items.length - 1];
   const returnKm = hasKm
-    ? (lastItem?.return_km || (hasOptimized ? Math.round(lastServiceKm * 0.8) : Math.round(totalKm * 0.12)))
+    ? (lastItem?.return_km || (hasOptimized ? Math.round(lastServiceKm * 0.8) : (lastServiceKm || Math.round(totalKm * 0.5))))
     : 0;
   // Tempo de regresso: usar o valor real calculado durante otimização
   // Fallback: estimar com base no km de regresso e velocidade média
