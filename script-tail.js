@@ -1,35 +1,4 @@
-  ensureServicesHeader();
-  const today = new Date(); today.setHours(0,0,0,0);
-  const future = filterAppointments(
-    appointments.filter(a => a.date && new Date(a.date) >= today)
-               .sort((a,b) => new Date(a.date) - new Date(b.date))
-  );
-  tbody.innerHTML=future.map(a=>{
-    const d=new Date(a.date); d.setHours(0,0,0,0);
-    const diff=Math.ceil((d - today)/(1000*60*60*24));
-    const when = diff<0? `${Math.abs(diff)} dias atrás` : diff===0? 'Hoje' : diff===1? 'Amanhã' : `${diff} dias`;
-    const notes = (a.notes||'').replace(/"/g,'&quot;');
-    return `<tr>
-      <td>${d.toLocaleDateString('pt-PT')}</td>
-      <td>${a.plate||''}</td>
-      <td>${a.car||''}</td>
-      <td><span class="badge badge-${a.service}">${a.service||''}</span></td>
-      <td>${a.locality||''}</td>
-      <td title="${notes}">${a.notes||''}</td>
-      <td><span class="chip chip-${a.status}">${a.status||''}</span></td>
-      <td>${when}</td>
-      <td class="no-print">
-        <div class="actions">
-          <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
-          <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-  const sum=document.getElementById('servicesSummary'); if(sum) sum.textContent=`${future.length} serviços pendentes`;
-}
-
-// Helper: tenta apanhar nº de telefone dentro de texto
+o
 function extractPhoneFromText(txt){
   if(!txt) return '';
   const m = String(txt).match(/(\+?\d[\d\s()-]{6,})/); // 9+ dígitos
