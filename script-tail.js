@@ -776,6 +776,9 @@ function _injectLocalityFirstOverlay() {
 }
 
 function bootApp() {
+  if (window._bootAppRan) return;
+  window._bootAppRan = true;
+  console.log('🚀 bootApp iniciado');
   (async () => {
     try { await loadRouteSettings(); } catch(e){ console.warn('loadRouteSettings falhou', e); }
     try { await load(); } catch(e){ console.error('load() falhou', e); }

@@ -73,6 +73,7 @@
     addLogoutButton();
     console.log('✅ Pesados Coord: vista de agendas');
     window._portalReadyFired = true; window.dispatchEvent(new CustomEvent('portalReady'));
+    setTimeout(() => { if (!window._bootAppRan && typeof window.bootApp === 'function') { console.log('🔄 fallback direto bootApp'); window.bootApp(); } }, 300);
     return;
   }
 
@@ -113,6 +114,7 @@
     addAdminBackButton();
     console.log('✅ Admin: vista de agendas');
     window._portalReadyFired = true; window.dispatchEvent(new CustomEvent('portalReady'));
+    setTimeout(() => { if (!window._bootAppRan && typeof window.bootApp === 'function') { console.log('🔄 fallback direto bootApp'); window.bootApp(); } }, 300);
     return;
   }
 
@@ -157,7 +159,8 @@
 
   const ptype = window.portalConfig?.portalType || 'sm';
   console.log('✅ Portal inicializado com sucesso (' + ptype + ')');
-  window.dispatchEvent(new CustomEvent('portalReady'));
+  window._portalReadyFired = true; window.dispatchEvent(new CustomEvent('portalReady'));
+  setTimeout(() => { if (!window._bootAppRan && typeof window.bootApp === 'function') { console.log('🔄 fallback direto bootApp'); window.bootApp(); } }, 300);
 })();
 
 // === APLICAR CONFIGURAÇÃO DO PORTAL ===
