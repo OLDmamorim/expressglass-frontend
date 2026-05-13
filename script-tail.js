@@ -1,3 +1,4 @@
+console.log('📦 script-tail.js v2026-05-14b carregado');
 function extractPhoneFromText(txt){
   if(!txt) return '';
   const m = String(txt).match(/(\+?\d[\d\s()-]{6,})/); // 9+ dígitos
