@@ -78,17 +78,18 @@
     });
 
     // Decidir após qual serviço inserir o almoço.
-    // REGRA: almoçar após o ÚLTIMO serviço que acabe até 13:10.
-    // (Se um serviço cabe antes das 13:10, espremem-no e almoçam depois.)
+    // REGRA: almoçar após o ÚLTIMO serviço que acabe entre 12:00 e 13:10.
+    // Se o dia termina antes das 12:00, não há almoço.
+    const ALMOCO_MIN = 12 * 60; // 12:00
     const LIMITE = 13 * 60 + 10; // 13:10
     let lunchAfterIdx = -1;
 
     for (let i = 0; i < items.length; i++) {
       const svc = STEPS.find(s => s.type === 'servico' && s.idx === i);
       if (!svc) continue;
-      if (svc.end <= LIMITE) {
-        lunchAfterIdx = i; // continua a actualizar — fica no último que cabe
-      } else {
+      if (svc.end >= ALMOCO_MIN && svc.end <= LIMITE) {
+        lunchAfterIdx = i; // último serviço que acaba no intervalo de almoço
+      } else if (svc.end > LIMITE) {
         break; // primeiro que passa das 13:10 → para
       }
     }

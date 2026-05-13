@@ -1053,13 +1053,19 @@ function buildDaySummary(dayDate, isMobile) {
 
   // Regresso: usar km e tempo reais calculados durante otimização
   const lastItem = items[items.length - 1];
+  // Ignorar return_km guardado se for claramente errado (< 20% da distância do último serviço)
+  const storedReturnKm = lastItem?.return_km;
+  const minReasonableReturn = lastServiceKm * 0.2;
+  const validStoredKm = storedReturnKm && storedReturnKm >= minReasonableReturn ? storedReturnKm : null;
   const returnKm = hasKm
-    ? (lastItem?.return_km || (hasOptimized ? Math.round(lastServiceKm * 0.8) : (lastServiceKm || Math.round(totalKm * 0.5))))
+    ? (validStoredKm || (hasOptimized ? Math.round(lastServiceKm * 0.8) : (lastServiceKm || Math.round(totalKm * 0.5))))
     : 0;
-  // Tempo de regresso: usar o valor real calculado durante otimização
-  // Fallback: estimar com base no km de regresso e velocidade média
-  const returnMin = lastItem?.return_time
-    ? lastItem.return_time
+  // Tempo de regresso: usar o valor real guardado se for razoável, senão calcular
+  const storedReturnTime = lastItem?.return_time;
+  const minReasonableTime = returnKm / 120 * 60; // pelo menos à 120 km/h seria X min
+  const validStoredTime = storedReturnTime && storedReturnTime >= minReasonableTime ? storedReturnTime : null;
+  const returnMin = validStoredTime
+    ? validStoredTime
     : Math.round((returnKm / ROUTE_CONFIG.avgSpeedKmh) * 60);
   const totalKmWithReturn = totalKm + returnKm;
 
