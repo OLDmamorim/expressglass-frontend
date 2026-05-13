@@ -343,6 +343,9 @@
                 <input type="number" id="appointmentCustomTime" min="5" max="480" step="5" placeholder="Ex: 60" style="width:100%;padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;margin-top:4px;">
               </div>
             </div>
+          <!-- Serviços extra (multi-serviço) -->
+          <div id="extraServicesContainer"></div>
+          <button type="button" onclick="window._addExtraServiceRow()" style="margin-top:10px;width:100%;padding:10px;border:1.5px dashed #3b82f6;border-radius:8px;background:#eff6ff;color:#2563eb;font-weight:700;font-size:13px;cursor:pointer;">➕ Adicionar serviço</button>
             <div class="form-group">
               <label for="appointmentStatus">Status do Vidro *</label>
               <select id="appointmentStatus" required>
