@@ -407,16 +407,17 @@ function buildRelatorio() {
   const isoWeek = week.map(d => localISO(d));
   const weekAppts = appointments.filter(a => a.date && isoWeek.includes(a.date));
 
-  const total     = weekAppts.length;
-  const realized  = weekAppts.filter(a => !!a.executed).length;
-  const notDone   = total - realized;
+  const total        = weekAppts.length;
+  const realized     = weekAppts.filter(a => !!a.executed).length;
+  const notDone      = total - realized;
+  const glassRemoved = weekAppts.filter(a => !!a.glass_removed).length;
 
   let html = `<div style="font-family:'Figtree',sans-serif;">
     <div style="font-size:13px;color:#6b7280;margin-bottom:16px;">${weekStart} — ${weekEnd}</div>`;
 
   // Resumo de serviços
   html += `
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px;">
+    <div style="display:grid;grid-template-columns:repeat(${glassRemoved > 0 ? 4 : 3},1fr);gap:10px;margin-bottom:20px;">
       <div class="rel-stat">
         <div class="rel-n">${total}</div>
         <div class="rel-l">Agendados</div>
@@ -429,6 +430,11 @@ function buildRelatorio() {
         <div class="rel-n">${notDone}</div>
         <div class="rel-l">Não realizados</div>
       </div>
+      ${glassRemoved > 0 ? `
+      <div class="rel-stat" style="border-left:3px solid #2563eb;">
+        <div class="rel-n" style="color:#2563eb;">🪟 ${glassRemoved}</div>
+        <div class="rel-l">Vidro Retirado</div>
+      </div>` : ''}
     </div>`;
 
   // SM: totais de km, horas e combustível — mesma lógica do buildDaySummary por dia
@@ -682,6 +688,29 @@ function buildRelatorio() {
             <span style="background:#fef2f2;color:#dc2626;padding:2px 10px;border-radius:8px;font-size:12px;font-weight:800;">${count}×</span>
           </div>`
         ).join('')}
+      </div>`;
+  }
+
+  // ── Vidros Retirados ──────────────────────────────────────────────────
+  const glassRemovedAppts = weekAppts.filter(a => !!a.glass_removed);
+  if (glassRemovedAppts.length > 0) {
+    html += `
+      <div style="border-top:2px solid #2563eb;padding-top:16px;margin-top:16px;">
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#2563eb;margin-bottom:12px;">🪟 Vidros Retirados (${glassRemovedAppts.length})</div>
+        ${glassRemovedAppts.map(a => {
+          const dateStr = a.date ? new Date(a.date + 'T00:00:00').toLocaleDateString('pt-PT', { weekday:'short', day:'2-digit', month:'2-digit' }) : '—';
+          const sugestao = a.date && a.glass_removed && a.confirmed === false
+            ? `<span style="color:#f59e0b;font-size:11px;font-weight:700;">⚠️ Aguarda data</span>`
+            : a.date ? `<span style="color:#16a34a;font-size:11px;font-weight:700;">📅 ${dateStr}</span>` : '';
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f1f5f9;gap:8px;">
+            <div style="flex:1;min-width:0;">
+              <span style="font-size:13px;font-weight:800;color:#1e293b;">${(a.plate||'').toUpperCase()}</span>
+              <span style="font-size:12px;color:#64748b;margin-left:6px;">${a.car||''}</span>
+              ${a.locality ? `<span style="font-size:11px;color:#94a3b8;margin-left:4px;">· ${a.locality}</span>` : ''}
+            </div>
+            <div style="text-align:right;flex-shrink:0;">${sugestao}</div>
+          </div>`;
+        }).join('')}
       </div>`;
   }
 
