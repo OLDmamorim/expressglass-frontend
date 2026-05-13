@@ -127,7 +127,7 @@ const telBtn = phone ? `
       <div style="${iconPadding}">
         <div class="m-title"><span class="m-title-text">${plate}</span></div>
         ${car ? `<div class="m-car">${car}</div>` : ''}
-        ${chips ? `<div class="m-chips">${chips}</div>` : ''}
+        ${chips ? `<div class="m-chips" data-ms-patched="1">${chips}</div>` : ''}
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${damageRow}
