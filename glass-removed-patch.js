@@ -36,8 +36,9 @@
     const appts = window.appointments || [];
     const i = appts.findIndex(a => String(a.id) === String(id));
     if (i < 0) return;
-    const prev = { glass_removed: appts[i].glass_removed, date: appts[i].date, confirmed: appts[i].confirmed, executed: appts[i].executed, not_done_reason: appts[i].not_done_reason };
+    const prev = { glass_removed: appts[i].glass_removed, glass_removed_date: appts[i].glass_removed_date, date: appts[i].date, confirmed: appts[i].confirmed, executed: appts[i].executed, not_done_reason: appts[i].not_done_reason };
     appts[i].glass_removed = true;
+    appts[i].glass_removed_date = new Date().toISOString().slice(0, 10);
     appts[i].executed = null;
     appts[i].not_done_reason = null;
     if (dateVal) { appts[i].date = dateVal; appts[i].confirmed = false; }

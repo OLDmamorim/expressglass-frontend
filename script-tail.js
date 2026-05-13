@@ -702,10 +702,20 @@ function buildRelatorio() {
           const sugestao = a.date && a.glass_removed && a.confirmed === false
             ? `<span style="color:#f59e0b;font-size:11px;font-weight:700;">⚠️ Aguarda data</span>`
             : a.date ? `<span style="color:#16a34a;font-size:11px;font-weight:700;">📅 ${dateStr}</span>` : '';
+          let diasBadge = '';
+          if (a.glass_removed_date) {
+            const removedMs = new Date(a.glass_removed_date + 'T00:00:00').getTime();
+            if (!isNaN(removedMs)) {
+              const diasEspera = Math.floor((Date.now() - removedMs) / 86400000);
+              const cor = diasEspera >= 14 ? '#dc2626' : diasEspera >= 7 ? '#f59e0b' : '#2563eb';
+              diasBadge = `<span style="background:${cor};color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:8px;margin-left:6px;">${diasEspera}d</span>`;
+            }
+          }
           return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #f1f5f9;gap:8px;">
             <div style="flex:1;min-width:0;">
               <span style="font-size:13px;font-weight:800;color:#1e293b;">${(a.plate||'').toUpperCase()}</span>
               <span style="font-size:12px;color:#64748b;margin-left:6px;">${a.car||''}</span>
+              ${diasBadge}
               ${a.locality ? `<span style="font-size:11px;color:#94a3b8;margin-left:4px;">· ${a.locality}</span>` : ''}
             </div>
             <div style="text-align:right;flex-shrink:0;">${sugestao}</div>

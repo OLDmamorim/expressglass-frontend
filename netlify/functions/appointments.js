@@ -59,7 +59,8 @@ exports.handler = async (event) => {
                notes, address, extra, phone, km, sortIndex, "glassOrdered",
                vehicle_type, travel_time, auto_imported, executed, confirmed,
                calibration, first_of_day, not_done_reason, commercial_user_id,
-               return_km, return_time, client_name, damage_details, glass_removed, extra_services, created_at, updated_at
+               return_km, return_time, client_name, damage_details, glass_removed, glass_removed_date,
+               custom_service_time, foreign_plate, extra_services, created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -93,9 +94,10 @@ exports.handler = async (event) => {
           date, period, plate, car, service, locality, status,
           notes, address, extra, phone, km, sortIndex, "glassOrdered",
           vehicle_type, travel_time, confirmed, calibration, first_of_day,
-          not_done_reason, commercial_user_id, return_km, return_time, client_name, damage_details, extra_services, portal_id, created_at, updated_at
+          not_done_reason, commercial_user_id, return_km, return_time, client_name, damage_details,
+          glass_removed_date, custom_service_time, foreign_plate, extra_services, portal_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32
         ) RETURNING *
       `;
       const v = [
@@ -115,7 +117,10 @@ exports.handler = async (event) => {
         data.return_time != null ? parseInt(data.return_time) : null,
         data.client_name || null,
         data.damage_details || null,
-        JSON.stringify(data.extra_services || []),
+        data.glass_removed_date || null,
+        data.custom_service_time ? parseInt(data.custom_service_time) : null,
+        data.foreign_plate === true,
+        data.extra_services ? JSON.stringify(data.extra_services) : null,
         portalId, createdAt, new Date().toISOString()
       ];
       const { rows } = await pool.query(q, v);
@@ -129,7 +134,7 @@ exports.handler = async (event) => {
 
       // Ler valores atuais para preservar executed e not_done_reason
       const checkResult = await pool.query(
-        'SELECT id, executed, not_done_reason, glass_removed FROM appointments WHERE id = $1 AND portal_id = $2',
+        'SELECT id, executed, not_done_reason, glass_removed, glass_removed_date FROM appointments WHERE id = $1 AND portal_id = $2',
         [id, portalId]
       );
       if (checkResult.rows.length === 0) {
@@ -148,8 +153,9 @@ exports.handler = async (event) => {
           vehicle_type = $15, travel_time = $16, auto_imported = $17,
           executed = $18, confirmed = $19, calibration = $20,
           first_of_day = $21, not_done_reason = $22, commercial_user_id = $23,
-          return_km = $24, return_time = $25, client_name = $26, damage_details = $27, glass_removed = $28, extra_services = $29, updated_at = $30
-        WHERE id = $31 AND portal_id = $32
+          return_km = $24, return_time = $25, client_name = $26, damage_details = $27, glass_removed = $28, extra_services = $29,
+          glass_removed_date = $30, updated_at = $31
+        WHERE id = $32 AND portal_id = $33
         RETURNING *
       `;
       const v = [
@@ -175,6 +181,7 @@ exports.handler = async (event) => {
         data.damage_details !== undefined ? (data.damage_details || null) : null,
         data.glass_removed !== undefined ? (!!data.glass_removed) : (existing.glass_removed || false),
         JSON.stringify(data.extra_services !== undefined ? (data.extra_services || []) : (existing.extra_services || [])),
+        data.glass_removed_date !== undefined ? (data.glass_removed_date || null) : (existing.glass_removed_date || null),
         new Date().toISOString(), id, portalId
       ];
       const { rows } = await pool.query(q, v);
