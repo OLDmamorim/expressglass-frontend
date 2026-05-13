@@ -65,8 +65,11 @@
     const STEPS = [];
     let simCursor = cursor;
     items.forEach((a, i) => {
-      // Tempo de viagem até este serviço
-      const travel = a.travelTime || a.travel_time || 15; // fallback 15 min
+      // Tempo de viagem até este serviço — validar contra km (mín. 20 km/h médios)
+      const km = a.km ?? a.kms ?? 0;
+      const rawTravel = a.travelTime || a.travel_time || 0;
+      const minTravelByKm = km > 0 ? Math.round((km / 120) * 60) : 0; // mínimo à 120 km/h
+      const travel = (rawTravel > 0 && rawTravel >= minTravelByKm) ? rawTravel : (km > 0 ? Math.round((km / 50) * 60) : 15);
       simCursor += travel;
       STEPS.push({ idx: i, type: 'viagem', start: simCursor - travel, end: simCursor, travel });
       // Tempo de execução
@@ -146,9 +149,12 @@
       }
     });
 
-    // Regresso
+    // Regresso — validar return_time contra km do último serviço
     const lastItem = items[items.length - 1];
-    const returnTime = lastItem?.return_time || 20;
+    const lastKm = lastItem?.km ?? lastItem?.kms ?? 0;
+    const rawReturn = lastItem?.return_time || 0;
+    const minReturnByKm = lastKm > 0 ? Math.round((lastKm / 120) * 60) : 0;
+    const returnTime = (rawReturn > 0 && rawReturn >= minReturnByKm) ? rawReturn : (lastKm > 0 ? Math.round((lastKm / 50) * 60) : 20);
     events.push({
       type: 'regresso',
       label: 'Regresso à loja',
