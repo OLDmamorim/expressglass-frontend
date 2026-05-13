@@ -2540,4 +2540,8 @@ function ensureServicesHeader(){
   thead.innerHTML = `<tr>${
     headers.map(h => h==='Ações'
       ? `<th class="no-print actions-col" style="width:100px;text-align:left">Ações</th>`
+      : `<th>${h}</th>`
+    ).join('')
+  }</tr>`;
+}
  

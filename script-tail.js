@@ -1,4 +1,3 @@
-o
 function extractPhoneFromText(txt){
   if(!txt) return '';
   const m = String(txt).match(/(\+?\d[\d\s()-]{6,})/); // 9+ dígitos
