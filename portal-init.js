@@ -72,7 +72,7 @@
 
     addLogoutButton();
     console.log('✅ Pesados Coord: vista de agendas');
-    window.dispatchEvent(new CustomEvent('portalReady'));
+    window._portalReadyFired = true; window.dispatchEvent(new CustomEvent('portalReady'));
     return;
   }
 
@@ -112,7 +112,7 @@
     addLogoutButton();
     addAdminBackButton();
     console.log('✅ Admin: vista de agendas');
-    window.dispatchEvent(new CustomEvent('portalReady'));
+    window._portalReadyFired = true; window.dispatchEvent(new CustomEvent('portalReady'));
     return;
   }
 

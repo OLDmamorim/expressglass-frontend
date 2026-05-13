@@ -1166,10 +1166,13 @@ cancelEdit?.();
 
 // Aguardar que o portal-init.js termine (dispara 'portalReady')
 // antes de carregar os dados — resolve race condition no arranque
-window.addEventListener('portalReady', bootApp, { once: true });
-
-// Fallback: se o portal-init não disparar o evento (ex: redirect para login),
-// não fazer nada — a página vai redirecionar de qualquer forma
+if (window._portalReadyFired) {
+  // portalReady já disparou antes de este script carregar — chamar bootApp agora
+  console.log('⚡ portalReady já disparou, a arrancar bootApp imediatamente');
+  setTimeout(bootApp, 0);
+} else {
+  window.addEventListener('portalReady', bootApp, { once: true });
+}
 
 // === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
 (function(){
