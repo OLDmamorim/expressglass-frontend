@@ -45,6 +45,14 @@
     return d.getHours() * 60 + d.getMinutes();
   }
 
+  // Valida tempo de viagem contra km: descarta valores impossíveis (< mín. a 120 km/h)
+  function validarTempoViagem(minutos, km, fallbackVelocidade) {
+    if (!km || km <= 0) return minutos > 0 ? minutos : 15;
+    const minMinutos = Math.round((km / 120) * 60);
+    if (minutos > 0 && minutos >= minMinutos) return minutos;
+    return Math.round((km / (fallbackVelocidade || 50)) * 60);
+  }
+
   // ── Calcular timeline ─────────────────────────────────────────────────
   // Retorna array de eventos: { type, label, time (em min desde meia-noite), duration }
   // type: 'partida' | 'viagem' | 'servico' | 'almoco' | 'regresso'
@@ -65,11 +73,9 @@
     const STEPS = [];
     let simCursor = cursor;
     items.forEach((a, i) => {
-      // Tempo de viagem até este serviço — validar contra km (mín. 20 km/h médios)
       const km = a.km ?? a.kms ?? 0;
       const rawTravel = a.travelTime || a.travel_time || 0;
-      const minTravelByKm = km > 0 ? Math.round((km / 120) * 60) : 0; // mínimo à 120 km/h
-      const travel = (rawTravel > 0 && rawTravel >= minTravelByKm) ? rawTravel : (km > 0 ? Math.round((km / 50) * 60) : 15);
+      const travel = validarTempoViagem(rawTravel, km);
       simCursor += travel;
       STEPS.push({ idx: i, type: 'viagem', start: simCursor - travel, end: simCursor, travel });
       // Tempo de execução
@@ -116,7 +122,8 @@
     // Construir eventos reais com almoço na posição certa
     cursor = HORA_PARTIDA_H * 60 + HORA_PARTIDA_M;
     items.forEach((a, i) => {
-      const travel = a.travelTime || a.travel_time || 15;
+      const km = a.km ?? a.kms ?? 0;
+      const travel = validarTempoViagem(a.travelTime || a.travel_time || 0, km);
       events.push({
         type: 'viagem',
         label: 'Viagem para ' + (a.locality || a.plate),
@@ -149,12 +156,10 @@
       }
     });
 
-    // Regresso — validar return_time contra km do último serviço
+    // Regresso
     const lastItem = items[items.length - 1];
     const lastKm = lastItem?.km ?? lastItem?.kms ?? 0;
-    const rawReturn = lastItem?.return_time || 0;
-    const minReturnByKm = lastKm > 0 ? Math.round((lastKm / 120) * 60) : 0;
-    const returnTime = (rawReturn > 0 && rawReturn >= minReturnByKm) ? rawReturn : (lastKm > 0 ? Math.round((lastKm / 50) * 60) : 20);
+    const returnTime = validarTempoViagem(lastItem?.return_time || 0, lastKm);
     events.push({
       type: 'regresso',
       label: 'Regresso à loja',
