@@ -180,6 +180,11 @@ async function renderMobileDay(){
     console.log('🔄 MOBILE - Aplicando ordenação automática');
     items = await ordenarSeNecessario(itemsRaw);
   }
+  // Garantir sempre: first_of_day no topo, independente do caminho
+  items = [
+    ...items.filter(a => a.first_of_day),
+    ...items.filter(a => !a.first_of_day)
+  ];
 
   var _bmBlocked = isDayBlocked(iso);
   var _bmRole = window.authClient?.getUser?.()?.role;

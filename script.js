@@ -205,14 +205,17 @@ const ORDER_ROUTE_SM_BRAGA = true;
 async function ordenarSeNecessario(lista) {
   if (!ORDER_ROUTE_SM_BRAGA) return lista;
 
-  // tenta detectar SM Braga (ajusta se usares outro campo para equipa)
-  const comMorada = lista.filter(i => getAddressFromItem(i));
-  if (!comMorada.length) return lista;
+  // Pinnar first_of_day: sai da ordenação geográfica e vai sempre ao topo
+  const pinned = lista.filter(i => i.first_of_day);
+  const semPin  = lista.filter(i => !i.first_of_day);
+
+  const comMorada = semPin.filter(i => getAddressFromItem(i));
+  if (!comMorada.length) return [...pinned, ...semPin];
 
   const ordenados = await ordenarAgendamentosCadeiaMaisLongePrimeiro(comMorada, getBasePartida());
   const idsOrdenados = new Set(ordenados.map(x => x.id));
-  const restantes = lista.filter(i => !idsOrdenados.has(i.id));
-  return [...ordenados, ...restantes];
+  const restantes = semPin.filter(i => !idsOrdenados.has(i.id));
+  return [...pinned, ...ordenados, ...restantes];
 }
 
 // ===== MODAL DE SELEÇÃO DE DIA =====
@@ -1076,7 +1079,11 @@ function buildDaySummary(dayDate, isMobile) {
   // Filtro baseado apenas no role — mobile e desktop devem calcular com os mesmos serviços
   const canSeeUnconfirmed = (userRole === 'admin' || userRole === 'coordenador');
   let items = appointments.filter(a => a.date && a.date === iso)
-    .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0));
+    .sort((a,b) => {
+      if (a.first_of_day && !b.first_of_day) return -1;
+      if (!a.first_of_day && b.first_of_day) return 1;
+      return (a.sortIndex||0) - (b.sortIndex||0);
+    });
   // Resumo: só contar serviços com localidade (confirmados e prontos para rota)
   // Pré-agendamentos sem localidade não entram no cálculo de tempo/km
   items = items.filter(a => !!a.locality);
@@ -2406,7 +2413,11 @@ function renderSchedule(){
       const iso = localISO(dayDate);
       let items = filterAppointments(
         appointments.filter(a => a.date && a.date === iso)
-          .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
+          .sort((a,b) => {
+            if (a.first_of_day && !b.first_of_day) return -1;
+            if (!a.first_of_day && b.first_of_day) return 1;
+            return (a.sortIndex||0) - (b.sortIndex||0);
+          })
       );
       // Técnicos: esconder serviços SM sem localidade
       if (!canSeeUnconfirmed) {
