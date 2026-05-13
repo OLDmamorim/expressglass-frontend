@@ -1688,6 +1688,7 @@ async function _doSaveExecuted(id, executed, reason) {
   const prev = { executed: appointments[i].executed, not_done_reason: appointments[i].not_done_reason };
   appointments[i].executed = executed;
   appointments[i].not_done_reason = reason || null;
+  if (executed) appointments[i].glass_removed = false;
   renderAll();
   if (executed) fireRealizadoEmojis(); else fireNaoRealizadoEmojis();
   try {

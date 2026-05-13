@@ -36,8 +36,10 @@
     const appts = window.appointments || [];
     const i = appts.findIndex(a => String(a.id) === String(id));
     if (i < 0) return;
-    const prev = { glass_removed: appts[i].glass_removed, date: appts[i].date, confirmed: appts[i].confirmed };
+    const prev = { glass_removed: appts[i].glass_removed, date: appts[i].date, confirmed: appts[i].confirmed, executed: appts[i].executed, not_done_reason: appts[i].not_done_reason };
     appts[i].glass_removed = true;
+    appts[i].executed = null;
+    appts[i].not_done_reason = null;
     if (dateVal) { appts[i].date = dateVal; appts[i].confirmed = false; }
     try {
       await window.apiClient.updateAppointment(id, { ...appts[i] });
