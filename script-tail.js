@@ -265,6 +265,10 @@ window.reloadAppointments = async function() {
       id: a.id ?? (Date.now() + Math.random()),
       createdAt: a.createdAt || a.created_at || null
     }));
+    // Recarregar dias bloqueados do portal ativo (pode ter mudado ao trocar portal)
+    if (typeof loadBlockedDays === 'function') {
+      try { await loadBlockedDays(); } catch(e) { console.warn('loadBlockedDays:', e); }
+    }
     renderAll();
   } catch(e) { console.error('Erro ao recarregar:', e); }
 };

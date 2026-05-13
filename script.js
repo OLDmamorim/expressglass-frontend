@@ -1330,9 +1330,12 @@ async function toggleBlockedDay(isoDate) {
         body: JSON.stringify({ date: isoDate, reason: reason || 'Dia bloqueado', is_holiday: false })
       });
       var data = await resp.json();
-      if (data.success) { blockedDays.push(data.blocked); showToast('🔒 Dia bloqueado', 'success'); }
+      if (!data.success) { showToast('Erro ao bloquear dia', 'error'); return; }
+      showToast('🔒 Dia bloqueado', 'success');
     }
-    applyBlockedDayOverlays();
+    // Recarregar lista de dias bloqueados do servidor (garante formato correto) e re-renderizar
+    await loadBlockedDays();
+    if (typeof renderAll === 'function') renderAll(); else applyBlockedDayOverlays();
   } catch(e) { showToast('Erro: ' + e.message, 'error'); }
 }
 
