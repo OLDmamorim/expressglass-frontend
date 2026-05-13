@@ -248,7 +248,7 @@ function renderAll(){
   window.appointments = appointments;
   try { renderSchedule(); } catch(e){ console.error('Erro renderSchedule:', e); }
   try { renderUnscheduled(); } catch(e){ console.error('Erro renderUnscheduled:', e); }
-  try { renderServicesTable(); } catch(e){ console.error('Erro renderServicesTable:', e); }
+  try { if (typeof renderServicesTable === 'function') renderServicesTable(); } catch(e){ console.error('Erro renderServicesTable:', e); }
   try { renderMobileDay(); } catch(e){ console.error('Erro renderMobileDay:', e); }
   try { applyBlockedDayOverlays(); } catch(e){ console.warn('applyBlockedDayOverlays:', e); }
 }

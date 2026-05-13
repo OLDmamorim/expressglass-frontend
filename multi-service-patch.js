@@ -59,24 +59,8 @@ if (typeof _origRenderAll === 'function') {
 
 function injectMultiServiceUI() {
   if (!window.appointments) return;
-  // Injectar badges extra nos cards desktop
-  document.querySelectorAll('.desk-card[data-id]').forEach(card => {
-    const id = card.dataset.id;
-    const a = (window.appointments||[]).find(x => String(x.id) === String(id));
-    if (!a) return;
-    const extras = Array.isArray(a.extra_services) ? a.extra_services : [];
-    if (!extras.length) return;
-    const meta = card.querySelector('.dc-meta');
-    if (!meta || meta.dataset.msPatched) return;
-    extras.forEach(s => {
-      if (!s.service) return;
-      const badge = document.createElement('span');
-      badge.className = 'dc-badge';
-      badge.textContent = s.service;
-      meta.insertBefore(badge, meta.querySelector('.dc-calib-badge') || null);
-    });
-    meta.dataset.msPatched = '1';
-  });
+  // Nota: badges desktop são agora gerados via getAllServices() em script.js (linha ~2343)
+  // Não é necessário injectar aqui — evita duplicados.
 
   // Nota: chips mobile são agora gerados diretamente em buildMobileCard (inclui extra_services)
   // Não é necessário injectar aqui — evita duplicados.

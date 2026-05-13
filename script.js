@@ -2339,7 +2339,7 @@ function buildDesktopCard(a){
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
-      <div class="dc-meta">
+      <div class="dc-meta" data-ms-patched="1">
         ${getAllServices(a).map(s => `<span class="dc-badge">${s.service||''}</span>`).join('')}
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
         ${a.first_of_day ? '<span class="dc-calib-badge" style="background:#f59e0b;color:#fff;">⭐ 1.º SERVIÇO</span>' : ''}
