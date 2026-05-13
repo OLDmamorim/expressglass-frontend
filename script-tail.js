@@ -463,7 +463,7 @@ function buildRelatorio() {
       totalTravelMin += dayTravel + returnMin;
 
       // Tempo de execução
-      items.forEach(a => { totalServiceMin += getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration, a.custom_service_time); });
+      items.forEach(a => { totalServiceMin += (typeof getTotalServiceTime === 'function' ? getTotalServiceTime(a) : getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration, a.custom_service_time)); });
     });
 
     const totalMin = totalTravelMin + totalServiceMin;
@@ -878,7 +878,8 @@ function bootApp() {
       custom_service_time: document.getElementById('appointmentService')?.value === 'OUT'
         ? (parseInt(document.getElementById('appointmentCustomTime')?.value) || null)
         : null,
-      foreign_plate: document.getElementById('foreignPlate')?.checked || false
+      foreign_plate: document.getElementById('foreignPlate')?.checked || false,
+      extra_services: typeof _readExtraServices === 'function' ? _readExtraServices() : []
     };
   }
 

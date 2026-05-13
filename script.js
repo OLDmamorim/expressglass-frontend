@@ -1010,9 +1010,64 @@ function getAllServices(a) {
 
 function getTotalServiceTime(a) {
   const vt = a.vehicleType || a.vehicle_type || 'L';
-  return getAllServices(a).reduce((sum, s) =>
-    sum + getServiceTime(s.service, vt, a.calibration, s.custom_service_time), 0);
+  return getAllServices(a).reduce((sum, s, i) =>
+    sum + getServiceTime(s.service, vt, i === 0 ? a.calibration : false, s.custom_service_time), 0);
 }
+
+// ── UI: linha de serviço extra no formulário ──────────────────────────────
+const _SVC_OPTS = ['PB - Para-brisas','LT - Lateral','OC - Óculo','REP - Reparação','POL - Polimento','OUT - Outros']
+  .map(o => { const [v, l] = o.split(' - '); return `<option value="${v}">${v} - ${l}</option>`; }).join('');
+
+function _addExtraServiceRow(serviceVal, customTime) {
+  const cont = document.getElementById('extraServicesContainer');
+  if (!cont) return;
+  const div = document.createElement('div');
+  div.className = 'extra-svc-row';
+  div.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-bottom:6px;';
+  const showCustom = serviceVal === 'OUT';
+  div.innerHTML = `
+    <div style="display:flex;gap:6px;align-items:center;">
+      <select class="extra-svc-select" style="flex:1;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;">
+        <option value="">Selecione o tipo</option>${_SVC_OPTS}
+      </select>
+      <button type="button" class="extra-svc-remove" style="width:32px;height:32px;border:none;background:#fee2e2;color:#ef4444;border-radius:8px;font-size:18px;cursor:pointer;flex-shrink:0;">×</button>
+    </div>
+    <div class="extra-svc-custom-grp" style="display:${showCustom ? 'block' : 'none'};">
+      <input type="number" class="extra-svc-time" min="5" max="480" step="5" placeholder="Tempo (minutos)"
+        value="${customTime || ''}" style="width:100%;padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;box-sizing:border-box;">
+    </div>`;
+  if (serviceVal) div.querySelector('.extra-svc-select').value = serviceVal;
+  div.querySelector('.extra-svc-select').onchange = function() {
+    div.querySelector('.extra-svc-custom-grp').style.display = this.value === 'OUT' ? 'block' : 'none';
+  };
+  div.querySelector('.extra-svc-remove').onclick = () => div.remove();
+  cont.appendChild(div);
+}
+
+function _readExtraServices() {
+  const cont = document.getElementById('extraServicesContainer');
+  if (!cont) return [];
+  return Array.from(cont.querySelectorAll('.extra-svc-row')).map(row => {
+    const sel = row.querySelector('.extra-svc-select');
+    const ct = row.querySelector('.extra-svc-time');
+    return { service: sel?.value || '', custom_service_time: sel?.value === 'OUT' && ct?.value ? parseInt(ct.value) : null };
+  }).filter(s => s.service);
+}
+
+// Inicializar botão "+" quando o DOM estiver pronto
+(function initAddExtraBtn() {
+  function attach() {
+    const btn = document.getElementById('addExtraServiceBtn');
+    if (btn && !btn._hooked) {
+      btn._hooked = true;
+      btn.onclick = () => _addExtraServiceRow('', null);
+    }
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', attach);
+  else attach();
+  setTimeout(attach, 500);
+  window.addEventListener('portalReady', attach);
+})();
 
 function buildDaySummary(dayDate, isMobile) {
   if (isLoja()) return '';
