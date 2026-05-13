@@ -33,19 +33,20 @@
   };
 
   async function _grSave(id, dateVal) {
-    const i = (window.appointments||[]).findIndex(a => String(a.id) === String(id));
+    const appts = window.appointments || [];
+    const i = appts.findIndex(a => String(a.id) === String(id));
     if (i < 0) return;
-    const prev = { glass_removed: window.appointments[i].glass_removed, executed: window.appointments[i].executed, not_done_reason: window.appointments[i].not_done_reason, date: window.appointments[i].date, confirmed: window.appointments[i].confirmed };
-    window.appointments[i].glass_removed = true;
-    window.appointments[i].executed = null;
-    window.appointments[i].not_done_reason = null;
-    if (dateVal) { window.appointments[i].date = dateVal; window.appointments[i].confirmed = false; }
+    const prev = { glass_removed: appts[i].glass_removed, date: appts[i].date, confirmed: appts[i].confirmed, executed: appts[i].executed, not_done_reason: appts[i].not_done_reason };
+    appts[i].glass_removed = true;
+    appts[i].executed = null;
+    appts[i].not_done_reason = null;
+    if (dateVal) { appts[i].date = dateVal; appts[i].confirmed = false; }
     try {
-      await window.apiClient.updateAppointment(id, { ...window.appointments[i] });
-      if (typeof renderAll === 'function') renderAll();
+      await window.apiClient.updateAppointment(id, { ...appts[i] });
+      if (typeof renderAll === 'function') renderAll(); else window.reloadAppointments?.();
       if (typeof window.showToast === 'function') window.showToast('Vidro retirado registado', 'success');
     } catch(e) {
-      Object.assign(window.appointments[i], prev);
+      Object.assign(appts[i], prev);
       if (typeof window.showToast === 'function') window.showToast('Erro ao guardar', 'error');
     }
   }
@@ -63,99 +64,76 @@
     await _grSave(id, dateVal);
   };
 
-  // ── Hook nos botões exec para limpar glass_removed ───────────────
-  document.addEventListener('click', async function(e) {
-    const execBtn = e.target.closest('[data-exec]');
-    if (execBtn) {
-      const id = execBtn.dataset.id;
-      const i = (window.appointments||[]).findIndex(a => String(a.id) === String(id));
-      if (i >= 0 && window.appointments[i].glass_removed) {
-        window.appointments[i].glass_removed = false;
-        // Não guardamos aqui — o persistExecuted existente trata do resto e envia tudo
-      }
-    }
-
-    // Botão Vidro Retirado
-    const grBtn = e.target.closest('[data-gr]');
-    if (grBtn) {
-      e.stopPropagation();
-      window._openGlassRemovedModal(grBtn.dataset.gr);
-    }
-  }, true); // capture=true para correr antes do listener do script.js
-
-  // ── Injectar botões via MutationObserver ─────────────────────────
-  function injectButtons() {
-    // Desktop
-    document.querySelectorAll('.dc-exec-row').forEach(row => {
-      if (row.nextElementSibling && row.nextElementSibling.classList.contains('gr-btn-row')) {
-        // Atualizar estado do botão existente
-        const id = row.dataset.id;
-        const appt = (window.appointments||[]).find(a => String(a.id) === String(id));
-        if (!appt) return;
-        const btn = row.nextElementSibling.querySelector('[data-gr]');
-        if (btn) {
-          const isActive = !!appt.glass_removed;
-          btn.className = 'dc-exec-btn' + (isActive ? ' dc-exec-gr' : '');
-          btn.style.cssText = 'width:100%;';
-          btn.innerHTML = isActive ? '🪟 Vidro Retirado' : '🪟 Retirar Vidro';
+  // ── Hook no renderAll para injectar botões ────────────────────
+  const _origRenderAll = window.renderAll;
+  if (typeof _origRenderAll === 'function') {
+    window.renderAll = function() {
+      _origRenderAll.apply(this, arguments);
+      setTimeout(injectGlassButtons, 50);
+    };
+  } else {
+    // renderAll ainda não definido — tentar após portalReady
+    window.addEventListener('portalReady', function() {
+      setTimeout(function() {
+        const orig = window.renderAll;
+        if (typeof orig === 'function') {
+          window.renderAll = function() {
+            orig.apply(this, arguments);
+            setTimeout(injectGlassButtons, 50);
+          };
         }
-        return;
-      }
+      }, 500);
+    }, { once: true });
+  }
+
+  function injectGlassButtons() {
+    const appts = window.appointments || [];
+
+    // Desktop: linha após dc-exec-row
+    document.querySelectorAll('.dc-exec-row').forEach(row => {
+      if (row.dataset.grInjected) return;
+      row.dataset.grInjected = '1';
       const id = row.dataset.id;
-      const appt = (window.appointments||[]).find(a => String(a.id) === String(id));
+      const appt = appts.find(a => String(a.id) === String(id));
       if (!appt) return;
       const isActive = !!appt.glass_removed;
       const btnRow = document.createElement('div');
-      btnRow.className = 'gr-btn-row';
       btnRow.style.cssText = 'margin:4px 0 0;';
       const btn = document.createElement('button');
-      btn.className = 'dc-exec-btn';
-      btn.setAttribute('data-gr', id);
-      btn.className = 'dc-exec-btn' + (isActive ? ' dc-exec-gr' : '');
-      btn.style.cssText = 'width:100%;';
+      btn.className = 'dc-exec-btn' + (isActive ? ' dc-exec-gr-active' : '');
+      btn.setAttribute('data-gr-id', id);
+      btn.style.cssText = 'width:100%;' + (isActive ? 'background:#2563eb!important;color:#fff!important;border-color:#2563eb!important;' : '');
       btn.innerHTML = isActive ? '🪟 Vidro Retirado' : '🪟 Retirar Vidro';
+      btn.onclick = function(e) { e.stopPropagation(); window._openGlassRemovedModal(id); };
       btnRow.appendChild(btn);
       row.insertAdjacentElement('afterend', btnRow);
     });
 
-    // Mobile
+    // Mobile: linha após m-status-row
     document.querySelectorAll('.m-status-row').forEach(row => {
-      if (row.nextElementSibling && row.nextElementSibling.classList.contains('gr-btn-row-m')) {
-        const id = row.querySelector('[data-exec]')?.dataset?.id;
-        const appt = (window.appointments||[]).find(a => String(a.id) === String(id));
-        if (!appt) return;
-        const btn = row.nextElementSibling.querySelector('[data-gr]');
-        if (btn) {
-          const isActive = !!appt.glass_removed;
-          btn.className = 'm-status-btn' + (isActive ? ' m-status-active-gr' : '');
-          btn.innerHTML = `<span class="m-status-dot" style="background:${isActive?'#fff':'#2563eb'};"></span>${isActive?'Vidro Retirado':'Retirar Vidro'}`;
-        }
-        return;
-      }
+      if (row.dataset.grInjected) return;
+      row.dataset.grInjected = '1';
       const id = row.querySelector('[data-exec]')?.dataset?.id;
       if (!id) return;
-      const appt = (window.appointments||[]).find(a => String(a.id) === String(id));
+      const appt = appts.find(a => String(a.id) === String(id));
       if (!appt) return;
       const isActive = !!appt.glass_removed;
       const btnRow = document.createElement('div');
-      btnRow.className = 'gr-btn-row-m';
       btnRow.style.cssText = 'margin:6px 8px 0;';
       const btn = document.createElement('button');
       btn.className = 'm-status-btn' + (isActive ? ' m-status-active-gr' : '');
-      btn.setAttribute('data-gr', id);
+      btn.setAttribute('data-gr-id', id);
       btn.style.cssText = 'width:100%;justify-content:center;';
       btn.innerHTML = `<span class="m-status-dot" style="background:${isActive?'#fff':'#2563eb'};"></span>${isActive?'Vidro Retirado':'Retirar Vidro'}`;
+      btn.onclick = function(e) { e.stopPropagation(); window._openGlassRemovedModal(id); };
       btnRow.appendChild(btn);
       row.insertAdjacentElement('afterend', btnRow);
     });
   }
 
-  const obs = new MutationObserver(() => { clearTimeout(obs._t); obs._t = setTimeout(injectButtons, 80); });
-  obs.observe(document.body, { childList: true, subtree: true });
-
   // CSS
   const style = document.createElement('style');
-  style.textContent = `.m-status-active-gr{background:#2563eb!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#2563eb!important;} .m-status-active-gr .m-status-dot{background:#fff!important;} .dc-exec-gr{background:#2563eb!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#2563eb!important;}`;
+  style.textContent = `.m-status-active-gr{background:#2563eb!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#2563eb!important;} .m-status-active-gr .m-status-dot{background:#fff!important;}`;
   document.head.appendChild(style);
 
   console.log('🪟 Glass Removed Patch carregado');

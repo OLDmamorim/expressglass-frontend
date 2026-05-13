@@ -45,6 +45,14 @@
     return d.getHours() * 60 + d.getMinutes();
   }
 
+  // Valida tempo de viagem contra km: descarta valores impossíveis (< mín. a 120 km/h)
+  function validarTempoViagem(minutos, km, fallbackVelocidade) {
+    if (!km || km <= 0) return minutos > 0 ? minutos : 15;
+    const minMinutos = Math.round((km / 120) * 60);
+    if (minutos > 0 && minutos >= minMinutos) return minutos;
+    return Math.round((km / (fallbackVelocidade || 50)) * 60);
+  }
+
   // ── Calcular timeline ─────────────────────────────────────────────────
   // Retorna array de eventos: { type, label, time (em min desde meia-noite), duration }
   // type: 'partida' | 'viagem' | 'servico' | 'almoco' | 'regresso'
@@ -65,8 +73,9 @@
     const STEPS = [];
     let simCursor = cursor;
     items.forEach((a, i) => {
-      // Tempo de viagem até este serviço
-      const travel = a.travelTime || a.travel_time || 15; // fallback 15 min
+      const km = a.km ?? a.kms ?? 0;
+      const rawTravel = a.travelTime || a.travel_time || 0;
+      const travel = validarTempoViagem(rawTravel, km);
       simCursor += travel;
       STEPS.push({ idx: i, type: 'viagem', start: simCursor - travel, end: simCursor, travel });
       // Tempo de execução
@@ -78,17 +87,18 @@
     });
 
     // Decidir após qual serviço inserir o almoço.
-    // REGRA: almoçar após o ÚLTIMO serviço que acabe até 13:10.
-    // (Se um serviço cabe antes das 13:10, espremem-no e almoçam depois.)
+    // REGRA: almoçar após o ÚLTIMO serviço que acabe entre 12:00 e 13:10.
+    // Se o dia termina antes das 12:00, não há almoço.
+    const ALMOCO_MIN = 12 * 60; // 12:00
     const LIMITE = 13 * 60 + 10; // 13:10
     let lunchAfterIdx = -1;
 
     for (let i = 0; i < items.length; i++) {
       const svc = STEPS.find(s => s.type === 'servico' && s.idx === i);
       if (!svc) continue;
-      if (svc.end <= LIMITE) {
-        lunchAfterIdx = i; // continua a actualizar — fica no último que cabe
-      } else {
+      if (svc.end >= ALMOCO_MIN && svc.end <= LIMITE) {
+        lunchAfterIdx = i; // último serviço que acaba no intervalo de almoço
+      } else if (svc.end > LIMITE) {
         break; // primeiro que passa das 13:10 → para
       }
     }
@@ -112,7 +122,8 @@
     // Construir eventos reais com almoço na posição certa
     cursor = HORA_PARTIDA_H * 60 + HORA_PARTIDA_M;
     items.forEach((a, i) => {
-      const travel = a.travelTime || a.travel_time || 15;
+      const km = a.km ?? a.kms ?? 0;
+      const travel = validarTempoViagem(a.travelTime || a.travel_time || 0, km);
       events.push({
         type: 'viagem',
         label: 'Viagem para ' + (a.locality || a.plate),
@@ -147,7 +158,8 @@
 
     // Regresso
     const lastItem = items[items.length - 1];
-    const returnTime = lastItem?.return_time || 20;
+    const lastKm = lastItem?.km ?? lastItem?.kms ?? 0;
+    const returnTime = validarTempoViagem(lastItem?.return_time || 0, lastKm);
     events.push({
       type: 'regresso',
       label: 'Regresso à loja',
