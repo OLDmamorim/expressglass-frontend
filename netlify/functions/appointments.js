@@ -26,6 +26,11 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
+  // Auto-migração: garantir colunas novas sem precisar de correr SQL manual
+  try {
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS glass_removed_date DATE`);
+  } catch(migErr) { console.warn('Migration warning:', migErr.message); }
+
   try {
     const user = getUserFromToken(event);
     let portalId = user.portalId;
