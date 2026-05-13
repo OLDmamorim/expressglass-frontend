@@ -644,9 +644,11 @@
     try {
       // Buscar portais pesados
       if (!state.portals.length) {
-        const r = await window.authClient.authenticatedFetch('/.netlify/functions/get-portals?type=pesados');
+        const r = await window.authClient.authenticatedFetch('/.netlify/functions/portals');
+        if (!r.ok) throw new Error('Erro ao carregar portais: HTTP ' + r.status);
         const d = await r.json();
-        state.portals = (d.portals || []).filter(p => p.portal_type === 'pesados');
+        const portals = d.data || d.portals || [];
+        state.portals = portals.filter(p => (p.portal_type || p.portalType) === 'pesados');
       }
 
       // Buscar agendamentos da semana para todos os portais pesados
@@ -656,10 +658,15 @@
 
       for (const pid of portalIds) {
         const r = await window.authClient.authenticatedFetch(
-          `/.netlify/functions/get-appointments?portal_id=${pid}&date_from=${dateFrom}&date_to=${dateTo}`
+          `/.netlify/functions/appointments?portal_id=${pid}`
         );
+        if (!r.ok) throw new Error('Erro ao carregar agendamentos: HTTP ' + r.status);
         const d = await r.json();
-        state.appointments[pid] = d.appointments || [];
+        const appointments = d.data || d.appointments || [];
+        state.appointments[pid] = appointments.filter(a => {
+          const apptDate = String(a.date || '').slice(0, 10);
+          return apptDate >= dateFrom && apptDate <= dateTo;
+        });
       }
 
       renderGrid();
