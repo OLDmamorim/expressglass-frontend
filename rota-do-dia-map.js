@@ -211,11 +211,11 @@
           content: '✓'; color: currentColor;
         }
         #rotaMapModal .rm-body {
-          display: flex; flex: 1; overflow: hidden; min-height: 0;
+          position: relative; flex: 1; overflow: hidden;
         }
         #rotaMapModal .rm-panel {
-          width: 320px; flex-shrink: 0;
-          background: #0f172a;
+          position: absolute; left: 0; top: 0; bottom: 0; width: 320px;
+          background: #0f172a; z-index: 2;
           border-right: 1px solid rgba(255,255,255,0.07);
           display: flex; flex-direction: column;
           overflow: hidden;
@@ -283,8 +283,8 @@
           text-align: center; padding: 20px 12px;
           color: #475569; font-size: 12px; font-style: italic;
         }
-        #rotaMapModal .rm-map-wrap { flex: 1; position: relative; min-height: 0; min-width: 0; overflow: hidden; }
-        #rotaMapModal #rotaGoogleMap { position: absolute; inset: 0; width: 100%; height: 100%; }
+        #rotaMapModal .rm-map-wrap { position: absolute; left: 320px; right: 0; top: 0; bottom: 0; }
+        #rotaMapModal #rotaGoogleMap { position: absolute; inset: 0; }
         #rotaMapModal .rm-loading {
           position: absolute; inset: 0;
           display: none; flex-direction: column;
@@ -301,11 +301,11 @@
         }
         @keyframes rmSpin { to { transform: rotate(360deg); } }
         @media (max-width: 700px) {
-          #rotaMapModal .rm-body { flex-direction: column-reverse; }
           #rotaMapModal .rm-panel {
-            width: 100%; height: 240px;
+            width: 100%; height: 240px; top: auto; bottom: 0; left: 0; right: 0;
             border-right: none; border-top: 1px solid rgba(255,255,255,0.07);
           }
+          #rotaMapModal .rm-map-wrap { left: 0; bottom: 240px; }
         }
       </style>
 
@@ -661,17 +661,19 @@
     };
     document.addEventListener('keydown', onKey);
 
-    // Criar mapa após o modal estar no DOM e ter dimensões
+    // Criar mapa após o modal estar no DOM e ter dimensões garantidas
     setTimeout(() => {
       const map = ensureMap();
       if (map) {
-        // Múltiplos resizes para garantir que o mapa calcula o tamanho correto
         google.maps.event.trigger(map, 'resize');
-        setTimeout(() => { google.maps.event.trigger(map, 'resize'); renderAll(); }, 300);
+        setTimeout(() => {
+          google.maps.event.trigger(map, 'resize');
+          renderAll();
+        }, 200);
       } else {
         renderAll();
       }
-    }, 50);
+    }, 100);
   }
 
   function init() {
