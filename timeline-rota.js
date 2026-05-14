@@ -552,4 +552,5 @@
   window.addEventListener('portalReady', init);
 
   window.openTimeline = openTimeline;
+  window.calcularTimeline = calcularTimeline; // expor para buildDaySummary usar a mesma lógica
 })();
