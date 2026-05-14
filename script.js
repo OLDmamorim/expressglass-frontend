@@ -1169,29 +1169,59 @@ function buildDaySummary(dayDate, isMobile) {
   const fuelLiters = (totalKmWithReturn * ROUTE_CONFIG.fuelPer100km / 100).toFixed(1);
   const fuelCost = (fuelLiters * ROUTE_CONFIG.fuelPricePerLiter).toFixed(2);
 
-  // Hora estimada de regresso
-  // Início: 09:00, Almoço: 13:00-14:00 (1h pausa)
-  const startAt = 9 * 60; // 09:00 em minutos
-  const lunchStart = 13 * 60; // 13:00
-  const lunchDuration = 60; // 1 hora
-  
-  let elapsed = 0;
-  let clock = startAt;
-  let remaining = totalMin;
-  
-  // Trabalhar até ao almoço
-  const workBeforeLunch = lunchStart - startAt; // 240 min (09:00-13:00)
-  if (remaining <= workBeforeLunch) {
-    // Termina antes do almoço
-    clock = startAt + remaining;
-  } else {
-    // Passa do almoço: adicionar pausa
-    remaining -= workBeforeLunch;
-    clock = lunchStart + lunchDuration + remaining; // 14:00 + resto
+  // Hora estimada de regresso — cálculo sequencial (mesma lógica da Timeline)
+  // Almoço: após o ÚLTIMO serviço que termina entre 12:00 e 13:10
+  const _ETA_START  = 9 * 60;       // 09:00
+  const _ETA_ALM_MIN   = 12 * 60;   // 12:00 — mais cedo para almoçar
+  const _ETA_ALM_LIMIT = 13 * 60 + 10; // 13:10 — mais tarde
+  const _ETA_ALM_DUR   = 60;        // 1h de almoço
+
+  // Auxiliar: tempo de viagem por serviço (usa travel_time do Google ou estimativa)
+  function _etaTravel(a) {
+    const tt = a.travelTime || a.travel_time || 0;
+    if (tt > 0) return tt;
+    const km = a.km || a.kms || 0;
+    return km > 0 ? Math.round((km / (ROUTE_CONFIG.avgSpeedKmh || 50)) * 60) : 0;
   }
-  
-  const etaH = Math.floor(clock / 60);
-  const etaM = clock % 60;
+
+  // 1ª passagem: determinar após qual serviço inserir o almoço
+  let _lunchAfter = -1;
+  {
+    let sc = _ETA_START;
+    for (let i = 0; i < items.length; i++) {
+      sc += _etaTravel(items[i]);
+      sc += getTotalServiceTime(items[i]);
+      if (sc >= _ETA_ALM_MIN && sc <= _ETA_ALM_LIMIT) {
+        _lunchAfter = i; // continua — queremos o ÚLTIMO dentro do intervalo
+      } else if (sc > _ETA_ALM_LIMIT) {
+        break; // passou das 13:10 — para
+      }
+    }
+    // Fallback: nenhum serviço cabe até 13:10 → almoçar antes do 1º que passa das 12:00
+    if (_lunchAfter === -1) {
+      let sc2 = _ETA_START;
+      for (let i = 0; i < items.length; i++) {
+        sc2 += _etaTravel(items[i]);
+        sc2 += getTotalServiceTime(items[i]);
+        if (sc2 >= _ETA_ALM_MIN) {
+          if (i > 0) _lunchAfter = i - 1; // almoçar após o serviço anterior
+          break;
+        }
+      }
+    }
+  }
+
+  // 2ª passagem: cursor real com almoço na posição certa
+  let _etaCursor = _ETA_START;
+  for (let i = 0; i < items.length; i++) {
+    _etaCursor += _etaTravel(items[i]);
+    _etaCursor += getTotalServiceTime(items[i]);
+    if (i === _lunchAfter) _etaCursor += _ETA_ALM_DUR;
+  }
+  _etaCursor += returnMin; // regresso à loja
+
+  const etaH = Math.floor(_etaCursor / 60);
+  const etaM = _etaCursor % 60;
   const etaStr = `${String(etaH).padStart(2,'0')}:${String(etaM).padStart(2,'0')}`;
 
   return `<div class="day-summary">
