@@ -396,14 +396,18 @@
 
   function ensureMap() {
     if (mapInstance) return mapInstance;
-    mapInstance = new google.maps.Map(document.getElementById('rotaGoogleMap'), {
+    const el = document.getElementById('rotaGoogleMap');
+    if (!el) return null;
+    mapInstance = new google.maps.Map(el, {
       zoom: 9,
-      center: { lat: 41.55, lng: -8.43 },
+      center: { lat: 38.72, lng: -9.14 }, // Lisboa como centro padrão
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false,
       styles: darkMapStyle(),
     });
+    // Forçar resize após layout do DOM
+    setTimeout(() => { google.maps.event.trigger(mapInstance, 'resize'); }, 250);
     return mapInstance;
   }
 
