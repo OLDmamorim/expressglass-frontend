@@ -1220,6 +1220,11 @@ function buildDaySummary(dayDate, isMobile) {
   }
   _etaCursor += returnMin; // regresso à loja
 
+  // Tempo total real (incluindo almoço se aplicável) = cursor - início
+  const totalElapsed = _etaCursor - _ETA_START;
+  const totalRealStr = fmtTime(totalElapsed);
+  const hasLunch = _lunchAfter >= 0;
+
   const etaH = Math.floor(_etaCursor / 60);
   const etaM = _etaCursor % 60;
   const etaStr = `${String(etaH).padStart(2,'0')}:${String(etaM).padStart(2,'0')}`;
@@ -1229,10 +1234,10 @@ function buildDaySummary(dayDate, isMobile) {
     <span class="ds-item" title="${Math.round(totalKm)}km rota + ~${returnKm}km regresso">🛣️ ${Math.round(totalKmWithReturn)} km</span>
     <span class="ds-item" title="Viagem: ${travelStr} (incl. ~${returnStr} regresso) — fonte: ${sourceLabel}">🚐 ${travelStr}</span>
     <span class="ds-item" title="Execução dos ${items.length} serviços">🔧 ${svcStr}</span>
-    <span class="ds-item" title="Viagem + Execução">⏱️ ${totalStr}</span>
+    <span class="ds-item" title="Tempo total${hasLunch ? ' (incl. 1h almoço)' : ''}">⏱️ ${totalRealStr}</span>
     <span class="ds-item" title="Consumo (${ROUTE_CONFIG.fuelPer100km}L/100km)">⛽ ${fuelLiters}L</span>
     <span class="ds-item ds-cost" title="€${ROUTE_CONFIG.fuelPricePerLiter}/L (${ROUTE_CONFIG.fuelSource === 'DGEG' ? 'DGEG' : 'manual'})">💰 ${fuelCost}€</span>
-    <span class="ds-item ds-eta" title="Regresso à loja (saída 09:00, almoço 13-14h)">🏠 ${etaStr}</span>
+    <span class="ds-item ds-eta" title="Regresso à loja (saída 09:00${hasLunch ? ', almoço incluído' : ''})">🏠 ${etaStr}</span>
   </div>`;
 }
 
