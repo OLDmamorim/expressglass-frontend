@@ -145,7 +145,8 @@ exports.handler = async (event) => {
 
     // ── POST — bloquear dia ──
     if (event.httpMethod === 'POST') {
-      if (user.role !== 'admin' && user.role !== 'coordenador') {
+      const canWrite = user.role === 'admin' || user.role === 'coordenador' || user.role === 'pesados_coord';
+      if (!canWrite) {
         return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Sem permissão' }) };
       }
 
@@ -169,7 +170,8 @@ exports.handler = async (event) => {
 
     // ── DELETE — desbloquear dia ──
     if (event.httpMethod === 'DELETE') {
-      if (user.role !== 'admin' && user.role !== 'coordenador') {
+      const canWrite = user.role === 'admin' || user.role === 'coordenador' || user.role === 'pesados_coord';
+      if (!canWrite) {
         return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Sem permissão' }) };
       }
 

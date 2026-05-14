@@ -1306,15 +1306,22 @@ async function loadBlockedDays() {
   try {
     const pid = window.activePortalId || window.portalConfig?.id;
     const url = '/.netlify/functions/blocked-days' + (pid ? '?portal_id=' + pid : '');
+    console.log('📅 loadBlockedDays pid=' + pid + ' url=' + url);
     const resp = await window.authClient.authenticatedFetch(url);
     const data = await resp.json();
-    if (data.success) blockedDays = data.blocked || [];
+    if (data.success) {
+      blockedDays = data.blocked || [];
+      console.log('📅 blockedDays carregados:', blockedDays.length, blockedDays.filter(function(b){return !b.is_holiday;}).map(function(b){return b.date;}));
+    } else {
+      console.warn('loadBlockedDays resposta sem success:', data);
+    }
   } catch(e) { console.warn('loadBlockedDays:', e.message); }
 }
 
 async function toggleBlockedDay(isoDate) {
   const role = window.authClient?.getUser?.()?.role;
-  if (role !== 'admin' && role !== 'coordenador') return;
+  const canBlock = role === 'admin' || role === 'coordenador' || role === 'pesados_coord';
+  if (!canBlock) return;
   const existing = isDayBlocked(isoDate);
   const pid = window.activePortalId || window.portalConfig?.id;
   const url = '/.netlify/functions/blocked-days' + (pid ? '?portal_id=' + pid : '');
@@ -1354,7 +1361,7 @@ async function toggleBlockedDay(isoDate) {
 // Aplicar overlays visuais APÓS o render (não toca no renderSchedule interno)
 function applyBlockedDayOverlays() {
   var role = window.authClient?.getUser?.()?.role;
-  var canToggle = role === 'admin' || role === 'coordenador';
+  var canToggle = role === 'admin' || role === 'coordenador' || role === 'pesados_coord';
 
   // Injectar estilos uma vez
   if (!document.getElementById('_bdStyles')) {

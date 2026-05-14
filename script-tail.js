@@ -801,6 +801,13 @@ function bootApp() {
     try { if (typeof window.crStartPolling === 'function') window.crStartPolling(); } catch(e){}
     try { buildLocalityOptions?.(); } catch(e){}
     renderAll();
+    // Safety-net: re-carregar dias bloqueados após 2s (captura race conditions no boot)
+    setTimeout(async function() {
+      try {
+        await loadBlockedDays();
+        applyBlockedDayOverlays();
+      } catch(e) { console.warn('blocked-days retry:', e); }
+    }, 2000);
   document.querySelector('.locality-select')?.addEventListener('click', toggleLocalityDropdown);
 
 
