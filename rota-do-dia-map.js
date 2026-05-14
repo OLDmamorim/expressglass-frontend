@@ -1,8 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// rota-do-dia-map.js — v2.1 — Mapa multi-portal (SM + Pesados)
-// Checkboxes no topo do mapa para combinar rotas de vários portais.
-// Cada portal: cor própria, base própria, rota própria.
-// Admin: vê todos os SMs/Pesados via API de portais.
+// rota-do-dia-map.js — v3.0 — Mapa multi-portal (Leaflet + OpenStreetMap)
+// Tiles: CartoDB Dark (gratuito, sem chave API)
+// Rotas: Google Directions API (só para dados km/tempo/polyline)
 // ═══════════════════════════════════════════════════════════════════════════
 
 (function () {
@@ -15,30 +14,20 @@
 
   function colorForIndex(i) { return PORTAL_COLORS[i % PORTAL_COLORS.length]; }
 
-  function makeMarkerSVG(plate, color) {
-    const w = 96, h = 46, r = 8;
-    const label = (plate || '—').toUpperCase();
+  function makeMarkerSVG(label, color) {
+    const w = 80, h = 38, r = 7;
+    const txt = (label || '—').toUpperCase().slice(0, 10);
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="1" width="${w-2}" height="${h-14}" rx="${r}" fill="${color}" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
-      <polygon points="${w/2-8},${h-14} ${w/2+8},${h-14} ${w/2},${h-1}" fill="${color}"/>
-      <text x="${w/2}" y="${(h-14)/2+5}"
+      <rect x="1" y="1" width="${w-2}" height="${h-12}" rx="${r}" fill="${color}" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+      <polygon points="${w/2-7},${h-12} ${w/2+7},${h-12} ${w/2},${h-1}" fill="${color}"/>
+      <text x="${w/2}" y="${(h-12)/2+5}"
         font-family="'Rajdhani','Roboto Mono',monospace"
-        font-size="13" font-weight="700"
-        fill="white" text-anchor="middle"
-        letter-spacing="1">${label}</text>
+        font-size="11" font-weight="700"
+        fill="white" text-anchor="middle" letter-spacing="1">${txt}</text>
     </svg>`;
   }
 
-  function markerIcon(plate, color) {
-    return {
-      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(makeMarkerSVG(plate, color)),
-      scaledSize: new google.maps.Size(96, 46),
-      anchor: new google.maps.Point(48, 46),
-    };
-  }
-
   function getSelectedDate() {
-    if (window.currentMobileDate) return window.currentMobileDate;
     if (window.currentMobileDay) return window.currentMobileDay.toISOString().split('T')[0];
     const lbl = document.getElementById('mobileDayLabel');
     if (lbl && lbl.dataset.date) return lbl.dataset.date;
@@ -53,23 +42,42 @@
 
   function fmtKm(m) {
     if (!m) return '0 km';
-    return m >= 1000 ? (m/1000).toFixed(1) + ' km' : m + ' m';
+    return m >= 1000 ? (m / 1000).toFixed(1) + ' km' : m + ' m';
   }
 
   function fmtDur(s) {
     if (!s) return '0 min';
     const m = Math.round(s / 60);
-    return m >= 60 ? Math.floor(m/60) + 'h ' + (m%60) + 'min' : m + ' min';
+    return m >= 60 ? Math.floor(m / 60) + 'h ' + (m % 60) + 'min' : m + ' min';
   }
 
-  // ── Lista dos portais a que o utilizador tem acesso (SM + Pesados) ────
-  // Para admin: fetch all SM+Pesados via /.netlify/functions/portals
-  // Para outros: usar user.portals do token
+  // ── Carregar Leaflet dinamicamente ────────────────────────────────────────
+  async function loadLeaflet() {
+    if (window.L && window.L.map) return;
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+    if (!document.getElementById('leaflet-js')) {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.id = 'leaflet-js';
+        s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
+  }
+
+  // ── Lista de portais acessíveis ───────────────────────────────────────────
   async function getAvailablePortals() {
     const user = window.authClient?.getUser?.();
     if (!user) return [];
-
-    if (user.role === 'admin') {
+    if (user.role === 'admin' || user.role === 'pesados_coord') {
       try {
         const token = window.authClient?.getToken?.() || localStorage.getItem('authToken');
         const resp = await fetch('/.netlify/functions/portals', {
@@ -80,22 +88,17 @@
           return data.data
             .filter(p => p.portal_type === 'sm' || p.portal_type === 'pesados')
             .map(p => ({
-              id: p.id,
-              name: p.name,
+              id: p.id, name: p.name,
               departureAddress: p.departure_address,
               portalType: p.portal_type,
             }));
         }
-      } catch(e) { console.warn('[RotaMapa] Erro a listar portais admin:', e); }
+      } catch (e) { console.warn('[RotaMapa] Erro portais:', e); }
       return [];
     }
-
     let portals = [];
-    if (Array.isArray(user.portals) && user.portals.length) {
-      portals = user.portals;
-    } else if (user.portal) {
-      portals = [user.portal];
-    }
+    if (Array.isArray(user.portals) && user.portals.length) portals = user.portals;
+    else if (user.portal) portals = [user.portal];
     return portals.filter(p => {
       const t = p.portalType || p.portal_type;
       return t === 'sm' || t === 'pesados';
@@ -106,31 +109,22 @@
   async function fetchAppointments(portalId, date) {
     const key = portalId + '_' + date;
     if (apptCache.has(key)) return apptCache.get(key);
-
     const token = window.authClient?.getToken?.() || localStorage.getItem('authToken');
     const resp = await fetch('/.netlify/functions/appointments?portal_id=' + portalId, {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     const data = await resp.json();
-    if (!data.success) {
-      console.warn('[RotaMapa] Erro a buscar appointments do portal', portalId, data.error);
-      return [];
-    }
+    if (!data.success) return [];
     const onDay = (data.data || [])
-      .filter(a => {
-        if (!a.date) return false;
-        // Normalizar para YYYY-MM-DD (backend pode devolver com timestamp)
-        const apptDate = String(a.date).slice(0, 10);
-        return apptDate === date;
-      })
+      .filter(a => a.date && String(a.date).slice(0, 10) === date)
       .sort((a, b) => (a.sortIndex ?? 999) - (b.sortIndex ?? 999));
     apptCache.set(key, onDay);
     return onDay;
   }
 
+  // ── Modal HTML ────────────────────────────────────────────────────────────
   function buildModal(portals, currentPortalId) {
-    const existing = document.getElementById('rotaMapModal');
-    if (existing) existing.remove();
+    document.getElementById('rotaMapModal')?.remove();
 
     const modal = document.createElement('div');
     modal.id = 'rotaMapModal';
@@ -147,12 +141,11 @@
           padding: 10px 16px;
           background: #0f172a;
           border-bottom: 1px solid rgba(255,255,255,0.08);
-          flex-shrink: 0; flex-wrap: wrap;
+          flex-shrink: 0; flex-wrap: wrap; z-index: 2;
         }
         #rotaMapModal .rm-title {
-          font-size: 16px; font-weight: 800;
-          color: #f1f5f9; letter-spacing: 0.3px;
-          flex: 1; min-width: 100px;
+          font-size: 16px; font-weight: 800; color: #f1f5f9;
+          letter-spacing: 0.3px; flex: 1; min-width: 100px;
         }
         #rotaMapModal .rm-date-pill {
           display: flex; align-items: center; gap: 6px;
@@ -171,14 +164,14 @@
           background: rgba(255,255,255,0.07); border: none;
           color: #94a3b8; font-size: 18px; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
-          transition: background .15s;
+          transition: background .15s; flex-shrink: 0;
         }
         #rotaMapModal .rm-close:hover { background: rgba(255,255,255,0.15); color: #f1f5f9; }
         #rotaMapModal .rm-portals {
           display: flex; gap: 6px; padding: 8px 16px; overflow-x: auto;
           background: #0b1422;
           border-bottom: 1px solid rgba(255,255,255,0.06);
-          flex-shrink: 0; -webkit-overflow-scrolling: touch;
+          flex-shrink: 0; -webkit-overflow-scrolling: touch; z-index: 2;
         }
         #rotaMapModal .rm-portals::-webkit-scrollbar { height: 4px; }
         #rotaMapModal .rm-portals::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
@@ -191,34 +184,22 @@
           cursor: pointer; white-space: nowrap;
           transition: all .15s; user-select: none;
         }
-        #rotaMapModal .rm-portal-chip:hover {
-          background: rgba(255,255,255,0.08); color: #e2e8f0;
-        }
-        #rotaMapModal .rm-portal-chip.active {
-          color: #fff; background: rgba(59,130,246,0.15);
-        }
-        #rotaMapModal .rm-portal-chip .dot {
-          width: 10px; height: 10px; border-radius: 50%;
-          flex-shrink: 0;
-        }
+        #rotaMapModal .rm-portal-chip:hover { background: rgba(255,255,255,0.08); color: #e2e8f0; }
+        #rotaMapModal .rm-portal-chip.active { color: #fff; background: rgba(59,130,246,0.15); }
+        #rotaMapModal .rm-portal-chip .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         #rotaMapModal .rm-portal-chip .check {
           width: 14px; height: 14px; border-radius: 4px;
           border: 1.5px solid currentColor;
           display: flex; align-items: center; justify-content: center;
           font-size: 10px; line-height: 1;
         }
-        #rotaMapModal .rm-portal-chip.active .check::after {
-          content: '✓'; color: currentColor;
-        }
-        #rotaMapModal .rm-body {
-          position: relative; flex: 1; overflow: hidden;
-        }
+        #rotaMapModal .rm-portal-chip.active .check::after { content: '✓'; color: currentColor; }
+        #rotaMapModal .rm-body { position: relative; flex: 1; overflow: hidden; min-height: 0; }
         #rotaMapModal .rm-panel {
-          position: absolute; left: 0; top: 0; bottom: 0; width: 320px;
-          background: #0f172a; z-index: 2;
+          position: absolute; left: 0; top: 0; bottom: 0; width: 300px; z-index: 2;
+          background: #0f172a;
           border-right: 1px solid rgba(255,255,255,0.07);
-          display: flex; flex-direction: column;
-          overflow: hidden;
+          display: flex; flex-direction: column; overflow: hidden;
         }
         #rotaMapModal .rm-stats {
           display: grid; grid-template-columns: 1fr 1fr;
@@ -226,10 +207,7 @@
           border-bottom: 1px solid rgba(255,255,255,0.07);
           flex-shrink: 0;
         }
-        #rotaMapModal .rm-stat {
-          background: #0f172a;
-          padding: 10px 14px;
-        }
+        #rotaMapModal .rm-stat { background: #0f172a; padding: 10px 14px; }
         #rotaMapModal .rm-stat-lbl {
           font-size: 9px; font-weight: 700; text-transform: uppercase;
           letter-spacing: 0.6px; color: #475569; margin-bottom: 2px;
@@ -238,24 +216,16 @@
           font-size: 18px; font-weight: 900; color: #f1f5f9;
           font-variant-numeric: tabular-nums;
         }
-        #rotaMapModal .rm-stops {
-          flex: 1; overflow-y: auto;
-          padding: 10px 8px;
-        }
+        #rotaMapModal .rm-stops { flex: 1; overflow-y: auto; padding: 10px 8px; }
         #rotaMapModal .rm-stops::-webkit-scrollbar { width: 4px; }
         #rotaMapModal .rm-stops::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        #rotaMapModal .rm-portal-group {
-          margin-bottom: 14px;
-        }
+        #rotaMapModal .rm-portal-group { margin-bottom: 14px; }
         #rotaMapModal .rm-portal-header {
           display: flex; align-items: center; gap: 6px;
           padding: 6px 8px; margin-bottom: 4px;
-          font-size: 11px; font-weight: 800; letter-spacing: 0.5px;
-          text-transform: uppercase;
+          font-size: 11px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase;
         }
-        #rotaMapModal .rm-portal-header .dot {
-          width: 8px; height: 8px; border-radius: 50%;
-        }
+        #rotaMapModal .rm-portal-header .dot { width: 8px; height: 8px; border-radius: 50%; }
         #rotaMapModal .rm-stop {
           display: flex; align-items: flex-start; gap: 10px;
           padding: 8px; border-radius: 8px; margin-bottom: 3px;
@@ -265,32 +235,39 @@
         #rotaMapModal .rm-stop-idx {
           width: 22px; height: 22px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
-          font-size: 10px; font-weight: 800; flex-shrink: 0;
-          color: white;
+          font-size: 10px; font-weight: 800; flex-shrink: 0; color: white;
         }
         #rotaMapModal .rm-stop-plate {
           font-size: 13px; font-weight: 800; color: #f1f5f9;
           font-family: 'Rajdhani','Roboto Mono',monospace;
           letter-spacing: 0.5px; line-height: 1.2;
         }
-        #rotaMapModal .rm-stop-car {
-          font-size: 11px; color: #64748b; font-weight: 500;
-        }
-        #rotaMapModal .rm-stop-loc {
-          font-size: 11px; color: #475569; margin-top: 2px;
-        }
+        #rotaMapModal .rm-stop-car { font-size: 11px; color: #64748b; font-weight: 500; }
+        #rotaMapModal .rm-stop-loc { font-size: 11px; color: #475569; margin-top: 2px; }
         #rotaMapModal .rm-no-stops {
           text-align: center; padding: 20px 12px;
           color: #475569; font-size: 12px; font-style: italic;
         }
-        #rotaMapModal .rm-map-wrap { position: absolute; left: 320px; right: 0; top: 0; bottom: 0; }
-        #rotaMapModal #rotaGoogleMap { position: absolute; inset: 0; }
+        #rotaMapModal .rm-map-wrap {
+          position: absolute; left: 300px; right: 0; top: 0; bottom: 0;
+        }
+        #rotaMapModal #rotaGoogleMap { width: 100%; height: 100%; }
+        /* Leaflet overrides para tema escuro */
+        #rotaMapModal .leaflet-container { background: #1e293b; }
+        #rotaMapModal .leaflet-control-zoom a {
+          background: #1e293b; color: #94a3b8; border-color: #334155;
+        }
+        #rotaMapModal .leaflet-control-zoom a:hover { background: #334155; color: #f1f5f9; }
+        #rotaMapModal .leaflet-control-attribution {
+          background: rgba(15,23,42,0.7); color: #475569; font-size: 9px;
+        }
+        #rotaMapModal .leaflet-control-attribution a { color: #64748b; }
         #rotaMapModal .rm-loading {
           position: absolute; inset: 0;
           display: none; flex-direction: column;
           align-items: center; justify-content: center;
           background: rgba(15,23,42,0.85); color: #cbd5e1;
-          font-size: 14px; gap: 12px; z-index: 5;
+          font-size: 14px; gap: 12px; z-index: 1001;
         }
         #rotaMapModal .rm-spinner {
           width: 36px; height: 36px;
@@ -302,10 +279,10 @@
         @keyframes rmSpin { to { transform: rotate(360deg); } }
         @media (max-width: 700px) {
           #rotaMapModal .rm-panel {
-            width: 100%; height: 240px; top: auto; bottom: 0; left: 0; right: 0;
+            width: 100%; height: 220px; top: auto; bottom: 0; left: 0; right: 0;
             border-right: none; border-top: 1px solid rgba(255,255,255,0.07);
           }
-          #rotaMapModal .rm-map-wrap { left: 0; bottom: 240px; }
+          #rotaMapModal .rm-map-wrap { left: 0; bottom: 220px; }
         }
       </style>
 
@@ -348,89 +325,42 @@
       chip.className = 'rm-portal-chip';
       chip.dataset.portalId = p.id;
       chip.dataset.color = color;
-      chip.innerHTML = `
-        <span class="check"></span>
-        <span class="dot" style="background:${color}"></span>
-        <span>${p.name}</span>
-      `;
+      chip.innerHTML = `<span class="check"></span><span class="dot" style="background:${color}"></span><span>${p.name}</span>`;
       if (p.id === currentPortalId) chip.classList.add('active');
-      chip.addEventListener('click', () => {
-        chip.classList.toggle('active');
-        scheduleRender();
-      });
+      chip.addEventListener('click', () => { chip.classList.toggle('active'); scheduleRender(); });
       chipsContainer.appendChild(chip);
     });
 
     return modal;
   }
 
-  let mapInstance = null;
+  // ── Leaflet map instance ──────────────────────────────────────────────────
+  let leafletMap = null;
   let activeOverlays = [];
 
   function clearMap() {
-    activeOverlays.forEach(o => {
-      if (o.setMap) o.setMap(null);
-      if (o.setDirections) o.setDirections({ routes: [] });
-    });
+    if (leafletMap) {
+      activeOverlays.forEach(o => { try { leafletMap.removeLayer(o); } catch (e) {} });
+    }
     activeOverlays = [];
   }
 
-  function darkMapStyle() {
-    return [
-      { elementType: 'geometry', stylers: [{ color: '#2a3a52' }] },
-      { elementType: 'labels.text.stroke', stylers: [{ color: '#2a3a52' }] },
-      { elementType: 'labels.text.fill', stylers: [{ color: '#a8b4c4' }] },
-      { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#3d5070' }] },
-      { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#2e4060' }] },
-      { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#c8d4e4' }] },
-      { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#4a6a96' }] },
-      { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: '#365080' }] },
-      { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#1a6a8e' }] },
-      { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#7fb8d4' }] },
-      { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-      { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-      { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#4a6a96' }] },
-      { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#d4dfe9' }] },
-    ];
-  }
-
   function ensureMap() {
-    if (mapInstance) return mapInstance;
+    if (leafletMap) return leafletMap;
     const el = document.getElementById('rotaGoogleMap');
-    if (!el) { console.error('[RotaMapa] #rotaGoogleMap não encontrado no DOM'); return null; }
+    if (!el || !window.L) { console.error('[RotaMapa] Leaflet ou #rotaGoogleMap não disponível'); return null; }
 
-    const wrap = el.closest('.rm-map-wrap') || el.parentElement;
-    const wr = wrap ? wrap.getBoundingClientRect() : null;
-    console.log('[RotaMapa] rm-map-wrap rect:', wr ? `${Math.round(wr.width)}x${Math.round(wr.height)} @ (${Math.round(wr.left)},${Math.round(wr.top)})` : 'null');
+    leafletMap = L.map(el, { center: [39.5, -8.0], zoom: 7, zoomControl: true });
 
-    // Garantir dimensões explícitas em pixels (Google Maps precisa de valores > 0)
-    if (wr && wr.width > 0 && wr.height > 0) {
-      el.style.width  = wr.width  + 'px';
-      el.style.height = wr.height + 'px';
-    } else {
-      // Fallback: quase toda a janela menos o painel
-      el.style.width  = Math.max(400, window.innerWidth  - 340) + 'px';
-      el.style.height = Math.max(400, window.innerHeight - 120) + 'px';
-      console.warn('[RotaMapa] wrapper sem dimensões — a usar fallback px');
-    }
-    console.log('[RotaMapa] map el final:', el.offsetWidth, 'x', el.offsetHeight);
+    // CartoDB Dark Matter — tiles gratuitos sem chave API
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
+    }).addTo(leafletMap);
 
-    try {
-      mapInstance = new google.maps.Map(el, {
-        zoom: 7,
-        center: { lat: 39.5, lng: -8.0 },
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        styles: darkMapStyle(),
-      });
-      console.log('[RotaMapa] Map criado OK');
-    } catch(e) {
-      console.error('[RotaMapa] Erro ao criar Map:', e);
-      return null;
-    }
-    setTimeout(() => { if (mapInstance) google.maps.event.trigger(mapInstance, 'resize'); }, 300);
-    return mapInstance;
+    console.log('[RotaMapa] Leaflet map criado OK');
+    return leafletMap;
   }
 
   let _renderTimer = null;
@@ -440,15 +370,17 @@
   }
 
   async function renderAll() {
-    const date = document.getElementById('rotaDateInput').value;
+    const dateInput = document.getElementById('rotaDateInput');
+    if (!dateInput) return;
+    const date = dateInput.value;
     const chips = [...document.querySelectorAll('.rm-portal-chip.active')];
-    const portalsActivos = chips.map(c => ({
+    const portaisActivos = chips.map(c => ({
       id: parseInt(c.dataset.portalId),
       color: c.dataset.color,
       name: c.querySelector('span:last-child').textContent
     }));
 
-    document.getElementById('rmStatPortals').textContent = portalsActivos.length || '—';
+    document.getElementById('rmStatPortals').textContent = portaisActivos.length || '—';
 
     const map = ensureMap();
     clearMap();
@@ -459,7 +391,7 @@
     const loading = document.getElementById('rmLoading');
     if (loading) loading.style.display = 'flex';
 
-    if (portalsActivos.length === 0) {
+    if (portaisActivos.length === 0 || !map) {
       document.getElementById('rmStatStops').textContent = '—';
       document.getElementById('rmStatDist').textContent = '—';
       document.getElementById('rmStatTime').textContent = '—';
@@ -469,10 +401,9 @@
     }
 
     let totalStops = 0, totalDist = 0, totalDur = 0;
-    const allBounds = new google.maps.LatLngBounds();
-    let hasBounds = false;
+    const allLatLngs = [];
 
-    for (const portal of portalsActivos) {
+    for (const portal of portaisActivos) {
       const allPortals = window._rmAllPortals || [];
       const portalFull = allPortals.find(p => p.id === portal.id);
       const baseAddr = portalFull?.departureAddress || portalFull?.departure_address || null;
@@ -487,8 +418,8 @@
           <span class="dot" style="background:${portal.color}"></span>
           <span>${portal.name}</span>
           <span style="margin-left:auto;color:#475569;font-weight:600;">${appts.length} ${appts.length === 1 ? 'paragem' : 'paragens'}</span>
-        </div>
-      `;
+        </div>`;
+
       if (appts.length === 0) {
         group.innerHTML += '<div class="rm-no-stops">Sem agendamentos neste dia</div>';
       } else {
@@ -501,9 +432,9 @@
             <div style="flex:1;min-width:0;">
               <div class="rm-stop-plate">${a.plate || '—'}</div>
               <div class="rm-stop-car">${a.car || ''}</div>
-              ${addr ? `<div class="rm-stop-loc">📍 ${addr.replace(', Portugal','')}</div>` : '<div class="rm-stop-loc" style="color:#dc2626">⚠ Sem morada</div>'}
-            </div>
-          `;
+              ${addr ? `<div class="rm-stop-loc">📍 ${addr.replace(', Portugal', '')}</div>`
+                     : '<div class="rm-stop-loc" style="color:#dc2626">⚠ Sem morada</div>'}
+            </div>`;
           group.appendChild(stop);
         });
       }
@@ -512,109 +443,97 @@
       const withAddr = appts.filter(a => apptAddress(a));
       if (withAddr.length === 0) continue;
 
-      const result = await calcRoute(baseAddr, withAddr);
-      if (!result) continue;
+      // Calcular rota via Google Directions (só para dados km/tempo/polyline)
+      const routeResult = await calcRoute(baseAddr, withAddr);
+      if (!routeResult) continue;
 
-      const renderer = new google.maps.DirectionsRenderer({
-        suppressMarkers: true,
-        polylineOptions: {
-          strokeColor: portal.color,
-          strokeOpacity: 0.85,
-          strokeWeight: 4,
-        },
-        map: map,
-      });
-      renderer.setDirections(result);
-      activeOverlays.push(renderer);
+      // Desenhar polyline da rota no Leaflet
+      const route = routeResult.routes[0];
+      const path = route.overview_path.map(p => [p.lat(), p.lng()]);
+      const polyline = L.polyline(path, {
+        color: portal.color, weight: 4, opacity: 0.85,
+      }).addTo(map);
+      activeOverlays.push(polyline);
+      allLatLngs.push(...path);
 
-      result.routes[0].legs.forEach((leg, i) => {
+      // Marcadores das paragens
+      route.legs.forEach((leg, i) => {
         let appt, pos;
         if (baseAddr) {
-          if (i < withAddr.length) {
-            appt = withAddr[i];
-            pos = leg.end_location;
-          } else return;
+          if (i < withAddr.length) { appt = withAddr[i]; pos = [leg.end_location.lat(), leg.end_location.lng()]; }
+          else return;
         } else {
           appt = withAddr[i];
-          pos = leg.start_location;
-          if (i === result.routes[0].legs.length - 1) {
-            const last = withAddr[i + 1] || withAddr[i];
-            const lm = new google.maps.Marker({
-              position: leg.end_location, map: map,
-              icon: markerIcon(last.plate, portal.color), zIndex: 200,
-            });
-            activeOverlays.push(lm);
-            allBounds.extend(leg.end_location); hasBounds = true;
+          pos = [leg.start_location.lat(), leg.start_location.lng()];
+          if (i === route.legs.length - 1) {
+            const lastAppt = withAddr[i + 1] || withAddr[i];
+            const lastPos = [leg.end_location.lat(), leg.end_location.lng()];
+            addLeafletMarker(map, lastPos, lastAppt, portal.color);
+            allLatLngs.push(lastPos);
           }
         }
-        if (!appt) return;
-        const m = new google.maps.Marker({
-          position: pos, map: map,
-          icon: markerIcon(appt.plate, portal.color),
-          zIndex: 100 + i,
-          title: appt.plate + (appt.car ? ' — ' + appt.car : ''),
-        });
-        const iw = new google.maps.InfoWindow({
-          content: `<div style="font-family:system-ui;font-size:13px;min-width:180px;">
-            <div style="font-weight:800;font-size:15px;margin-bottom:4px;color:${portal.color};">${appt.plate}</div>
-            <div style="color:#475569;margin-bottom:2px;">${appt.car || ''}</div>
-            <div style="color:#64748b;font-size:12px;">${apptAddress(appt) || ''}</div>
-            <div style="color:#94a3b8;font-size:11px;margin-top:6px;font-style:italic;">${portal.name}</div>
-          </div>`,
-        });
-        m.addListener('click', () => iw.open(map, m));
-        activeOverlays.push(m);
-        allBounds.extend(pos); hasBounds = true;
+        if (!appt || !pos) return;
+        addLeafletMarker(map, pos, appt, portal.color);
+        allLatLngs.push(pos);
       });
 
-      if (baseAddr) {
+      // Marcador base (geocodificar com Google se disponível)
+      if (baseAddr && window.google?.maps?.Geocoder) {
         try {
-          const baseGeo = await new Promise((res, rej) =>
+          const basePos = await new Promise((res, rej) =>
             new google.maps.Geocoder().geocode({ address: baseAddr },
               (r, s) => s === 'OK' && r[0] ? res(r[0].geometry.location) : rej(s)
             )
           );
-          const bm = new google.maps.Marker({
-            position: baseGeo, map: map, zIndex: 300,
-            title: 'Base ' + portal.name,
-            icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              scale: 11, fillColor: portal.color, fillOpacity: 1,
-              strokeColor: '#fff', strokeWeight: 2.5,
-            },
+          const bpos = [basePos.lat(), basePos.lng()];
+          const baseIcon = L.divIcon({
+            html: `<div style="width:18px;height:18px;border-radius:50%;background:${portal.color};border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);"></div>`,
+            className: '', iconSize: [18, 18], iconAnchor: [9, 9],
           });
-          const biw = new google.maps.InfoWindow({
-            content: `<div style="font-size:13px;font-weight:700;color:${portal.color};">🏠 Base ${portal.name}</div>
-              <div style="font-size:11px;color:#64748b;margin-top:4px;">${baseAddr}</div>`,
-          });
-          bm.addListener('click', () => biw.open(map, bm));
+          const bm = L.marker(bpos, { icon: baseIcon, zIndexOffset: 200 })
+            .bindPopup(`<b style="color:${portal.color}">🏠 Base ${portal.name}</b><br><small>${baseAddr}</small>`)
+            .addTo(map);
           activeOverlays.push(bm);
-          allBounds.extend(baseGeo); hasBounds = true;
-        } catch(e) {
+          allLatLngs.push(bpos);
+        } catch (e) {
           console.warn('[RotaMapa] Base não geocodificada:', portal.name);
         }
       }
 
-      result.routes[0].legs.forEach(leg => {
-        totalDist += leg.distance.value;
-        totalDur += leg.duration.value;
-      });
+      route.legs.forEach(leg => { totalDist += leg.distance.value; totalDur += leg.duration.value; });
     }
 
     document.getElementById('rmStatStops').textContent = totalStops;
     document.getElementById('rmStatDist').textContent = fmtKm(totalDist);
     document.getElementById('rmStatTime').textContent = fmtDur(totalDur);
 
-    if (hasBounds) {
-      map.fitBounds(allBounds, { top: 60, right: 40, bottom: 40, left: 40 });
-      // Forçar resize após bounds para garantir que o mapa redesenha
-      setTimeout(() => google.maps.event.trigger(map, 'resize'), 200);
+    if (allLatLngs.length > 0) {
+      map.fitBounds(L.latLngBounds(allLatLngs), { padding: [40, 40] });
     }
 
     if (loading) loading.style.display = 'none';
   }
 
+  function addLeafletMarker(map, pos, appt, color) {
+    const icon = L.divIcon({
+      html: makeMarkerSVG(appt.plate, color),
+      className: '',
+      iconSize: [80, 38],
+      iconAnchor: [40, 38],
+    });
+    const m = L.marker(pos, { icon, zIndexOffset: 100 })
+      .bindPopup(`<div style="font-size:13px;min-width:160px;">
+        <div style="font-weight:800;font-size:15px;color:${color};margin-bottom:4px;">${appt.plate || '—'}</div>
+        <div style="color:#475569;">${appt.car || ''}</div>
+        <div style="color:#64748b;font-size:12px;margin-top:4px;">${apptAddress(appt) || ''}</div>
+      </div>`)
+      .addTo(map);
+    activeOverlays.push(m);
+    return m;
+  }
+
   async function calcRoute(baseAddr, withAddr) {
+    if (!window.google?.maps) return null;
     const dirSvc = new google.maps.DirectionsService();
     const addresses = withAddr.map(a => apptAddress(a));
     const origin = baseAddr || addresses[0];
@@ -634,18 +553,13 @@
           else reject(new Error('Directions: ' + status));
         });
       });
-    } catch(e) {
+    } catch (e) {
       console.warn('[RotaMapa] Directions falhou:', e.message);
       return null;
     }
   }
 
   async function openRotaMap(date) {
-    if (!window.google?.maps) {
-      alert('Google Maps ainda não carregou. Aguarda um momento.');
-      return;
-    }
-
     const portals = await getAvailablePortals();
     if (portals.length === 0) {
       alert('Não há SMs ou Pesados disponíveis para mostrar.');
@@ -653,62 +567,53 @@
     }
 
     window._rmAllPortals = portals;
-
     const currentPortalId = window.portalConfig?.id || portals[0].id;
     apptCache.clear();
+    leafletMap = null;
+    activeOverlays = [];
 
     buildModal(portals, currentPortalId);
 
     const dateInput = document.getElementById('rotaDateInput');
     dateInput.value = date || getSelectedDate();
 
-    document.getElementById('rotaMapClose').addEventListener('click', () => {
+    function closeModal() {
       document.getElementById('rotaMapModal')?.remove();
-      mapInstance = null;
+      if (leafletMap) { leafletMap.remove(); leafletMap = null; }
       activeOverlays = [];
-    });
+    }
 
-    dateInput.addEventListener('change', () => {
-      apptCache.clear();
-      scheduleRender();
-    });
-
-    const onKey = e => {
-      if (e.key === 'Escape') {
-        document.getElementById('rotaMapModal')?.remove();
-        document.removeEventListener('keydown', onKey);
-        mapInstance = null;
-        activeOverlays = [];
-      }
-    };
+    document.getElementById('rotaMapClose').addEventListener('click', closeModal);
+    const onKey = e => { if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', onKey); } };
     document.addEventListener('keydown', onKey);
+    dateInput.addEventListener('change', () => { apptCache.clear(); scheduleRender(); });
 
-    // Criar mapa após o modal estar no DOM e ter dimensões garantidas
+    // Carregar Leaflet e iniciar mapa
+    document.getElementById('rmLoading').style.display = 'flex';
+    document.getElementById('rmLoadingText').textContent = 'A carregar mapa...';
+    try {
+      await loadLeaflet();
+    } catch (e) {
+      console.error('[RotaMapa] Falhou a carregar Leaflet:', e);
+      document.getElementById('rmLoadingText').textContent = 'Erro a carregar mapa';
+      return;
+    }
+
     setTimeout(() => {
-      const map = ensureMap();
-      if (map) {
-        google.maps.event.trigger(map, 'resize');
-        setTimeout(() => {
-          google.maps.event.trigger(map, 'resize');
-          renderAll();
-        }, 200);
-      } else {
-        renderAll();
-      }
-    }, 100);
+      ensureMap();
+      setTimeout(renderAll, 200);
+    }, 50);
   }
 
   function init() {
-    window.openRotaDoDia = function() {
+    window.openRotaDoDia = function () {
       const date = window.currentMobileDay
         ? window.currentMobileDay.toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
       openRotaMap(date);
     };
-
     const desk = document.getElementById('btnRotaDoDiaDesk');
     if (desk) desk.onclick = () => window.openRotaDoDia();
-
     window.openRotaDoMapa = openRotaMap;
   }
 
@@ -717,7 +622,7 @@
     if (typeof window.renderMobileDay !== 'function') return;
     window._rmPatched = true;
     const _orig = window.renderMobileDay;
-    window.renderMobileDay = async function() {
+    window.renderMobileDay = async function () {
       await _orig.apply(this, arguments);
       injectRotaBtnIfNeeded();
     };
@@ -750,11 +655,8 @@
     else list.appendChild(btn);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
   setTimeout(() => { init(); patchRenderMobileDay(); }, 400);
   setTimeout(() => { init(); patchRenderMobileDay(); }, 1500);
   window.addEventListener('portalReady', () => { init(); patchRenderMobileDay(); });
