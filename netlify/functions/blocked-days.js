@@ -92,17 +92,38 @@ async function ensureTable() {
   `);
   // Índice para queries rápidas
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_blocked_days_date ON blocked_days(date)`);
+
+  // Limpar linhas duplicadas de feriados globais (portal_id IS NULL)
+  // causadas pelo bug do ON CONFLICT não funcionar com NULLs no PostgreSQL
+  await pool.query(`
+    DELETE FROM blocked_days
+    WHERE id NOT IN (
+      SELECT MIN(id)
+      FROM blocked_days
+      GROUP BY date, COALESCE(portal_id::text, '__NULL__')
+    )
+  `).catch(() => {});
 }
 
 async function seedHolidays() {
-  // Inserir feriados nacionais se ainda não existirem (portal_id = NULL = global)
-  const holidays = getHolidaysPT();
-  for (const h of holidays) {
-    await pool.query(`
-      INSERT INTO blocked_days (date, portal_id, reason, is_holiday)
-      VALUES ($1, NULL, $2, TRUE)
-      ON CONFLICT (date, portal_id) DO NOTHING
-    `, [h.date, h.reason]).catch(() => {});
+  // Verificar se feriados já existem (evitar duplicados — ON CONFLICT não funciona com NULL)
+  const { rows: existing } = await pool.query(
+    `SELECT COUNT(*) AS cnt FROM blocked_days WHERE portal_id IS NULL AND is_holiday = TRUE`
+  );
+  const count = parseInt(existing[0].cnt, 10);
+
+  // Só inserir se ainda não houver feriados globais
+  if (count === 0) {
+    const holidays = getHolidaysPT();
+    for (const h of holidays) {
+      await pool.query(`
+        INSERT INTO blocked_days (date, portal_id, reason, is_holiday)
+        SELECT $1, NULL, $2, TRUE
+        WHERE NOT EXISTS (
+          SELECT 1 FROM blocked_days WHERE date = $1 AND portal_id IS NULL
+        )
+      `, [h.date, h.reason]).catch(() => {});
+    }
   }
 }
 
@@ -124,14 +145,17 @@ exports.handler = async (event) => {
 
     // ── GET — listar dias bloqueados (globais + do portal) ──
     if (event.httpMethod === 'GET') {
-      // Na primeira chamada, garantir feriados semeados
+      // Semear feriados se ainda não existirem
       await seedHolidays();
 
+      // DISTINCT ON evita duplicados residuais; limita a 500 linhas por segurança
       const { rows } = await pool.query(`
-        SELECT id, date, portal_id, reason, is_holiday
+        SELECT DISTINCT ON (date, COALESCE(portal_id::text, '__NULL__'))
+          id, date, portal_id, reason, is_holiday
         FROM blocked_days
         WHERE portal_id IS NULL OR portal_id = $1
-        ORDER BY date
+        ORDER BY date, COALESCE(portal_id::text, '__NULL__'), id
+        LIMIT 500
       `, [portalId]);
 
       // Normalizar datas para YYYY-MM-DD
@@ -157,12 +181,27 @@ exports.handler = async (event) => {
       // Admin pode criar global; coordenador só para o seu portal
       const targetPortalId = (user.role === 'admin' && isGlobal) ? null : portalId;
 
-      const { rows } = await pool.query(`
-        INSERT INTO blocked_days (date, portal_id, reason, is_holiday)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (date, portal_id) DO UPDATE SET reason = EXCLUDED.reason, is_holiday = EXCLUDED.is_holiday
-        RETURNING *
-      `, [date, targetPortalId, reason || 'Dia bloqueado', is_holiday || false]);
+      let rows;
+      if (targetPortalId === null) {
+        // Global (portal_id NULL) — ON CONFLICT não funciona com NULL, usar upsert manual
+        await pool.query(
+          `DELETE FROM blocked_days WHERE date = $1 AND portal_id IS NULL`,
+          [date]
+        ).catch(() => {});
+        const res = await pool.query(
+          `INSERT INTO blocked_days (date, portal_id, reason, is_holiday) VALUES ($1, NULL, $2, $3) RETURNING *`,
+          [date, reason || 'Dia bloqueado', is_holiday || false]
+        );
+        rows = res.rows;
+      } else {
+        const res = await pool.query(`
+          INSERT INTO blocked_days (date, portal_id, reason, is_holiday)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (date, portal_id) DO UPDATE SET reason = EXCLUDED.reason, is_holiday = EXCLUDED.is_holiday
+          RETURNING *
+        `, [date, targetPortalId, reason || 'Dia bloqueado', is_holiday || false]);
+        rows = res.rows;
+      }
 
       const r = rows[0];
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, blocked: { ...r, date: String(r.date).slice(0,10) } }) };
@@ -183,7 +222,7 @@ exports.handler = async (event) => {
         // Admin pode remover entrada global
         await pool.query('DELETE FROM blocked_days WHERE date = $1 AND portal_id IS NULL', [date]);
       } else {
-        // Coordenador: remover entrada do portal; se só havia global, criar excepção negativa
+        // Coordenador: remover entrada do portal
         await pool.query('DELETE FROM blocked_days WHERE date = $1 AND portal_id = $2', [date, portalId]);
       }
 
