@@ -397,17 +397,39 @@
   function ensureMap() {
     if (mapInstance) return mapInstance;
     const el = document.getElementById('rotaGoogleMap');
-    if (!el) return null;
-    mapInstance = new google.maps.Map(el, {
-      zoom: 9,
-      center: { lat: 38.72, lng: -9.14 }, // Lisboa como centro padrão
-      mapTypeControl: false,
-      streetViewControl: false,
-      fullscreenControl: false,
-      styles: darkMapStyle(),
-    });
-    // Forçar resize após layout do DOM
-    setTimeout(() => { google.maps.event.trigger(mapInstance, 'resize'); }, 250);
+    if (!el) { console.error('[RotaMapa] #rotaGoogleMap não encontrado no DOM'); return null; }
+
+    const wrap = el.closest('.rm-map-wrap') || el.parentElement;
+    const wr = wrap ? wrap.getBoundingClientRect() : null;
+    console.log('[RotaMapa] rm-map-wrap rect:', wr ? `${Math.round(wr.width)}x${Math.round(wr.height)} @ (${Math.round(wr.left)},${Math.round(wr.top)})` : 'null');
+
+    // Garantir dimensões explícitas em pixels (Google Maps precisa de valores > 0)
+    if (wr && wr.width > 0 && wr.height > 0) {
+      el.style.width  = wr.width  + 'px';
+      el.style.height = wr.height + 'px';
+    } else {
+      // Fallback: quase toda a janela menos o painel
+      el.style.width  = Math.max(400, window.innerWidth  - 340) + 'px';
+      el.style.height = Math.max(400, window.innerHeight - 120) + 'px';
+      console.warn('[RotaMapa] wrapper sem dimensões — a usar fallback px');
+    }
+    console.log('[RotaMapa] map el final:', el.offsetWidth, 'x', el.offsetHeight);
+
+    try {
+      mapInstance = new google.maps.Map(el, {
+        zoom: 7,
+        center: { lat: 39.5, lng: -8.0 },
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: false,
+        styles: darkMapStyle(),
+      });
+      console.log('[RotaMapa] Map criado OK');
+    } catch(e) {
+      console.error('[RotaMapa] Erro ao criar Map:', e);
+      return null;
+    }
+    setTimeout(() => { if (mapInstance) google.maps.event.trigger(mapInstance, 'resize'); }, 300);
     return mapInstance;
   }
 
