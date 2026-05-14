@@ -252,16 +252,9 @@
           position: absolute; left: 300px; right: 0; top: 0; bottom: 0;
         }
         #rotaMapModal #rotaGoogleMap { width: 100%; height: 100%; }
-        /* Leaflet overrides para tema escuro */
-        #rotaMapModal .leaflet-container { background: #1e293b; }
-        #rotaMapModal .leaflet-control-zoom a {
-          background: #1e293b; color: #94a3b8; border-color: #334155;
-        }
-        #rotaMapModal .leaflet-control-zoom a:hover { background: #334155; color: #f1f5f9; }
-        #rotaMapModal .leaflet-control-attribution {
-          background: rgba(15,23,42,0.7); color: #475569; font-size: 9px;
-        }
-        #rotaMapModal .leaflet-control-attribution a { color: #64748b; }
+        /* Leaflet overrides */
+        #rotaMapModal .leaflet-container { background: #e8e8e8; }
+        #rotaMapModal .leaflet-control-attribution { font-size: 9px; }
         #rotaMapModal .rm-loading {
           position: absolute; inset: 0;
           display: none; flex-direction: column;
@@ -352,8 +345,8 @@
 
     leafletMap = L.map(el, { center: [39.5, -8.0], zoom: 7, zoomControl: true });
 
-    // CartoDB Dark Matter — tiles gratuitos sem chave API
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // CartoDB Voyager — cores naturais (mar azul, terra clara, estradas visíveis)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 19,
