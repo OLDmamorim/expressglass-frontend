@@ -283,8 +283,8 @@
           text-align: center; padding: 20px 12px;
           color: #475569; font-size: 12px; font-style: italic;
         }
-        #rotaMapModal .rm-map-wrap { flex: 1; position: relative; min-height: 0; }
-        #rotaMapModal #rotaGoogleMap { width: 100%; height: 100%; }
+        #rotaMapModal .rm-map-wrap { flex: 1; position: relative; min-height: 0; min-width: 0; overflow: hidden; }
+        #rotaMapModal #rotaGoogleMap { position: absolute; inset: 0; width: 100%; height: 100%; }
         #rotaMapModal .rm-loading {
           position: absolute; inset: 0;
           display: none; flex-direction: column;
@@ -661,15 +661,17 @@
     };
     document.addEventListener('keydown', onKey);
 
-    // Criar mapa imediatamente (antes do render para garantir que tem dimensões)
-    requestAnimationFrame(() => {
-      ensureMap();
-      // Forçar resize após primeiro layout
-      setTimeout(() => {
-        if (mapInstance) google.maps.event.trigger(mapInstance, 'resize');
+    // Criar mapa após o modal estar no DOM e ter dimensões
+    setTimeout(() => {
+      const map = ensureMap();
+      if (map) {
+        // Múltiplos resizes para garantir que o mapa calcula o tamanho correto
+        google.maps.event.trigger(map, 'resize');
+        setTimeout(() => { google.maps.event.trigger(map, 'resize'); renderAll(); }, 300);
+      } else {
         renderAll();
-      }, 100);
-    });
+      }
+    }, 50);
   }
 
   function init() {
