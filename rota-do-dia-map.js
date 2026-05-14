@@ -345,10 +345,10 @@
 
     leafletMap = L.map(el, { center: [39.5, -8.0], zoom: 7, zoomControl: true });
 
-    // OpenStreetMap standard — mar azul, terra verde, cores clássicas
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      subdomains: 'abc',
+    // CartoDB Voyager — cores naturais, mar azul, terra clara
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
       maxZoom: 19,
     }).addTo(leafletMap);
 
