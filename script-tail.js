@@ -1099,6 +1099,7 @@ cancelEdit?.();
       selectedText.textContent = 'Selecione a localidade';
       selectedDot.style.backgroundColor = '';
     }
+    applyLojaModalMode();
     document.getElementById('appointmentModal').classList.add('show');
     if (!isLoja()) {
       setTimeout(() => _injectLocalityFirstOverlay(), 50);
@@ -1123,6 +1124,7 @@ cancelEdit?.();
       selectedText.textContent = 'Selecione a localidade';
       selectedDot.style.backgroundColor = '';
     }
+    applyLojaModalMode();
     document.getElementById('appointmentModal').classList.add('show');
     if (!isLoja()) {
       setTimeout(() => _injectLocalityFirstOverlay(), 50);

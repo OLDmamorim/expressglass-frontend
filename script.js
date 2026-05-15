@@ -912,6 +912,30 @@ const statusBarColors = { NE:'#EF4444', VE:'#F59E0B', ST:'#10B981' };
 // === TIPO DE PORTAL (loja vs sm) ===
 function isLoja() { return window.portalConfig?.portalType === 'loja'; }
 
+// Adapta o modal de agendamento ao tipo de portal
+// — Loja: oculta campos de morada/localidade/km (irrelevantes)
+// — SM  : mostra tudo
+function applyLojaModalMode() {
+  const loja = isLoja();
+  const hide = loja ? 'none' : '';
+
+  // Hint "seleciona a localidade para sugestão de data"
+  const hint = document.getElementById('localityHint');
+  if (hint) hint.style.display = loja ? 'none' : 'flex';
+
+  // Grupo de localidade (LINHA 2, segundo form-group)
+  const localityGroup = document.getElementById('localityAutocomplete')?.closest('.form-group');
+  if (localityGroup) localityGroup.style.display = hide;
+
+  // LINHA 7 — Morada + Distância (km)
+  const addressRow = document.getElementById('appointmentAddress')?.closest('.form-row');
+  if (addressRow) addressRow.style.display = hide;
+
+  // Remove/repõe required na localidade (campo hidden, evita erro de validação)
+  const localityInput = document.getElementById('appointmentLocality');
+  if (localityInput) localityInput.required = !loja;
+}
+
 // Cores dos cards para Loja (baseadas no status do vidro)
 const glassCardColors = {
   NE: '#EF4444', // Vermelho - Não encomendado
@@ -2164,6 +2188,7 @@ function editAppointment(id) {
     extras.forEach(function(s) { _addExtraServiceRow(s.service, s.custom_service_time); });
   }
 
+  applyLojaModalMode();
   document.getElementById('appointmentModal').classList.add('show');
 }
 
