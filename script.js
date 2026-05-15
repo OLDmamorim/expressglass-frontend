@@ -1762,8 +1762,9 @@ async function confirmNotDone() {
 
 
 // ===== ANIMAÇÕES REALIZADO / NÃO REALIZADO =====
-function fireEmojis(emojis) {
+function fireEmojis(emojis, baseDur) {
   const count = 22;
+  const base = baseDur || 2800;
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
   for (let i = 0; i < count; i++) {
@@ -1776,7 +1777,7 @@ function fireEmojis(emojis) {
     const dist  = 100 + Math.random() * 200;
     const dx = Math.cos(angle) * dist;
     const dy = Math.sin(angle) * dist - 80;
-    const dur = 2800 + Math.random() * 1200;
+    const dur = base + Math.random() * 1200;
     el.animate([
       { transform:'translate(-50%,-50%) scale(0.2)', opacity:1 },
       { transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(1.4)`, opacity:1, offset:0.5 },
@@ -1793,7 +1794,8 @@ function fireNaoRealizadoEmojis() {
   fireEmojis(['😢','😔','💔','😞','🥺','😿','💧','😩','😭','🫤']);
 }
 function fireVidroRetiradoEmojis() {
-  fireEmojis(['🪟','🔧','💎','✨','🚗','💫','🛠️','⚡','🌟','👷']);
+  // Emojis: carro, ferramenta, espera — duração mais longa (5s base)
+  fireEmojis(['🚗','🔧','🛠️','⏳','🚘','⚙️','🔩','🪟','🚙','⌛'], 5000);
 }
 // Expor globalmente para uso em outros scripts (ex: glass-removed-patch.js)
 window.fireEmojis = fireEmojis;
