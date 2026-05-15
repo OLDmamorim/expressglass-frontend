@@ -66,47 +66,6 @@ function injectMultiServiceUI() {
   // Não é necessário injectar aqui — evita duplicados.
 }
 
-// ── Botão "+ Adicionar serviço" no modal ──────────────────────────
-function ensureAddServiceButton() {
-  if (document.getElementById('ms-add-btn')) return;
-  const ctg = document.getElementById('customServiceTimeGroup');
-  if (!ctg) return;
-  
-  // Container para serviços extra
-  const container = document.createElement('div');
-  container.id = 'extraServicesContainer';
-  ctg.insertAdjacentElement('afterend', container);
-
-  // Botão
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.id = 'ms-add-btn';
-  btn.style.cssText = 'margin-top:10px;width:100%;padding:10px;border:1.5px dashed #3b82f6;border-radius:8px;background:#eff6ff;color:#2563eb;font-weight:700;font-size:13px;cursor:pointer;';
-  btn.innerHTML = '➕ Adicionar serviço';
-  btn.onclick = function() { window._addExtraServiceRow(); };
-  container.insertAdjacentElement('afterend', btn);
-}
-
-// Observar abertura do modal
-const modalObs = new MutationObserver(function(muts) {
-  muts.forEach(m => {
-    m.addedNodes.forEach(n => {
-      if (n.id === 'appointmentModal' || (n.classList && n.classList.contains('show'))) {
-        ensureAddServiceButton();
-      }
-    });
-    if (m.target && m.target.id === 'appointmentModal' && m.target.classList.contains('show')) {
-      ensureAddServiceButton();
-    }
-  });
-});
-modalObs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-
-// Tentar já ao carregar
-document.addEventListener('DOMContentLoaded', ensureAddServiceButton);
-setTimeout(ensureAddServiceButton, 1000);
-setTimeout(ensureAddServiceButton, 3000);
-
 // ── _addExtraServiceRow ────────────────────────────────────────────
 window._addExtraServiceRow = function(serviceVal, customTime) {
   const container = document.getElementById('extraServicesContainer');

@@ -344,7 +344,7 @@
               </div>
               <!-- Serviços extra -->
               <div id="extraServicesContainer" style="margin-top:6px;"></div>
-              <button type="button" id="addExtraServiceBtn" style="margin-top:6px;width:100%;padding:7px;border:1.5px dashed #d1d5db;border-radius:8px;background:transparent;color:#6b7280;font-size:13px;font-weight:600;cursor:pointer;">+ Adicionar serviço</button>
+              <button type="button" id="addExtraServiceBtn" onclick="window._addExtraServiceRow&&window._addExtraServiceRow()" style="margin-top:6px;width:100%;padding:10px;border:1.5px dashed #3b82f6;border-radius:8px;background:#eff6ff;color:#2563eb;font-size:13px;font-weight:700;cursor:pointer;">➕ Adicionar serviço</button>
             </div>            <div class="form-group">
               <label for="appointmentStatus">Status do Vidro *</label>
               <select id="appointmentStatus" required>
@@ -567,7 +567,7 @@
   <script src="script-tail.js?v=2026-05-15b"></script>
   <script src="portal-consult-patch.js?v=1"></script>
   <script src="/glass-removed-patch.js?v=4"></script>
-  <script src="/multi-service-patch.js?v=2026-05-15a"></script>
+  <script src="/multi-service-patch.js?v=2026-05-15b"></script>
   <script src="coord-relatorio-patch.js?v=2026-05-01"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="excel-templates.js?v=2026-04-09"></script>
