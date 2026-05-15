@@ -1260,12 +1260,14 @@ async function loadSettings() {
       document.getElementById('timeOC_L').value = s.serviceTimes?.OC_L ?? s.serviceTimes?.OC ?? 60;
       document.getElementById('timeREP_L').value = s.serviceTimes?.REP_L ?? s.serviceTimes?.REP ?? 30;
       document.getElementById('timePOL_L').value = s.serviceTimes?.POL_L ?? s.serviceTimes?.POL ?? 45;
+      document.getElementById('timeRV_L').value = s.serviceTimes?.RV_L ?? 30;
       // Pesados
       document.getElementById('timePB_P').value = s.serviceTimes?.PB_P ?? 120;
       document.getElementById('timeLT_P').value = s.serviceTimes?.LT_P ?? 60;
       document.getElementById('timeOC_P').value = s.serviceTimes?.OC_P ?? 90;
       document.getElementById('timeREP_P').value = s.serviceTimes?.REP_P ?? 45;
       document.getElementById('timePOL_P').value = s.serviceTimes?.POL_P ?? 60;
+      document.getElementById('timeRV_P').value = s.serviceTimes?.RV_P ?? 45;
       // Calibragem ADAS
       document.getElementById('timeCALIB_EXTRA_L').value = s.serviceTimes?.CALIB_EXTRA_L ?? 30;
       document.getElementById('timeCALIB_EXTRA_P').value = s.serviceTimes?.CALIB_EXTRA_P ?? 45;
@@ -1288,11 +1290,13 @@ async function saveSettings() {
       OC_L: parseInt(document.getElementById('timeOC_L').value) || 60,
       REP_L: parseInt(document.getElementById('timeREP_L').value) || 30,
       POL_L: parseInt(document.getElementById('timePOL_L').value) || 45,
+      RV_L: parseInt(document.getElementById('timeRV_L').value) || 30,
       PB_P: parseInt(document.getElementById('timePB_P').value) || 120,
       LT_P: parseInt(document.getElementById('timeLT_P').value) || 60,
       OC_P: parseInt(document.getElementById('timeOC_P').value) || 90,
       REP_P: parseInt(document.getElementById('timeREP_P').value) || 45,
       POL_P: parseInt(document.getElementById('timePOL_P').value) || 60,
+      RV_P: parseInt(document.getElementById('timeRV_P').value) || 45,
       CALIB_EXTRA_L: parseInt(document.getElementById('timeCALIB_EXTRA_L').value) || 30,
       CALIB_EXTRA_P: parseInt(document.getElementById('timeCALIB_EXTRA_P').value) || 45
     },

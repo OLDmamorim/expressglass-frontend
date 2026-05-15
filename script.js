@@ -960,9 +960,9 @@ const ROUTE_CONFIG = {
   fuelPer100km: 7.5,
   fuelPricePerLiter: 1.65
 };
-const SERVICE_TIMES = { 
-  PB_L: 90, LT_L: 45, OC_L: 60, REP_L: 30, POL_L: 45, OUT_L: 60,
-  PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60, OUT_P: 90,
+const SERVICE_TIMES = {
+  PB_L: 90, LT_L: 45, OC_L: 60, REP_L: 30, POL_L: 45, RV_L: 30, OUT_L: 60,
+  PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60, RV_P: 45, OUT_P: 90,
   // Tempo extra por calibragem ADAS (em minutos, somado ao serviço base)
   CALIB_EXTRA_L: 30,
   CALIB_EXTRA_P: 45
@@ -1044,7 +1044,7 @@ function getTotalServiceTime(a) {
 }
 
 // ── UI: linha de serviço extra no formulário ──────────────────────────────
-const _SVC_OPTS = ['PB - Para-brisas','LT - Lateral','OC - Óculo','REP - Reparação','POL - Polimento','OUT - Outros']
+const _SVC_OPTS = ['PB - Para-brisas','LT - Lateral','OC - Óculo','REP - Reparação','POL - Polimento','RV - Retirar Vidro','OUT - Outros']
   .map(o => { const [v, l] = o.split(' - '); return `<option value="${v}">${v} - ${l}</option>`; }).join('');
 
 function _addExtraServiceRow(serviceVal, customTime) {
