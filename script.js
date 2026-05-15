@@ -1825,9 +1825,14 @@ async function enforceSingleFirstOfDay(newId, date) {
 async function _doSaveExecuted(id, executed, reason) {
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
-  const prev = { executed: appointments[i].executed, not_done_reason: appointments[i].not_done_reason };
+  const prev = { executed: appointments[i].executed, not_done_reason: appointments[i].not_done_reason, glass_removed: appointments[i].glass_removed, glass_removed_date: appointments[i].glass_removed_date };
   appointments[i].executed = executed;
   appointments[i].not_done_reason = reason || null;
+  // Quando marcado como realizado, limpar "vidro retirado"
+  if (executed) {
+    appointments[i].glass_removed = false;
+    appointments[i].glass_removed_date = null;
+  }
   renderAll();
   if (executed) fireRealizadoEmojis(); else fireNaoRealizadoEmojis();
   try {
@@ -1846,6 +1851,8 @@ async function _doSaveExecuted(id, executed, reason) {
   } catch (err) {
     appointments[i].executed = prev.executed;
     appointments[i].not_done_reason = prev.not_done_reason;
+    appointments[i].glass_removed = prev.glass_removed;
+    appointments[i].glass_removed_date = prev.glass_removed_date;
     showToast('Falha ao gravar: ' + err.message, 'error');
     renderAll();
   }
