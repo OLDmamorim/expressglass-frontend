@@ -1792,6 +1792,12 @@ function fireRealizadoEmojis() {
 function fireNaoRealizadoEmojis() {
   fireEmojis(['😢','😔','💔','😞','🥺','😿','💧','😩','😭','🫤']);
 }
+function fireVidroRetiradoEmojis() {
+  fireEmojis(['🪟','🔧','💎','✨','🚗','💫','🛠️','⚡','🌟','👷']);
+}
+// Expor globalmente para uso em outros scripts (ex: glass-removed-patch.js)
+window.fireEmojis = fireEmojis;
+window.fireVidroRetiradoEmojis = fireVidroRetiradoEmojis;
 
 
 // ===== PRIMEIRO SERVIÇO DO DIA — só um por dia =====

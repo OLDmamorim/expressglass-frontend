@@ -46,6 +46,7 @@
       await window.apiClient.updateAppointment(id, { ...appts[i] });
       if (typeof renderAll === 'function') renderAll(); else window.reloadAppointments?.();
       if (typeof window.showToast === 'function') window.showToast('Vidro retirado registado', 'success');
+      if (typeof window.fireVidroRetiradoEmojis === 'function') window.fireVidroRetiradoEmojis();
     } catch(e) {
       Object.assign(appts[i], prev);
       if (typeof window.showToast === 'function') window.showToast('Erro ao guardar', 'error');
