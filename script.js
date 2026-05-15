@@ -924,11 +924,11 @@ function applyLojaModalMode() {
   if (hint) hint.style.display = loja ? 'none' : 'flex';
 
   // Grupo de localidade (LINHA 2, segundo form-group)
-  const localityGroup = document.getElementById('localityAutocomplete')?.closest('.form-group');
+  const localityGroup = document.getElementById('localityFormGroup');
   if (localityGroup) localityGroup.style.display = hide;
 
   // LINHA 7 — Morada + Distância (km)
-  const addressRow = document.getElementById('appointmentAddress')?.closest('.form-row');
+  const addressRow = document.getElementById('addressKmRow');
   if (addressRow) addressRow.style.display = hide;
 
   // Remove/repõe required na localidade (campo hidden, evita erro de validação)

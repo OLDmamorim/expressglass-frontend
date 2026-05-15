@@ -307,7 +307,7 @@
               <label for="appointmentDate">Data</label>
               <input type="date" id="appointmentDate" autocomplete="off"/>
             </div>
-            <div class="form-group">
+            <div class="form-group" id="localityFormGroup">
               <label for="appointmentLocality">Localidade *</label>
               <input type="hidden" id="appointmentLocality" required>
               <div class="locality-autocomplete" id="localityAutocomplete">
@@ -403,7 +403,7 @@
           </div>
 
           <!-- LINHA 7: Morada + Distância -->
-          <div class="form-row">
+          <div class="form-row" id="addressKmRow">
             <div class="form-group">
               <label for="appointmentAddress">Morada (opcional)</label>
               <input type="text" id="appointmentAddress" placeholder="Rua, nº, localidade..." autocomplete="off" />
@@ -563,7 +563,7 @@
 
   <script src="portal-init.js?v=2026-05-13e"></script>
   <script src="api.js?v=2026-04-09"></script>
-  <script src="script.js?v=2026-05-15c"></script>
+  <script src="script.js?v=2026-05-15d"></script>
   <script src="script-tail.js?v=2026-05-15a"></script>
   <script src="portal-consult-patch.js?v=1"></script>
   <script src="/glass-removed-patch.js?v=4"></script>
