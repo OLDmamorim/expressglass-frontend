@@ -1959,7 +1959,83 @@ body.printing-now > *:not(#print-container-temp) {
   width: 10%; /* Estado */
 }
 
-.unscheduled-table th:nth-child(7), 
-.unscheduled-table td:nth-child(7) { 
+.unscheduled-table th:nth-child(7),
+.unscheduled-table td:nth-child(7) {
   width: 8%; /* Ações */
 }
+
+/* ===== Glass Removed Urgency Badges ===== */
+@keyframes grPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+.gr-urgency-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 800;
+  margin: 4px 0;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
+.gr-urgency-orange { background: #f59e0b; }
+.gr-urgency-red { background: #dc2626; }
+.gr-pulse { animation: grPulse 1.2s ease-in-out infinite; }
+
+/* ===== Filter Bar ===== */
+#filterBar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #1e293b;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-wrap: wrap;
+}
+#filterBar .filter-chip {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  background: transparent;
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+#filterBar .filter-chip:hover { border-color: rgba(255,255,255,0.5); color: #fff; }
+#filterBar .filter-chip.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+#filterBar .filter-chip.active-orange { background: #f59e0b; border-color: #f59e0b; color: #fff; }
+#filterBar .filter-chip.active-red { background: #dc2626; border-color: #dc2626; color: #fff; }
+#filterBar .filter-label { color: rgba(255,255,255,0.5); font-size: 11px; font-weight: 600; text-transform: uppercase; }
+#filterBar select.filter-select {
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  background: transparent;
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ===== Vidros Retirados Panel ===== */
+#vidrosRetiradosModal { display:none; position:fixed; inset:0; z-index:9998; background:rgba(0,0,0,0.6); align-items:flex-start; justify-content:center; padding-top:60px; overflow-y:auto; }
+#vidrosRetiradosPanel { background:#1e293b; border-radius:16px; padding:24px; max-width:700px; width:95%; box-shadow:0 24px 80px rgba(0,0,0,0.5); }
+#vidrosRetiradosPanel h2 { margin:0 0 16px; font-size:20px; font-weight:800; color:#fff; }
+.vr-row { display:grid; grid-template-columns:1fr 1fr 1fr auto auto; gap:8px; align-items:center; padding:10px 12px; border-radius:10px; background:rgba(255,255,255,0.05); margin-bottom:6px; }
+.vr-row:hover { background:rgba(255,255,255,0.09); }
+.vr-plate { font-size:15px; font-weight:800; color:#fff; }
+.vr-car { font-size:12px; color:rgba(255,255,255,0.7); }
+.vr-days { font-size:13px; font-weight:700; padding:3px 10px; border-radius:12px; color:#fff; }
+.vr-days.blue { background:#2563eb; }
+.vr-days.orange { background:#f59e0b; }
+.vr-days.red { background:#dc2626; }
+.vr-sched { font-size:12px; color:rgba(255,255,255,0.6); }
+
+/* ===== Appointment History ===== */
+#historyDetails { margin-top:16px; }
+#historyDetails summary { cursor:pointer; font-size:13px; font-weight:700; color:#6b7280; padding:8px 0; }
+#appointmentHistory { width:100%; height:100px; border:1px solid #e5e7eb; border-radius:8px; padding:8px; font-size:12px; font-family:monospace; color:#374151; background:#f9fafb; resize:vertical; box-sizing:border-box; }

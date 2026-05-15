@@ -1,5 +1,5 @@
 // sw.js - Service Worker para PWA
-const CACHE_NAME = 'eg-agenda-v20260515';
+const CACHE_NAME = 'eg-agenda-v20260515b';
 
 // Instalar - cache básico
 self.addEventListener('install', (event) => {

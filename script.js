@@ -1454,6 +1454,8 @@ let currentMobileDay = new Date();
 let editingId = null;
 let searchQuery = '';
 let statusFilter = '';
+// ===== Agenda extra filters =====
+window._agendaFilters = { service: '', glassRemoved: false, notDone: false };
 
 // ---------- Utils ----------
 function getMonday(date){ const d=new Date(date); const day=d.getDay(); const diff=d.getDate()-day+(day===0?-6:1); d.setDate(diff); d.setHours(0,0,0,0); return d; }
@@ -1566,11 +1568,17 @@ async function load(){
       let extras = a.extra_services;
       if (typeof extras === 'string') { try { extras = JSON.parse(extras); } catch(e) { extras = []; } }
       if (!Array.isArray(extras)) extras = [];
+      // Parse extra JSON for eurocode/photo_url/history
+      let _extraObj = null;
+      if (a.extra && typeof a.extra === 'string') {
+        try { _extraObj = JSON.parse(a.extra); } catch(e) { _extraObj = null; }
+      }
       return {
         ...a,
         address: a.address || a.morada || a.addr || null,
         createdAt: a.createdAt || a.created_at || null,
-        extra_services: extras
+        extra_services: extras,
+        photo_url: a.photo_url || (_extraObj ? _extraObj.photo_url || '' : '')
       };
     });
     // Sincronizar cores do portal se disponíveis
@@ -1612,6 +1620,11 @@ function filterAppointments(list){
     );
   }
   if(statusFilter) f=f.filter(a=>a.status===statusFilter);
+  // Extra filters
+  const af = window._agendaFilters || {};
+  if(af.service) f=f.filter(a=>(a.service||'')===(af.service) || (Array.isArray(a.extra_services) && a.extra_services.some(s=>s.service===af.service)));
+  if(af.glassRemoved) f=f.filter(a=>!!a.glass_removed);
+  if(af.notDone) f=f.filter(a=>a.executed===false && !!a.not_done_reason);
   return f;
 }
 function highlightSearchResults(){
@@ -2137,7 +2150,17 @@ function editAppointment(id) {
   document.getElementById('appointmentAddress').value = appointment.address || '';
   document.getElementById('appointmentPhone').value = appointment.phone || '';
   if (document.getElementById('appointmentClientName')) document.getElementById('appointmentClientName').value = appointment.client_name || '';
-  document.getElementById('appointmentExtra').value = appointment.extra || '';
+  // Parse extra field (may be JSON with eurocode + photo_url + history)
+  let _extraParsed = null;
+  if (appointment.extra) {
+    try { _extraParsed = JSON.parse(appointment.extra); } catch(e) { _extraParsed = null; }
+  }
+  const _eurocode = _extraParsed ? (_extraParsed.eurocode || '') : (appointment.extra || '');
+  const _photoUrl = _extraParsed ? (_extraParsed.photo_url || '') : (appointment.photo_url || '');
+  const _history = _extraParsed ? (_extraParsed.history || '') : '';
+  document.getElementById('appointmentExtra').value = _eurocode;
+  if (document.getElementById('appointmentPhoto')) document.getElementById('appointmentPhoto').value = _photoUrl;
+  if (document.getElementById('appointmentHistory')) document.getElementById('appointmentHistory').value = _history;
   if (document.getElementById('appointmentDamageDetails')) {
     document.getElementById('appointmentDamageDetails').value = appointment.damage_details || '';
   }
@@ -2398,10 +2421,26 @@ function buildDesktopCard(a){
       ⏱ ${_diasAberto} ${_diasAberto === 1 ? 'dia aberto' : 'dias aberto'}
     </div>` : '';
 
+  // Glass removed urgency
+  let glassRemovedBorderStyle = '';
+  let glassRemovedBadge = '';
+  if (a.glass_removed && a.glass_removed_date) {
+    const _grDays = Math.floor((Date.now() - new Date(a.glass_removed_date + 'T00:00:00').getTime()) / 86400000);
+    if (_grDays >= 14) {
+      glassRemovedBorderStyle = 'border-bottom:4px solid #dc2626;';
+      glassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-red gr-pulse">🚨 ${_grDays}d</div>`;
+    } else if (_grDays >= 7) {
+      glassRemovedBorderStyle = 'border-bottom:4px solid #f59e0b;';
+      glassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-orange">⚠️ ${_grDays}d</div>`;
+    } else {
+      glassRemovedBorderStyle = 'border-bottom:4px solid #2563eb;';
+    }
+  }
+
   return `
     <div class="appointment desk-card${needsLoc}${isPreAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
-         style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar}">
+         style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar} ${glassRemovedBorderStyle}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
       <div class="dc-meta" data-ms-patched="1">
         ${getAllServices(a).map(s => `<span class="dc-badge">${s.service||''}</span>`).join('')}
@@ -2422,10 +2461,11 @@ function buildDesktopCard(a){
       </div>
       ${execBadge}
       <div class="card-actions">
+        ${a.photo_url ? `<a href="${a.photo_url}" target="_blank" rel="noopener" class="icon" title="Ver foto" style="text-decoration:none;">📷</a>` : ''}
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
       </div>
-    ${diasAbertoBadge}${loja ? '' : buildKmRow(a)}${phcFooter}</div>`;
+    ${glassRemovedBadge}${diasAbertoBadge}${loja ? '' : buildKmRow(a)}${phcFooter}</div>`;
 }
 
 function renderSchedule(){

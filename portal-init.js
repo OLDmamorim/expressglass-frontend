@@ -193,15 +193,19 @@ function applyPortalConfig(portalConfig) {
 
 // === ADAPTAR UI PARA LOJA ===
 function applyLojaMode(isLoja) {
-  const locGroup = document.querySelector('#appointmentLocality')?.closest('.form-group')
+  const locGroup = document.getElementById('localityFormGroup')
+    || document.querySelector('#appointmentLocality')?.closest('.form-group')
     || document.querySelector('#localityAutocomplete')?.closest('.form-group');
-  if (locGroup) locGroup.style.display = isLoja ? 'none' : '';
+  if (locGroup) {
+    if (isLoja) locGroup.classList.add('loja-hidden');
+    else locGroup.classList.remove('loja-hidden');
+  }
 
-  const addressField = document.querySelector('#appointmentAddress')?.closest('.form-group');
-  if (addressField) addressField.style.display = isLoja ? 'none' : '';
-
-  const kmField = document.querySelector('#appointmentKm')?.closest('.form-group');
-  if (kmField) kmField.style.display = isLoja ? 'none' : '';
+  const addressKmRow = document.getElementById('addressKmRow');
+  if (addressKmRow) {
+    if (isLoja) addressKmRow.classList.add('loja-hidden');
+    else addressKmRow.classList.remove('loja-hidden');
+  }
 
   const routeBtn = document.querySelector('[onclick*="openSelectDayModal"]') || document.querySelector('[onclick*="calculateOptimalRoutes"]');
   if (routeBtn) routeBtn.style.display = isLoja ? 'none' : '';

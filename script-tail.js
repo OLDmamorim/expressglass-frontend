@@ -107,6 +107,22 @@ const telBtn = phone ? `
       </span>
     </div>` : '';
 
+  // Glass removed urgency (mobile)
+  let mGlassRemovedBorderStyle = '';
+  let mGlassRemovedBadge = '';
+  if (a.glass_removed && a.glass_removed_date) {
+    const _mGrDays = Math.floor((Date.now() - new Date(a.glass_removed_date + 'T00:00:00').getTime()) / 86400000);
+    if (_mGrDays >= 14) {
+      mGlassRemovedBorderStyle = 'border-bottom:4px solid #dc2626;';
+      mGlassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-red gr-pulse">🚨 ${_mGrDays}d</div>`;
+    } else if (_mGrDays >= 7) {
+      mGlassRemovedBorderStyle = 'border-bottom:4px solid #f59e0b;';
+      mGlassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-orange">⚠️ ${_mGrDays}d</div>`;
+    } else {
+      mGlassRemovedBorderStyle = 'border-bottom:4px solid #2563eb;';
+    }
+  }
+
   const userRole = window.authClient?.getUser?.()?.role || '';
   const canEdit = userRole === 'admin' || userRole === 'coordenador';
   const editBtn = canEdit ? `
@@ -120,7 +136,7 @@ const telBtn = phone ? `
 
   return `
     <div class="appointment m-card${preAgendadoM ? ' pre-agendado' : ''}" data-id="${a.id}"
-         style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; position:relative;">
+         style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; position:relative; ${mGlassRemovedBorderStyle}">
       ${editBtn}
       <div class="map-icons">
         ${wazeBtn}${mapsBtn}${telBtn}
@@ -140,6 +156,7 @@ const telBtn = phone ? `
         ${isLoja() ? '' : buildKmRow(a)}
       </div>
       ${statusToggle}
+      ${mGlassRemovedBadge}
       ${mDiasAbertoBadge}
       ${phcFooter}
     </div>
@@ -929,7 +946,23 @@ function bootApp() {
       notes:  get('appointmentNotes'),
       address:get('appointmentAddress'),
       phone:  get('appointmentPhone'),
-      extra:  get('appointmentExtra'),
+      extra:  (function() {
+        const eurocode = get('appointmentExtra');
+        const photo_url = (document.getElementById('appointmentPhoto')?.value || '').trim();
+        // Build history entry
+        const histEl = document.getElementById('appointmentHistory');
+        const prevHistory = histEl ? histEl.value : '';
+        const now = new Date();
+        const ts = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0') + ' ' + String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+        const user = window.authClient?.getUser?.()?.name || window.authClient?.getUser?.()?.role || 'Utilizador';
+        const action = (typeof editingId !== 'undefined' && editingId) ? 'Editado' : 'Criado';
+        const histEntry = '[' + ts + '] ' + user + ': ' + action;
+        const newHistory = prevHistory ? prevHistory + '\n' + histEntry : histEntry;
+        if (histEl) histEl.value = newHistory;
+        // If all extra fields are empty/default, just return plain eurocode for backwards compat
+        if (!photo_url && !newHistory) return eurocode;
+        return JSON.stringify({ eurocode: eurocode, photo_url: photo_url, history: newHistory });
+      })(),
       status: (document.getElementById('appointmentStatus')?.value || 'NE'),
       vehicleType: (document.getElementById('appointmentVehicleType')?.value || localStorage.getItem('eg_last_vehicleType') || 'L'),
       calibration: document.getElementById('appointmentCalibration')?.checked || false,
@@ -2072,3 +2105,129 @@ document.addEventListener('DOMContentLoaded', function() {
   
   // Vista em tabela é agora a única vista disponível
 });
+
+// ===== Push Notifications (local, browser Notification API) =====
+(function() {
+  const SEEN_KEY = 'eg_notif_seen';
+  const GR_NOTIF_KEY = 'eg_gr_notif_date';
+
+  function getSeenIds() {
+    try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); } catch(e) { return []; }
+  }
+  function markSeen(ids) {
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify(ids)); } catch(e) {}
+  }
+
+  function requestPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      Notification.requestPermission().catch(function() {});
+    }
+  }
+
+  function sendNotif(title, body, tag) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try { new Notification(title, { body: body, tag: tag, icon: '/icon-192.png' }); } catch(e) {}
+  }
+
+  function checkNotifications() {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const appts = window.appointments || [];
+    const todayISO = (function() {
+      const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    })();
+
+    // New appointments for today not yet "seen"
+    const seen = getSeenIds();
+    const todayAppts = appts.filter(a => a.date === todayISO && a.confirmed !== false);
+    const newIds = [];
+    todayAppts.forEach(function(a) {
+      const idStr = String(a.id);
+      if (!seen.includes(idStr)) {
+        sendNotif('Novo serviço hoje', (a.plate||'') + ' — ' + (a.car||''), 'appt-' + idStr);
+        newIds.push(idStr);
+      }
+    });
+    if (newIds.length) markSeen([...seen, ...newIds]);
+
+    // Glass removed 7+ days reminder (once per day)
+    const lastGrNotif = localStorage.getItem(GR_NOTIF_KEY) || '';
+    if (lastGrNotif !== todayISO) {
+      const urgentGlass = appts.filter(function(a) {
+        if (!a.glass_removed || !a.glass_removed_date) return false;
+        const days = Math.floor((Date.now() - new Date(a.glass_removed_date + 'T00:00:00').getTime()) / 86400000);
+        return days >= 7;
+      });
+      if (urgentGlass.length > 0) {
+        sendNotif('Vidros retirados urgentes', urgentGlass.length + ' vidro(s) retirado(s) há 7+ dias aguardam recolocação.', 'gr-urgent');
+        try { localStorage.setItem(GR_NOTIF_KEY, todayISO); } catch(e) {}
+      }
+    }
+  }
+
+  // Request permission on load
+  requestPermission();
+
+  // Hook into renderAll to check notifications
+  window.addEventListener('portalReady', function() {
+    setTimeout(function() {
+      const origRA = window.renderAll;
+      if (typeof origRA === 'function') {
+        window.renderAll = function() {
+          origRA.apply(this, arguments);
+          checkNotifications();
+        };
+      }
+    }, 800);
+  }, { once: true });
+
+  // Also check once on initial load after appointments are available
+  setTimeout(checkNotifications, 3000);
+})();
+
+// ===== Filter bar logic =====
+(function() {
+  function updateFilterClearBtn() {
+    const af = window._agendaFilters || {};
+    const active = af.service || af.glassRemoved || af.notDone;
+    const btn = document.getElementById('filterClearAll');
+    if (btn) btn.style.display = active ? 'inline-flex' : 'none';
+  }
+
+  document.getElementById('filterService')?.addEventListener('change', function() {
+    window._agendaFilters = window._agendaFilters || {};
+    window._agendaFilters.service = this.value;
+    updateFilterClearBtn();
+    if (typeof renderAll === 'function') renderAll();
+  });
+
+  document.getElementById('filterGlassRemoved')?.addEventListener('click', function() {
+    window._agendaFilters = window._agendaFilters || {};
+    window._agendaFilters.glassRemoved = !window._agendaFilters.glassRemoved;
+    this.dataset.active = window._agendaFilters.glassRemoved ? '1' : '0';
+    this.classList.toggle('active', window._agendaFilters.glassRemoved);
+    updateFilterClearBtn();
+    if (typeof renderAll === 'function') renderAll();
+  });
+
+  document.getElementById('filterNotDone')?.addEventListener('click', function() {
+    window._agendaFilters = window._agendaFilters || {};
+    window._agendaFilters.notDone = !window._agendaFilters.notDone;
+    this.dataset.active = window._agendaFilters.notDone ? '1' : '0';
+    this.classList.toggle('active-red', window._agendaFilters.notDone);
+    updateFilterClearBtn();
+    if (typeof renderAll === 'function') renderAll();
+  });
+
+  document.getElementById('filterClearAll')?.addEventListener('click', function() {
+    window._agendaFilters = { service: '', glassRemoved: false, notDone: false };
+    const svc = document.getElementById('filterService');
+    if (svc) svc.value = '';
+    const gr = document.getElementById('filterGlassRemoved');
+    if (gr) { gr.dataset.active = '0'; gr.classList.remove('active'); }
+    const nd = document.getElementById('filterNotDone');
+    if (nd) { nd.dataset.active = '0'; nd.classList.remove('active-red'); }
+    updateFilterClearBtn();
+    if (typeof renderAll === 'function') renderAll();
+  });
+})();

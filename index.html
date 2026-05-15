@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Figtree:wght@400;500;600;700;800&family=Roboto:wght@400;500&family=Rajdhani:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=2026-05-15a"/>
+  <link rel="stylesheet" href="style.css?v=2026-05-15b"/>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
@@ -155,8 +155,27 @@
         <button id="btnRotaDoDiaDesk" class="nav-button" style="background:#16a34a;color:#fbbf24;" title="Ver rota do dia no Google Maps">📍 Ver Rota</button>
         <button id="btnRelatorioDesk" class="nav-button" style="color:#fbbf24;" title="Relatório semanal">📊 Relatório</button>
         <button id="btnTimelineDesk" class="nav-button" style="background:#7c3aed;color:#fbbf24;" title="Timeline do dia">⏱️ Timeline</button>
+        <button id="btnVidrosRetirados" class="nav-button" style="background:#f59e0b;color:#fff;font-weight:700;" title="Ver vidros retirados">🪟 Vidros Retirados</button>
         <button id="printPage" class="nav-button" style="color:#fbbf24;">🖨 Imprimir</button>
       </div>
+    </div>
+
+    <!-- Filter bar -->
+    <div id="filterBar" style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:#1e293b;border-bottom:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;">
+      <span class="filter-label">Filtros:</span>
+      <select id="filterService" class="filter-select">
+        <option value="">Todos os serviços</option>
+        <option value="PB">PB</option>
+        <option value="LT">LT</option>
+        <option value="OC">OC</option>
+        <option value="REP">REP</option>
+        <option value="POL">POL</option>
+        <option value="RV">RV</option>
+        <option value="OUT">OUT</option>
+      </select>
+      <button id="filterGlassRemoved" class="filter-chip" data-active="0">🪟 Vidro Retirado</button>
+      <button id="filterNotDone" class="filter-chip" data-active="0">❌ Não Realizado</button>
+      <button id="filterClearAll" class="filter-chip" style="opacity:0.5;display:none;">✕ Limpar filtros</button>
     </div>
 
     <div class="schedule-container print-page-1">
@@ -438,6 +457,13 @@
             <div class="form-group"></div>
           </div>
 
+          <!-- Foto URL -->
+          <div class="form-group">
+            <label for="appointmentPhoto">Foto (URL)</label>
+            <input type="url" id="appointmentPhoto" placeholder="https://..." />
+            <small class="form-hint">Link para foto do vidro/serviço</small>
+          </div>
+
           <!-- LINHA 9: Observações -->
           <div class="form-group">
             <label for="appointmentNotes">Observações</label>
@@ -459,6 +485,16 @@
             </div>
             <input type="hidden" id="appointmentConfirmed" value="true">
           </div>
+
+          <!-- HISTÓRICO -->
+          <details id="historyDetails" style="margin-top:16px;">
+            <summary style="cursor:pointer;font-size:13px;font-weight:700;color:#6b7280;padding:8px 0;">📋 Histórico de alterações</summary>
+            <div style="margin-top:8px;">
+              <textarea id="appointmentHistory" readonly
+                style="width:100%;height:100px;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px;font-family:monospace;color:#374151;background:#f9fafb;resize:vertical;box-sizing:border-box;"
+                placeholder="Sem histórico"></textarea>
+            </div>
+          </details>
 
           <!-- AÇÕES -->
           <div class="form-actions">
@@ -561,13 +597,14 @@
     </div>
   </div>
 
-  <script src="portal-init.js?v=2026-05-13e"></script>
+  <script src="portal-init.js?v=2026-05-15h"></script>
   <script src="api.js?v=2026-04-09"></script>
-  <script src="script.js?v=2026-05-15g"></script>
-  <script src="script-tail.js?v=2026-05-15b"></script>
+  <script src="script.js?v=2026-05-15h"></script>
+  <script src="script-tail.js?v=2026-05-15c"></script>
   <script src="portal-consult-patch.js?v=1"></script>
-  <script src="/glass-removed-patch.js?v=4"></script>
+  <script src="/glass-removed-patch.js?v=5"></script>
   <script src="/multi-service-patch.js?v=2026-05-15b"></script>
+  <script src="vidros-retirados-panel.js?v=1"></script>
   <script src="coord-relatorio-patch.js?v=2026-05-01"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="excel-templates.js?v=2026-04-09"></script>

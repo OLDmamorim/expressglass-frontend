@@ -36,6 +36,7 @@
     const appts = window.appointments || [];
     const i = appts.findIndex(a => String(a.id) === String(id));
     if (i < 0) return;
+    const apptSnapshot = { ...appts[i] };
     const prev = { glass_removed: appts[i].glass_removed, glass_removed_date: appts[i].glass_removed_date, date: appts[i].date, confirmed: appts[i].confirmed, executed: appts[i].executed, not_done_reason: appts[i].not_done_reason };
     appts[i].glass_removed = true;
     appts[i].glass_removed_date = new Date().toISOString().slice(0, 10);
@@ -47,10 +48,50 @@
       if (typeof renderAll === 'function') renderAll(); else window.reloadAppointments?.();
       if (typeof window.showToast === 'function') window.showToast('Vidro retirado registado', 'success');
       if (typeof window.fireVidroRetiradoEmojis === 'function') window.fireVidroRetiradoEmojis();
+      // Auto-reschedule suggestion
+      if (dateVal) {
+        _showReagendamentoPrompt(apptSnapshot, dateVal);
+      }
     } catch(e) {
       Object.assign(appts[i], prev);
       if (typeof window.showToast === 'function') window.showToast('Erro ao guardar', 'error');
     }
+  }
+
+  function _showReagendamentoPrompt(appt, dateVal) {
+    const existing = document.getElementById('grReagendamentoPrompt');
+    if (existing) existing.remove();
+    const prompt = document.createElement('div');
+    prompt.id = 'grReagendamentoPrompt';
+    prompt.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:10000;background:#1e293b;color:#fff;border-radius:14px;padding:16px 20px;box-shadow:0 8px 40px rgba(0,0,0,0.4);display:flex;align-items:center;gap:12px;max-width:380px;width:92%;';
+    prompt.innerHTML = `
+      <div style="flex:1;">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px;">Criar pré-agendamento?</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.65);">Para ${dateVal} — ${(appt.plate||'').toUpperCase()}</div>
+      </div>
+      <button id="grReagSim" style="background:#2563eb;color:#fff;border:none;padding:8px 14px;border-radius:9px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;">✅ Sim</button>
+      <button id="grReagNao" style="background:rgba(255,255,255,0.1);color:#fff;border:none;padding:8px 12px;border-radius:9px;font-size:13px;cursor:pointer;">Não</button>
+    `;
+    document.body.appendChild(prompt);
+    document.getElementById('grReagNao').onclick = function() { prompt.remove(); };
+    document.getElementById('grReagSim').onclick = async function() {
+      prompt.remove();
+      try {
+        await window.apiClient.createAppointment({
+          plate: appt.plate,
+          car: appt.car,
+          service: appt.service,
+          date: dateVal,
+          confirmed: false,
+          notes: 'Criado automaticamente - reagendamento após vidro retirado'
+        });
+        if (typeof renderAll === 'function') renderAll();
+        if (typeof window.showToast === 'function') window.showToast('Pré-agendamento criado para ' + dateVal, 'success');
+      } catch(e) {
+        if (typeof window.showToast === 'function') window.showToast('Erro ao criar pré-agendamento', 'error');
+      }
+    };
+    setTimeout(function() { if (prompt.parentNode) prompt.remove(); }, 12000);
   }
 
   window._grConfirmNoDate = async function() {
