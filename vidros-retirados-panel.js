@@ -12,14 +12,24 @@
   </div>
 </div>`);
 
+  // Normaliza qualquer formato de data para YYYY-MM-DD
+  function normDate(d) {
+    if (!d) return null;
+    return String(d).slice(0, 10); // apanha só YYYY-MM-DD mesmo que venha como ISO completo
+  }
+
   function calcDaysOut(dateStr) {
-    if (!dateStr) return 0;
-    return Math.floor((Date.now() - new Date(dateStr + 'T00:00:00').getTime()) / 86400000);
+    const s = normDate(dateStr);
+    if (!s) return null;
+    const ms = new Date(s + 'T00:00:00').getTime();
+    if (isNaN(ms)) return null;
+    return Math.floor((Date.now() - ms) / 86400000);
   }
 
   function fmtDate(d) {
-    if (!d) return '—';
-    const [y, m, day] = d.split('-');
+    const s = normDate(d);
+    if (!s) return '—';
+    const [y, m, day] = s.split('-');
     return `${day}/${m}/${y}`;
   }
 
@@ -47,8 +57,10 @@
     appts.forEach(function(a) {
       const days = calcDaysOut(a.glass_removed_date);
       let daysBg = '#2563eb';
-      if (days >= 14) daysBg = '#dc2626';
+      if (days === null) daysBg = '#64748b';
+      else if (days >= 14) daysBg = '#dc2626';
       else if (days >= 7) daysBg = '#f59e0b';
+      const daysLabel = days === null ? '?' : days + 'd';
 
       const scheduledDate = a.date ? fmtDate(a.date) : '<span style="color:rgba(255,255,255,0.35);">—</span>';
 
@@ -56,7 +68,7 @@
         <span style="font-size:15px;font-weight:800;color:#fff;">${(a.plate||'').toUpperCase()}</span>
         <span style="font-size:12px;color:rgba(255,255,255,0.7);">${(a.car||'').toUpperCase()}<br><span style="font-size:11px;opacity:0.6;">${a.service||''}</span></span>
         <span style="font-size:12px;color:rgba(255,255,255,0.6);">${fmtDate(a.glass_removed_date)}</span>
-        <span style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:12px;color:#fff;background:${daysBg};white-space:nowrap;">${days}d</span>
+        <span style="font-size:12px;font-weight:700;padding:4px 10px;border-radius:12px;color:#fff;background:${daysBg};white-space:nowrap;">${daysLabel}</span>
         <span style="font-size:12px;color:rgba(255,255,255,0.6);white-space:nowrap;">${scheduledDate}</span>
       </div>`;
     });

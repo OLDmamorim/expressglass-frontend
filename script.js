@@ -2425,7 +2425,8 @@ function buildDesktopCard(a){
   let glassRemovedBorderStyle = '';
   let glassRemovedBadge = '';
   if (a.glass_removed && a.glass_removed_date) {
-    const _grDays = Math.floor((Date.now() - new Date(a.glass_removed_date + 'T00:00:00').getTime()) / 86400000);
+    const _grNorm = String(a.glass_removed_date).slice(0, 10); // normaliza ISO completo → YYYY-MM-DD
+    const _grDays = Math.floor((Date.now() - new Date(_grNorm + 'T00:00:00').getTime()) / 86400000);
     if (_grDays >= 14) {
       glassRemovedBorderStyle = 'border-bottom:4px solid #dc2626;';
       glassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-red gr-pulse">🚨 ${_grDays}d</div>`;
