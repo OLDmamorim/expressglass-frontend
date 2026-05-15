@@ -917,19 +917,21 @@ function isLoja() { return window.portalConfig?.portalType === 'loja'; }
 // — SM  : mostra tudo
 function applyLojaModalMode() {
   const loja = isLoja();
-  const hide = loja ? 'none' : '';
 
   // Hint "seleciona a localidade para sugestão de data"
+  // (tem display:flex inline no HTML — usar classe que force none)
   const hint = document.getElementById('localityHint');
-  if (hint) hint.style.display = loja ? 'none' : 'flex';
+  if (hint) hint.classList.toggle('loja-hidden', loja);
 
   // Grupo de localidade (LINHA 2, segundo form-group)
+  // (form-group tem display:flex !important no CSS — usar classe)
   const localityGroup = document.getElementById('localityFormGroup');
-  if (localityGroup) localityGroup.style.display = hide;
+  if (localityGroup) localityGroup.classList.toggle('loja-hidden', loja);
 
   // LINHA 7 — Morada + Distância (km)
+  // (form-row tem display:grid !important no CSS — usar classe)
   const addressRow = document.getElementById('addressKmRow');
-  if (addressRow) addressRow.style.display = hide;
+  if (addressRow) addressRow.classList.toggle('loja-hidden', loja);
 
   // Remove/repõe required na localidade (campo hidden, evita erro de validação)
   const localityInput = document.getElementById('appointmentLocality');

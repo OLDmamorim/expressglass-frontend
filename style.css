@@ -1623,6 +1623,11 @@ body.printing-now > *:not(#print-container-temp) {
   color: #9ca3af;
   font-size: 13px;
 }
+/* === Campos ocultos em modo loja === */
+#appointmentModal .loja-hidden,
+#appointmentModal .loja-hidden.form-row,
+#appointmentModal .loja-hidden.form-group { display:none !important; }
+
 /* === Modal -> 2 colunas estáveis === */
 #appointmentModal .form-row{
   display:grid !important;
