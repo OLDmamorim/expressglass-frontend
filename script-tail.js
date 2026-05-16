@@ -728,7 +728,8 @@ function buildRelatorio() {
   }
 
   // ── Vidros Retirados — todos, não só da semana ───────────────────────
-  const glassRemovedAppts = (window.appointments || [])
+  console.log('[relatorio] total appts:', (appointments||[]).length, 'glass_removed:', (appointments||[]).filter(a=>!!a.glass_removed).length);
+  const glassRemovedAppts = (appointments || [])
     .filter(a => !!a.glass_removed)
     .sort((a, b) => {
       // Mais urgentes primeiro: sem data de remoção ficam no fim
