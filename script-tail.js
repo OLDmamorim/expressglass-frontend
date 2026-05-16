@@ -111,7 +111,8 @@ const telBtn = phone ? `
   let mGlassRemovedBorderStyle = '';
   let mGlassRemovedBadge = '';
   if (a.glass_removed && a.glass_removed_date) {
-    const _mGrDays = Math.floor((Date.now() - new Date(a.glass_removed_date + 'T00:00:00').getTime()) / 86400000);
+    const _mGrNorm = String(a.glass_removed_date).slice(0, 10);
+    const _mGrDays = Math.floor((Date.now() - new Date(_mGrNorm + 'T00:00:00').getTime()) / 86400000);
     if (_mGrDays >= 14) {
       mGlassRemovedBorderStyle = 'border-bottom:4px solid #dc2626;';
       mGlassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-red gr-pulse">🚨 ${_mGrDays}d</div>`;
@@ -726,20 +727,30 @@ function buildRelatorio() {
       </div>`;
   }
 
-  // ── Vidros Retirados ──────────────────────────────────────────────────
-  const glassRemovedAppts = weekAppts.filter(a => !!a.glass_removed);
+  // ── Vidros Retirados — todos, não só da semana ───────────────────────
+  const glassRemovedAppts = (window.appointments || [])
+    .filter(a => !!a.glass_removed)
+    .sort((a, b) => {
+      // Mais urgentes primeiro: sem data de remoção ficam no fim
+      const dA = a.glass_removed_date ? Date.now() - new Date(String(a.glass_removed_date).slice(0,10)+'T00:00:00').getTime() : -1;
+      const dB = b.glass_removed_date ? Date.now() - new Date(String(b.glass_removed_date).slice(0,10)+'T00:00:00').getTime() : -1;
+      return dB - dA;
+    });
   if (glassRemovedAppts.length > 0) {
     html += `
       <div style="border-top:2px solid #2563eb;padding-top:16px;margin-top:16px;">
         <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:#2563eb;margin-bottom:12px;">🪟 Vidros Retirados (${glassRemovedAppts.length})</div>
         ${glassRemovedAppts.map(a => {
           const dateStr = a.date ? new Date(a.date + 'T00:00:00').toLocaleDateString('pt-PT', { weekday:'short', day:'2-digit', month:'2-digit' }) : '—';
-          const sugestao = a.date && a.glass_removed && a.confirmed === false
-            ? `<span style="color:#f59e0b;font-size:11px;font-weight:700;">⚠️ Aguarda data</span>`
-            : a.date ? `<span style="color:#16a34a;font-size:11px;font-weight:700;">📅 ${dateStr}</span>` : '';
+          const sugestao = !a.date
+            ? `<span style="color:#94a3b8;font-size:11px;font-weight:700;">Sem data</span>`
+            : a.confirmed === false
+              ? `<span style="color:#f59e0b;font-size:11px;font-weight:700;">⚠️ Pré-ag. ${dateStr}</span>`
+              : `<span style="color:#16a34a;font-size:11px;font-weight:700;">📅 ${dateStr}</span>`;
           let diasBadge = '';
           if (a.glass_removed_date) {
-            const removedMs = new Date(a.glass_removed_date + 'T00:00:00').getTime();
+            const normDate = String(a.glass_removed_date).slice(0, 10);
+            const removedMs = new Date(normDate + 'T00:00:00').getTime();
             if (!isNaN(removedMs)) {
               const diasEspera = Math.floor((Date.now() - removedMs) / 86400000);
               const cor = diasEspera >= 14 ? '#dc2626' : diasEspera >= 7 ? '#f59e0b' : '#2563eb';
