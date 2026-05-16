@@ -63,6 +63,7 @@
           : (pesadosPortals[0] || allPortals[0]);
 
         window.activePortalId = activePortal.id;
+        updateConsultablePortals(activePortal.id);
         applyPortalConfig(activePortal);
         buildPortalSwitcher(allPortals, activePortal.id);
       }
@@ -103,6 +104,7 @@
           : allPortals[0];
 
         window.activePortalId = activePortal.id;
+        updateConsultablePortals(activePortal.id);
         applyPortalConfig(activePortal);
         buildPortalSwitcher(allPortals, activePortal.id);
       }
@@ -136,6 +138,7 @@
       : user.portals[0];
 
     window.activePortalId = activePortal.id;
+    updateConsultablePortals(activePortal.id);
     applyPortalConfig(activePortal);
     buildPortalSwitcher(user.portals, activePortal.id);
   } else {
@@ -271,12 +274,21 @@ function buildPortalSwitcher(portals, activeId) {
 }
 
 // === TROCAR PORTAL ===
+// Actualiza consultablePortals = todos os SM, excepto o activo
+function updateConsultablePortals(activeId) {
+  var all = window.coordPortals || [];
+  window.consultablePortals = all.filter(function(p) {
+    return p.id !== activeId && p.portalType !== 'loja';
+  });
+}
+
 async function switchPortal(newPortalId) {
   var portal = window.coordPortals.find(function(p) { return p.id === newPortalId; });
   if (!portal) return;
 
   sessionStorage.setItem('eg_active_portal', String(newPortalId));
   window.activePortalId = newPortalId;
+  updateConsultablePortals(newPortalId);
 
   if (typeof window.appointments !== 'undefined') {
     window.appointments = [];
