@@ -213,7 +213,7 @@ exports.handler = async (event) => {
         [id, portalId]
       );
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
-      console.log(`✅ DELETE - ${id} eliminado`);
+      console.log(`✅ DELETE - ${id} eliminado | plate: ${rows[0].plate} | car: ${rows[0].car} | locality: ${rows[0].locality} | date: ${rows[0].date}`);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
     }
 
