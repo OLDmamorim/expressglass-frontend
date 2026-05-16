@@ -1590,7 +1590,7 @@ function renderReport(data) {
     }
   });
 
-  // Carregar dados reais de forma assíncrona e actualizar gráfico
+  // Carregar dados reais de forma assíncrona e actualizar gráfico + vidros retirados
   (async () => {
     try {
       const token = authClient.getToken();
@@ -1600,7 +1600,8 @@ function renderReport(data) {
       });
       const apptData = await resp2.json();
       const normDate = s => s ? String(s).slice(0, 10) : null;
-      const appts = (apptData.data || []).filter(a => {
+      const allAppts = apptData.data || [];
+      const appts = allAppts.filter(a => {
         const d = normDate(a.date);
         return a.created_at && d && d >= normDate(period.from) && d <= normDate(period.to);
       });
@@ -1629,6 +1630,64 @@ function renderReport(data) {
         ? (diasList.reduce((s,d) => s+d, 0) / diasList.length).toFixed(1)
         : '—';
       document.getElementById('kpiMediaDiaria').textContent = media + (media !== '—' ? ' dias' : '');
+
+      // ── Vidros Retirados ──────────────────────────────────────────────
+      const vidrosSection = document.getElementById('reportVidrosSection');
+      if (vidrosSection) {
+        // Todos os vidros com glass_removed=true (não filtrar por período — mostrar pendentes)
+        const vidrosAppts = allAppts
+          .filter(a => !!a.glass_removed)
+          .sort((a, b) => {
+            const dA = a.glass_removed_date ? Date.now() - new Date(normDate(a.glass_removed_date) + 'T00:00:00').getTime() : -1;
+            const dB = b.glass_removed_date ? Date.now() - new Date(normDate(b.glass_removed_date) + 'T00:00:00').getTime() : -1;
+            return dB - dA;
+          });
+
+        if (vidrosAppts.length > 0) {
+          const fmtD = d => {
+            const s = normDate(d);
+            if (!s) return '—';
+            const [y, m, day] = s.split('-');
+            return `${day}/${m}/${y}`;
+          };
+
+          vidrosSection.innerHTML = `
+            <div style="border-top:2px solid #2563eb;padding-top:24px;margin-top:32px;">
+              <h3 style="font-size:16px;font-weight:700;color:#2563eb;margin-bottom:16px;">🪟 Vidros Retirados (${vidrosAppts.length} pendente${vidrosAppts.length !== 1 ? 's' : ''})</h3>
+              <table style="width:100%;border-collapse:collapse;font-size:14px;">
+                <thead>
+                  <tr style="background:#eff6ff;">
+                    <th style="padding:10px 12px;text-align:left;font-weight:700;color:#2563eb;">Matrícula</th>
+                    <th style="padding:10px 12px;text-align:left;font-weight:700;">Carro / Serviço</th>
+                    <th style="padding:10px;text-align:center;font-weight:700;">Retirado em</th>
+                    <th style="padding:10px;text-align:center;font-weight:700;">Dias aguarda</th>
+                    <th style="padding:10px;text-align:center;font-weight:700;">Reagendado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${vidrosAppts.map((a, i) => {
+                    const grNorm = normDate(a.glass_removed_date);
+                    const grMs = grNorm ? new Date(grNorm + 'T00:00:00').getTime() : NaN;
+                    const dias = !isNaN(grMs) ? Math.floor((Date.now() - grMs) / 86400000) : null;
+                    const diasCor = dias === null ? '#64748b' : dias >= 14 ? '#dc2626' : dias >= 7 ? '#f59e0b' : '#2563eb';
+                    const diasLabel = dias === null ? '?' : dias + 'd';
+                    const scheduledDate = a.date ? fmtD(a.date) : '<span style="color:#94a3b8;">—</span>';
+                    return `<tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
+                      <td style="padding:10px 12px;font-weight:800;color:#1e293b;">${(a.plate||'').toUpperCase()}</td>
+                      <td style="padding:10px 12px;color:#374151;">${(a.car||'').toUpperCase()}<br><span style="font-size:12px;color:#6b7280;">${a.service||''}</span></td>
+                      <td style="text-align:center;padding:10px;color:#6b7280;">${fmtD(a.glass_removed_date)}</td>
+                      <td style="text-align:center;padding:10px;"><span style="background:${diasCor};color:#fff;font-weight:800;padding:3px 10px;border-radius:12px;font-size:13px;">${diasLabel}</span></td>
+                      <td style="text-align:center;padding:10px;">${scheduledDate}</td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>`;
+          vidrosSection.style.display = 'block';
+        } else {
+          vidrosSection.style.display = 'none';
+        }
+      }
 
     } catch(e) { console.warn('Erro ao gerar gráfico dias aberto:', e); }
   })();
