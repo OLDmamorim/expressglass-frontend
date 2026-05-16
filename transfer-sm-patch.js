@@ -127,31 +127,44 @@
     cancelBtn.disabled = true;
 
     try {
-      var token = window.authClient && window.authClient.getToken();
       var currentPortalId = window.activePortalId;
+      var sourceName = (window.portalConfig && window.portalConfig.name) || 'SM';
 
-      // 1. Apagar do portal actual
-      await window.authClient.authenticatedFetch(
+      // ── 1. Criar no portal DESTINO primeiro (seguro: se falhar, original intacto) ──
+      var payload = Object.assign({}, appt, {
+        _portalId: _selectedPortalId,          // campo reconhecido pelo backend
+        notes: (appt.notes ? appt.notes + ' | ' : '') + 'Transferido de ' + sourceName
+      });
+      // Limpar campos que não devem ser copiados
+      ['id', 'created_at', 'updated_at', '_targetPortalId'].forEach(function (k) { delete payload[k]; });
+      // Limpar campos de confirmação e transferência
+      delete payload.pending_confirmation;
+      delete payload.referred_from_portal_id;
+
+      var postResp = await window.authClient.authenticatedFetch(
+        '/.netlify/functions/appointments?portal_id=' + _selectedPortalId,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }
+      );
+
+      if (!postResp.ok) {
+        var errBody = {};
+        try { errBody = await postResp.json(); } catch(e2) {}
+        throw new Error(errBody.error || ('Erro ao criar em ' + _selectedPortalName + ' (' + postResp.status + ')'));
+      }
+
+      // ── 2. Só apagar do portal ORIGEM depois de confirmar criação ──
+      var delResp = await window.authClient.authenticatedFetch(
         '/.netlify/functions/appointments/' + apptId + '?portal_id=' + currentPortalId,
         { method: 'DELETE' }
       );
-
-      // 2. Criar no portal destino
-      var payload = Object.assign({}, appt, {
-        _targetPortalId: _selectedPortalId,
-        pending_confirmation: true,
-        referred_from_portal_id: currentPortalId,
-        notes: (appt.notes ? appt.notes + ' | ' : '') +
-          'Transferido de ' + ((window.portalConfig && window.portalConfig.name) || 'SM')
-      });
-      // Limpar campos que não devem ser copiados
-      ['id', 'created_at', 'updated_at'].forEach(function (k) { delete payload[k]; });
-
-      await window.authClient.authenticatedFetch('/.netlify/functions/appointments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      if (!delResp.ok) {
+        // Criou no destino mas não apagou na origem — avisar sem esconder o sucesso
+        console.warn('transfer-sm-patch: DELETE falhou mas POST teve sucesso. Registo duplicado temporário.');
+      }
 
       // Remover da lista local
       if (Array.isArray(window.appointments)) {
@@ -173,7 +186,7 @@
 
     } catch (e) {
       console.error('transfer-sm-patch: doTransfer error', e);
-      if (typeof showToast === 'function') showToast('Erro na transferência: ' + (e.message || e), 'error');
+      if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Erro na transferência'), 'error');
       confirmBtn.disabled = false;
       confirmBtn.textContent = 'Confirmar → ' + _selectedPortalName;
       cancelBtn.disabled = false;
