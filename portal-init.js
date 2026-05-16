@@ -274,12 +274,25 @@ function buildPortalSwitcher(portals, activeId) {
 }
 
 // === TROCAR PORTAL ===
-// Actualiza consultablePortals = todos os SM, excepto o activo
+// Actualiza consultablePortals:
+//  - coordenador → usa a lista configurada no admin (user.consultablePortals), excluindo o portal activo
+//  - admin / pesados_coord → todos os portais SM/pesados excepto o activo (acesso total)
 function updateConsultablePortals(activeId) {
-  var all = window.coordPortals || [];
-  window.consultablePortals = all.filter(function(p) {
-    return p.id !== activeId && p.portalType !== 'loja';
-  });
+  var user = window.authClient && window.authClient.getUser && window.authClient.getUser();
+  var role = user && user.role;
+
+  if (role === 'coordenador' && user.consultablePortals && user.consultablePortals.length > 0) {
+    // Usa a lista específica do coordenador, excluindo o portal activo
+    window.consultablePortals = user.consultablePortals.filter(function(p) {
+      return p.id !== activeId;
+    });
+  } else {
+    // Admin / pesados_coord: todos os portais não-loja excepto o activo
+    var all = window.coordPortals || [];
+    window.consultablePortals = all.filter(function(p) {
+      return p.id !== activeId && p.portalType !== 'loja';
+    });
+  }
 }
 
 async function switchPortal(newPortalId) {
