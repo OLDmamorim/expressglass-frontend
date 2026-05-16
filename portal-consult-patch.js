@@ -138,9 +138,26 @@
     else if (!isOpen && _modalWasOpen) { _modalWasOpen = false; stopPoll(); }
   }, 300);
 
+  // ── Comparação fuzzy de localidade (ignora acentos, maiúsculas, palavras curtas em comum) ──
+  function localityMatch(a, b) {
+    if (!a || !b) return false;
+    var norm = function(s) {
+      return s.toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '') // remove acentos
+        .replace(/[^a-z0-9\s]/g, '').trim();
+    };
+    var na = norm(a), nb = norm(b);
+    if (na === nb) return true;
+    // match parcial: "famalicao" ∈ "vila nova de famalicao" ou vice-versa
+    if (na.length >= 4 && nb.includes(na)) return true;
+    if (nb.length >= 4 && na.includes(nb)) return true;
+    return false;
+  }
+
   // ── 5. BLOCO VERDE ───────────────────────────────────────────
   async function injectConsultInfo(locality) {
     var consultable = window.consultablePortals || [];
+    console.log('[consult] locality:', locality, '| consultable portals:', consultable.map(function(p){return p.name;}));
     if (!consultable.length || window._readOnlyMode) return;
 
     var todayISO = new Date().toISOString().slice(0, 10);
@@ -156,12 +173,12 @@
         if (!data.success) continue;
         (data.data || []).forEach(function(a) {
           var d = a.date ? String(a.date).slice(0, 10) : '';
-          if (a.locality !== locality || d < todayISO || d > limitISO) return;
+          if (!localityMatch(a.locality, locality) || d < todayISO || d > limitISO) return;
           var ex = matches.find(function(m) { return m.portalId === portal.id && m.date === d; });
           if (ex) ex.count++;
           else matches.push({ portalId: portal.id, portalName: portal.name, date: d, count: 1 });
         });
-      } catch(e) {}
+      } catch(e) { console.warn('[consult] erro portal', portal.name, e); }
     }
 
     removeConsultInfo();
