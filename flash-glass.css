@@ -57,16 +57,19 @@
   align-items: center;
   flex-shrink: 0;
 }
-/* Desktop: show VERSÃO NEGATIVA (logo on dark navy bg) cropped from design sheet */
-.fg-banner-logo-crop {
-  width: 185px;
-  height: 58px;
-  background-image: url(flash-glass-logo.png);
-  background-size: 582px auto;
-  background-position: -387px -137px;
-  background-repeat: no-repeat;
+.fg-banner-icon {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 2px rgba(245,158,11,0.3), 0 4px 16px rgba(245,158,11,0.35);
   flex-shrink: 0;
 }
+.fg-banner-brand { display: flex; flex-direction: column; gap: 1px; }
+.fg-banner-wordmark { font-size: 17px; font-weight: 900; line-height: 1; letter-spacing: -0.5px; }
+.fg-wm-flash { color: #fff; }
+.fg-wm-glass { color: #f59e0b; }
+.fg-banner-slogan { font-size: 10px; color: #64748b; font-style: italic; }
 
 /* Separator */
 .fg-banner-sep {
@@ -155,18 +158,11 @@
 }
 .fg-bm-icon {
   width: 40px; height: 40px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
   border-radius: 10px;
-  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  position: relative;
-}
-/* Mobile: show VERSÃO DARK icon cropped from design sheet */
-.fg-bm-logo-crop {
-  width: 40px; height: 40px;
-  background-image: url(flash-glass-logo.png);
-  background-size: 238px auto;
-  background-position: -57px -97px;
-  background-repeat: no-repeat;
+  box-shadow: 0 2px 10px rgba(245,158,11,0.4);
 }
 .fg-bm-wordmark { font-size: 14px; font-weight: 900; line-height: 1; letter-spacing: -0.3px; }
 .fg-bm-theme {
