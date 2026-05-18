@@ -273,7 +273,7 @@
   }
 
   function renderMuralCard(mural) {
-    const ws = new Date(mural.week_start + 'T12:00:00');
+    const ws = new Date(String(mural.week_start).substring(0, 10) + 'T12:00:00');
     const we = new Date(ws); we.setDate(we.getDate() + 6);
     const fmt = d => d.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' });
     const medals = ['🥇', '🥈', '🥉'];

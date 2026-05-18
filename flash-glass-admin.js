@@ -36,7 +36,8 @@
   }
 
   function renderContestRow(c) {
-    const ws = new Date(c.week_start + 'T12:00:00');
+    const rawDate = String(c.week_start).substring(0, 10);
+    const ws = new Date(rawDate + 'T12:00:00');
     const we = new Date(ws); we.setDate(we.getDate() + 6);
     const fmt = d => d.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short', year: 'numeric' });
     const badge = c.published
@@ -123,13 +124,13 @@
   function openCreateForm() {
     const form = document.getElementById('fgCreateForm');
     form.style.display = 'block';
-    // Default to next Monday
+    // Default to current week's Monday
     const today = new Date();
     const day = today.getDay();
-    const daysToNextMonday = day === 0 ? 1 : 8 - day;
-    const nextMonday = new Date(today);
-    nextMonday.setDate(today.getDate() + daysToNextMonday);
-    document.getElementById('fgWeekStart').value = nextMonday.toISOString().split('T')[0];
+    const daysToMonday = day === 0 ? 6 : day - 1;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - daysToMonday);
+    document.getElementById('fgWeekStart').value = monday.toISOString().split('T')[0];
     document.getElementById('fgThemeInput').value = '';
     document.getElementById('fgDescInput').value = '';
     form.scrollIntoView({ behavior: 'smooth', block: 'start' });
