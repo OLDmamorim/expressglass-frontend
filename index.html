@@ -149,22 +149,7 @@
       <div class="fg-banner-inner">
         <!-- Logo -->
         <div class="fg-banner-logo">
-          <div class="fg-banner-icon">
-            <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="1" y="9" width="34" height="22" rx="5" fill="#fff" fill-opacity="0.15" stroke="#fff" stroke-opacity="0.3" stroke-width="1.2"/>
-              <rect x="12" y="5" width="10" height="7" rx="3" fill="#fff" fill-opacity="0.15" stroke="#fff" stroke-opacity="0.3" stroke-width="1.2"/>
-              <circle cx="18" cy="20" r="7" fill="#fff" fill-opacity="0.1" stroke="#fff" stroke-opacity="0.6" stroke-width="1.5"/>
-              <circle cx="18" cy="20" r="4" fill="#f59e0b"/>
-              <circle cx="20.5" cy="17.5" r="1.5" fill="#fff" fill-opacity="0.7"/>
-              <line x1="4" y1="13" x2="7" y2="13" stroke="#fff" stroke-opacity="0.6" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <div class="fg-banner-brand">
-            <div class="fg-banner-wordmark">
-              <span class="fg-wm-flash">Flash</span><span class="fg-wm-glass">Glass</span>
-            </div>
-            <div class="fg-banner-slogan">O lado divertido da estrada</div>
-          </div>
+          <div class="fg-banner-logo-crop"></div>
         </div>
 
         <div class="fg-banner-sep"></div>
@@ -202,24 +187,6 @@
         <button id="btnVidrosRetirados" class="nav-button" style="background:#f59e0b;color:#fff;font-weight:700;" title="Ver vidros retirados">🪟 Vidros Retirados</button>
         <button id="printPage" class="nav-button" style="color:#fbbf24;">🖨 Imprimir</button>
       </div>
-    </div>
-
-    <!-- Filter bar -->
-    <div id="filterBar" style="display:flex;align-items:center;gap:8px;padding:8px 16px;background:#1e293b;border-bottom:1px solid rgba(255,255,255,0.08);flex-wrap:wrap;">
-      <span class="filter-label">Filtros:</span>
-      <select id="filterService" class="filter-select">
-        <option value="">Todos os serviços</option>
-        <option value="PB">PB</option>
-        <option value="LT">LT</option>
-        <option value="OC">OC</option>
-        <option value="REP">REP</option>
-        <option value="POL">POL</option>
-        <option value="RV">RV</option>
-        <option value="OUT">OUT</option>
-      </select>
-      <button id="filterGlassRemoved" class="filter-chip" data-active="0">🪟 Vidro Retirado</button>
-      <button id="filterNotDone" class="filter-chip" data-active="0">❌ Não Realizado</button>
-      <button id="filterClearAll" class="filter-chip" style="opacity:0.5;display:none;">✕ Limpar filtros</button>
     </div>
 
     <div class="schedule-container print-page-1">
@@ -267,10 +234,7 @@
       <div id="fgContestBannerMobile" class="fg-banner-mobile" style="display:none;" onclick="flashGlass.openMainModal()">
         <div class="fg-bm-left">
           <div class="fg-bm-icon">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="18" height="18">
-              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" fill="rgba(255,255,255,0.2)" stroke="#fff" stroke-width="1.5"/>
-              <circle cx="12" cy="13" r="4" fill="#f59e0b"/>
-            </svg>
+            <div class="fg-bm-logo-crop"></div>
           </div>
           <div>
             <div class="fg-bm-wordmark"><span class="fg-wm-flash">Flash</span><span class="fg-wm-glass">Glass</span></div>
