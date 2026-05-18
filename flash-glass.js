@@ -26,6 +26,25 @@
   async function init() {
     if (!window.authClient?.isAuthenticated()) return;
     await loadCurrentContest();
+    maybeShowWelcome();
+  }
+
+  function maybeShowWelcome() {
+    if (!currentContest) return;
+    const key = 'fg_welcome_' + currentContest.week_start;
+    if (localStorage.getItem(key)) return;
+    setTimeout(() => {
+      document.getElementById('fgWelcomeModal')?.classList.add('show');
+    }, 1200);
+  }
+
+  function closeWelcome(participate) {
+    const modal = document.getElementById('fgWelcomeModal');
+    modal?.classList.remove('show');
+    if (currentContest) {
+      localStorage.setItem('fg_welcome_' + currentContest.week_start, '1');
+    }
+    if (participate) openMainModal();
   }
 
   async function loadCurrentContest() {
@@ -376,7 +395,8 @@
     openMainModal, closeMainModal,
     openCamera, closeCameraModal, capturePhoto, retakePhoto, confirmPhoto,
     openMural, closeMuralModal,
-    openRanking, closeRankingModal
+    openRanking, closeRankingModal,
+    closeWelcome
   };
 
   // Boot after authClient is ready

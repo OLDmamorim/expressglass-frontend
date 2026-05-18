@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Figtree:wght@400;500;600;700;800&family=Roboto:wght@400;500&family=Rajdhani:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=2026-05-15b"/>
-  <link rel="stylesheet" href="flash-glass.css?v=2026-05-18c"/>
+  <link rel="stylesheet" href="flash-glass.css?v=2026-05-18d"/>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
@@ -643,7 +643,7 @@
   <script src="rota-do-dia-map.js?v=2026-05-14o"></script>
   <script src="timeline-rota.js?v=2026-05-14g"></script>
   <script src="commercial-requests-poll.js?v=2026-04-17"></script>
-  <script src="flash-glass.js?v=2026-05-18a"></script>
+  <script src="flash-glass.js?v=2026-05-18d"></script>
 
   <script>
     function fillPrintSectionsSafely(){
@@ -676,6 +676,12 @@
         <div class="fg-theme-desc" id="fgDescription"></div>
       </div>
       <div class="fg-modal-body">
+        <div class="fg-intro-text">
+          <p>Todas as semanas, um novo tema.</p>
+          <p>Cada dupla entra em jogo com uma fotografia tirada em serviço.</p>
+          <p>Criatividade, espírito de equipa e boa disposição contam pontos.</p>
+          <p>No final da semana, a melhor foto vence. 🏆</p>
+        </div>
         <div id="fgStatus" style="text-align:center;margin-bottom:14px;"></div>
         <button class="fg-action-btn primary" onclick="flashGlass.openCamera()">
           <span class="fg-btn-icon">📷</span>
@@ -751,6 +757,25 @@
       <div class="fg-ranking-scroll" id="fgRankingContainer">
         <div class="fg-loading">A carregar...</div>
       </div>
+    </div>
+  </div>
+
+  <!-- Flash Glass Welcome Popup -->
+  <div id="fgWelcomeModal" class="modal">
+    <div class="fg-welcome-content">
+      <img src="fg-logo.png?v=2026-05-18c" class="fg-welcome-logo" alt="Flash Glass">
+      <div class="fg-welcome-intro">
+        <p>Todas as semanas, um novo tema.</p>
+        <p>Cada dupla entra em jogo com uma fotografia tirada em serviço.</p>
+        <p>Criatividade, espírito de equipa e boa disposição contam pontos.</p>
+        <p>No final da semana, a melhor foto vence. 🏆</p>
+      </div>
+      <button class="fg-welcome-cta" onclick="flashGlass.closeWelcome(true)">
+        📷 Quero Participar!
+      </button>
+      <button class="fg-welcome-skip" onclick="flashGlass.closeWelcome(false)">
+        Talvez mais tarde
+      </button>
     </div>
   </div>
 
