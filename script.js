@@ -2361,9 +2361,13 @@ function buildDesktopCard(a){
   const service = a.service || 'PB';
   const car = (a.car || '').toUpperCase();
   const clientNameStr = a.client_name ? a.client_name : '';
+  let _extraDisplay = a.extra || '';
+  if (_extraDisplay) {
+    try { const _p = JSON.parse(_extraDisplay); _extraDisplay = _p.eurocode || ''; } catch(e) {}
+  }
   const sub = loja
-    ? [clientNameStr, a.extra, a.notes].filter(Boolean).join(' | ')
-    : [a.locality, clientNameStr, a.extra, a.notes].filter(Boolean).join(' | ');
+    ? [clientNameStr, _extraDisplay, a.notes].filter(Boolean).join(' | ')
+    : [a.locality, clientNameStr, _extraDisplay, a.notes].filter(Boolean).join(' | ');
   // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
