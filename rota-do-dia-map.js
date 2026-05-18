@@ -12,7 +12,11 @@
     '#7c3aed', '#0891b2', '#db2777', '#ea580c',
   ];
 
-  function colorForIndex(i) { return PORTAL_COLORS[i % PORTAL_COLORS.length]; }
+  function colorForIndex(i, total) {
+    if (!total || total <= PORTAL_COLORS.length) return PORTAL_COLORS[i % PORTAL_COLORS.length];
+    const hue = Math.round((i * 360) / total);
+    return `hsl(${hue}, 65%, 45%)`;
+  }
 
   function makeMarkerSVG(label, color) {
     const w = 80, h = 38, r = 7;
@@ -313,7 +317,7 @@
 
     const chipsContainer = document.getElementById('rmPortalChips');
     portals.forEach((p, i) => {
-      const color = colorForIndex(i);
+      const color = colorForIndex(i, portals.length);
       const chip = document.createElement('div');
       chip.className = 'rm-portal-chip';
       chip.dataset.portalId = p.id;
