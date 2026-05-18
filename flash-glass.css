@@ -57,13 +57,13 @@
   align-items: center;
   flex-shrink: 0;
 }
-.fg-banner-icon {
-  width: 48px; height: 48px;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  border-radius: 13px;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 0 2px rgba(245,158,11,0.3), 0 4px 16px rgba(245,158,11,0.35);
+.fg-banner-icon-img {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  object-fit: cover;
   flex-shrink: 0;
+  margin-right: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
 }
 .fg-banner-brand { display: flex; flex-direction: column; gap: 1px; }
 .fg-banner-wordmark { font-size: 17px; font-weight: 900; line-height: 1; letter-spacing: -0.5px; }
@@ -156,13 +156,12 @@
   display: flex; align-items: center; gap: 9px;
   min-width: 0; flex: 1;
 }
-.fg-bm-icon {
-  width: 40px; height: 40px;
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
+.fg-bm-icon-img {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
   flex-shrink: 0;
-  box-shadow: 0 2px 10px rgba(245,158,11,0.4);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.35);
 }
 .fg-bm-wordmark { font-size: 14px; font-weight: 900; line-height: 1; letter-spacing: -0.3px; }
 .fg-bm-theme {
