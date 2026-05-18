@@ -88,8 +88,7 @@
 }
 .fg-banner-theme-name {
   font-size: 20px; font-weight: 900; color: #fff;
-  line-height: 1.15;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.2;
   text-shadow: 0 0 20px rgba(245,158,11,0.3);
 }
 
@@ -120,6 +119,14 @@
 .fg-banner-status-text {
   font-size: 10px; color: #22c55e; font-weight: 600;
   text-align: center;
+}
+
+/* ── Responsive: show only one banner per breakpoint ── */
+@media (max-width: 768px) {
+  .fg-contest-banner { display: none !important; }
+}
+@media (min-width: 769px) {
+  .fg-banner-mobile { display: none !important; }
 }
 
 /* ══════════════════════════════════════════
