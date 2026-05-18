@@ -85,8 +85,10 @@ exports.handler = async (event) => {
 
       if (action === 'current') {
         const weekStart = getCurrentWeekStart();
+        // Find the contest for this week, or the next upcoming one (so admin can create ahead of time)
         const contestRes = await client.query(
-          'SELECT * FROM flash_glass_contests WHERE week_start = $1', [weekStart]
+          'SELECT * FROM flash_glass_contests WHERE week_start >= $1 ORDER BY week_start ASC LIMIT 1',
+          [weekStart]
         );
         if (!contestRes.rows.length) {
           return { statusCode: 200, headers, body: JSON.stringify({ success: true, contest: null }) };
