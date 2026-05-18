@@ -192,6 +192,7 @@ function sugerirDataParaLocalidade(locality) {
 
   const POLL_INTERVAL = 30000;
   const BANNER_ID = 'crBannerContainer';
+  const _noAnswerState = {}; // { [requestId]: remindAtTimestamp }
 
   function shouldRun() {
     var role = window.authClient && window.authClient.getUser && window.authClient.getUser() && window.authClient.getUser().role;
@@ -327,6 +328,22 @@ function sugerirDataParaLocalidade(locality) {
     card.appendChild(metaEl);
     card.appendChild(agBtn);
     card.appendChild(naBtn);
+
+    // Restaurar estado "não atendeu" se ainda activo (sobrevive ao rebuild do poll)
+    var naRemind = _noAnswerState[req.id];
+    if (naRemind && naRemind > Date.now()) {
+      var rD = new Date(naRemind);
+      var remStr = String(rD.getHours()).padStart(2,'0') + ':' + String(rD.getMinutes()).padStart(2,'0');
+      card.classList.remove('cr-orange', 'cr-red');
+      card.classList.add('cr-no-answer');
+      naBtn.disabled = true;
+      naBtn.textContent = '⏳ Aguardar até ' + remStr;
+      var remBadge = document.createElement('div');
+      remBadge.className = 'cr-reminder';
+      remBadge.textContent = '🔔 Ligar novamente às ' + remStr;
+      card.appendChild(remBadge);
+    }
+
     return card;
   }
 
@@ -503,6 +520,9 @@ function sugerirDataParaLocalidade(locality) {
     btn.disabled = true;
     btn.textContent = '⏳ Aguardar até ' + remindStr;
 
+    // Guardar estado para sobreviver ao rebuild do poll
+    _noAnswerState[id] = remind.getTime();
+
     // Notificar comercial via Telegram
     if (window.authClient && window.authClient.authenticatedFetch) {
       window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
@@ -514,11 +534,13 @@ function sugerirDataParaLocalidade(locality) {
 
     // Reativar ao chegar a hora
     setTimeout(function() {
+      delete _noAnswerState[id];
       var c2 = document.getElementById('crCard-' + id);
       var b2 = document.getElementById('crBtnNA-' + id);
       if (!c2 || !b2) return;
       c2.classList.remove('cr-no-answer');
-      c2.classList.add('cr-orange');
+      var currentAgeMin = (Date.now() - new Date(req.created_at).getTime()) / 60000;
+      c2.classList.add(currentAgeMin > 60 ? 'cr-red' : 'cr-orange');
       b2.disabled = false;
       b2.textContent = '📞 Tentar de novo';
       var bdg = c2.querySelector('.cr-reminder');
