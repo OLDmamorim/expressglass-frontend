@@ -51,6 +51,19 @@ exports.handler = async (event) => {
       const p = event.queryStringParameters || {};
       const portalId = p.portal_id ? parseInt(p.portal_id) : null;
 
+      // Admin sem portal seleccionado — todos os pedidos pendentes
+      if (p.all === '1') {
+        const { rows } = await pool.query(`
+          SELECT cr.*, u.username as commercial_name
+          FROM commercial_requests cr
+          JOIN users u ON u.id = cr.commercial_id
+          WHERE cr.status = 'pending'
+            AND cr.created_at > NOW() - INTERVAL '7 days'
+          ORDER BY cr.created_at DESC
+        `);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, requests: rows }) };
+      }
+
       // Comercial a ver os seus próprios pedidos
       if (p.mine === '1') {
         const { rows } = await pool.query(`
