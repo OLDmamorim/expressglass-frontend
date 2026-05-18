@@ -58,10 +58,11 @@
   flex-shrink: 0;
 }
 .fg-modal-logo-img {
-  height: 80px;
+  height: 130px;
   width: auto;
+  max-width: 90%;
   object-fit: contain;
-  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+  filter: drop-shadow(0 3px 12px rgba(0,0,0,0.6));
 }
 
 .fg-banner-logo-img {
@@ -192,7 +193,7 @@
 }
 .fg-modal-header {
   background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
-  padding: 20px 24px 16px;
+  padding: 28px 24px 22px;
   position: relative;
   display: flex;
   align-items: center;
