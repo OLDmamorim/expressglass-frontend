@@ -26,8 +26,6 @@
   async function init() {
     if (!window.authClient?.isAuthenticated()) return;
     await loadCurrentContest();
-    document.getElementById('flashGlassBtn')?.addEventListener('click', openMainModal);
-    document.getElementById('flashGlassBtnMobile')?.addEventListener('click', openMainModal);
   }
 
   async function loadCurrentContest() {
@@ -35,33 +33,57 @@
       const data = await api('GET', { action: 'current' });
       if (data.success) {
         currentContest = data.contest;
-        updateButtonState();
+        updateBanners();
       }
     } catch (e) {
       console.error('Flash Glass init:', e);
     }
   }
 
-  function updateButtonState() {
-    const buttons = [
-      document.getElementById('flashGlassBtn'),
-      document.getElementById('flashGlassBtnMobile')
-    ];
-    buttons.forEach(btn => {
-      if (!btn) return;
-      if (currentContest) {
-        btn.style.display = '';
-        if (currentContest.mySubmission) {
-          btn.classList.add('fg-submitted');
-          btn.title = 'Flash Glass — Foto enviada ✓';
-        } else {
-          btn.classList.remove('fg-submitted');
-          btn.title = 'Flash Glass — Participa!';
+  function updateBanners() {
+    const hasContest = !!currentContest;
+    const submitted = hasContest && !!currentContest.mySubmission;
+
+    // ── Desktop banner ──
+    const banner = document.getElementById('fgContestBanner');
+    if (banner) {
+      banner.style.display = hasContest ? '' : 'none';
+      if (hasContest) {
+        const themeEl = document.getElementById('fgBannerTheme');
+        const btn = document.getElementById('fgBannerBtn');
+        const status = document.getElementById('fgBannerStatus');
+        if (themeEl) themeEl.textContent = currentContest.theme;
+        if (btn) {
+          btn.classList.toggle('fg-submitted', submitted);
+          btn.innerHTML = submitted
+            ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ENVIADA`
+            : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> PARTICIPAR`;
         }
-      } else {
-        btn.style.display = 'none';
+        if (status) {
+          if (submitted) {
+            const d = new Date(currentContest.mySubmission.updated_at);
+            status.textContent = `✓ ${d.toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric', month: 'short' })}`;
+          } else {
+            status.textContent = '';
+          }
+        }
       }
-    });
+    }
+
+    // ── Mobile banner ──
+    const bannerM = document.getElementById('fgContestBannerMobile');
+    if (bannerM) {
+      bannerM.style.display = hasContest ? '' : 'none';
+      if (hasContest) {
+        const themeM = document.getElementById('fgBannerThemeMobile');
+        const btnM = document.getElementById('fgBannerBtnMobile');
+        if (themeM) themeM.textContent = currentContest.theme;
+        if (btnM) {
+          btnM.classList.toggle('fg-submitted', submitted);
+          btnM.textContent = submitted ? '✓ ENVIADA' : 'PARTICIPAR';
+        }
+      }
+    }
   }
 
   // ── Main Modal ────────────────────────────────────────────────────────────
@@ -187,6 +209,7 @@
       if (data.success) {
         closeCameraModal();
         await loadCurrentContest();
+        updateBanners();
         showToast('🎉 Foto enviada com sucesso!', 'success');
       } else {
         showToast(data.error || 'Erro ao enviar foto.', 'error');

@@ -2,66 +2,181 @@
    FLASH GLASS - Weekly Photo Contest Styles
    ===================================================== */
 
-/* ── Button ── */
-.header-btn.fg-btn {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: #fff;
-  border: none;
+/* ══════════════════════════════════════════
+   FLASH GLASS — Contest Banner (desktop)
+   ══════════════════════════════════════════ */
+.fg-contest-banner {
   position: relative;
+  background: linear-gradient(100deg, #08172e 0%, #0f2a52 40%, #1a3a6e 70%, #0e2040 100%);
+  border-bottom: 1px solid rgba(245,158,11,0.25);
+  cursor: pointer;
+  overflow: hidden;
+  transition: filter 0.15s;
 }
-.header-btn.fg-btn.fg-submitted::after {
-  content: '✓';
+.fg-contest-banner:hover { filter: brightness(1.06); }
+
+/* Amber glow pulse */
+.fg-banner-glow {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  background: #22c55e;
-  color: #fff;
-  font-size: 9px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
+  right: -60px; top: 50%;
+  transform: translateY(-50%);
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(245,158,11,0.18) 0%, transparent 65%);
+  pointer-events: none;
+  animation: fgGlowPulse 3s ease-in-out infinite;
+}
+@keyframes fgGlowPulse {
+  0%, 100% { opacity: 0.7; transform: translateY(-50%) scale(1); }
+  50% { opacity: 1; transform: translateY(-50%) scale(1.15); }
+}
+
+/* Subtle star particles */
+.fg-contest-banner::before {
+  content: '★ ✦ ★';
+  position: absolute;
+  left: 50%; top: 4px;
+  transform: translateX(-50%);
+  font-size: 8px;
+  color: rgba(245,158,11,0.2);
+  letter-spacing: 8px;
+  pointer-events: none;
+}
+
+.fg-banner-inner {
   display: flex;
   align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  line-height: 14px;
+  padding: 12px 20px;
+  gap: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Logo zone */
+.fg-banner-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.fg-banner-icon {
+  width: 46px; height: 46px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 0 2px rgba(245,158,11,0.3), 0 4px 16px rgba(245,158,11,0.35);
+  flex-shrink: 0;
+}
+.fg-banner-brand { display: flex; flex-direction: column; gap: 1px; }
+.fg-banner-wordmark { font-size: 17px; font-weight: 900; line-height: 1; letter-spacing: -0.5px; }
+.fg-wm-flash { color: #fff; }
+.fg-wm-glass { color: #f59e0b; }
+.fg-banner-slogan { font-size: 10px; color: #64748b; font-style: italic; }
+
+/* Separator */
+.fg-banner-sep {
+  width: 1px; height: 38px;
+  background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.12), transparent);
+  flex-shrink: 0;
+}
+
+/* Theme zone */
+.fg-banner-theme { flex: 1; min-width: 0; }
+.fg-banner-theme-label {
+  font-size: 9px; font-weight: 800;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: #f59e0b; margin-bottom: 3px;
+}
+.fg-banner-theme-name {
+  font-size: 20px; font-weight: 900; color: #fff;
+  line-height: 1.15;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 0 20px rgba(245,158,11,0.3);
+}
+
+/* CTA zone */
+.fg-banner-cta { flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.fg-banner-participate-btn {
+  display: flex; align-items: center; gap: 7px;
+  background: linear-gradient(135deg, #f59e0b 0%, #e07c00 100%);
+  color: #fff; border: none;
+  border-radius: 30px;
+  padding: 11px 22px;
+  font-size: 13px; font-weight: 900;
+  letter-spacing: 0.8px;
+  cursor: pointer;
+  box-shadow: 0 0 0 2px rgba(245,158,11,0.25), 0 4px 18px rgba(245,158,11,0.4);
+  transition: transform 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+.fg-banner-participate-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 3px rgba(245,158,11,0.3), 0 6px 22px rgba(245,158,11,0.55);
+}
+.fg-banner-participate-btn:active { transform: scale(0.96); }
+.fg-banner-participate-btn.fg-submitted {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 0 0 2px rgba(34,197,94,0.2), 0 4px 14px rgba(34,197,94,0.35);
+}
+.fg-banner-status-text {
+  font-size: 10px; color: #22c55e; font-weight: 600;
   text-align: center;
 }
 
-.fg-mobile-btn {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
-  color: #fff;
-  border: none;
-  border-radius: 10px;
-  padding: 8px 4px;
-  font-size: 12px;
-  font-weight: 700;
+/* ══════════════════════════════════════════
+   FLASH GLASS — Mobile Banner
+   ══════════════════════════════════════════ */
+.fg-banner-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 14px;
+  background: linear-gradient(95deg, #08172e 0%, #0f2a52 60%, #1a3a6e 100%);
+  border-bottom: 1px solid rgba(245,158,11,0.2);
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
   position: relative;
+  overflow: hidden;
 }
-.fg-mobile-btn.fg-submitted::after {
-  content: '✓';
+.fg-banner-mobile::after {
+  content: '';
   position: absolute;
-  top: 4px;
-  right: 6px;
-  background: #22c55e;
-  color: #fff;
-  font-size: 9px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  line-height: 14px;
-  text-align: center;
+  right: 80px; top: 50%;
+  transform: translateY(-50%);
+  width: 120px; height: 120px;
+  background: radial-gradient(circle, rgba(245,158,11,0.12) 0%, transparent 70%);
+  pointer-events: none;
 }
+.fg-bm-left {
+  display: flex; align-items: center; gap: 9px;
+  min-width: 0; flex: 1;
+}
+.fg-bm-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(245,158,11,0.4);
+}
+.fg-bm-wordmark { font-size: 14px; font-weight: 900; line-height: 1; letter-spacing: -0.3px; }
+.fg-bm-theme {
+  font-size: 11px; color: #94a3b8; margin-top: 1px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.fg-bm-btn {
+  background: linear-gradient(135deg, #f59e0b, #e07c00);
+  color: #fff; border: none;
+  border-radius: 20px;
+  padding: 8px 14px;
+  font-size: 11px; font-weight: 900;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(245,158,11,0.35);
+  transition: transform 0.1s;
+}
+.fg-bm-btn:active { transform: scale(0.94); }
+.fg-bm-btn.fg-submitted { background: linear-gradient(135deg, #22c55e, #16a34a); }
 
 /* ── Main Modal ── */
 #flashGlassModal .modal-content {
