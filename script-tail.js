@@ -60,7 +60,9 @@ const telBtn = phone ? `
     a.calibration ? `<span class="m-chip m-chip-calib">⊕ CALIB</span>` : '',
     a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : ''
   ].filter(Boolean).join('');
-  const notes = [a.client_name, a.extra, a.notes].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
+  let _extraDisp = a.extra || '';
+  if (_extraDisp) { try { const _p = JSON.parse(_extraDisp); _extraDisp = _p.eurocode || ''; } catch(e) {} }
+  const notes = [a.client_name, _extraDisp, a.notes].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
   const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
