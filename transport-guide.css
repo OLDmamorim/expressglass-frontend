@@ -45,26 +45,30 @@
 
 /* ── Badge on appointment cards ── */
 .guia-at-badge {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
-  background: #1e40af;
+  padding: 4px 9px;
+  background: rgba(255,255,255,0.18);
   color: #fff;
-  border: none;
+  border: 1px solid rgba(255,255,255,0.3);
   border-radius: 20px;
   font-size: 10px;
   font-weight: 800;
   cursor: pointer;
   letter-spacing: 0.3px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-  z-index: 5;
   transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
 }
-.guia-at-badge:hover { background: #1d4ed8; transform: scale(1.05); }
+.guia-at-badge--inline { margin-left: auto; }
+.guia-at-badge--abs {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+.guia-at-badge:hover { background: rgba(255,255,255,0.28); transform: scale(1.05); }
 .guia-at-badge:active { transform: scale(0.95); }
 
 /* ── Full-screen PDF viewer modal ── */
