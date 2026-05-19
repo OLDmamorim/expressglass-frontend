@@ -1,0 +1,196 @@
+(function () {
+  'use strict';
+
+  const API = '/.netlify/functions/transport-guide';
+  let todayGuide = null;
+  let injectTimer = null;
+
+  async function authFetch(url, opts) {
+    const token = window.authClient?.getToken();
+    return fetch(url, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, ...(opts?.headers || {}) }
+    });
+  }
+
+  function isCoordinator() {
+    const role = window.authClient?.getUser?.()?.role || '';
+    return ['admin', 'coordinator', 'coordenador'].includes(role);
+  }
+
+  function getEurocode(appt) {
+    if (!appt.extra) return '';
+    try { return (JSON.parse(appt.extra).eurocode || '').trim().toUpperCase(); } catch (e) { return appt.extra.trim().toUpperCase(); }
+  }
+
+  // ── Badge injection ──────────────────────────────────────
+
+  function injectBadges() {
+    if (!todayGuide?.eurocodes?.length) return;
+    const eurocodes = todayGuide.eurocodes.map(e => e.toUpperCase());
+    const appts = window.appointments || [];
+
+    document.querySelectorAll('.guia-at-badge').forEach(b => b.remove());
+
+    document.querySelectorAll('.m-card[data-id]').forEach(card => {
+      const appt = appts.find(a => String(a.id) === card.dataset.id);
+      if (!appt) return;
+      const ec = getEurocode(appt);
+      if (!ec || !eurocodes.includes(ec)) return;
+
+      const badge = document.createElement('button');
+      badge.className = 'guia-at-badge';
+      badge.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Guia AT';
+      badge.onclick = (e) => { e.stopPropagation(); openViewer(); };
+      card.style.position = 'relative';
+      card.appendChild(badge);
+    });
+  }
+
+  function scheduleInject() {
+    clearTimeout(injectTimer);
+    injectTimer = setTimeout(injectBadges, 150);
+  }
+
+  // ── PDF Viewer ───────────────────────────────────────────
+
+  function openViewer() {
+    if (!todayGuide?.pdf_data) return;
+    const modal = document.getElementById('guiaATModal');
+    if (!modal) return;
+
+    // Create blob URL for better cross-browser support
+    const bytes = atob(todayGuide.pdf_data);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const blob = new Blob([arr], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    const iframe = document.getElementById('guiaATIframe');
+    if (iframe) iframe.src = url;
+
+    // Fallback link for iOS
+    const link = document.getElementById('guiaATDownload');
+    if (link) { link.href = url; link.download = 'guia-AT.pdf'; }
+
+    modal.classList.add('show');
+  }
+
+  function closeViewer() {
+    const modal = document.getElementById('guiaATModal');
+    const iframe = document.getElementById('guiaATIframe');
+    modal?.classList.remove('show');
+    if (iframe) { URL.revokeObjectURL(iframe.src); iframe.src = ''; }
+  }
+
+  // ── Upload ───────────────────────────────────────────────
+
+  function triggerUpload() {
+    const input = document.getElementById('guiaATFileInput');
+    if (input) input.click();
+  }
+
+  async function handleFileSelected(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') { alert('Por favor seleciona um ficheiro PDF.'); return; }
+
+    const btn = document.getElementById('guiaATUploadBtn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+
+    try {
+      const base64 = await fileToBase64(file);
+      const res = await authFetch(API, {
+        method: 'POST',
+        body: JSON.stringify({ pdf_data: base64 })
+      });
+      const data = await res.json();
+      if (data.success) {
+        todayGuide = data.guide;
+        injectBadges();
+        updateUploadBtn();
+        showToast(`✅ Guia AT carregada — ${data.eurocodes_found.length} Eurocode(s) encontrado(s)`, 'success');
+      } else {
+        showToast(data.error || 'Erro ao carregar PDF.', 'error');
+      }
+    } catch (e) {
+      showToast('Erro: ' + e.message, 'error');
+    } finally {
+      if (btn) { btn.disabled = false; }
+      updateUploadBtn();
+      input.value = '';
+    }
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function updateUploadBtn() {
+    const btn = document.getElementById('guiaATUploadBtn');
+    if (!btn) return;
+    if (todayGuide) {
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Guia AT ✓';
+      btn.classList.add('guia-at-loaded');
+    } else {
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Guia AT';
+      btn.classList.remove('guia-at-loaded');
+    }
+  }
+
+  // ── Init ─────────────────────────────────────────────────
+
+  async function init() {
+    if (!window.authClient?.isAuthenticated()) return;
+
+    // Show upload button only for coordinators/admins
+    const uploadArea = document.getElementById('guiaATUploadArea');
+    if (uploadArea && isCoordinator()) uploadArea.style.display = '';
+
+    // Load today's guide
+    try {
+      const res = await authFetch(API);
+      const data = await res.json();
+      if (data.success && data.guide) {
+        todayGuide = data.guide;
+        updateUploadBtn();
+      }
+    } catch (e) { console.error('Transport guide init:', e); }
+
+    // Observe mobile card list for re-renders
+    const target = document.getElementById('mobileDayList');
+    if (target) {
+      new MutationObserver(scheduleInject).observe(target, { childList: true, subtree: false });
+    }
+
+    // Initial inject (appointments may already be loaded)
+    setTimeout(injectBadges, 800);
+    setTimeout(injectBadges, 2000);
+  }
+
+  function showToast(msg, type) {
+    if (typeof window.showToast === 'function') { window.showToast(msg, type); return; }
+    const t = Object.assign(document.createElement('div'), { textContent: msg });
+    Object.assign(t.style, {
+      position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)',
+      background: type === 'error' ? '#dc2626' : '#16a34a',
+      color: '#fff', padding: '12px 20px', borderRadius: '10px',
+      zIndex: '9999', fontSize: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.4)'
+    });
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3500);
+  }
+
+  window.guiaAT = { init, openViewer, closeViewer, triggerUpload, handleFileSelected, injectBadges };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(init, 700));
+  } else {
+    setTimeout(init, 700);
+  }
+})();

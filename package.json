@@ -6,7 +6,8 @@
     "pg": "^8.11.5",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.9.13"
+    "nodemailer": "^6.9.13",
+    "pdf-parse": "^1.1.1"
   },
   "engines": {
     "node": ">=18"

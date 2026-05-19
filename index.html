@@ -10,6 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Figtree:wght@400;500;600;700;800&family=Roboto:wght@400;500&family=Rajdhani:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=2026-05-15b"/>
   <link rel="stylesheet" href="flash-glass.css?v=2026-05-18d"/>
+  <link rel="stylesheet" href="transport-guide.css?v=2026-05-19a"/>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
@@ -267,6 +268,15 @@
           </button>
         </div>
       </div>
+      <!-- Guia AT upload (coordinator/admin only) -->
+      <div id="guiaATUploadArea" style="padding:6px 14px 0;">
+        <input type="file" id="guiaATFileInput" accept=".pdf" style="display:none" onchange="guiaAT.handleFileSelected(this)">
+        <button id="guiaATUploadBtn" class="guia-at-upload-btn" onclick="guiaAT.triggerUpload()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Guia AT
+        </button>
+      </div>
+
       <div id="mobileDayList" class="mobile-day-list"></div>
       <button id="addServiceMobile" class="mobile-add-btn" aria-label="Novo Serviço" style="right:auto;left:20px;">
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -807,6 +817,26 @@
     .nd-option:has(input:checked){ border-color:#ef4444;background:#fff5f5;color:#dc2626; }
     .nd-option input[type=radio]{ display:none; }
   </style>
+
+  <!-- Guia AT — PDF Viewer -->
+  <div id="guiaATModal">
+    <div class="guia-at-modal-header">
+      <div class="guia-at-modal-title">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span style="color:#93c5fd;">Guia AT</span>
+      </div>
+      <div class="guia-at-modal-actions">
+        <a id="guiaATDownload" class="guia-at-download-btn" download="guia-AT.pdf">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Abrir
+        </a>
+        <button class="guia-at-close-btn" onclick="guiaAT.closeViewer()">✕</button>
+      </div>
+    </div>
+    <iframe id="guiaATIframe" title="Guia AT"></iframe>
+  </div>
+
+  <script src="transport-guide.js?v=2026-05-19a"></script>
 
 </body>
 </html>
