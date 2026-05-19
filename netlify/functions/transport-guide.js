@@ -12,8 +12,9 @@ function getUserFromToken(event) {
 }
 
 function extractEurocodes(text) {
-  const matches = text.match(/\b\d{4}[A-Z]{2,}[0-9A-Z]*\b/g) || [];
-  return [...new Set(matches)];
+  const upper = text.toUpperCase();
+  const matches = upper.match(/\b\d{4}-?[A-Z]{2,}[0-9A-Z]*\b/g) || [];
+  return [...new Set(matches.map(m => m.replace(/-/g, '')))];
 }
 
 async function migrate(client) {
