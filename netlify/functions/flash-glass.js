@@ -239,6 +239,14 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, contest: res.rows[0] }) };
       }
 
+      if (action === 'delete-submission') {
+        if (user.role !== 'admin') return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem permissão' }) };
+        const { submission_id } = body;
+        await client.query('DELETE FROM flash_glass_votes WHERE submission_id = $1', [submission_id]);
+        await client.query('DELETE FROM flash_glass_submissions WHERE id = $1', [submission_id]);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+      }
+
       if (action === 'publish-mural') {
         if (user.role !== 'admin') return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem permissão' }) };
         const { contest_id } = body;

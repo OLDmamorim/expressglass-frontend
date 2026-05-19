@@ -3,6 +3,7 @@
   'use strict';
 
   let activeContestId = null;
+  let activeWeekStart = null;
   const API = '/.netlify/functions/flash-glass';
 
   async function api(method, qs = {}, body = null) {
@@ -61,12 +62,13 @@
 
   async function viewSubmissions(weekStart, contestId, published) {
     activeContestId = contestId;
+    activeWeekStart = String(weekStart).substring(0, 10);
     const panel = document.getElementById('fgAdminSubmissionsPanel');
     const grid = document.getElementById('fgAdminSubsGrid');
     const titleEl = document.getElementById('fgSubmissionsPanelTitle');
     const publishBtn = document.getElementById('fgPublishBtn');
 
-    const ws = new Date(weekStart + 'T12:00:00');
+    const ws = new Date(String(weekStart).substring(0, 10) + 'T12:00:00');
     const we = new Date(ws); we.setDate(we.getDate() + 6);
     const fmt = d => d.toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' });
     if (titleEl) titleEl.textContent = `Submissões — ${fmt(ws)} a ${fmt(we)}`;
@@ -86,6 +88,7 @@
       const medals = ['', '🥇', '🥈', '🥉'];
       grid.innerHTML = data.submissions.map(s => `
         <div class="fg-admin-sub-card">
+          <button class="fg-admin-del-btn" onclick="fgAdmin.deleteSubmission(${s.id})" title="Apagar foto">🗑️</button>
           <img src="${s.photo_data}" alt="${escHtml(s.username)}" loading="lazy">
           <div class="fg-admin-sub-info">
             ${medals[s.medal] || ''} ${escHtml(s.username)}
@@ -171,6 +174,21 @@
     }
   }
 
+  async function deleteSubmission(submissionId) {
+    if (!confirm('Apagar esta foto? Esta ação não pode ser desfeita.')) return;
+    try {
+      const data = await api('POST', {}, { action: 'delete-submission', submission_id: submissionId });
+      if (data.success) {
+        showAdminToast('🗑️ Foto apagada.', 'success');
+        if (activeWeekStart && activeContestId) viewSubmissions(activeWeekStart, activeContestId, false);
+      } else {
+        showAdminToast(data.error || 'Erro ao apagar.', 'error');
+      }
+    } catch (e) {
+      showAdminToast('Erro: ' + e.message, 'error');
+    }
+  }
+
   function escHtml(str) {
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
@@ -198,5 +216,5 @@
     });
   });
 
-  window.fgAdmin = { openCreateForm, closeCreateForm, saveContest, editContest, viewSubmissions, closeSubmissions, publishMural, loadContests };
+  window.fgAdmin = { openCreateForm, closeCreateForm, saveContest, editContest, viewSubmissions, closeSubmissions, publishMural, loadContests, deleteSubmission };
 })();
