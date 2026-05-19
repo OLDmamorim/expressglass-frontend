@@ -121,7 +121,12 @@
         todayGuide = data.guide;
         injectBadges();
         updateUploadBtn();
-        showToast(`✅ Guia AT carregada — ${data.eurocodes_found.length} Eurocode(s) encontrado(s)`, 'success');
+        const n = data.eurocodes_found.length;
+        if (n === 0) {
+          showToast('⚠️ Guia carregada mas 0 Eurocodes encontrados — introduz os códigos manualmente no campo ao lado.', 'error');
+        } else {
+          showToast(`✅ Guia AT carregada — ${n} Eurocode(s): ${data.eurocodes_found.join(', ')}`, 'success');
+        }
       } else {
         showToast(data.error || 'Erro ao carregar PDF.', 'error');
       }
@@ -170,6 +175,16 @@
       if (uploadAreaDesk) uploadAreaDesk.style.display = 'flex';
     }
 
+    // Set up observers BEFORE the async fetch so we never miss a render
+    const target = document.getElementById('mobileDayList');
+    if (target) {
+      new MutationObserver(scheduleInject).observe(target, { childList: true, subtree: false });
+    }
+    const scheduleEl = document.getElementById('schedule');
+    if (scheduleEl) {
+      new MutationObserver(scheduleInject).observe(scheduleEl, { childList: true, subtree: false });
+    }
+
     // Load today's guide
     try {
       const portalParam = window.activePortalId ? `?portal_id=${window.activePortalId}` : '';
@@ -178,25 +193,13 @@
       if (data.success && data.guide) {
         todayGuide = data.guide;
         updateUploadBtn();
-        injectBadges();
+        scheduleInject();
       }
     } catch (e) { console.error('Transport guide init:', e); }
 
-    // Observe mobile card list for re-renders
-    const target = document.getElementById('mobileDayList');
-    if (target) {
-      new MutationObserver(scheduleInject).observe(target, { childList: true, subtree: false });
-    }
-
-    // Observe desktop schedule table for re-renders
-    const scheduleEl = document.getElementById('schedule');
-    if (scheduleEl) {
-      new MutationObserver(scheduleInject).observe(scheduleEl, { childList: true, subtree: false });
-    }
-
-    // Initial inject (appointments may already be loaded)
-    setTimeout(injectBadges, 800);
-    setTimeout(injectBadges, 2000);
+    // Safety-net inject for slow connections
+    setTimeout(injectBadges, 1500);
+    setTimeout(injectBadges, 3000);
   }
 
   function showToast(msg, type) {
