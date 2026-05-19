@@ -86,7 +86,9 @@
   // ── Upload ───────────────────────────────────────────────
 
   function triggerUpload() {
-    const input = document.getElementById('guiaATFileInput');
+    const deskInput = document.getElementById('guiaATFileInputDesk');
+    const mobileInput = document.getElementById('guiaATFileInput');
+    const input = (deskInput && document.getElementById('guiaATUploadAreaDesk')?.style.display !== 'none') ? deskInput : mobileInput;
     if (input) input.click();
   }
 
@@ -95,8 +97,8 @@
     if (!file) return;
     if (file.type !== 'application/pdf') { alert('Por favor seleciona um ficheiro PDF.'); return; }
 
-    const btn = document.getElementById('guiaATUploadBtn');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+    const btns = [document.getElementById('guiaATUploadBtn'), document.getElementById('guiaATUploadBtnDesk')];
+    btns.forEach(b => { if (b) { b.disabled = true; b.textContent = '⏳'; } });
 
     try {
       const base64 = await fileToBase64(file);
@@ -116,7 +118,7 @@
     } catch (e) {
       showToast('Erro: ' + e.message, 'error');
     } finally {
-      if (btn) { btn.disabled = false; }
+      btns.forEach(b => { if (b) b.disabled = false; });
       updateUploadBtn();
       input.value = '';
     }
@@ -132,15 +134,17 @@
   }
 
   function updateUploadBtn() {
-    const btn = document.getElementById('guiaATUploadBtn');
-    if (!btn) return;
-    if (todayGuide) {
-      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Guia AT ✓';
-      btn.classList.add('guia-at-loaded');
-    } else {
-      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Guia AT';
-      btn.classList.remove('guia-at-loaded');
-    }
+    const btns = [document.getElementById('guiaATUploadBtn'), document.getElementById('guiaATUploadBtnDesk')];
+    btns.forEach(btn => {
+      if (!btn) return;
+      if (todayGuide) {
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Guia AT ✓';
+        btn.classList.add('guia-at-loaded');
+      } else {
+        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Guia AT';
+        btn.classList.remove('guia-at-loaded');
+      }
+    });
   }
 
   // ── Init ─────────────────────────────────────────────────
@@ -149,8 +153,12 @@
     if (!window.authClient?.isAuthenticated()) return;
 
     // Show upload button only for coordinators/admins
-    const uploadArea = document.getElementById('guiaATUploadArea');
-    if (uploadArea && isCoordinator()) uploadArea.style.display = '';
+    if (isCoordinator()) {
+      const uploadArea = document.getElementById('guiaATUploadArea');
+      if (uploadArea) uploadArea.style.display = '';
+      const uploadAreaDesk = document.getElementById('guiaATUploadAreaDesk');
+      if (uploadAreaDesk) uploadAreaDesk.style.display = '';
+    }
 
     // Load today's guide
     try {
