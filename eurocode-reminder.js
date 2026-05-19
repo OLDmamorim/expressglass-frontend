@@ -26,13 +26,18 @@
     localStorage.setItem(todayKey(), '1');
   }
 
+  function apiUrl() {
+    const portalId = window.activePortalId;
+    return API + (portalId ? `?portal_id=${portalId}` : '');
+  }
+
   async function checkAndShow() {
     if (!isCoordinator() || alreadyShown()) return;
     const h = new Date().getHours();
     if (h < SHOW_HOUR || h >= 18) return; // janela 17:00–17:59
     markShown();
     try {
-      const res = await authFetch(API);
+      const res = await authFetch(apiUrl());
       const data = await res.json();
       if (data.success) renderPopup(data.portals, data.date);
     } catch (e) {
@@ -158,7 +163,7 @@
 
   async function showNow() {
     try {
-      const res = await authFetch(API);
+      const res = await authFetch(apiUrl());
       const data = await res.json();
       if (data.success) renderPopup(data.portals, data.date);
     } catch (e) {

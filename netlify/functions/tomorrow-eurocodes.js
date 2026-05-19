@@ -39,9 +39,13 @@ exports.handler = async (event) => {
       return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem permissão' }) };
     }
 
+    const p = event.queryStringParameters || {};
+    // portalId: prefer JWT claim, fall back to query param (admin viewing a specific SM)
+    const portalId = user.portalId || (p.portal_id ? parseInt(p.portal_id) : null);
+
     let rows;
-    if (user.role === 'admin') {
-      // Admin vê todos os portais
+    if (user.role === 'admin' && !portalId) {
+      // Admin sem portal específico — mostra todos os SM
       const res = await client.query(`
         SELECT a.portal_id, p.name AS portal_name, a.extra, a.plate, a.car
         FROM appointments a
@@ -53,6 +57,7 @@ exports.handler = async (event) => {
       `);
       rows = res.rows;
     } else {
+      if (!portalId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Portal não identificado' }) };
       const res = await client.query(`
         SELECT a.portal_id, p.name AS portal_name, a.extra, a.plate, a.car
         FROM appointments a
@@ -62,7 +67,7 @@ exports.handler = async (event) => {
           AND COALESCE(p.portal_type, 'sm') = 'sm'
           AND a.extra IS NOT NULL AND a.extra != ''
         ORDER BY a.id
-      `, [user.portalId]);
+      `, [portalId]);
       rows = res.rows;
     }
 
