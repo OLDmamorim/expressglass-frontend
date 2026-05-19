@@ -58,7 +58,7 @@ exports.handler = async (event) => {
           FROM commercial_requests cr
           JOIN users u ON u.id = cr.commercial_id
           WHERE cr.status = 'pending'
-            AND cr.created_at > NOW() - INTERVAL '7 days'
+            AND cr.created_at > NOW() - INTERVAL '2 days'
           ORDER BY cr.created_at DESC
         `);
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, requests: rows }) };
@@ -86,7 +86,7 @@ exports.handler = async (event) => {
           JOIN users u ON u.id = cr.commercial_id
           WHERE cr.confirmed_portal_id = $1
             AND cr.status = 'pending'
-            AND cr.created_at > NOW() - INTERVAL '7 days'
+            AND cr.created_at > NOW() - INTERVAL '2 days'
             AND NOT EXISTS (
               SELECT 1 FROM appointments a
               WHERE a.portal_id = cr.confirmed_portal_id
@@ -119,7 +119,7 @@ exports.handler = async (event) => {
           FROM commercial_requests cr
           JOIN users u ON u.id = cr.commercial_id
           WHERE cr.status = 'pending'
-            AND cr.created_at > NOW() - INTERVAL '7 days'
+            AND cr.created_at > NOW() - INTERVAL '2 days'
           ORDER BY cr.created_at DESC
         `);
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, requests: rows }) };
