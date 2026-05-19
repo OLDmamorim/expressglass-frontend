@@ -92,19 +92,27 @@
     if (input) input.click();
   }
 
+  function getManualCodes() {
+    const field = document.getElementById('guiaATManualCodesDesk') || document.getElementById('guiaATManualCodes');
+    if (!field || !field.value.trim()) return [];
+    return field.value.split(/[,;\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+  }
+
   async function handleFileSelected(input) {
     const file = input.files[0];
     if (!file) return;
-    if (file.type !== 'application/pdf') { alert('Por favor seleciona um ficheiro PDF.'); return; }
+    const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/tiff', 'image/webp'];
+    if (!allowed.includes(file.type)) { alert('Por favor seleciona um ficheiro PDF ou imagem (JPG, PNG, TIFF).'); return; }
 
     const btns = [document.getElementById('guiaATUploadBtn'), document.getElementById('guiaATUploadBtnDesk')];
     btns.forEach(b => { if (b) { b.disabled = true; b.textContent = '⏳'; } });
 
     try {
       const base64 = await fileToBase64(file);
+      const manual_eurocodes = getManualCodes();
       const res = await authFetch(API, {
         method: 'POST',
-        body: JSON.stringify({ pdf_data: base64 })
+        body: JSON.stringify({ pdf_data: base64, file_type: file.type, manual_eurocodes })
       });
       const data = await res.json();
       if (data.success) {
@@ -157,7 +165,7 @@
       const uploadArea = document.getElementById('guiaATUploadArea');
       if (uploadArea) uploadArea.style.display = '';
       const uploadAreaDesk = document.getElementById('guiaATUploadAreaDesk');
-      if (uploadAreaDesk) uploadAreaDesk.style.display = '';
+      if (uploadAreaDesk) uploadAreaDesk.style.display = 'flex';
     }
 
     // Load today's guide

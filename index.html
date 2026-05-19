@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Figtree:wght@400;500;600;700;800&family=Roboto:wght@400;500&family=Rajdhani:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=2026-05-15b"/>
   <link rel="stylesheet" href="flash-glass.css?v=2026-05-18d"/>
-  <link rel="stylesheet" href="transport-guide.css?v=2026-05-19b"/>
+  <link rel="stylesheet" href="transport-guide.css?v=2026-05-19c"/>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
@@ -188,12 +188,13 @@
         <button id="btnVidrosRetirados" class="nav-button" style="background:#f59e0b;color:#fff;font-weight:700;" title="Ver vidros retirados">🪟 Vidros Retirados</button>
         <button id="printPage" class="nav-button" style="color:#fbbf24;">🖨 Imprimir</button>
         <!-- Guia AT upload (coordinator/admin only, desktop) -->
-        <div id="guiaATUploadAreaDesk" style="display:none;">
-          <input type="file" id="guiaATFileInputDesk" accept=".pdf" style="display:none" onchange="guiaAT.handleFileSelected(this)">
+        <div id="guiaATUploadAreaDesk" style="display:none; align-items:center; gap:6px;">
+          <input type="file" id="guiaATFileInputDesk" accept=".pdf,image/*" style="display:none" onchange="guiaAT.handleFileSelected(this)">
           <button id="guiaATUploadBtnDesk" class="guia-at-upload-btn" onclick="guiaAT.triggerUpload()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Guia AT
           </button>
+          <input id="guiaATManualCodesDesk" type="text" placeholder="Eurocodes manuais" class="guia-at-codes-input guia-at-codes-desk">
         </div>
       </div>
     </div>
@@ -277,12 +278,15 @@
         </div>
       </div>
       <!-- Guia AT upload (coordinator/admin only) -->
-      <div id="guiaATUploadArea" style="padding:6px 14px 0;">
-        <input type="file" id="guiaATFileInput" accept=".pdf" style="display:none" onchange="guiaAT.handleFileSelected(this)">
-        <button id="guiaATUploadBtn" class="guia-at-upload-btn" onclick="guiaAT.triggerUpload()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          Guia AT
-        </button>
+      <div id="guiaATUploadArea" style="padding:6px 14px 0; display:flex; flex-direction:column; gap:6px;">
+        <input type="file" id="guiaATFileInput" accept=".pdf,image/*" style="display:none" onchange="guiaAT.handleFileSelected(this)">
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+          <button id="guiaATUploadBtn" class="guia-at-upload-btn" onclick="guiaAT.triggerUpload()">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Guia AT
+          </button>
+          <input id="guiaATManualCodes" type="text" placeholder="Eurocodes (ex: 3739AB1C, 5385XY)" class="guia-at-codes-input">
+        </div>
       </div>
 
       <div id="mobileDayList" class="mobile-day-list"></div>
@@ -844,7 +848,7 @@
     <iframe id="guiaATIframe" title="Guia AT"></iframe>
   </div>
 
-  <script src="transport-guide.js?v=2026-05-19b"></script>
+  <script src="transport-guide.js?v=2026-05-19c"></script>
 
 </body>
 </html>

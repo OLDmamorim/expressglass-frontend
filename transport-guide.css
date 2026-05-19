@@ -28,6 +28,21 @@
 }
 .guia-at-upload-btn.guia-at-loaded:hover { background: #15803d; }
 
+/* ── Manual eurocodes input ── */
+.guia-at-codes-input {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 11px;
+  padding: 6px 10px;
+  width: 200px;
+  outline: none;
+}
+.guia-at-codes-input::placeholder { color: #64748b; }
+.guia-at-codes-input:focus { border-color: #3b82f6; background: rgba(59,130,246,0.1); }
+.guia-at-codes-desk { width: 170px; }
+
 /* ── Badge on appointment cards ── */
 .guia-at-badge {
   position: absolute;

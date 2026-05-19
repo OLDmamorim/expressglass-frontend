@@ -64,12 +64,21 @@ exports.handler = async (event) => {
         return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem permissão' }) };
       }
       const body = JSON.parse(event.body || '{}');
-      const { pdf_data } = body;
-      if (!pdf_data) return { statusCode: 400, headers, body: JSON.stringify({ error: 'PDF em falta' }) };
+      const { pdf_data, file_type, manual_eurocodes } = body;
+      if (!pdf_data) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ficheiro em falta' }) };
 
-      const pdfBuffer = Buffer.from(pdf_data, 'base64');
-      const parsed = await pdfParse(pdfBuffer);
-      const eurocodes = extractEurocodes(parsed.text);
+      const fileBuffer = Buffer.from(pdf_data, 'base64');
+      let autoEurocodes = [];
+      if (!file_type || file_type === 'application/pdf') {
+        try {
+          const parsed = await pdfParse(fileBuffer);
+          autoEurocodes = extractEurocodes(parsed.text);
+        } catch (e) {
+          // image-only or corrupt PDF — fall through to manual
+        }
+      }
+      const manualList = Array.isArray(manual_eurocodes) ? manual_eurocodes.map(s => String(s).trim().toUpperCase()).filter(Boolean) : [];
+      const eurocodes = [...new Set([...autoEurocodes, ...manualList])];
 
       const today = new Date().toISOString().split('T')[0];
       await client.query(
