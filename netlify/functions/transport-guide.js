@@ -1,6 +1,7 @@
 const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
 const pdfParse = require('pdf-parse');
+const https = require('https');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
@@ -17,6 +18,55 @@ function extractEurocodes(text) {
   return [...new Set(matches.map(m => m.replace(/-/g, '')))];
 }
 
+function callAnthropicVision(imageBase64, mimeType) {
+  return new Promise((resolve, reject) => {
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) return reject(new Error('ANTHROPIC_API_KEY não configurada'));
+
+    const body = JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 400,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: mimeType, data: imageBase64 }
+          },
+          {
+            type: 'text',
+            text: 'Esta é uma Guia de Transporte AT portuguesa para vidros automóveis. Extrai todos os Eurocodes presentes na imagem. Os Eurocodes têm formato: 4 dígitos seguidos de letras maiúsculas e números (exemplos: 3739AB1C, 5385AGNVZPBL, 6564XY2Z). Lista apenas os códigos encontrados, um por linha, sem texto adicional. Se não encontrares nenhum, responde apenas: NENHUM'
+          }
+        ]
+      }]
+    });
+
+    const options = {
+      hostname: 'api.anthropic.com',
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch (e) { reject(new Error('Resposta inválida da API: ' + data.slice(0, 200))); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 async function migrate(client) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS transport_guides (
@@ -30,6 +80,7 @@ async function migrate(client) {
       uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await client.query(`ALTER TABLE transport_guides ADD COLUMN IF NOT EXISTS file_type TEXT DEFAULT 'application/pdf'`);
 }
 
 exports.handler = async (event) => {
@@ -54,7 +105,7 @@ exports.handler = async (event) => {
       if (!portalId && p.portal_id) portalId = parseInt(p.portal_id);
       if (!portalId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Portal não identificado' }) };
       const res = await client.query(
-        `SELECT id, guide_date, guide_number, pdf_data, eurocodes, uploaded_at
+        `SELECT id, guide_date, guide_number, pdf_data, eurocodes, uploaded_at, COALESCE(file_type, 'application/pdf') AS file_type
          FROM transport_guides
          WHERE portal_id = $1 AND guide_date = $2
            AND guide_date >= CURRENT_DATE - INTERVAL '1 day'
@@ -78,6 +129,8 @@ exports.handler = async (event) => {
 
       const fileBuffer = Buffer.from(pdf_data, 'base64');
       let autoEurocodes = [];
+      const isImage = file_type && file_type.startsWith('image/');
+
       if (!file_type || file_type === 'application/pdf') {
         try {
           const parsed = await pdfParse(fileBuffer);
@@ -85,21 +138,34 @@ exports.handler = async (event) => {
         } catch (e) {
           // image-only or corrupt PDF — fall through to manual
         }
+      } else if (isImage) {
+        try {
+          const result = await callAnthropicVision(pdf_data, file_type);
+          if (result.error) throw new Error(result.error.message || 'Erro API vision');
+          const text = result.content?.[0]?.text || '';
+          autoEurocodes = extractEurocodes(text);
+        } catch (e) {
+          console.error('Vision OCR error:', e.message);
+          // Fall through — manual codes still applied below
+        }
       }
-      const manualList = Array.isArray(manual_eurocodes) ? manual_eurocodes.map(s => String(s).trim().toUpperCase()).filter(Boolean) : [];
+
+      const manualList = Array.isArray(manual_eurocodes)
+        ? manual_eurocodes.map(s => String(s).trim().toUpperCase()).filter(Boolean)
+        : [];
       const eurocodes = [...new Set([...autoEurocodes, ...manualList])];
+      const storedFileType = file_type || 'application/pdf';
 
       const today = new Date().toISOString().split('T')[0];
-      // Replace today's guide and clean up anything older than 2 days
       await client.query(
         "DELETE FROM transport_guides WHERE portal_id = $1 AND (guide_date = $2 OR guide_date < CURRENT_DATE - INTERVAL '1 day')",
         [portalId, today]
       );
       const res = await client.query(
-        `INSERT INTO transport_guides (portal_id, guide_date, pdf_data, eurocodes, uploaded_by)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, guide_date, eurocodes, uploaded_at`,
-        [portalId, today, pdf_data, eurocodes, user.userId]
+        `INSERT INTO transport_guides (portal_id, guide_date, pdf_data, eurocodes, uploaded_by, file_type)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, guide_date, eurocodes, uploaded_at, file_type`,
+        [portalId, today, pdf_data, eurocodes, user.userId, storedFileType]
       );
       return {
         statusCode: 200, headers,

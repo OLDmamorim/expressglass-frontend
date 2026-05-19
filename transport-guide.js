@@ -60,24 +60,24 @@
     injectTimer = setTimeout(injectBadges, 150);
   }
 
-  // ── PDF Viewer ───────────────────────────────────────────
+  // ── PDF / Image Viewer ───────────────────────────────────
 
   function isMobile() {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   }
 
-  function makeBlobUrl() {
+  function makeGuideUrl() {
+    const ft = todayGuide.file_type || 'application/pdf';
     const bytes = atob(todayGuide.pdf_data);
     const arr = new Uint8Array(bytes.length);
     for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-    return URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
+    return { url: URL.createObjectURL(new Blob([arr], { type: ft })), type: ft };
   }
 
   function openViewer() {
     if (!todayGuide?.pdf_data) return;
-    const url = makeBlobUrl();
+    const { url, type } = makeGuideUrl();
 
-    // Android/iOS can't render PDFs in iframes — open directly in the system viewer
     if (isMobile()) {
       const a = document.createElement('a');
       a.href = url;
@@ -94,10 +94,25 @@
     if (!modal) return;
 
     const iframe = document.getElementById('guiaATIframe');
-    if (iframe) iframe.src = url;
+    const imgViewer = document.getElementById('guiaATImage');
 
+    if (type.startsWith('image/')) {
+      // Show image, hide iframe
+      if (iframe) iframe.style.display = 'none';
+      if (imgViewer) {
+        imgViewer.src = url;
+        imgViewer.style.display = 'block';
+        imgViewer._blobUrl = url;
+      }
+    } else {
+      // Show PDF in iframe, hide image
+      if (imgViewer) { imgViewer.style.display = 'none'; imgViewer.src = ''; }
+      if (iframe) { iframe.style.display = 'block'; iframe.src = url; }
+    }
+
+    const ext = type.startsWith('image/') ? type.split('/')[1] || 'png' : 'pdf';
     const link = document.getElementById('guiaATDownload');
-    if (link) { link.href = url; link.download = 'guia-AT.pdf'; }
+    if (link) { link.href = url; link.download = `guia-AT.${ext}`; }
 
     modal.classList.add('show');
   }
@@ -105,8 +120,10 @@
   function closeViewer() {
     const modal = document.getElementById('guiaATModal');
     const iframe = document.getElementById('guiaATIframe');
+    const imgViewer = document.getElementById('guiaATImage');
     modal?.classList.remove('show');
     if (iframe) { URL.revokeObjectURL(iframe.src); iframe.src = ''; }
+    if (imgViewer?._blobUrl) { URL.revokeObjectURL(imgViewer._blobUrl); imgViewer.src = ''; imgViewer._blobUrl = null; }
   }
 
   // ── Upload ───────────────────────────────────────────────
@@ -124,9 +141,7 @@
     return field.value.split(/[,;\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
   }
 
-  async function handleFileSelected(input) {
-    const file = input.files[0];
-    if (!file) return;
+  async function uploadFile(file) {
     const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/tiff', 'image/webp'];
     if (!allowed.includes(file.type)) { alert('Por favor seleciona um ficheiro PDF ou imagem (JPG, PNG, TIFF).'); return; }
 
@@ -138,10 +153,7 @@
       const manual_eurocodes = getManualCodes();
       const payload = { pdf_data: base64, file_type: file.type, manual_eurocodes };
       if (window.activePortalId) payload._portalId = window.activePortalId;
-      const res = await authFetch(API, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      const res = await authFetch(API, { method: 'POST', body: JSON.stringify(payload) });
       const data = await res.json();
       if (data.success) {
         todayGuide = data.guide;
@@ -154,14 +166,42 @@
           showToast(`✅ Guia AT carregada — ${n} Eurocode(s): ${data.eurocodes_found.join(', ')}`, 'success');
         }
       } else {
-        showToast(data.error || 'Erro ao carregar PDF.', 'error');
+        showToast(data.error || 'Erro ao carregar ficheiro.', 'error');
       }
     } catch (e) {
       showToast('Erro: ' + e.message, 'error');
     } finally {
       btns.forEach(b => { if (b) b.disabled = false; });
       updateUploadBtn();
-      input.value = '';
+    }
+  }
+
+  async function handleFileSelected(input) {
+    const file = input.files[0];
+    if (!file) return;
+    await uploadFile(file);
+    input.value = '';
+  }
+
+  function handlePaste(event) {
+    if (!isCoordinator()) return;
+    // Don't intercept paste inside text inputs / textareas
+    const tag = (event.target?.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return;
+
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of items) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          showToast('📋 A processar imagem colada…', 'success');
+          uploadFile(file);
+        }
+        return;
+      }
     }
   }
 
@@ -199,6 +239,9 @@
       if (uploadArea) uploadArea.style.display = 'flex';
       const uploadAreaDesk = document.getElementById('guiaATUploadAreaDesk');
       if (uploadAreaDesk) uploadAreaDesk.style.display = 'flex';
+
+      // Global paste listener for image screenshots
+      document.addEventListener('paste', handlePaste);
     }
 
     // Set up observers BEFORE the async fetch so we never miss a render
