@@ -739,12 +739,20 @@
   border: 1px solid rgba(245,158,11,0.2);
 }
 .fg-welcome-logo {
-  height: 170px;
+  height: 220px;
   width: auto;
-  max-width: 90%;
+  max-width: 92%;
   object-fit: contain;
-  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.6));
   margin-bottom: 20px;
+  border-radius: 20px;
+  filter: drop-shadow(0 4px 20px rgba(0,0,0,0.7));
+  outline: 3px solid rgba(255,255,255,0.85);
+  outline-offset: 8px;
+  animation: fgLogoPulse 1.5s ease-in-out infinite;
+}
+@keyframes fgLogoPulse {
+  0%, 100% { outline-color: rgba(255,255,255,0.85); outline-offset: 8px; }
+  50%       { outline-color: rgba(255,255,255,0.2);  outline-offset: 14px; }
 }
 .fg-welcome-theme-box {
   width: 100%;
