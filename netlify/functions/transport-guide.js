@@ -55,7 +55,9 @@ exports.handler = async (event) => {
       if (!portalId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Portal não identificado' }) };
       const res = await client.query(
         `SELECT id, guide_date, guide_number, pdf_data, eurocodes, uploaded_at
-         FROM transport_guides WHERE portal_id = $1 AND guide_date = $2
+         FROM transport_guides
+         WHERE portal_id = $1 AND guide_date = $2
+           AND guide_date >= CURRENT_DATE - INTERVAL '1 day'
          ORDER BY uploaded_at DESC LIMIT 1`,
         [portalId, date]
       );
@@ -88,8 +90,9 @@ exports.handler = async (event) => {
       const eurocodes = [...new Set([...autoEurocodes, ...manualList])];
 
       const today = new Date().toISOString().split('T')[0];
+      // Replace today's guide and clean up anything older than 2 days
       await client.query(
-        'DELETE FROM transport_guides WHERE portal_id = $1 AND guide_date = $2',
+        "DELETE FROM transport_guides WHERE portal_id = $1 AND (guide_date = $2 OR guide_date < CURRENT_DATE - INTERVAL '1 day')",
         [portalId, today]
       );
       const res = await client.query(
