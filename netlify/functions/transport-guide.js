@@ -13,7 +13,7 @@ function getUserFromToken(event) {
 
 function extractEurocodes(text) {
   const upper = text.toUpperCase();
-  const matches = upper.match(/\b\d{4}-?[A-Z]{2,}[0-9A-Z]*\b/g) || [];
+  const matches = upper.match(/\b\d{4}-?[A-Z]{3,}[0-9A-Z]*\b/g) || [];
   return [...new Set(matches.map(m => m.replace(/-/g, '')))];
 }
 
