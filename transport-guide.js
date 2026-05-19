@@ -55,22 +55,40 @@
 
   // ── PDF Viewer ───────────────────────────────────────────
 
-  function openViewer() {
-    if (!todayGuide?.pdf_data) return;
-    const modal = document.getElementById('guiaATModal');
-    if (!modal) return;
+  function isMobile() {
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
 
-    // Create blob URL for better cross-browser support
+  function makeBlobUrl() {
     const bytes = atob(todayGuide.pdf_data);
     const arr = new Uint8Array(bytes.length);
     for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-    const blob = new Blob([arr], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
+    return URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
+  }
+
+  function openViewer() {
+    if (!todayGuide?.pdf_data) return;
+    const url = makeBlobUrl();
+
+    // Android/iOS can't render PDFs in iframes — open directly in the system viewer
+    if (isMobile()) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      return;
+    }
+
+    const modal = document.getElementById('guiaATModal');
+    if (!modal) return;
 
     const iframe = document.getElementById('guiaATIframe');
     if (iframe) iframe.src = url;
 
-    // Fallback link for iOS
     const link = document.getElementById('guiaATDownload');
     if (link) { link.href = url; link.download = 'guia-AT.pdf'; }
 
