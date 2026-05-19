@@ -126,13 +126,61 @@
     if (imgViewer?._blobUrl) { URL.revokeObjectURL(imgViewer._blobUrl); imgViewer.src = ''; imgViewer._blobUrl = null; }
   }
 
-  // ── Upload ───────────────────────────────────────────────
+  // ── Upload menu ──────────────────────────────────────────
 
-  function triggerUpload() {
+  let _menuBtn = null;
+
+  function toggleMenu(btn) {
+    const menu = document.getElementById('guiaATMenu');
+    if (!menu) return;
+    if (menu.style.display !== 'none') { closeMenu(); return; }
+
+    _menuBtn = btn;
+    const rect = btn.getBoundingClientRect();
+    // Prefer positioning below the button; if near bottom, flip above
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < 130) {
+      menu.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+      menu.style.top = 'auto';
+    } else {
+      menu.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+      menu.style.bottom = 'auto';
+    }
+    menu.style.left = Math.min(rect.left, window.innerWidth - 216) + 'px';
+    menu.style.display = 'block';
+
+    setTimeout(() => document.addEventListener('click', closeMenu, { once: true }), 0);
+  }
+
+  function closeMenu() {
+    const menu = document.getElementById('guiaATMenu');
+    if (menu) menu.style.display = 'none';
+    _menuBtn = null;
+  }
+
+  function triggerFileInput() {
+    closeMenu();
     const deskInput = document.getElementById('guiaATFileInputDesk');
     const mobileInput = document.getElementById('guiaATFileInput');
     const input = (deskInput && document.getElementById('guiaATUploadAreaDesk')?.style.display !== 'none') ? deskInput : mobileInput;
     if (input) input.click();
+  }
+
+  function handlePasteZone(event) {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          closeMenu();
+          showToast('📋 A processar imagem colada…', 'success');
+          uploadFile(file);
+        }
+        return;
+      }
+    }
   }
 
   function getManualCodes() {
@@ -183,28 +231,6 @@
     input.value = '';
   }
 
-  function handlePaste(event) {
-    if (!isCoordinator()) return;
-    // Don't intercept paste inside text inputs / textareas
-    const tag = (event.target?.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea') return;
-
-    const items = event.clipboardData?.items;
-    if (!items) return;
-
-    for (const item of items) {
-      if (item.kind === 'file' && item.type.startsWith('image/')) {
-        event.preventDefault();
-        const file = item.getAsFile();
-        if (file) {
-          showToast('📋 A processar imagem colada…', 'success');
-          uploadFile(file);
-        }
-        return;
-      }
-    }
-  }
-
   function fileToBase64(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -239,9 +265,6 @@
       if (uploadArea) uploadArea.style.display = 'flex';
       const uploadAreaDesk = document.getElementById('guiaATUploadAreaDesk');
       if (uploadAreaDesk) uploadAreaDesk.style.display = 'flex';
-
-      // Global paste listener for image screenshots
-      document.addEventListener('paste', handlePaste);
     }
 
     // Set up observers BEFORE the async fetch so we never miss a render
@@ -284,7 +307,7 @@
     setTimeout(() => t.remove(), 3500);
   }
 
-  window.guiaAT = { init, openViewer, closeViewer, triggerUpload, handleFileSelected, injectBadges };
+  window.guiaAT = { init, openViewer, closeViewer, toggleMenu, closeMenu, triggerFileInput, handleFileSelected, handlePasteZone, injectBadges };
 
   let _initDone = false;
   function _runInit() {

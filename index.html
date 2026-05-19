@@ -190,7 +190,7 @@
         <!-- Guia AT upload (coordinator/admin only, desktop) -->
         <div id="guiaATUploadAreaDesk" style="display:none; align-items:center; gap:6px;">
           <input type="file" id="guiaATFileInputDesk" accept=".pdf,image/*" style="display:none" onchange="guiaAT.handleFileSelected(this)">
-          <button id="guiaATUploadBtnDesk" class="guia-at-upload-btn" onclick="guiaAT.triggerUpload()">
+          <button id="guiaATUploadBtnDesk" class="guia-at-upload-btn" onclick="guiaAT.toggleMenu(this)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Guia AT
           </button>
@@ -281,7 +281,7 @@
       <div id="guiaATUploadArea" style="padding:6px 14px 0; display:none; flex-direction:column; gap:6px;">
         <input type="file" id="guiaATFileInput" accept=".pdf,image/*" style="display:none" onchange="guiaAT.handleFileSelected(this)">
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-          <button id="guiaATUploadBtn" class="guia-at-upload-btn" onclick="guiaAT.triggerUpload()">
+          <button id="guiaATUploadBtn" class="guia-at-upload-btn" onclick="guiaAT.toggleMenu(this)">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Guia AT
           </button>
@@ -849,7 +849,22 @@
     <img id="guiaATImage" alt="Guia AT" style="display:none; width:100%; height:100%; object-fit:contain; background:#000;">
   </div>
 
-  <script src="transport-guide.js?v=2026-05-19i"></script>
+  <!-- Guia AT upload menu (shared, coordinator only) -->
+  <div id="guiaATMenu" class="guia-at-menu" style="display:none" onclick="event.stopPropagation()">
+    <button class="guia-at-menu-item" onclick="guiaAT.triggerFileInput()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Selecionar PDF
+    </button>
+    <div class="guia-at-menu-divider"></div>
+    <div class="guia-at-paste-zone" contenteditable="true" tabindex="0"
+         onpaste="guiaAT.handlePasteZone(event)"
+         onclick="this.focus(); event.stopPropagation()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M17 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+      Colar screenshot <span class="guia-at-kbd">Ctrl+V</span>
+    </div>
+  </div>
+
+  <script src="transport-guide.js?v=2026-05-19j"></script>
 
 </body>
 </html>
