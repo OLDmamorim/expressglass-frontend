@@ -22,6 +22,24 @@
   box-shadow: 0 2px 8px rgba(30,64,175,0.35);
 }
 .guia-at-upload-btn:hover { background: #1d4ed8; }
+.ec-rem-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  background: #78350f;
+  color: #fde68a;
+  border: none;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+  box-shadow: 0 2px 8px rgba(120,53,15,0.4);
+}
+.ec-rem-trigger-btn:hover { background: #92400e; }
+
 .guia-at-upload-btn.guia-at-loaded {
   background: #16a34a;
   box-shadow: 0 2px 8px rgba(22,163,74,0.35);

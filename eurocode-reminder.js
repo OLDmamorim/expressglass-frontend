@@ -156,7 +156,17 @@
   `;
   document.head.appendChild(css);
 
-  window.ecReminder = { copy: copyCode, print: printCodes };
+  async function showNow() {
+    try {
+      const res = await authFetch(API);
+      const data = await res.json();
+      if (data.success) renderPopup(data.portals, data.date);
+    } catch (e) {
+      console.error('Eurocode reminder:', e);
+    }
+  }
+
+  window.ecReminder = { copy: copyCode, print: printCodes, showNow };
 
   // Start after portal is ready
   let _started = false;
