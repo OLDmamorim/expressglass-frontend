@@ -1,0 +1,98 @@
+const { Pool } = require('pg');
+const jwt = require('jsonwebtoken');
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
+
+function getUserFromToken(event) {
+  const auth = event.headers.authorization || event.headers.Authorization;
+  if (!auth?.startsWith('Bearer ')) throw new Error('Não autenticado');
+  return jwt.verify(auth.substring(7), JWT_SECRET);
+}
+
+function extractEurocode(extra) {
+  if (!extra) return null;
+  try {
+    const ec = (JSON.parse(extra).eurocode || '').trim().toUpperCase();
+    return ec || null;
+  } catch {
+    const ec = extra.trim().toUpperCase();
+    return ec || null;
+  }
+}
+
+exports.handler = async (event) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Content-Type': 'application/json'
+  };
+
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  if (event.httpMethod !== 'GET') return { statusCode: 405, headers, body: '{}' };
+
+  const client = await pool.connect();
+  try {
+    const user = getUserFromToken(event);
+    if (!['admin', 'coordinator', 'coordenador'].includes(user.role)) {
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem permissão' }) };
+    }
+
+    let rows;
+    if (user.role === 'admin') {
+      // Admin vê todos os portais
+      const res = await client.query(`
+        SELECT a.portal_id, p.name AS portal_name, a.extra, a.plate, a.car
+        FROM appointments a
+        JOIN portals p ON p.id = a.portal_id
+        WHERE a.date::date = (CURRENT_DATE + INTERVAL '1 day')::date
+          AND a.extra IS NOT NULL AND a.extra != ''
+        ORDER BY p.name, a.id
+      `);
+      rows = res.rows;
+    } else {
+      const res = await client.query(`
+        SELECT a.portal_id, p.name AS portal_name, a.extra, a.plate, a.car
+        FROM appointments a
+        JOIN portals p ON p.id = a.portal_id
+        WHERE a.date::date = (CURRENT_DATE + INTERVAL '1 day')::date
+          AND a.portal_id = $1
+          AND a.extra IS NOT NULL AND a.extra != ''
+        ORDER BY a.id
+      `, [user.portalId]);
+      rows = res.rows;
+    }
+
+    // Group by portal, deduplicate eurocodes
+    const byPortal = {};
+    for (const row of rows) {
+      const ec = extractEurocode(row.extra);
+      if (!ec) continue;
+      if (!byPortal[row.portal_id]) {
+        byPortal[row.portal_id] = { portal_id: row.portal_id, portal_name: row.portal_name, eurocodes: [] };
+      }
+      byPortal[row.portal_id].eurocodes.push(ec);
+    }
+    const portals = Object.values(byPortal).map(p => ({
+      ...p,
+      eurocodes: [...new Set(p.eurocodes)]
+    }));
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return {
+      statusCode: 200, headers,
+      body: JSON.stringify({ success: true, date: tomorrow.toISOString().split('T')[0], portals })
+    };
+  } catch (err) {
+    console.error('tomorrow-eurocodes error:', err);
+    if (err.message === 'Não autenticado' || err.name === 'JsonWebTokenError') {
+      return { statusCode: 401, headers, body: JSON.stringify({ error: 'Não autenticado' }) };
+    }
+    return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+  } finally {
+    client.release();
+  }
+};
