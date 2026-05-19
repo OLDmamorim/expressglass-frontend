@@ -32,7 +32,7 @@
 
     document.querySelectorAll('.guia-at-badge').forEach(b => b.remove());
 
-    document.querySelectorAll('.m-card[data-id]').forEach(card => {
+    document.querySelectorAll('.m-card[data-id], .desk-card[data-id]').forEach(card => {
       const appt = appts.find(a => String(a.id) === card.dataset.id);
       if (!appt) return;
       const ec = getEurocode(appt);
@@ -165,7 +165,7 @@
     // Show upload button only for coordinators/admins
     if (isCoordinator()) {
       const uploadArea = document.getElementById('guiaATUploadArea');
-      if (uploadArea) uploadArea.style.display = '';
+      if (uploadArea) uploadArea.style.display = 'flex';
       const uploadAreaDesk = document.getElementById('guiaATUploadAreaDesk');
       if (uploadAreaDesk) uploadAreaDesk.style.display = 'flex';
     }
@@ -178,6 +178,7 @@
       if (data.success && data.guide) {
         todayGuide = data.guide;
         updateUploadBtn();
+        injectBadges();
       }
     } catch (e) { console.error('Transport guide init:', e); }
 
@@ -185,6 +186,12 @@
     const target = document.getElementById('mobileDayList');
     if (target) {
       new MutationObserver(scheduleInject).observe(target, { childList: true, subtree: false });
+    }
+
+    // Observe desktop schedule table for re-renders
+    const scheduleEl = document.getElementById('schedule');
+    if (scheduleEl) {
+      new MutationObserver(scheduleInject).observe(scheduleEl, { childList: true, subtree: false });
     }
 
     // Initial inject (appointments may already be loaded)

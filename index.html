@@ -278,7 +278,7 @@
         </div>
       </div>
       <!-- Guia AT upload (coordinator/admin only) -->
-      <div id="guiaATUploadArea" style="padding:6px 14px 0; display:flex; flex-direction:column; gap:6px;">
+      <div id="guiaATUploadArea" style="padding:6px 14px 0; display:none; flex-direction:column; gap:6px;">
         <input type="file" id="guiaATFileInput" accept=".pdf,image/*" style="display:none" onchange="guiaAT.handleFileSelected(this)">
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
           <button id="guiaATUploadBtn" class="guia-at-upload-btn" onclick="guiaAT.triggerUpload()">
