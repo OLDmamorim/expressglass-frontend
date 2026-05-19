@@ -36,7 +36,8 @@
       const appt = appts.find(a => String(a.id) === card.dataset.id);
       if (!appt) return;
       const ec = getEurocode(appt);
-      if (!ec || !eurocodes.includes(ec)) return;
+      // Guide codes may have extra suffix (e.g. "6564AGNVZPBL" from pdf-parse table concat)
+      if (!ec || !eurocodes.some(g => g === ec || g.startsWith(ec) || ec.startsWith(g))) return;
 
       const badge = document.createElement('button');
       badge.className = 'guia-at-badge';
