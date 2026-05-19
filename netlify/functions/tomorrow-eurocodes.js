@@ -47,6 +47,7 @@ exports.handler = async (event) => {
         FROM appointments a
         JOIN portals p ON p.id = a.portal_id
         WHERE a.date::date = (CURRENT_DATE + INTERVAL '1 day')::date
+          AND COALESCE(p.portal_type, 'sm') = 'sm'
           AND a.extra IS NOT NULL AND a.extra != ''
         ORDER BY p.name, a.id
       `);
@@ -58,6 +59,7 @@ exports.handler = async (event) => {
         JOIN portals p ON p.id = a.portal_id
         WHERE a.date::date = (CURRENT_DATE + INTERVAL '1 day')::date
           AND a.portal_id = $1
+          AND COALESCE(p.portal_type, 'sm') = 'sm'
           AND a.extra IS NOT NULL AND a.extra != ''
         ORDER BY a.id
       `, [user.portalId]);
