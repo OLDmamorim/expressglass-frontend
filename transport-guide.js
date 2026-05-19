@@ -60,24 +60,24 @@
     injectTimer = setTimeout(injectBadges, 150);
   }
 
-  // ── PDF Viewer ───────────────────────────────────────────
+  // ── PDF / Image Viewer ───────────────────────────────────
 
   function isMobile() {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   }
 
-  function makeBlobUrl() {
+  function makeGuideUrl() {
+    const ft = todayGuide.file_type || 'application/pdf';
     const bytes = atob(todayGuide.pdf_data);
     const arr = new Uint8Array(bytes.length);
     for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-    return URL.createObjectURL(new Blob([arr], { type: 'application/pdf' }));
+    return { url: URL.createObjectURL(new Blob([arr], { type: ft })), type: ft };
   }
 
   function openViewer() {
     if (!todayGuide?.pdf_data) return;
-    const url = makeBlobUrl();
+    const { url, type } = makeGuideUrl();
 
-    // Android/iOS can't render PDFs in iframes — open directly in the system viewer
     if (isMobile()) {
       const a = document.createElement('a');
       a.href = url;
@@ -94,10 +94,25 @@
     if (!modal) return;
 
     const iframe = document.getElementById('guiaATIframe');
-    if (iframe) iframe.src = url;
+    const imgViewer = document.getElementById('guiaATImage');
 
+    if (type.startsWith('image/')) {
+      // Show image, hide iframe
+      if (iframe) iframe.style.display = 'none';
+      if (imgViewer) {
+        imgViewer.src = url;
+        imgViewer.style.display = 'block';
+        imgViewer._blobUrl = url;
+      }
+    } else {
+      // Show PDF in iframe, hide image
+      if (imgViewer) { imgViewer.style.display = 'none'; imgViewer.src = ''; }
+      if (iframe) { iframe.style.display = 'block'; iframe.src = url; }
+    }
+
+    const ext = type.startsWith('image/') ? type.split('/')[1] || 'png' : 'pdf';
     const link = document.getElementById('guiaATDownload');
-    if (link) { link.href = url; link.download = 'guia-AT.pdf'; }
+    if (link) { link.href = url; link.download = `guia-AT.${ext}`; }
 
     modal.classList.add('show');
   }
@@ -105,17 +120,67 @@
   function closeViewer() {
     const modal = document.getElementById('guiaATModal');
     const iframe = document.getElementById('guiaATIframe');
+    const imgViewer = document.getElementById('guiaATImage');
     modal?.classList.remove('show');
     if (iframe) { URL.revokeObjectURL(iframe.src); iframe.src = ''; }
+    if (imgViewer?._blobUrl) { URL.revokeObjectURL(imgViewer._blobUrl); imgViewer.src = ''; imgViewer._blobUrl = null; }
   }
 
-  // ── Upload ───────────────────────────────────────────────
+  // ── Upload menu ──────────────────────────────────────────
 
-  function triggerUpload() {
+  let _menuBtn = null;
+
+  function toggleMenu(btn) {
+    const menu = document.getElementById('guiaATMenu');
+    if (!menu) return;
+    if (menu.style.display !== 'none') { closeMenu(); return; }
+
+    _menuBtn = btn;
+    const rect = btn.getBoundingClientRect();
+    // Prefer positioning below the button; if near bottom, flip above
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < 130) {
+      menu.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+      menu.style.top = 'auto';
+    } else {
+      menu.style.top = (rect.bottom + window.scrollY + 6) + 'px';
+      menu.style.bottom = 'auto';
+    }
+    menu.style.left = Math.min(rect.left, window.innerWidth - 216) + 'px';
+    menu.style.display = 'block';
+
+    setTimeout(() => document.addEventListener('click', closeMenu, { once: true }), 0);
+  }
+
+  function closeMenu() {
+    const menu = document.getElementById('guiaATMenu');
+    if (menu) menu.style.display = 'none';
+    _menuBtn = null;
+  }
+
+  function triggerFileInput() {
+    closeMenu();
     const deskInput = document.getElementById('guiaATFileInputDesk');
     const mobileInput = document.getElementById('guiaATFileInput');
     const input = (deskInput && document.getElementById('guiaATUploadAreaDesk')?.style.display !== 'none') ? deskInput : mobileInput;
     if (input) input.click();
+  }
+
+  function handlePasteZone(event) {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        event.preventDefault();
+        const file = item.getAsFile();
+        if (file) {
+          closeMenu();
+          showToast('📋 A processar imagem colada…', 'success');
+          uploadFile(file);
+        }
+        return;
+      }
+    }
   }
 
   function getManualCodes() {
@@ -124,9 +189,7 @@
     return field.value.split(/[,;\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
   }
 
-  async function handleFileSelected(input) {
-    const file = input.files[0];
-    if (!file) return;
+  async function uploadFile(file) {
     const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/tiff', 'image/webp'];
     if (!allowed.includes(file.type)) { alert('Por favor seleciona um ficheiro PDF ou imagem (JPG, PNG, TIFF).'); return; }
 
@@ -138,10 +201,7 @@
       const manual_eurocodes = getManualCodes();
       const payload = { pdf_data: base64, file_type: file.type, manual_eurocodes };
       if (window.activePortalId) payload._portalId = window.activePortalId;
-      const res = await authFetch(API, {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      const res = await authFetch(API, { method: 'POST', body: JSON.stringify(payload) });
       const data = await res.json();
       if (data.success) {
         todayGuide = data.guide;
@@ -154,15 +214,21 @@
           showToast(`✅ Guia AT carregada — ${n} Eurocode(s): ${data.eurocodes_found.join(', ')}`, 'success');
         }
       } else {
-        showToast(data.error || 'Erro ao carregar PDF.', 'error');
+        showToast(data.error || 'Erro ao carregar ficheiro.', 'error');
       }
     } catch (e) {
       showToast('Erro: ' + e.message, 'error');
     } finally {
       btns.forEach(b => { if (b) b.disabled = false; });
       updateUploadBtn();
-      input.value = '';
     }
+  }
+
+  async function handleFileSelected(input) {
+    const file = input.files[0];
+    if (!file) return;
+    await uploadFile(file);
+    input.value = '';
   }
 
   function fileToBase64(file) {
@@ -241,7 +307,7 @@
     setTimeout(() => t.remove(), 3500);
   }
 
-  window.guiaAT = { init, openViewer, closeViewer, triggerUpload, handleFileSelected, injectBadges };
+  window.guiaAT = { init, openViewer, closeViewer, toggleMenu, closeMenu, triggerFileInput, handleFileSelected, handlePasteZone, injectBadges };
 
   let _initDone = false;
   function _runInit() {
