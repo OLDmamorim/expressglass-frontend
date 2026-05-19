@@ -2550,6 +2550,7 @@ function renderSchedule(){
 
   table.appendChild(tbody);
   enableDragDrop(); attachStatusListeners(); attachExecListeners(); highlightSearchResults();
+  window.guiaAT?.injectBadges();
 }
 
 // ---------- Render PENDENTES ----------

@@ -261,6 +261,7 @@ async function renderMobileDay(){
 
   list.innerHTML = _bmBanner + (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
+  window.guiaAT?.injectBadges();
 }
 
 // Render global
