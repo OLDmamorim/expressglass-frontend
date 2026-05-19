@@ -110,9 +110,11 @@
     try {
       const base64 = await fileToBase64(file);
       const manual_eurocodes = getManualCodes();
+      const payload = { pdf_data: base64, file_type: file.type, manual_eurocodes };
+      if (window.activePortalId) payload._portalId = window.activePortalId;
       const res = await authFetch(API, {
         method: 'POST',
-        body: JSON.stringify({ pdf_data: base64, file_type: file.type, manual_eurocodes })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.success) {
@@ -170,7 +172,8 @@
 
     // Load today's guide
     try {
-      const res = await authFetch(API);
+      const portalParam = window.activePortalId ? `?portal_id=${window.activePortalId}` : '';
+      const res = await authFetch(API + portalParam);
       const data = await res.json();
       if (data.success && data.guide) {
         todayGuide = data.guide;

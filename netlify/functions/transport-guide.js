@@ -49,7 +49,9 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       const p = event.queryStringParameters || {};
       const date = p.date || new Date().toISOString().split('T')[0];
-      const portalId = p.portal_id || user.portalId;
+      let portalId = user.portalId;
+      if (!portalId && p.portal_id) portalId = parseInt(p.portal_id);
+      if (!portalId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Portal não identificado' }) };
       const res = await client.query(
         `SELECT id, guide_date, guide_number, pdf_data, eurocodes, uploaded_at
          FROM transport_guides WHERE portal_id = $1 AND guide_date = $2
@@ -64,8 +66,12 @@ exports.handler = async (event) => {
         return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem permissão' }) };
       }
       const body = JSON.parse(event.body || '{}');
-      const { pdf_data, file_type, manual_eurocodes } = body;
+      const { pdf_data, file_type, manual_eurocodes, _portalId } = body;
       if (!pdf_data) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ficheiro em falta' }) };
+
+      let portalId = user.portalId;
+      if (!portalId && _portalId) portalId = parseInt(_portalId);
+      if (!portalId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Portal não identificado' }) };
 
       const fileBuffer = Buffer.from(pdf_data, 'base64');
       let autoEurocodes = [];
@@ -83,13 +89,13 @@ exports.handler = async (event) => {
       const today = new Date().toISOString().split('T')[0];
       await client.query(
         'DELETE FROM transport_guides WHERE portal_id = $1 AND guide_date = $2',
-        [user.portalId, today]
+        [portalId, today]
       );
       const res = await client.query(
         `INSERT INTO transport_guides (portal_id, guide_date, pdf_data, eurocodes, uploaded_by)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING id, guide_date, eurocodes, uploaded_at`,
-        [user.portalId, today, pdf_data, eurocodes, user.userId]
+        [portalId, today, pdf_data, eurocodes, user.userId]
       );
       return {
         statusCode: 200, headers,
@@ -101,10 +107,14 @@ exports.handler = async (event) => {
       if (!['admin', 'coordinator', 'coordenador'].includes(user.role)) {
         return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem permissão' }) };
       }
+      const body = JSON.parse(event.body || '{}');
+      let portalId = user.portalId;
+      if (!portalId && body._portalId) portalId = parseInt(body._portalId);
+      if (!portalId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Portal não identificado' }) };
       const today = new Date().toISOString().split('T')[0];
       await client.query(
         'DELETE FROM transport_guides WHERE portal_id = $1 AND guide_date = $2',
-        [user.portalId, today]
+        [portalId, today]
       );
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
     }
