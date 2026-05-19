@@ -236,9 +236,26 @@
 
   window.guiaAT = { init, openViewer, closeViewer, triggerUpload, handleFileSelected, injectBadges };
 
+  let _initDone = false;
+  function _runInit() {
+    if (_initDone) return;
+    _initDone = true;
+    init();
+  }
+
+  function _waitForPortal() {
+    if (window._portalReadyFired) {
+      _runInit();
+    } else {
+      window.addEventListener('portalReady', _runInit, { once: true });
+      // Fallback: if portalReady never fires (e.g. single-portal user path), run after 3s
+      setTimeout(_runInit, 3000);
+    }
+  }
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => setTimeout(init, 700));
+    document.addEventListener('DOMContentLoaded', _waitForPortal);
   } else {
-    setTimeout(init, 700);
+    _waitForPortal();
   }
 })();
