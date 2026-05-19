@@ -746,44 +746,41 @@
   filter: drop-shadow(0 4px 16px rgba(0,0,0,0.6));
   margin-bottom: 20px;
 }
-.fg-welcome-intro {
-  background: rgba(255,255,255,0.05);
-  border-left: 3px solid #f59e0b;
-  border-radius: 0 12px 12px 0;
-  padding: 14px 16px;
-  margin-bottom: 22px;
+.fg-welcome-theme-box {
   width: 100%;
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+  border-radius: 14px;
+  padding: 16px 18px;
+  text-align: center;
+  margin-bottom: 22px;
   box-sizing: border-box;
 }
-.fg-welcome-intro p {
-  margin: 0 0 7px;
-  font-size: 14px;
-  color: #cbd5e1;
-  line-height: 1.55;
+.fg-welcome-theme-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  color: #93c5fd;
+  text-transform: uppercase;
+  margin-bottom: 8px;
 }
-.fg-welcome-intro p:last-child { margin-bottom: 0; }
-.fg-welcome-cta {
+.fg-welcome-theme-name {
+  font-size: 22px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.2;
+}
+.fg-welcome-ok {
   width: 100%;
   padding: 15px;
   background: linear-gradient(135deg, #f59e0b, #e07c00);
   color: #fff;
   border: none;
   border-radius: 14px;
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 900;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   cursor: pointer;
   box-shadow: 0 4px 20px rgba(245,158,11,0.45);
-  transition: transform 0.15s, box-shadow 0.15s;
-  margin-bottom: 10px;
+  transition: transform 0.15s;
 }
-.fg-welcome-cta:active { transform: scale(0.97); }
-.fg-welcome-skip {
-  background: none;
-  border: none;
-  color: #64748b;
-  font-size: 13px;
-  cursor: pointer;
-  padding: 6px;
-}
-.fg-welcome-skip:hover { color: #94a3b8; }
+.fg-welcome-ok:active { transform: scale(0.97); }

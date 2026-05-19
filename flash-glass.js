@@ -31,20 +31,22 @@
 
   function maybeShowWelcome() {
     if (!currentContest) return;
-    const key = 'fg_welcome_' + currentContest.week_start;
-    if (localStorage.getItem(key)) return;
+    const day = new Date().getDay(); // 1=Mon, 2=Tue, 3=Wed
+    if (day < 1 || day > 3) return;
+    const today = new Date().toISOString().split('T')[0];
+    const key = 'fg_popup_' + today;
+    const shown = parseInt(localStorage.getItem(key) || '0');
+    if (shown >= 3) return;
     setTimeout(() => {
+      const el = document.getElementById('fgWelcomeTheme');
+      if (el) el.textContent = currentContest.theme;
       document.getElementById('fgWelcomeModal')?.classList.add('show');
+      localStorage.setItem(key, String(shown + 1));
     }, 1200);
   }
 
-  function closeWelcome(participate) {
-    const modal = document.getElementById('fgWelcomeModal');
-    modal?.classList.remove('show');
-    if (currentContest) {
-      localStorage.setItem('fg_welcome_' + currentContest.week_start, '1');
-    }
-    if (participate) openMainModal();
+  function closeWelcome() {
+    document.getElementById('fgWelcomeModal')?.classList.remove('show');
   }
 
   async function loadCurrentContest() {

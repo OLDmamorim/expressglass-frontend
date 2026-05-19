@@ -764,18 +764,11 @@
   <div id="fgWelcomeModal" class="modal">
     <div class="fg-welcome-content">
       <img src="fg-logo.png?v=2026-05-18c" class="fg-welcome-logo" alt="Flash Glass">
-      <div class="fg-welcome-intro">
-        <p>Todas as semanas, um novo tema.</p>
-        <p>Cada dupla entra em jogo com uma fotografia tirada em serviço.</p>
-        <p>Criatividade, espírito de equipa e boa disposição contam pontos.</p>
-        <p>No final da semana, a melhor foto vence. 🏆</p>
+      <div class="fg-welcome-theme-box">
+        <div class="fg-welcome-theme-label">TEMA DA SEMANA</div>
+        <div class="fg-welcome-theme-name" id="fgWelcomeTheme">—</div>
       </div>
-      <button class="fg-welcome-cta" onclick="flashGlass.closeWelcome(true)">
-        📷 Quero Participar!
-      </button>
-      <button class="fg-welcome-skip" onclick="flashGlass.closeWelcome(false)">
-        Talvez mais tarde
-      </button>
+      <button class="fg-welcome-ok" onclick="flashGlass.closeWelcome()">OK</button>
     </div>
   </div>
 
