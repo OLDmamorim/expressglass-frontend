@@ -40,8 +40,8 @@ exports.handler = async (event) => {
     }
 
     const p = event.queryStringParameters || {};
-    // portalId: prefer JWT claim, fall back to query param (admin viewing a specific SM)
-    const portalId = user.portalId || (p.portal_id ? parseInt(p.portal_id) : null);
+    // Prefer active portal from frontend; fall back to JWT portalId
+    const portalId = (p.portal_id ? parseInt(p.portal_id) : null) || user.portalId;
 
     let rows;
     if (user.role === 'admin' && !portalId) {
