@@ -135,6 +135,7 @@
     cursor = HORA_PARTIDA_H * 60 + HORA_PARTIDA_M;
     items.forEach((a, i) => {
       const prev = i > 0 ? items[i - 1] : null;
+<<<<<<< HEAD
       const mesmoLocal = mesmoLocalQue(a, prev);
       const km = mesmoLocal ? 0 : (a.km ?? a.kms ?? 0);
       const travel = mesmoLocal ? 0 : validarTempoViagem(a.travelTime || a.travel_time || 0, km);
