@@ -120,7 +120,7 @@ exports.handler = async (event) => {
         return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem permissão' }) };
       }
       const body = JSON.parse(event.body || '{}');
-      const { pdf_data, file_type, manual_eurocodes, _portalId, guide_date: rawGuideDate } = body;
+      const { pdf_data, file_type, _portalId, guide_date: rawGuideDate } = body;
       if (!pdf_data) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ficheiro em falta' }) };
 
       let portalId = user.portalId;
@@ -158,10 +158,7 @@ exports.handler = async (event) => {
         }
       }
 
-      const manualList = Array.isArray(manual_eurocodes)
-        ? manual_eurocodes.map(s => String(s).trim().toUpperCase()).filter(Boolean)
-        : [];
-      const eurocodes = [...new Set([...autoEurocodes, ...manualList])];
+      const eurocodes = [...new Set(autoEurocodes)];
       const storedFileType = file_type || 'application/pdf';
 
       // Delete existing guide for same date + cleanup guides older than 2 days
