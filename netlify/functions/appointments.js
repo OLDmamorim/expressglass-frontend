@@ -138,20 +138,27 @@ exports.handler = async (event) => {
       const data = JSON.parse(event.body || '{}');
 
       // Ler valores atuais para preservar executed e not_done_reason
-      // Admin pode editar qualquer agendamento sem restrição de portal
+      // Admin e coordenadores: procurar por id primeiro, depois verificar autorização
       const isAdmin = user.role === 'admin';
+      const isCoord = user.role === 'coordinator' || user.role === 'coordenador';
       const checkResult = await pool.query(
-        isAdmin
-          ? 'SELECT id, portal_id, executed, not_done_reason, glass_removed, glass_removed_date FROM appointments WHERE id = $1'
-          : 'SELECT id, portal_id, executed, not_done_reason, glass_removed, glass_removed_date FROM appointments WHERE id = $1 AND portal_id = $2',
-        isAdmin ? [id] : [id, portalId]
+        'SELECT id, portal_id, executed, not_done_reason, glass_removed, glass_removed_date FROM appointments WHERE id = $1',
+        [id]
       );
       if (checkResult.rows.length === 0) {
         return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
       }
       const existing = checkResult.rows[0];
-      // Para admin, usar o portal_id real do agendamento
-      const effectivePortalId = isAdmin ? existing.portal_id : portalId;
+      // Verificar autorização: admin pode tudo; coord verifica portalIds; outros verificam portal exacto
+      if (!isAdmin) {
+        const allowedPortals = isCoord
+          ? (user.portalIds || (user.portalId ? [user.portalId] : []))
+          : [portalId];
+        if (!allowedPortals.includes(existing.portal_id)) {
+          return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Sem permissão para editar este agendamento' }) };
+        }
+      }
+      const effectivePortalId = existing.portal_id;
       const executedVal = data.executed !== undefined ? data.executed : existing.executed;
       const notDoneReasonVal = data.not_done_reason !== undefined ? data.not_done_reason : existing.not_done_reason;
 
