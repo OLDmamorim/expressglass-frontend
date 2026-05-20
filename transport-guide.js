@@ -203,12 +203,6 @@
     }
   }
 
-  function getManualCodes() {
-    const field = document.getElementById('guiaATManualCodesDesk') || document.getElementById('guiaATManualCodes');
-    if (!field || !field.value.trim()) return [];
-    return field.value.split(/[,;\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
-  }
-
   async function uploadFile(file) {
     const allowed = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/tiff', 'image/webp'];
     if (!allowed.includes(file.type)) { alert('Por favor seleciona um ficheiro PDF ou imagem (JPG, PNG, TIFF).'); return; }
@@ -218,8 +212,7 @@
 
     try {
       const base64 = await fileToBase64(file);
-      const manual_eurocodes = getManualCodes();
-      const payload = { pdf_data: base64, file_type: file.type, manual_eurocodes, guide_date: uploadDate };
+      const payload = { pdf_data: base64, file_type: file.type, guide_date: uploadDate };
       if (window.activePortalId) payload._portalId = window.activePortalId;
       const res = await authFetch(API, { method: 'POST', body: JSON.stringify(payload) });
       const data = await res.json();
