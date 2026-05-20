@@ -31,6 +31,12 @@ exports.handler = async (event) => {
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS glass_removed_date DATE`);
   } catch(migErr) { console.warn('Migration warning:', migErr.message); }
 
+  // Migração: actualizar constraint de service para incluir RV e OUT
+  try {
+    await pool.query(`ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_service_check`);
+    await pool.query(`ALTER TABLE appointments ADD CONSTRAINT appointments_service_check CHECK (service IS NULL OR service IN ('PB', 'LT', 'OC', 'REP', 'POL', 'RV', 'OUT'))`);
+  } catch(migErr) { console.warn('Migration service_check warning:', migErr.message); }
+
   try {
     const user = getUserFromToken(event);
     let portalId = user.portalId;
