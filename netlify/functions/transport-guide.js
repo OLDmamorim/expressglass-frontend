@@ -120,12 +120,20 @@ exports.handler = async (event) => {
         return { statusCode: 403, headers, body: JSON.stringify({ error: 'Sem permissão' }) };
       }
       const body = JSON.parse(event.body || '{}');
-      const { pdf_data, file_type, manual_eurocodes, _portalId } = body;
+      const { pdf_data, file_type, manual_eurocodes, _portalId, guide_date: rawGuideDate } = body;
       if (!pdf_data) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ficheiro em falta' }) };
 
       let portalId = user.portalId;
       if (!portalId && _portalId) portalId = parseInt(_portalId);
       if (!portalId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Portal não identificado' }) };
+
+      // guide_date: accept 'today', 'tomorrow', or ISO date string; default today
+      const todayIso = new Date().toISOString().split('T')[0];
+      const tomorrowDate = new Date(); tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+      const tomorrowIso = tomorrowDate.toISOString().split('T')[0];
+      let guideDate = todayIso;
+      if (rawGuideDate === 'tomorrow') guideDate = tomorrowIso;
+      else if (rawGuideDate && /^\d{4}-\d{2}-\d{2}$/.test(rawGuideDate)) guideDate = rawGuideDate;
 
       const fileBuffer = Buffer.from(pdf_data, 'base64');
       let autoEurocodes = [];
@@ -156,16 +164,16 @@ exports.handler = async (event) => {
       const eurocodes = [...new Set([...autoEurocodes, ...manualList])];
       const storedFileType = file_type || 'application/pdf';
 
-      const today = new Date().toISOString().split('T')[0];
+      // Delete existing guide for same date + cleanup guides older than 2 days
       await client.query(
         "DELETE FROM transport_guides WHERE portal_id = $1 AND (guide_date = $2 OR guide_date < CURRENT_DATE - INTERVAL '1 day')",
-        [portalId, today]
+        [portalId, guideDate]
       );
       const res = await client.query(
         `INSERT INTO transport_guides (portal_id, guide_date, pdf_data, eurocodes, uploaded_by, file_type)
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id, guide_date, eurocodes, uploaded_at, file_type`,
-        [portalId, today, pdf_data, eurocodes, user.userId, storedFileType]
+        [portalId, guideDate, pdf_data, eurocodes, user.userId, storedFileType]
       );
       return {
         statusCode: 200, headers,

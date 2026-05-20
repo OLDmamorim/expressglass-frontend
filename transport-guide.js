@@ -2,7 +2,9 @@
   'use strict';
 
   const API = '/.netlify/functions/transport-guide';
-  let todayGuide = null;
+  let guides = { today: null, tomorrow: null }; // guides indexed by target date
+  let todayGuide = null; // kept for viewer (today's guide)
+  let uploadDate = 'today'; // 'today' | 'tomorrow'
   let injectTimer = null;
 
   async function authFetch(url, opts) {
@@ -25,9 +27,17 @@
 
   // ── Badge injection ──────────────────────────────────────
 
+  function allEurocodes() {
+    const set = new Set();
+    ['today', 'tomorrow'].forEach(k => {
+      (guides[k]?.eurocodes || []).forEach(e => set.add(e.toUpperCase()));
+    });
+    return [...set];
+  }
+
   function injectBadges() {
-    if (!todayGuide?.eurocodes?.length) return;
-    const eurocodes = todayGuide.eurocodes.map(e => e.toUpperCase());
+    const eurocodes = allEurocodes();
+    if (!eurocodes.length) return;
     const appts = window.appointments || [];
 
     document.querySelectorAll('.guia-at-badge').forEach(b => b.remove());
@@ -75,6 +85,8 @@
   }
 
   function openViewer() {
+    // Prefer today's guide for viewing; fall back to tomorrow's
+    todayGuide = guides.today || guides.tomorrow;
     if (!todayGuide?.pdf_data) return;
     const { url, type } = makeGuideUrl();
 
@@ -127,6 +139,14 @@
   }
 
   // ── Upload menu ──────────────────────────────────────────
+
+  function setUploadDate(val) {
+    uploadDate = val;
+    ['hoje', 'amanha'].forEach(id => {
+      const el = document.getElementById('guiaATDate_' + id);
+      if (el) el.classList.toggle('active', (id === 'hoje') === (val === 'today'));
+    });
+  }
 
   let _menuBtn = null;
 
@@ -199,12 +219,13 @@
     try {
       const base64 = await fileToBase64(file);
       const manual_eurocodes = getManualCodes();
-      const payload = { pdf_data: base64, file_type: file.type, manual_eurocodes };
+      const payload = { pdf_data: base64, file_type: file.type, manual_eurocodes, guide_date: uploadDate };
       if (window.activePortalId) payload._portalId = window.activePortalId;
       const res = await authFetch(API, { method: 'POST', body: JSON.stringify(payload) });
       const data = await res.json();
       if (data.success) {
-        todayGuide = data.guide;
+        guides[uploadDate === 'tomorrow' ? 'tomorrow' : 'today'] = data.guide;
+        todayGuide = guides.today || guides.tomorrow;
         injectBadges();
         updateUploadBtn();
         const n = data.eurocodes_found.length;
@@ -241,16 +262,21 @@
   }
 
   function updateUploadBtn() {
+    const hasToday = !!guides.today;
+    const hasTomorrow = !!guides.tomorrow;
+    const loaded = hasToday || hasTomorrow;
+    const label = hasToday && hasTomorrow ? 'Guia AT ✓✓'
+                : hasToday ? 'Guia AT ✓'
+                : hasTomorrow ? 'Guia AT +1 ✓'
+                : 'Guia AT';
+    const icon = loaded
+      ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+      : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
     const btns = [document.getElementById('guiaATUploadBtn'), document.getElementById('guiaATUploadBtnDesk')];
     btns.forEach(btn => {
       if (!btn) return;
-      if (todayGuide) {
-        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Guia AT ✓';
-        btn.classList.add('guia-at-loaded');
-      } else {
-        btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Guia AT';
-        btn.classList.remove('guia-at-loaded');
-      }
+      btn.innerHTML = `${icon} ${label}`;
+      btn.classList.toggle('guia-at-loaded', loaded);
     });
   }
 
@@ -277,16 +303,20 @@
       new MutationObserver(scheduleInject).observe(scheduleEl, { childList: true, subtree: false });
     }
 
-    // Load today's guide
+    // Load today's and tomorrow's guides
     try {
-      const portalParam = window.activePortalId ? `?portal_id=${window.activePortalId}` : '';
-      const res = await authFetch(API + portalParam);
-      const data = await res.json();
-      if (data.success && data.guide) {
-        todayGuide = data.guide;
-        updateUploadBtn();
-        scheduleInject();
-      }
+      const portalParam = window.activePortalId ? `&portal_id=${window.activePortalId}` : '';
+      const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowIso = tomorrow.toISOString().split('T')[0];
+      const [resToday, resTomorrow] = await Promise.all([
+        authFetch(`${API}?date=${new Date().toISOString().split('T')[0]}${portalParam}`),
+        authFetch(`${API}?date=${tomorrowIso}${portalParam}`)
+      ]);
+      const [dToday, dTomorrow] = await Promise.all([resToday.json(), resTomorrow.json()]);
+      if (dToday.success && dToday.guide) guides.today = dToday.guide;
+      if (dTomorrow.success && dTomorrow.guide) guides.tomorrow = dTomorrow.guide;
+      todayGuide = guides.today || guides.tomorrow;
+      if (guides.today || guides.tomorrow) { updateUploadBtn(); scheduleInject(); }
     } catch (e) { console.error('Transport guide init:', e); }
 
     // Safety-net inject for slow connections
@@ -307,7 +337,7 @@
     setTimeout(() => t.remove(), 3500);
   }
 
-  window.guiaAT = { init, openViewer, closeViewer, toggleMenu, closeMenu, triggerFileInput, handleFileSelected, handlePasteZone, injectBadges };
+  window.guiaAT = { init, openViewer, closeViewer, toggleMenu, closeMenu, triggerFileInput, handleFileSelected, handlePasteZone, injectBadges, setUploadDate };
 
   let _initDone = false;
   function _runInit() {
