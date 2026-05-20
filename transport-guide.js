@@ -281,6 +281,19 @@
   async function init() {
     if (!window.authClient?.isAuthenticated()) return;
 
+    // Aguardar activePortalId (pode ainda não estar definido se o fallback de 3s disparou cedo)
+    if (!window.activePortalId) {
+      await new Promise(resolve => {
+        let waited = 0;
+        const check = () => {
+          if (window.activePortalId || waited >= 8000) { resolve(); return; }
+          waited += 250;
+          setTimeout(check, 250);
+        };
+        setTimeout(check, 250);
+      });
+    }
+
     // Show upload button only for coordinators/admins
     if (isCoordinator()) {
       const uploadArea = document.getElementById('guiaATUploadArea');
