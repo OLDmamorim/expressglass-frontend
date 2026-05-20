@@ -22,7 +22,10 @@
 
   function getEurocode(appt) {
     if (!appt.extra) return '';
-    try { return (JSON.parse(appt.extra).eurocode || '').trim().toUpperCase(); } catch (e) { return appt.extra.trim().toUpperCase(); }
+    try { return (JSON.parse(appt.extra).eurocode || '').trim().toUpperCase(); } catch (e) {
+      const m = appt.extra.match(/"eurocode"\s*:\s*"([^"]+)"/);
+      return m ? m[1].trim().toUpperCase() : '';
+    }
   }
 
   // ── Badge injection ──────────────────────────────────────
