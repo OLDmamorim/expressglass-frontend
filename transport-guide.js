@@ -21,11 +21,24 @@
   }
 
   function getEurocode(appt) {
-    if (!appt.extra) return '';
-    try { return (JSON.parse(appt.extra).eurocode || '').trim().toUpperCase(); } catch (e) {
-      const m = appt.extra.match(/"eurocode"\s*:\s*"([^"]+)"/);
-      return m ? m[1].trim().toUpperCase() : '';
+    if (appt.extra) {
+      try {
+        const ec = (JSON.parse(appt.extra).eurocode || '').trim().toUpperCase();
+        if (ec) return ec;
+      } catch (e) {
+        const m = appt.extra.match(/"eurocode"\s*:\s*"([^"]+)"/);
+        if (m) return m[1].trim().toUpperCase();
+        // plain text extra (formato antigo)
+        const plain = appt.extra.trim().match(/^(\d{4}[A-Z]{3,}[0-9A-Z]*)/);
+        if (plain) return plain[1].toUpperCase();
+      }
     }
+    // fallback: extrair eurocode do campo notes (formato muito antigo)
+    if (appt.notes) {
+      const m = appt.notes.match(/\b(\d{4}[A-Z]{3,}[0-9A-Z]*)\b/);
+      if (m) return m[1].toUpperCase();
+    }
+    return '';
   }
 
   // ── Badge injection ──────────────────────────────────────
