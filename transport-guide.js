@@ -318,6 +318,25 @@
     // Safety-net inject for slow connections
     setTimeout(injectBadges, 1500);
     setTimeout(injectBadges, 3000);
+
+    // Re-fetch guias a cada 5 min para apanhar uploads feitos por outros utilizadores
+    setInterval(async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const portalParam = window.activePortalId ? `&portal_id=${window.activePortalId}` : '';
+        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowIso = tomorrow.toISOString().split('T')[0];
+        const [rT, rTm] = await Promise.all([
+          authFetch(`${API}?date=${new Date().toISOString().split('T')[0]}${portalParam}`),
+          authFetch(`${API}?date=${tomorrowIso}${portalParam}`)
+        ]);
+        const [dT, dTm] = await Promise.all([rT.json(), rTm.json()]);
+        let changed = false;
+        if (dT.success && dT.guide && dT.guide.id !== guides.today?.id) { guides.today = dT.guide; changed = true; }
+        if (dTm.success && dTm.guide && dTm.guide.id !== guides.tomorrow?.id) { guides.tomorrow = dTm.guide; changed = true; }
+        if (changed) { todayGuide = guides.today || guides.tomorrow; updateUploadBtn(); scheduleInject(); }
+      } catch (e) { /* silencioso */ }
+    }, 5 * 60 * 1000);
   }
 
   function showToast(msg, type) {
