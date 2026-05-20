@@ -278,21 +278,34 @@
 
   // ── Init ─────────────────────────────────────────────────
 
+  // Calcula portalParam usando activePortalId (admin/coord) ou portalId do JWT (técnico)
+  function getPortalParam() {
+    const id = window.activePortalId || window.authClient?.getUser?.()?.portalId;
+    return id ? `&portal_id=${id}` : '';
+  }
+
+  async function fetchGuides() {
+    const portalParam = getPortalParam();
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowIso = tomorrow.toISOString().split('T')[0];
+    const [resToday, resTomorrow] = await Promise.all([
+      authFetch(`${API}?date=${new Date().toISOString().split('T')[0]}${portalParam}`),
+      authFetch(`${API}?date=${tomorrowIso}${portalParam}`)
+    ]);
+    const [dToday, dTomorrow] = await Promise.all([resToday.json(), resTomorrow.json()]);
+    if (dToday.success && dToday.guide) guides.today = dToday.guide; else guides.today = null;
+    if (dTomorrow.success && dTomorrow.guide) guides.tomorrow = dTomorrow.guide; else guides.tomorrow = null;
+    todayGuide = guides.today || guides.tomorrow;
+    updateUploadBtn();
+    if (guides.today || guides.tomorrow) scheduleInject();
+  }
+
+  async function refreshGuides() {
+    try { await fetchGuides(); } catch (e) { console.warn('Guia AT refresh:', e); }
+  }
+
   async function init() {
     if (!window.authClient?.isAuthenticated()) return;
-
-    // Aguardar activePortalId (pode ainda não estar definido se o fallback de 3s disparou cedo)
-    if (!window.activePortalId) {
-      await new Promise(resolve => {
-        let waited = 0;
-        const check = () => {
-          if (window.activePortalId || waited >= 8000) { resolve(); return; }
-          waited += 250;
-          setTimeout(check, 250);
-        };
-        setTimeout(check, 250);
-      });
-    }
 
     // Show upload button only for coordinators/admins
     if (isCoordinator()) {
@@ -314,18 +327,7 @@
 
     // Load today's and tomorrow's guides
     try {
-      const portalParam = window.activePortalId ? `&portal_id=${window.activePortalId}` : '';
-      const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-      const tomorrowIso = tomorrow.toISOString().split('T')[0];
-      const [resToday, resTomorrow] = await Promise.all([
-        authFetch(`${API}?date=${new Date().toISOString().split('T')[0]}${portalParam}`),
-        authFetch(`${API}?date=${tomorrowIso}${portalParam}`)
-      ]);
-      const [dToday, dTomorrow] = await Promise.all([resToday.json(), resTomorrow.json()]);
-      if (dToday.success && dToday.guide) guides.today = dToday.guide;
-      if (dTomorrow.success && dTomorrow.guide) guides.tomorrow = dTomorrow.guide;
-      todayGuide = guides.today || guides.tomorrow;
-      if (guides.today || guides.tomorrow) { updateUploadBtn(); scheduleInject(); }
+      await fetchGuides();
     } catch (e) { console.error('Transport guide init:', e); }
 
     // Safety-net inject for slow connections
@@ -335,20 +337,8 @@
     // Re-fetch guias a cada 5 min para apanhar uploads feitos por outros utilizadores
     setInterval(async () => {
       if (document.visibilityState !== 'visible') return;
-      try {
-        const portalParam = window.activePortalId ? `&portal_id=${window.activePortalId}` : '';
-        const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowIso = tomorrow.toISOString().split('T')[0];
-        const [rT, rTm] = await Promise.all([
-          authFetch(`${API}?date=${new Date().toISOString().split('T')[0]}${portalParam}`),
-          authFetch(`${API}?date=${tomorrowIso}${portalParam}`)
-        ]);
-        const [dT, dTm] = await Promise.all([rT.json(), rTm.json()]);
-        let changed = false;
-        if (dT.success && dT.guide && dT.guide.id !== guides.today?.id) { guides.today = dT.guide; changed = true; }
-        if (dTm.success && dTm.guide && dTm.guide.id !== guides.tomorrow?.id) { guides.tomorrow = dTm.guide; changed = true; }
-        if (changed) { todayGuide = guides.today || guides.tomorrow; updateUploadBtn(); scheduleInject(); }
-      } catch (e) { /* silencioso */ }
+      await refreshGuides();
+      if (guides.today || guides.tomorrow) scheduleInject();
     }, 5 * 60 * 1000);
   }
 
@@ -365,7 +355,7 @@
     setTimeout(() => t.remove(), 3500);
   }
 
-  window.guiaAT = { init, openViewer, closeViewer, toggleMenu, closeMenu, triggerFileInput, handleFileSelected, handlePasteZone, injectBadges, setUploadDate };
+  window.guiaAT = { init, openViewer, closeViewer, toggleMenu, closeMenu, triggerFileInput, handleFileSelected, handlePasteZone, injectBadges, setUploadDate, refreshGuides };
 
   let _initDone = false;
   function _runInit() {
