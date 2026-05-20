@@ -41,16 +41,16 @@ exports.handler = async (event) => {
         ? parseInt(params.portal_id)
         : (() => { try { return JSON.parse(event.body || '{}')._portalId; } catch(e) { return null; } })();
       if (reqId) portalId = reqId;
-    } else if ((user.role === 'coordenador' || user.role === 'comercial') && user.portalIds) {
+    } else if (user.role === 'coordenador' || user.role === 'coordinator' || user.role === 'comercial') {
       let requestedId = params.portal_id ? parseInt(params.portal_id) : null;
       if (!requestedId && event.body) {
         try { requestedId = JSON.parse(event.body)._portalId; } catch(e) {}
       }
-      if (requestedId && user.portalIds.includes(requestedId)) {
-        portalId = requestedId;
-      } else if (!portalId && user.portalIds.length > 0) {
-        portalId = user.portalIds[0];
+      if (requestedId) {
+        const allowed = user.portalIds || (user.portalId ? [user.portalId] : []);
+        if (allowed.includes(requestedId)) portalId = requestedId;
       }
+      if (!portalId && user.portalIds?.length > 0) portalId = user.portalIds[0];
     }
 
     if (!portalId) {
