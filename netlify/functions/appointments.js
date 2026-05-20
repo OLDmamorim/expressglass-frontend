@@ -138,14 +138,20 @@ exports.handler = async (event) => {
       const data = JSON.parse(event.body || '{}');
 
       // Ler valores atuais para preservar executed e not_done_reason
+      // Admin pode editar qualquer agendamento sem restrição de portal
+      const isAdmin = user.role === 'admin';
       const checkResult = await pool.query(
-        'SELECT id, executed, not_done_reason, glass_removed, glass_removed_date FROM appointments WHERE id = $1 AND portal_id = $2',
-        [id, portalId]
+        isAdmin
+          ? 'SELECT id, portal_id, executed, not_done_reason, glass_removed, glass_removed_date FROM appointments WHERE id = $1'
+          : 'SELECT id, portal_id, executed, not_done_reason, glass_removed, glass_removed_date FROM appointments WHERE id = $1 AND portal_id = $2',
+        isAdmin ? [id] : [id, portalId]
       );
       if (checkResult.rows.length === 0) {
         return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
       }
       const existing = checkResult.rows[0];
+      // Para admin, usar o portal_id real do agendamento
+      const effectivePortalId = isAdmin ? existing.portal_id : portalId;
       const executedVal = data.executed !== undefined ? data.executed : existing.executed;
       const notDoneReasonVal = data.not_done_reason !== undefined ? data.not_done_reason : existing.not_done_reason;
 
@@ -187,7 +193,7 @@ exports.handler = async (event) => {
         data.glass_removed !== undefined ? (!!data.glass_removed) : (existing.glass_removed || false),
         JSON.stringify(data.extra_services !== undefined ? (data.extra_services || []) : (existing.extra_services || [])),
         data.glass_removed_date !== undefined ? (data.glass_removed_date || null) : (existing.glass_removed_date || null),
-        new Date().toISOString(), id, portalId
+        new Date().toISOString(), id, effectivePortalId
       ];
       const { rows } = await pool.query(q, v);
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
