@@ -45,6 +45,16 @@
     return d.getHours() * 60 + d.getMinutes();
   }
 
+  function mesmoLocalQue(a, b) {
+    if (!a || !b) return false;
+    const addrA = (a.address || '').trim().toLowerCase();
+    const addrB = (b.address || '').trim().toLowerCase();
+    if (addrA && addrB) return addrA === addrB;
+    const locA = (a.locality || '').trim().toLowerCase();
+    const locB = (b.locality || '').trim().toLowerCase();
+    return locA && locB && locA === locB && !(a.km > 0) && !(b.km > 0);
+  }
+
   // Valida tempo de viagem contra km: descarta valores impossíveis (< mín. a 120 km/h)
   function validarTempoViagem(minutos, km, fallbackVelocidade) {
     if (!km || km <= 0) return minutos > 0 ? minutos : 15;
@@ -74,7 +84,7 @@
     let simCursor = cursor;
     items.forEach((a, i) => {
       const prev = i > 0 ? items[i - 1] : null;
-      const mesmoLocal = prev && a.address && prev.address && a.address.trim() === prev.address.trim();
+      const mesmoLocal = mesmoLocalQue(a, prev);
       const km = mesmoLocal ? 0 : (a.km ?? a.kms ?? 0);
       const rawTravel = mesmoLocal ? 0 : (a.travelTime || a.travel_time || 0);
       const travel = mesmoLocal ? 0 : validarTempoViagem(rawTravel, km);
@@ -125,7 +135,7 @@
     cursor = HORA_PARTIDA_H * 60 + HORA_PARTIDA_M;
     items.forEach((a, i) => {
       const prev = i > 0 ? items[i - 1] : null;
-      const mesmoLocal = prev && a.address && prev.address && a.address.trim() === prev.address.trim();
+      const mesmoLocal = mesmoLocalQue(a, prev);
       const km = mesmoLocal ? 0 : (a.km ?? a.kms ?? 0);
       const travel = mesmoLocal ? 0 : validarTempoViagem(a.travelTime || a.travel_time || 0, km);
       if (travel > 0) events.push({
