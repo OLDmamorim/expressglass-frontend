@@ -316,6 +316,8 @@ async function switchPortal(newPortalId) {
       await window.reloadAppointments();
     }
     console.log('🔄 Portal alterado para: ' + portal.name);
+    // Recarregar guia AT para o novo portal
+    if (window.guiaAT?.refreshGuides) window.guiaAT.refreshGuides();
   } catch (err) {
     console.error('Erro ao carregar agendamentos:', err);
     alert('Erro ao carregar agendamentos do portal ' + portal.name);
