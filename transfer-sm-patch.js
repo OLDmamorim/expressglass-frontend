@@ -129,11 +129,14 @@
     try {
       var currentPortalId = window.activePortalId;
       var sourceName = (window.portalConfig && window.portalConfig.name) || 'SM';
+      var targetName = _selectedPortalName; // save before cancelEdit clears it
 
       // ── 1. Criar no portal DESTINO primeiro (seguro: se falhar, original intacto) ──
       var payload = Object.assign({}, appt, {
         _portalId: _selectedPortalId,          // campo reconhecido pelo backend
-        notes: (appt.notes ? appt.notes + ' | ' : '') + 'Transferido de ' + sourceName
+        notes: (appt.notes ? appt.notes + ' | ' : '') + 'Transferido de ' + sourceName,
+        confirmed: false,  // deve aparecer como pendente no portal destino
+        status: 'NE'
       });
       // Limpar campos que não devem ser copiados
       ['id', 'created_at', 'updated_at', '_targetPortalId'].forEach(function (k) { delete payload[k]; });
@@ -180,7 +183,7 @@
         if (modal) modal.classList.remove('show');
       }
 
-      if (typeof showToast === 'function') showToast('✅ Transferido para ' + _selectedPortalName, 'success');
+      if (typeof showToast === 'function') showToast('✅ Transferido para ' + targetName, 'success');
       if (typeof renderAll === 'function') renderAll();
       if (typeof window.reloadAppointments === 'function') window.reloadAppointments();
 

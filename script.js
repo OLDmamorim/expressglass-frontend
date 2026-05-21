@@ -205,9 +205,9 @@ const ORDER_ROUTE_SM_BRAGA = true;
 async function ordenarSeNecessario(lista) {
   if (!ORDER_ROUTE_SM_BRAGA) return lista;
 
-  // Pinnar first_of_day: sai da ordenação geográfica e vai sempre ao topo
-  const pinned = lista.filter(i => i.first_of_day);
-  const semPin  = lista.filter(i => !i.first_of_day);
+  // Pinnar first_of_day e second_of_day: saem da ordenação geográfica
+  const pinned = lista.filter(i => i.first_of_day || i.second_of_day);
+  const semPin  = lista.filter(i => !i.first_of_day && !i.second_of_day);
 
   const comMorada = semPin.filter(i => getAddressFromItem(i));
   if (!comMorada.length) return [...pinned, ...semPin];
@@ -1108,6 +1108,8 @@ function buildDaySummary(dayDate, isMobile) {
     .sort((a,b) => {
       if (a.first_of_day && !b.first_of_day) return -1;
       if (!a.first_of_day && b.first_of_day) return 1;
+      if (a.second_of_day && !b.second_of_day) return -1;
+      if (!a.second_of_day && b.second_of_day) return 1;
       return (a.sortIndex||0) - (b.sortIndex||0);
     });
   // Resumo: só contar serviços com localidade (confirmados e prontos para rota)
@@ -1820,7 +1822,6 @@ window.fireVidroRetiradoEmojis = fireVidroRetiradoEmojis;
 // ===== PRIMEIRO SERVIÇO DO DIA — só um por dia =====
 async function enforceSingleFirstOfDay(newId, date) {
   if (!date) return;
-  // Encontrar outros agendamentos do mesmo dia com first_of_day=true
   const others = appointments.filter(a =>
     String(a.id) !== String(newId) &&
     a.date === date &&
@@ -1831,6 +1832,22 @@ async function enforceSingleFirstOfDay(newId, date) {
       a.first_of_day = false;
       await window.apiClient.updateAppointment(a.id, { ...a, first_of_day: false });
     } catch(e) { console.warn('Erro ao limpar first_of_day:', e); }
+  }
+  if (others.length > 0) renderAll();
+}
+
+async function enforceSingleSecondOfDay(newId, date) {
+  if (!date) return;
+  const others = appointments.filter(a =>
+    String(a.id) !== String(newId) &&
+    a.date === date &&
+    a.second_of_day === true
+  );
+  for (const a of others) {
+    try {
+      a.second_of_day = false;
+      await window.apiClient.updateAppointment(a.id, { ...a, second_of_day: false });
+    } catch(e) { console.warn('Erro ao limpar second_of_day:', e); }
   }
   if (others.length > 0) renderAll();
 }
@@ -2142,6 +2159,9 @@ function editAppointment(id) {
   if (calibCb) calibCb.checked = !!(appointment.calibration);
   const firstCb = document.getElementById('appointmentFirstOfDay');
   if (firstCb) firstCb.checked = !!(appointment.first_of_day);
+  const secondCb = document.getElementById('appointmentSecondOfDay');
+  if (secondCb) secondCb.checked = !!(appointment.second_of_day);
+  setTimeout(function() { if (typeof window.updateSecondOfDayVisibility === 'function') window.updateSecondOfDayVisibility(); }, 50);
   document.getElementById('appointmentLocality').value = appointment.locality || '';
   if (document.getElementById('appointmentPeriod')) {
     document.getElementById('appointmentPeriod').value = appointment.period || 'Manhã';
@@ -2451,6 +2471,7 @@ function buildDesktopCard(a){
         ${getAllServices(a).map(s => `<span class="dc-badge">${s.service||''}</span>`).join('')}
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
         ${a.first_of_day ? '<span class="dc-calib-badge" style="background:#f59e0b;color:#fff;">⭐ 1.º SERVIÇO</span>' : ''}
+        ${a.second_of_day ? '<span class="dc-calib-badge" style="background:#f97316;color:#fff;">⭐ 2.º SERVIÇO</span>' : ''}
         ${a.commercial_user_id ? '<span class="dc-calib-badge" style="background:#7c3aed !important;color:#fff !important;animation:blink 1.5s infinite;">🤝 COMERCIAL</span>' : ''}
         ${car ? `<span class="dc-car">${car}</span>` : ''}
       </div>
