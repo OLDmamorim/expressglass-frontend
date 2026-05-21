@@ -78,6 +78,32 @@ SET portal_id = (SELECT id FROM portals WHERE name = 'SM Braga')
 WHERE portal_id IS NULL;
 
 -- =====================================================
+-- MYCAR CENTER - TABELA DE SERVIÇOS POR MATRÍCULA
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS mycar_services (
+  id                SERIAL PRIMARY KEY,
+  matricula         VARCHAR(20) NOT NULL,
+  data_servico      DATE,
+  descricao         TEXT,
+  valor             DECIMAL(10,2),
+  eurocode          VARCHAR(100),
+  status            VARCHAR(20) DEFAULT 'pendente'
+                      CHECK (status IN ('pendente', 'tratado', 'rejeitado')),
+  email_from        VARCHAR(255),
+  email_subject     VARCHAR(500),
+  email_received_at TIMESTAMP,
+  portal_id         INTEGER REFERENCES portals(id) ON DELETE SET NULL,
+  notas             TEXT,
+  created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_mycar_matricula ON mycar_services(matricula);
+CREATE INDEX IF NOT EXISTS idx_mycar_status    ON mycar_services(status);
+CREATE INDEX IF NOT EXISTS idx_mycar_portal    ON mycar_services(portal_id);
+
+-- =====================================================
 -- COMENTÁRIOS
 -- =====================================================
 

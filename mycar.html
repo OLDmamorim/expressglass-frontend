@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mycar Center - Expressglass</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e40af">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --blue:    #2563eb;
+      --blue-d:  #1d4ed8;
+      --green:   #16a34a;
+      --green-l: #dcfce7;
+      --orange:  #d97706;
+      --orange-l:#fef3c7;
+      --red:     #dc2626;
+      --red-l:   #fee2e2;
+      --gray:    #6b7280;
+      --gray-l:  #f3f4f6;
+      --border:  #e5e7eb;
+      --text:    #111827;
+      --text-s:  #374151;
+      --radius:  10px;
+      --shadow:  0 1px 4px rgba(0,0,0,.08);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f1f5f9;
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ─── HEADER ─── */
+    .header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      color: white;
+      padding: 0 24px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.2);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-logo { height: 32px; filter: brightness(0) invert(1); }
+    .header-title { font-size: 1.1rem; font-weight: 700; letter-spacing: .4px; flex: 1; }
+    .header-subtitle { font-size: .75rem; opacity: .75; }
+    .header-nav a {
+      color: rgba(255,255,255,.85);
+      text-decoration: none;
+      font-size: .85rem;
+      padding: 6px 12px;
+      border-radius: 6px;
+      transition: background .15s;
+    }
+    .header-nav a:hover { background: rgba(255,255,255,.15); }
+    .btn-logout {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.25);
+      color: white;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: .82rem;
+      transition: background .15s;
+    }
+    .btn-logout:hover { background: rgba(255,255,255,.22); }
+
+    /* ─── MAIN LAYOUT ─── */
+    .main { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+
+    /* ─── STATS ─── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-card.total   { border-color: var(--blue); }
+    .stat-card.pend    { border-color: var(--orange); }
+    .stat-card.trat    { border-color: var(--green); }
+    .stat-card.rej     { border-color: var(--red); }
+    .stat-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .6px; color: var(--gray); }
+    .stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .stat-card.total .stat-value { color: var(--blue); }
+    .stat-card.pend  .stat-value { color: var(--orange); }
+    .stat-card.trat  .stat-value { color: var(--green); }
+    .stat-card.rej   .stat-value { color: var(--red); }
+
+    /* ─── TOOLBAR ─── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .toolbar-title { font-size: 1rem; font-weight: 700; color: var(--text-s); flex: 1; }
+    .search-input {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: .88rem;
+      width: 200px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .search-input:focus { border-color: var(--blue); }
+    .filter-select {
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: .88rem;
+      background: white;
+      cursor: pointer;
+      outline: none;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: .88rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all .15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary { background: var(--blue); color: white; }
+    .btn-primary:hover { background: var(--blue-d); }
+    .btn-success { background: var(--green); color: white; }
+    .btn-success:hover { background: #15803d; }
+    .btn-warning { background: var(--orange); color: white; }
+    .btn-warning:hover { background: #b45309; }
+    .btn-danger  { background: var(--red); color: white; }
+    .btn-danger:hover  { background: #b91c1c; }
+    .btn-ghost {
+      background: white;
+      color: var(--text-s);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: var(--gray-l); }
+    .btn-sm { padding: 5px 10px; font-size: .8rem; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ─── TABLE ─── */
+    .table-card {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      background: #f8fafc;
+      padding: 11px 14px;
+      text-align: left;
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--gray);
+      border-bottom: 1px solid var(--border);
+    }
+    tbody tr {
+      border-bottom: 1px solid #f1f5f9;
+      cursor: pointer;
+      transition: background .1s;
+    }
+    tbody tr:hover { background: #f0f7ff; }
+    tbody tr:last-child { border-bottom: none; }
+    td {
+      padding: 12px 14px;
+      font-size: .88rem;
+      vertical-align: middle;
+    }
+    .plate-cell {
+      font-weight: 800;
+      font-size: 1rem;
+      letter-spacing: 1px;
+      color: var(--text);
+    }
+    .plate-badge {
+      display: inline-block;
+      background: #1e3a8a;
+      color: white;
+      padding: 3px 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      font-size: .92rem;
+      letter-spacing: 1.5px;
+    }
+    .count-badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 99px;
+      font-size: .78rem;
+      font-weight: 700;
+    }
+    .badge-pending { background: var(--orange-l); color: var(--orange); }
+    .badge-done    { background: var(--green-l);  color: var(--green); }
+    .badge-reject  { background: var(--red-l);    color: var(--red); }
+    .badge-neutral { background: var(--gray-l);   color: var(--gray); }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--gray);
+    }
+    .empty-state svg { width: 48px; height: 48px; opacity: .3; margin-bottom: 12px; }
+    .empty-state p { font-size: .95rem; }
+
+    /* ─── LOADING ─── */
+    .loading-row td {
+      text-align: center;
+      padding: 40px;
+      color: var(--gray);
+    }
+    .spinner {
+      width: 28px; height: 28px;
+      border: 3px solid #e5e7eb;
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin: 0 auto 10px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── MODAL BASE ─── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 24px 64px rgba(0,0,0,.25);
+      width: 100%;
+      max-width: 680px;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+    .modal-header-info { flex: 1; }
+    .modal-title { font-size: 1.1rem; font-weight: 800; }
+    .modal-subtitle { font-size: .8rem; color: var(--gray); margin-top: 2px; }
+    .modal-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.4rem;
+      line-height: 1;
+      color: var(--gray);
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+    .modal-close:hover { background: var(--gray-l); }
+    .modal-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 24px;
+    }
+
+    /* ─── SERVICE CARDS (detail panel) ─── */
+    .service-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      transition: border-color .15s;
+    }
+    .service-card.status-tratado  { border-left: 4px solid var(--green); }
+    .service-card.status-pendente { border-left: 4px solid var(--orange); }
+    .service-card.status-rejeitado{ border-left: 4px solid var(--red); }
+    .service-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .service-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 16px;
+      margin-bottom: 10px;
+    }
+    .meta-item { font-size: .82rem; }
+    .meta-label { color: var(--gray); font-size: .7rem; text-transform: uppercase; letter-spacing: .4px; }
+    .meta-value { color: var(--text); font-weight: 600; margin-top: 1px; }
+    .service-actions {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #f1f5f9;
+    }
+    .notes-input {
+      flex: 1;
+      min-width: 140px;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: .8rem;
+      outline: none;
+    }
+    .notes-input:focus { border-color: var(--blue); }
+    .status-badge {
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: .75rem;
+      font-weight: 700;
+      text-transform: capitalize;
+    }
+    .status-badge.tratado   { background: var(--green-l);  color: var(--green); }
+    .status-badge.pendente  { background: var(--orange-l); color: var(--orange); }
+    .status-badge.rejeitado { background: var(--red-l);    color: var(--red); }
+
+    /* ─── IMPORT MODAL ─── */
+    .import-modal .modal { max-width: 600px; }
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+    }
+    .tab-btn {
+      padding: 12px 16px;
+      font-size: .88rem;
+      font-weight: 600;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--gray);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .tab-btn.active {
+      color: var(--blue);
+      border-bottom-color: var(--blue);
+    }
+    .tab-content { display: none; padding: 20px 24px; }
+    .tab-content.active { display: block; }
+    .form-row { margin-bottom: 14px; }
+    .form-row label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--text-s);
+      margin-bottom: 5px;
+    }
+    .form-control {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: .88rem;
+      outline: none;
+      transition: border-color .15s;
+      font-family: inherit;
+    }
+    .form-control:focus { border-color: var(--blue); }
+    textarea.form-control { resize: vertical; min-height: 110px; }
+    .form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .parse-preview {
+      margin-top: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: .82rem;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    .parse-preview table { width: 100%; }
+    .parse-preview th, .parse-preview td { padding: 4px 8px; text-align: left; font-size: .78rem; }
+    .parse-preview th { color: var(--gray); border-bottom: 1px solid var(--border); }
+    .modal-footer {
+      padding: 14px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    /* ─── TOAST ─── */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toast {
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: .88rem;
+      font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,.15);
+      animation: slideIn .2s ease;
+      max-width: 320px;
+    }
+    .toast.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .toast.error   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    .toast.info    { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 700px) {
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .toolbar { flex-direction: column; align-items: stretch; }
+      .search-input, .filter-select { width: 100%; }
+      .header-nav { display: none; }
+      .form-row-2 { grid-template-columns: 1fr; }
+      .service-meta { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .modal { border-radius: 14px 14px 0 0; max-height: 95vh; }
+      .modal-overlay { align-items: flex-end; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <img src="expressglass-logo.png" alt="Expressglass" class="header-logo" onerror="this.style.display='none'">
+  <div style="flex:1">
+    <div class="header-title">Mycar Center</div>
+    <div class="header-subtitle">Gestão de Serviços por Matrícula</div>
+  </div>
+  <nav class="header-nav">
+    <a href="index.html">Portal</a>
+    <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+  </nav>
+  <button class="btn-logout" onclick="logout()">Sair</button>
+</header>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card total">
+      <span class="stat-label">Total</span>
+      <span class="stat-value" id="stat-total">—</span>
+    </div>
+    <div class="stat-card pend">
+      <span class="stat-label">Pendentes</span>
+      <span class="stat-value" id="stat-pend">—</span>
+    </div>
+    <div class="stat-card trat">
+      <span class="stat-label">Tratados</span>
+      <span class="stat-value" id="stat-trat">—</span>
+    </div>
+    <div class="stat-card rej">
+      <span class="stat-label">Rejeitados</span>
+      <span class="stat-value" id="stat-rej">—</span>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <span class="toolbar-title">Matrículas</span>
+    <input type="search" class="search-input" id="search-input"
+           placeholder="Pesquisar matrícula…" oninput="filterTable()">
+    <select class="filter-select" id="filter-status" onchange="filterTable()">
+      <option value="">Todos os estados</option>
+      <option value="pendente">Pendente</option>
+      <option value="tratado">Tratado</option>
+      <option value="rejeitado">Rejeitado</option>
+    </select>
+    <button class="btn btn-primary" onclick="openImport()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Importar Email
+    </button>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-card">
+    <table id="main-table">
+      <thead>
+        <tr>
+          <th>Matrícula</th>
+          <th>Total</th>
+          <th>Pendentes</th>
+          <th>Tratados</th>
+          <th>Rejeitados</th>
+          <th>Último registo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <tr class="loading-row"><td colspan="7"><div class="spinner"></div>A carregar…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<!-- MODAL: DETALHE MATRÍCULA -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-header-info">
+        <div class="modal-title" id="detail-title">Matrícula</div>
+        <div class="modal-subtitle" id="detail-subtitle"></div>
+      </div>
+      <button class="modal-close" onclick="closeDetail()">×</button>
+    </div>
+    <div class="modal-body" id="detail-body">
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: IMPORTAR -->
+<div class="modal-overlay import-modal" id="import-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-header-info">
+        <div class="modal-title">Importar Serviços</div>
+        <div class="modal-subtitle">Importar via email ou adicionar manualmente</div>
+      </div>
+      <button class="modal-close" onclick="closeImport()">×</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-email', this)">Importar Email</button>
+      <button class="tab-btn" onclick="switchTab('tab-manual', this)">Entrada Manual</button>
+    </div>
+
+    <!-- TAB: EMAIL -->
+    <div class="tab-content active" id="tab-email">
+      <div class="form-row">
+        <label>Remetente (email)</label>
+        <input type="email" class="form-control" id="imp-from" placeholder="fornecedor@exemplo.com">
+      </div>
+      <div class="form-row-2">
+        <div class="form-row" style="margin:0">
+          <label>Assunto</label>
+          <input type="text" class="form-control" id="imp-subject" placeholder="Assunto do email">
+        </div>
+        <div class="form-row" style="margin:0">
+          <label>Data do email</label>
+          <input type="date" class="form-control" id="imp-date">
+        </div>
+      </div>
+      <div class="form-row" style="margin-top:12px">
+        <label>Conteúdo do email <span style="color:var(--gray);font-weight:400">(colar texto ou tabela)</span></label>
+        <textarea class="form-control" id="imp-content"
+          placeholder="Cole aqui o conteúdo do email. Exemplo de formato esperado:&#10;&#10;Matrícula&#9;Data&#9;Descrição&#9;Valor&#9;Eurocode&#10;AA-00-AA&#9;01/01/2025&#9;Substituição parabrisa&#9;250.00&#9;AG01234"></textarea>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="parsePreview()">Pré-visualizar</button>
+      <div id="parse-preview" style="display:none" class="parse-preview"></div>
+    </div>
+
+    <!-- TAB: MANUAL -->
+    <div class="tab-content" id="tab-manual">
+      <div class="form-row">
+        <label>Matrícula *</label>
+        <input type="text" class="form-control" id="man-plate"
+               placeholder="AA-00-AA" style="text-transform:uppercase">
+      </div>
+      <div class="form-row-2">
+        <div class="form-row" style="margin:0">
+          <label>Data do serviço</label>
+          <input type="date" class="form-control" id="man-date">
+        </div>
+        <div class="form-row" style="margin:0">
+          <label>Valor (€)</label>
+          <input type="number" class="form-control" id="man-valor" placeholder="0.00" step="0.01" min="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Descrição do serviço</label>
+        <input type="text" class="form-control" id="man-desc" placeholder="Ex: Substituição parabrisa">
+      </div>
+      <div class="form-row">
+        <label>Eurocode</label>
+        <input type="text" class="form-control" id="man-euro" placeholder="Ex: AG01234">
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeImport()">Cancelar</button>
+      <button class="btn btn-primary" id="import-btn" onclick="doImport()">
+        Importar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ─── CONFIG ──────────────────────────────────────────────────────────────────
+const API_BASE = '/.netlify/functions';
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+function getToken() { return localStorage.getItem('eg_auth_token'); }
+function getUser()  { try { return JSON.parse(localStorage.getItem('eg_auth_user')); } catch { return null; } }
+
+function logout() {
+  localStorage.removeItem('eg_auth_token');
+  localStorage.removeItem('eg_auth_user');
+  location.href = 'login.html';
+}
+
+function authHeaders() {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` };
+}
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let allServices   = [];  // todos os serviços carregados
+let currentPlate  = null; // matrícula aberta no detalhe
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  const token = getToken();
+  if (!token) { location.href = 'login.html'; return; }
+
+  const user = getUser();
+  if (user?.role === 'admin') {
+    document.getElementById('nav-admin').style.display = '';
+  }
+
+  // data default = hoje
+  document.getElementById('imp-date').value = new Date().toISOString().split('T')[0];
+
+  await loadServices();
+});
+
+// ─── API: LOAD ────────────────────────────────────────────────────────────────
+async function loadServices() {
+  try {
+    const res = await fetch(`${API_BASE}/mycar-services`, { headers: authHeaders() });
+    if (res.status === 401) { logout(); return; }
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    allServices = json.data;
+    updateStats();
+    renderTable(buildGroups(allServices));
+  } catch (e) {
+    console.error(e);
+    document.getElementById('table-body').innerHTML =
+      `<tr><td colspan="7" style="text-align:center;padding:30px;color:#dc2626">Erro ao carregar dados: ${e.message}</td></tr>`;
+  }
+}
+
+// ─── GROUP BY PLATE ───────────────────────────────────────────────────────────
+function buildGroups(services) {
+  const map = {};
+  for (const svc of services) {
+    const key = svc.matricula.toUpperCase();
+    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null };
+    map[key].services.push(svc);
+    const d = svc.email_received_at || svc.created_at;
+    if (d && (!map[key].lastDate || d > map[key].lastDate)) map[key].lastDate = d;
+  }
+  return Object.values(map).sort((a, b) => {
+    // Ordenar: primeiro os que têm pendentes
+    const ap = a.services.filter(s => s.status === 'pendente').length;
+    const bp = b.services.filter(s => s.status === 'pendente').length;
+    if (bp !== ap) return bp - ap;
+    return (b.lastDate || '').localeCompare(a.lastDate || '');
+  });
+}
+
+// ─── STATS ────────────────────────────────────────────────────────────────────
+function updateStats() {
+  const total = allServices.length;
+  const pend  = allServices.filter(s => s.status === 'pendente').length;
+  const trat  = allServices.filter(s => s.status === 'tratado').length;
+  const rej   = allServices.filter(s => s.status === 'rejeitado').length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-pend').textContent  = pend;
+  document.getElementById('stat-trat').textContent  = trat;
+  document.getElementById('stat-rej').textContent   = rej;
+}
+
+// ─── RENDER TABLE ─────────────────────────────────────────────────────────────
+function renderTable(groups) {
+  const tbody = document.getElementById('table-body');
+  if (groups.length === 0) {
+    tbody.innerHTML = `
+      <tr><td colspan="7">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
+          </svg>
+          <p>Nenhum serviço encontrado.<br>Importe um email para começar.</p>
+        </div>
+      </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = groups.map(g => {
+    const pend = g.services.filter(s => s.status === 'pendente').length;
+    const trat = g.services.filter(s => s.status === 'tratado').length;
+    const rej  = g.services.filter(s => s.status === 'rejeitado').length;
+    const last = g.lastDate ? fmtDate(g.lastDate) : '—';
+    return `
+      <tr onclick="openDetail('${g.matricula}')">
+        <td class="plate-cell"><span class="plate-badge">${g.matricula}</span></td>
+        <td><span class="count-badge badge-neutral">${g.services.length}</span></td>
+        <td>${pend > 0 ? `<span class="count-badge badge-pending">${pend}</span>` : '<span style="color:#d1d5db">0</span>'}</td>
+        <td>${trat > 0 ? `<span class="count-badge badge-done">${trat}</span>`    : '<span style="color:#d1d5db">0</span>'}</td>
+        <td>${rej  > 0 ? `<span class="count-badge badge-reject">${rej}</span>`   : '<span style="color:#d1d5db">0</span>'}</td>
+        <td style="color:var(--gray);font-size:.82rem">${last}</td>
+        <td><span style="color:var(--blue);font-size:.82rem">Ver →</span></td>
+      </tr>`;
+  }).join('');
+}
+
+// ─── FILTER ───────────────────────────────────────────────────────────────────
+function filterTable() {
+  const search = document.getElementById('search-input').value.trim().toUpperCase();
+  const status = document.getElementById('filter-status').value;
+
+  let filtered = allServices;
+  if (status) filtered = filtered.filter(s => s.status === status);
+
+  const groups = buildGroups(filtered).filter(g =>
+    !search || g.matricula.includes(search)
+  );
+  renderTable(groups);
+}
+
+// ─── DETAIL MODAL ─────────────────────────────────────────────────────────────
+function openDetail(plate) {
+  currentPlate = plate;
+  const services = allServices.filter(s => s.matricula.toUpperCase() === plate);
+
+  document.getElementById('detail-title').textContent = `Matrícula: ${plate}`;
+  const src = services[0]?.email_from ? `De: ${services[0].email_from}` : '';
+  document.getElementById('detail-subtitle').textContent =
+    src + (services[0]?.email_subject ? ` · ${services[0].email_subject}` : '');
+
+  renderDetailBody(plate);
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function renderDetailBody(plate) {
+  const services = allServices.filter(s => s.matricula.toUpperCase() === plate);
+  const body = document.getElementById('detail-body');
+
+  if (services.length === 0) {
+    body.innerHTML = '<p style="color:var(--gray);text-align:center;padding:20px">Sem serviços</p>';
+    return;
+  }
+
+  body.innerHTML = services.map(svc => `
+    <div class="service-card status-${svc.status}" id="svc-card-${svc.id}">
+      <div class="service-card-header">
+        <span style="font-weight:700;font-size:.9rem">#${svc.id}</span>
+        <span class="status-badge ${svc.status}">${svc.status}</span>
+      </div>
+      <div class="service-meta">
+        <div class="meta-item">
+          <div class="meta-label">Data</div>
+          <div class="meta-value">${svc.data_servico ? fmtDate(svc.data_servico) : '—'}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Valor</div>
+          <div class="meta-value">${svc.valor != null ? `€ ${parseFloat(svc.valor).toFixed(2)}` : '—'}</div>
+        </div>
+        <div class="meta-item" style="grid-column:1/-1">
+          <div class="meta-label">Descrição</div>
+          <div class="meta-value">${svc.descricao || '—'}</div>
+        </div>
+        <div class="meta-item" style="grid-column:1/-1">
+          <div class="meta-label">Eurocode</div>
+          <div class="meta-value" style="font-family:monospace">${svc.eurocode || '—'}</div>
+        </div>
+        ${svc.notas ? `<div class="meta-item" style="grid-column:1/-1">
+          <div class="meta-label">Notas</div>
+          <div class="meta-value">${svc.notas}</div>
+        </div>` : ''}
+      </div>
+      <div class="service-actions">
+        <button class="btn btn-success btn-sm" onclick="updateStatus(${svc.id}, 'tratado')"
+          ${svc.status === 'tratado' ? 'disabled' : ''}>✓ Tratado</button>
+        <button class="btn btn-warning btn-sm" onclick="updateStatus(${svc.id}, 'pendente')"
+          ${svc.status === 'pendente' ? 'disabled' : ''}>⏳ Pendente</button>
+        <button class="btn btn-danger btn-sm" onclick="updateStatus(${svc.id}, 'rejeitado')"
+          ${svc.status === 'rejeitado' ? 'disabled' : ''}>✕ Rejeitado</button>
+        <input type="text" class="notes-input" id="notes-${svc.id}"
+               placeholder="Notas…" value="${svc.notas || ''}">
+        <button class="btn btn-ghost btn-sm" onclick="saveNotes(${svc.id})">Guardar</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function closeDetail() {
+  document.getElementById('detail-modal').classList.remove('open');
+  currentPlate = null;
+}
+
+// ─── STATUS UPDATE ────────────────────────────────────────────────────────────
+async function updateStatus(id, status) {
+  try {
+    const res = await fetch(`${API_BASE}/mycar-services`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ id, status })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+
+    // Atualizar estado local
+    const idx = allServices.findIndex(s => s.id === id);
+    if (idx >= 0) allServices[idx] = json.data;
+
+    updateStats();
+    renderDetailBody(currentPlate);
+    toast(`Estado atualizado: ${status}`, 'success');
+  } catch (e) {
+    toast(`Erro: ${e.message}`, 'error');
+  }
+}
+
+async function saveNotes(id) {
+  const notas = document.getElementById(`notes-${id}`)?.value || '';
+  const svc = allServices.find(s => s.id === id);
+  if (!svc) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/mycar-services`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ id, status: svc.status, notas })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+
+    const idx = allServices.findIndex(s => s.id === id);
+    if (idx >= 0) allServices[idx] = json.data;
+    toast('Notas guardadas', 'success');
+  } catch (e) {
+    toast(`Erro: ${e.message}`, 'error');
+  }
+}
+
+// ─── IMPORT MODAL ─────────────────────────────────────────────────────────────
+function openImport() {
+  document.getElementById('import-modal').classList.add('open');
+  document.getElementById('parse-preview').style.display = 'none';
+}
+function closeImport() {
+  document.getElementById('import-modal').classList.remove('open');
+}
+
+function switchTab(tabId, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  btn.classList.add('active');
+  document.getElementById('parse-preview').style.display = 'none';
+}
+
+// Parse client-side para preview
+function parseTextTable(text) {
+  if (!text) return [];
+  const services = [];
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+  const matRx  = /matr[ií]cula|plate|viatura|veículo|veiculo/i;
+  const dateRx = /data|date/i;
+  const descRx = /descri[çc][aã]o|servi[çc]o|description|service|obs/i;
+  const valRx  = /valor|value|pre[çc]o|price|pvp|montante/i;
+  const euroRx = /eurocode|euro\s*c[oó]d|c[oó]digo/i;
+
+  let headerIdx = -1;
+  let colMap = {};
+
+  for (let i = 0; i < lines.length; i++) {
+    const cols = lines[i].split(/[\t;,|]+/).map(c => c.trim());
+    if (cols.length < 2) continue;
+    const joined = cols.join(' ');
+    if (matRx.test(joined) || (dateRx.test(joined) && valRx.test(joined))) {
+      headerIdx = i;
+      colMap = {
+        matricula: cols.findIndex(h => matRx.test(h)),
+        data:      cols.findIndex(h => dateRx.test(h)),
+        descricao: cols.findIndex(h => descRx.test(h)),
+        valor:     cols.findIndex(h => valRx.test(h)),
+        eurocode:  cols.findIndex(h => euroRx.test(h))
+      };
+      break;
+    }
+  }
+
+  if (headerIdx >= 0) {
+    for (let i = headerIdx + 1; i < lines.length; i++) {
+      const cols = lines[i].split(/[\t;,|]+/).map(c => c.trim());
+      if (cols.length < 2) continue;
+      const svc = {};
+      if (colMap.matricula >= 0 && cols[colMap.matricula]) svc.matricula = cols[colMap.matricula].toUpperCase().replace(/\s/g, '');
+      if (colMap.data >= 0 && cols[colMap.data])           svc.data_servico = cols[colMap.data];
+      if (colMap.descricao >= 0 && cols[colMap.descricao]) svc.descricao = cols[colMap.descricao];
+      if (colMap.valor >= 0 && cols[colMap.valor])         svc.valor = cols[colMap.valor];
+      if (colMap.eurocode >= 0 && cols[colMap.eurocode])   svc.eurocode = cols[colMap.eurocode];
+      if (svc.matricula && svc.matricula.length >= 4) services.push(svc);
+    }
+  } else {
+    const plateRx = /\b([A-Z]{2}-\d{2}-[A-Z]{2}|\d{2}-[A-Z]{2}-\d{2}|[A-Z]{2}-\d{2}-\d{2}|\d{2}-\d{2}-[A-Z]{2})\b/gi;
+    for (const line of lines) {
+      const match = plateRx.exec(line);
+      if (match) services.push({ matricula: match[1].toUpperCase() });
+      plateRx.lastIndex = 0;
+    }
+  }
+  return services;
+}
+
+function parsePreview() {
+  const content = document.getElementById('imp-content').value;
+  const svcs = parseTextTable(content);
+  const preview = document.getElementById('parse-preview');
+  if (svcs.length === 0) {
+    preview.innerHTML = '<p style="color:var(--gray)">Nenhum serviço detetado. Verifique o formato.</p>';
+  } else {
+    preview.innerHTML = `
+      <p style="font-weight:700;margin-bottom:8px;color:var(--green)">${svcs.length} serviço(s) detetado(s):</p>
+      <table>
+        <thead><tr><th>Matrícula</th><th>Data</th><th>Descrição</th><th>Valor</th><th>Eurocode</th></tr></thead>
+        <tbody>${svcs.map(s => `
+          <tr>
+            <td><strong>${s.matricula || '—'}</strong></td>
+            <td>${s.data_servico || '—'}</td>
+            <td>${s.descricao || '—'}</td>
+            <td>${s.valor || '—'}</td>
+            <td>${s.eurocode || '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+  preview.style.display = 'block';
+}
+
+async function doImport() {
+  const btn = document.getElementById('import-btn');
+  const activeTab = document.querySelector('.tab-content.active').id;
+
+  btn.disabled = true;
+  btn.textContent = 'A importar…';
+
+  try {
+    let body;
+
+    if (activeTab === 'tab-email') {
+      const content = document.getElementById('imp-content').value.trim();
+      if (!content) { toast('Coloque o conteúdo do email', 'error'); return; }
+
+      body = {
+        text:          content,
+        from:          document.getElementById('imp-from').value.trim(),
+        subject:       document.getElementById('imp-subject').value.trim(),
+        date:          document.getElementById('imp-date').value || new Date().toISOString()
+      };
+
+      const res = await fetch(`${API_BASE}/mycar-email-ingest`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      toast(`${json.count} serviço(s) importado(s) com sucesso`, 'success');
+
+    } else {
+      const plate = document.getElementById('man-plate').value.trim().toUpperCase();
+      if (!plate) { toast('Matrícula obrigatória', 'error'); return; }
+
+      const valor = parseFloat(document.getElementById('man-valor').value);
+
+      body = { services: [{
+        matricula:    plate,
+        data_servico: document.getElementById('man-date').value  || null,
+        descricao:    document.getElementById('man-desc').value.trim() || null,
+        valor:        isNaN(valor) ? null : valor,
+        eurocode:     document.getElementById('man-euro').value.trim() || null
+      }]};
+
+      const res = await fetch(`${API_BASE}/mycar-services`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      toast(`Serviço adicionado: ${plate}`, 'success');
+    }
+
+    closeImport();
+    await loadServices();
+
+  } catch (e) {
+    toast(`Erro: ${e.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Importar';
+  }
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('pt-PT', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// Fechar modais com ESC ou clique no overlay
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) {
+      overlay.classList.remove('open');
+      currentPlate = null;
+    }
+  });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => {
+      m.classList.remove('open');
+      currentPlate = null;
+    });
+  }
+});
+</script>
+</body>
+</html>
