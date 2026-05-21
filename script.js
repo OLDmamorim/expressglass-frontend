@@ -282,6 +282,18 @@ async function calculateAllRoutesFromToday() {
       return;
     }
 
+    // Filtrar dias com rota bloqueada para técnicos
+    if (!canOverrideRouteLock()) {
+      const locked = daysWithServices.filter(d => isDayRouteLocked(d));
+      daysWithServices.splice(0, daysWithServices.length, ...daysWithServices.filter(d => !isDayRouteLocked(d)));
+      if (daysWithServices.length === 0) {
+        hideProgressModal();
+        showToast('🔒 Rota bloqueada pelo coordenador — não é possível calcular rotas.', 'warning');
+        return;
+      }
+      if (locked.length > 0) showToast('⚠️ ' + locked.length + ' dia(s) com rota bloqueada foram ignorados.', 'info');
+    }
+
     let totalOptimized = 0;
 
     for (let i = 0; i < daysWithServices.length; i++) {
@@ -1321,6 +1333,7 @@ function buildLocalityOptions() {
 // ---------- Estado ----------
 let appointments = [];
 let blockedDays = [];
+let routeLockedDays = [];
 
 function isDayBlocked(isoDate) {
   if (!isoDate) return null;
@@ -1384,6 +1397,108 @@ async function toggleBlockedDay(isoDate) {
     await loadBlockedDays();
     if (typeof renderAll === 'function') renderAll(); else applyBlockedDayOverlays();
   } catch(e) { showToast('Erro: ' + e.message, 'error'); }
+}
+
+// ===== BLOQUEIO DE ROTA =====
+
+function isDayRouteLocked(isoDate) {
+  if (!isoDate) return false;
+  const pid = String(window.activePortalId || window.portalConfig?.id || '');
+  return routeLockedDays.some(function(r) {
+    return r.date === isoDate && String(r.portal_id) === pid;
+  });
+}
+
+function canOverrideRouteLock() {
+  var role = window.authClient?.getUser?.()?.role;
+  return role === 'admin' || role === 'coordenador' || role === 'pesados_coord';
+}
+
+async function loadRouteLocks() {
+  try {
+    const pid = window.activePortalId || window.portalConfig?.id;
+    const url = '/.netlify/functions/route-locks' + (pid ? '?portal_id=' + pid : '');
+    const resp = await window.authClient.authenticatedFetch(url);
+    const data = await resp.json();
+    if (data.success) routeLockedDays = data.data || [];
+  } catch(e) { console.warn('loadRouteLocks:', e.message); }
+}
+
+async function toggleRouteLock(isoDate) {
+  if (!canOverrideRouteLock()) return;
+  const pid = window.activePortalId || window.portalConfig?.id;
+  const locked = isDayRouteLocked(isoDate);
+  try {
+    if (locked) {
+      await window.authClient.authenticatedFetch(
+        '/.netlify/functions/route-locks?date=' + isoDate + (pid ? '&portal_id=' + pid : ''),
+        { method: 'DELETE' }
+      );
+      routeLockedDays = routeLockedDays.filter(function(r) {
+        return !(r.date === isoDate && String(r.portal_id) === String(pid));
+      });
+      showToast('🔓 Rota desbloqueada', 'success');
+    } else {
+      await window.authClient.authenticatedFetch(
+        '/.netlify/functions/route-locks' + (pid ? '?portal_id=' + pid : ''),
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: isoDate }) }
+      );
+      routeLockedDays.push({ date: isoDate, portal_id: pid });
+      showToast('🔒 Rota bloqueada', 'success');
+    }
+    renderAll();
+  } catch(e) { showToast('❌ Erro: ' + e.message, 'error'); }
+}
+
+function applyRouteLockOverlays() {
+  var role = window.authClient?.getUser?.()?.role;
+  var canToggle = canOverrideRouteLock();
+
+  if (!document.getElementById('_rlStyles')) {
+    var s = document.createElement('style');
+    s.id = '_rlStyles';
+    s.textContent = [
+      '.th-rl{background:repeating-linear-gradient(45deg,#fffbeb,#fffbeb 6px,#fef3c7 6px,#fef3c7 12px)!important;}',
+      '.th-rl .day{color:#92400e!important;}.th-rl .date{color:#b45309!important;}',
+      '.rl-badge{font-size:10px;font-weight:700;color:#92400e;background:#fef3c7;border-radius:4px;padding:2px 5px;margin-top:2px;display:block;}',
+      '.rl-btn{background:none;border:none;cursor:pointer;font-size:12px;padding:0 2px;opacity:.55;vertical-align:middle;}',
+      '.rl-btn:hover{opacity:1;}'
+    ].join('');
+    document.head.appendChild(s);
+  }
+
+  document.querySelectorAll('.rl-btn,.rl-badge').forEach(function(el) { el.remove(); });
+  document.querySelectorAll('.th-rl').forEach(function(el) { el.classList.remove('th-rl'); });
+
+  var table = document.getElementById('schedule');
+  if (!table) return;
+  var headers = table.querySelectorAll('thead th');
+  var week = [...Array(6)].map(function(_, i) { return addDays(currentMonday, i); });
+
+  week.forEach(function(d, i) {
+    var iso = localISO(d);
+    var locked = isDayRouteLocked(iso);
+    var th = headers[i + 1];
+    if (!th) return;
+
+    if (canToggle) {
+      var btn = document.createElement('button');
+      btn.className = 'rl-btn';
+      btn.title = locked ? 'Desbloquear rota' : 'Bloquear rota';
+      btn.textContent = locked ? '🔒' : '🔓';
+      btn.setAttribute('onclick', 'toggleRouteLock("' + iso + '")');
+      var dayDiv = th.querySelector('.day');
+      if (dayDiv) dayDiv.appendChild(btn);
+    }
+
+    if (locked) {
+      th.classList.add('th-rl');
+      var badge = document.createElement('span');
+      badge.className = 'rl-badge';
+      badge.textContent = '🔒 Rota';
+      th.appendChild(badge);
+    }
+  });
 }
 
 // Aplicar overlays visuais APÓS o render (não toca no renderSchedule interno)
@@ -2012,6 +2127,9 @@ async function onDropAppointment(id, targetBucket, targetIndex){
     var _dateDrop = targetBucket.split('|')[0];
     var _blockedDrop = isDayBlocked(_dateDrop);
     if (_blockedDrop) { showToast('🔒 ' + (_blockedDrop.reason || 'Dia bloqueado'), 'error'); return; }
+    if (isDayRouteLocked(_dateDrop) && !canOverrideRouteLock()) {
+      showToast('🔒 Rota bloqueada pelo coordenador — não pode alterar a ordem', 'error'); return;
+    }
   }
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
