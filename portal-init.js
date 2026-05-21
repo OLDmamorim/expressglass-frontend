@@ -183,6 +183,12 @@ function applyPortalConfig(portalConfig) {
     portalType: portalConfig.portalType || 'sm'
   };
 
+  const muralBtn = document.getElementById('mycarMuralBtn');
+  if (muralBtn) {
+    const isMycar = portalConfig.name === 'Mycar Center' || portalConfig.portalType === 'mycar';
+    muralBtn.style.display = isMycar ? '' : 'none';
+  }
+
   if (window.BASES_PARTIDA && portalConfig.portalType !== 'loja') {
     window.basePartidaDoDia = portalConfig.departureAddress;
   }
