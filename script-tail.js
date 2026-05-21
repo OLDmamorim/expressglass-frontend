@@ -58,7 +58,8 @@ const telBtn = phone ? `
     ..._allSvcs.map(function(s) { return `<span class="m-chip">${s}</span>`; }),
     !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : '',
     a.calibration ? `<span class="m-chip m-chip-calib">⊕ CALIB</span>` : '',
-    a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : ''
+    a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : '',
+    a.second_of_day ? `<span class="m-chip" style="background:#f97316;color:#fff;font-weight:700;">⭐ 2.º</span>` : ''
   ].filter(Boolean).join('');
   let _extraDisp = '';
   if (a.extra) { try { _extraDisp = JSON.parse(a.extra).eurocode || ''; } catch(e) { const _m = a.extra.match(/"eurocode"\s*:\s*"([^"]+)"/); _extraDisp = _m ? _m[1] : a.extra; } }
@@ -189,9 +190,11 @@ async function renderMobileDay(){
         if (isLoja()) {
           return (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0);
         }
-        // first_of_day sempre no topo
+        // first_of_day e second_of_day sempre no topo, por esta ordem
         if (a.first_of_day && !b.first_of_day) return -1;
         if (!a.first_of_day && b.first_of_day) return 1;
+        if (a.second_of_day && !b.second_of_day) return -1;
+        if (!a.second_of_day && b.second_of_day) return 1;
         return (a.sortIndex||0) - (b.sortIndex||0);
       })
   );
@@ -209,10 +212,11 @@ async function renderMobileDay(){
     console.log('🔄 MOBILE - Aplicando ordenação automática');
     items = await ordenarSeNecessario(itemsRaw);
   }
-  // Garantir sempre: first_of_day no topo, independente do caminho
+  // Garantir sempre: first_of_day no topo, depois second_of_day, independente do caminho
   items = [
     ...items.filter(a => a.first_of_day),
-    ...items.filter(a => !a.first_of_day)
+    ...items.filter(a => a.second_of_day && !a.first_of_day),
+    ...items.filter(a => !a.first_of_day && !a.second_of_day)
   ];
 
   var _bmBlocked = isDayBlocked(iso);
@@ -982,6 +986,7 @@ function bootApp() {
       vehicleType: (document.getElementById('appointmentVehicleType')?.value || localStorage.getItem('eg_last_vehicleType') || 'L'),
       calibration: document.getElementById('appointmentCalibration')?.checked || false,
       first_of_day: document.getElementById('appointmentFirstOfDay')?.checked || false,
+      second_of_day: document.getElementById('appointmentSecondOfDay')?.checked || false,
       // ===== ADICIONAR OS QUILÓMETROS CALCULADOS =====
       km: calculatedKm,
       confirmed: document.getElementById('appointmentConfirmed')?.value !== 'false',
@@ -1026,6 +1031,7 @@ function bootApp() {
         if (idx >= 0) appointments[idx] = { ...appointments[idx], ...updated, ...payload };
         showToast('Agendamento atualizado', 'success');
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(editingId, payload.date);
+        if (payload.second_of_day && payload.date) await enforceSingleSecondOfDay(editingId, payload.date);
         // Notificar comercial apenas se mudou data OU confirmação
         if (payload.commercial_user_id && prevAppt) {
           const dateChanged = payload.date && prevAppt.date !== payload.date;
@@ -1089,6 +1095,7 @@ cancelEdit?.();
         appointments.push(item);
         showToast('Agendamento criado', 'success');
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(item.id, payload.date);
+        if (payload.second_of_day && payload.date) await enforceSingleSecondOfDay(item.id, payload.date);
         // Notificar comercial ao criar (sempre que tem comercial e data)
         if (payload.commercial_user_id && payload.date) {
           const apptId = created?.id || item.id;
@@ -1246,6 +1253,43 @@ if (window._portalReadyFired) {
 } else {
   window.addEventListener('portalReady', bootApp, { once: true });
 }
+
+// === SEGUNDO SERVIÇO DO DIA: visibilidade do checkbox no formulário ===
+window.updateSecondOfDayVisibility = function() {
+  var row = document.getElementById('secondOfDayRow');
+  if (!row) return;
+
+  var dateVal = document.getElementById('appointmentDate')?.value;
+  var isFirstOfDay = document.getElementById('appointmentFirstOfDay')?.checked;
+
+  // Não mostrar na mesma linha que é o 1.º serviço
+  if (isFirstOfDay || !dateVal) {
+    row.style.display = 'none';
+    var cb = document.getElementById('appointmentSecondOfDay');
+    if (cb) cb.checked = false;
+    return;
+  }
+
+  // Contar quantos 1.º serviço existem nesse dia (excluindo o agendamento em edição)
+  var editingId = window._currentEditingId;
+  var firstCount = (window.appointments || []).filter(function(a) {
+    return a.date === dateVal && a.first_of_day && String(a.id) !== String(editingId);
+  }).length;
+
+  row.style.display = firstCount === 1 ? '' : 'none';
+  if (firstCount !== 1) {
+    var cb2 = document.getElementById('appointmentSecondOfDay');
+    if (cb2) cb2.checked = false;
+  }
+};
+
+// Ligar eventos de data e 1.º serviço ao updateSecondOfDayVisibility
+document.addEventListener('DOMContentLoaded', function() {
+  var dateField = document.getElementById('appointmentDate');
+  if (dateField) dateField.addEventListener('change', window.updateSecondOfDayVisibility);
+  var firstCb = document.getElementById('appointmentFirstOfDay');
+  if (firstCb) firstCb.addEventListener('change', window.updateSecondOfDayVisibility);
+});
 
 // === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
 (function(){

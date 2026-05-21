@@ -31,6 +31,10 @@ exports.handler = async (event) => {
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS glass_removed_date DATE`);
   } catch(migErr) { console.warn('Migration warning:', migErr.message); }
 
+  try {
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS second_of_day BOOLEAN DEFAULT FALSE`);
+  } catch(migErr) { console.warn('Migration second_of_day warning:', migErr.message); }
+
   // Migração: actualizar constraint de service para incluir RV e OUT
   try {
     await pool.query(`ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_service_check`);
@@ -69,7 +73,7 @@ exports.handler = async (event) => {
         SELECT id, date, period, plate, car, service, locality, status,
                notes, address, extra, phone, km, sortIndex, "glassOrdered",
                vehicle_type, travel_time, auto_imported, executed, confirmed,
-               calibration, first_of_day, not_done_reason, commercial_user_id,
+               calibration, first_of_day, second_of_day, not_done_reason, commercial_user_id,
                return_km, return_time, client_name, damage_details, glass_removed, glass_removed_date,
                custom_service_time, foreign_plate, extra_services, created_at, updated_at
         FROM appointments
@@ -104,11 +108,11 @@ exports.handler = async (event) => {
         INSERT INTO appointments (
           date, period, plate, car, service, locality, status,
           notes, address, extra, phone, km, sortIndex, "glassOrdered",
-          vehicle_type, travel_time, confirmed, calibration, first_of_day,
+          vehicle_type, travel_time, confirmed, calibration, first_of_day, second_of_day,
           not_done_reason, commercial_user_id, return_km, return_time, client_name, damage_details,
           glass_removed_date, custom_service_time, foreign_plate, extra_services, portal_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33
         ) RETURNING *
       `;
       const v = [
@@ -121,7 +125,7 @@ exports.handler = async (event) => {
         data.vehicleType || data.vehicle_type || 'L',
         data.travelTime || data.travel_time || null,
         data.confirmed !== undefined ? data.confirmed : true,
-        data.calibration || false, data.first_of_day || false,
+        data.calibration || false, data.first_of_day || false, data.second_of_day || false,
         data.not_done_reason || null,
         data.commercial_user_id ? parseInt(data.commercial_user_id) : null,
         data.return_km != null ? parseInt(data.return_km) : null,
@@ -176,10 +180,10 @@ exports.handler = async (event) => {
           km = $12, sortIndex = $13, "glassOrdered" = $14,
           vehicle_type = $15, travel_time = $16, auto_imported = $17,
           executed = $18, confirmed = $19, calibration = $20,
-          first_of_day = $21, not_done_reason = $22, commercial_user_id = $23,
-          return_km = $24, return_time = $25, client_name = $26, damage_details = $27, glass_removed = $28, extra_services = $29,
-          glass_removed_date = $30, updated_at = $31
-        WHERE id = $32 AND portal_id = $33
+          first_of_day = $21, second_of_day = $22, not_done_reason = $23, commercial_user_id = $24,
+          return_km = $25, return_time = $26, client_name = $27, damage_details = $28, glass_removed = $29, extra_services = $30,
+          glass_removed_date = $31, updated_at = $32
+        WHERE id = $33 AND portal_id = $34
         RETURNING *
       `;
       const v = [
@@ -197,6 +201,7 @@ exports.handler = async (event) => {
         data.confirmed !== undefined ? data.confirmed : true,
         data.calibration === true,
         data.first_of_day === true,
+        data.second_of_day === true,
         notDoneReasonVal,
         data.commercial_user_id !== undefined ? (data.commercial_user_id || null) : existing.commercial_user_id,
         data.return_km != null ? parseInt(data.return_km) : null,
