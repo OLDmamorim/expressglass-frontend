@@ -222,6 +222,9 @@
     .badge-done    { background: var(--green-l);  color: var(--green); }
     .badge-reject  { background: var(--red-l);    color: var(--red); }
     .badge-neutral { background: var(--gray-l);   color: var(--gray); }
+    .badge-new     { background: #dbeafe; color: #1d4ed8; font-size:.65rem; padding:2px 6px; }
+    tr.row-new { background: #eff6ff; }
+    tr.row-new td { font-weight: 600; }
 
     .empty-state {
       text-align: center;
@@ -724,13 +727,15 @@ function buildGroups(services) {
   const map = {};
   for (const svc of services) {
     const key = svc.matricula.toUpperCase();
-    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null };
+    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false };
     map[key].services.push(svc);
     const d = svc.email_received_at || svc.created_at;
     if (d && (!map[key].lastDate || d > map[key].lastDate)) map[key].lastDate = d;
+    if (!svc.viewed_at) map[key].isNew = true;
   }
   return Object.values(map).sort((a, b) => {
-    // Ordenar: primeiro os que têm pendentes
+    // Ordenar: primeiro os novos, depois os que têm pendentes
+    if (b.isNew !== a.isNew) return b.isNew ? 1 : -1;
     const ap = a.services.filter(s => s.status === 'pendente').length;
     const bp = b.services.filter(s => s.status === 'pendente').length;
     if (bp !== ap) return bp - ap;
@@ -772,8 +777,11 @@ function renderTable(groups) {
     const rej  = g.services.filter(s => s.status === 'rejeitado').length;
     const last = g.lastDate ? fmtDate(g.lastDate) : '—';
     return `
-      <tr onclick="openDetail('${g.matricula}')">
-        <td class="plate-cell"><span class="plate-badge">${g.matricula}</span></td>
+      <tr class="${g.isNew ? 'row-new' : ''}" onclick="openDetail('${g.matricula}')">
+        <td class="plate-cell">
+          <span class="plate-badge">${g.matricula}</span>
+          ${g.isNew ? '<span class="count-badge badge-new" style="margin-left:6px">Novo</span>' : ''}
+        </td>
         <td class="col-total"><span class="count-badge badge-neutral">${g.services.length}</span></td>
         <td class="col-pend">${pend > 0 ? `<span class="count-badge badge-pending">${pend}</span>` : '<span style="color:#d1d5db">0</span>'}</td>
         <td class="col-trat">${trat > 0 ? `<span class="count-badge badge-done">${trat}</span>`    : '<span style="color:#d1d5db">0</span>'}</td>
@@ -802,6 +810,17 @@ function filterTable() {
 function openDetail(plate) {
   currentPlate = plate;
   const services = allServices.filter(s => s.matricula.toUpperCase() === plate);
+
+  // Marcar como visto (background, sem bloquear UI)
+  const token = localStorage.getItem('eg_auth_token');
+  services.filter(s => !s.viewed_at).forEach(s => {
+    s.viewed_at = new Date().toISOString(); // optimistic update local
+    fetch('/.netlify/functions/mycar-services', {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: s.id, viewed: true })
+    });
+  });
 
   document.getElementById('detail-title').textContent = `Matrícula: ${plate}`;
   document.getElementById('detail-subtitle').textContent = '';

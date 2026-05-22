@@ -38,6 +38,7 @@ async function ensureTable(client) {
   `);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_body TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMP`);
   await client.query(`ALTER TABLE mycar_services DROP CONSTRAINT IF EXISTS mycar_services_status_check`);
   await client.query(`UPDATE mycar_services SET status = 'realizado' WHERE status = 'tratado'`);
   await client.query(`ALTER TABLE mycar_services ADD CONSTRAINT mycar_services_status_check CHECK (status IN ('pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado'))`);
@@ -100,9 +101,18 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
     }
 
-    // PATCH - atualizar status de um serviço
+    // PATCH - atualizar status de um serviço (ou marcar como visto)
     if (event.httpMethod === 'PATCH') {
-      const { id, status, notas, obs_tecnico } = JSON.parse(event.body || '{}');
+      const { id, status, notas, obs_tecnico, viewed } = JSON.parse(event.body || '{}');
+
+      // Marcar como visto (pode ser sem status)
+      if (id && viewed && !status) {
+        await client.query(
+          `UPDATE mycar_services SET viewed_at = COALESCE(viewed_at, NOW()) WHERE id = $1`,
+          [id]
+        );
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+      }
 
       if (!id || !status) {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'id e status são obrigatórios' }) };
@@ -111,7 +121,7 @@ exports.handler = async (event) => {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Status inválido' }) };
       }
 
-      const setClauses = [`status = $1`, `updated_at = NOW()`];
+      const setClauses = [`status = $1`, `updated_at = NOW()`, `viewed_at = COALESCE(viewed_at, NOW())`];
       const params = [status];
       let idx = 2;
 
