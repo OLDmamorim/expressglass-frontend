@@ -797,9 +797,7 @@ function openDetail(plate) {
   const services = allServices.filter(s => s.matricula.toUpperCase() === plate);
 
   document.getElementById('detail-title').textContent = `Matrícula: ${plate}`;
-  const src = services[0]?.email_from ? `De: ${services[0].email_from}` : '';
-  document.getElementById('detail-subtitle').textContent =
-    src + (services[0]?.email_subject ? ` · ${services[0].email_subject}` : '');
+  document.getElementById('detail-subtitle').textContent = '';
 
   renderDetailBody(plate);
   document.getElementById('detail-modal').classList.add('open');
@@ -823,7 +821,7 @@ function renderDetailBody(plate) {
       <div class="service-meta">
         <div class="meta-item">
           <div class="meta-label">Data</div>
-          <div class="meta-value">${svc.data_servico ? fmtDate(svc.data_servico) : '—'}</div>
+          <div class="meta-value">${fmtDate(svc.data_servico || svc.email_received_at || svc.created_at)}</div>
         </div>
         <div class="meta-item">
           <div class="meta-label">Valor</div>
