@@ -13,4 +13,4 @@
 
 [functions."mycar-gmail-poller"]
   node_bundler = "zisi"
-  schedule = "*/30 * * * *"
+  schedule = "*/15 * * * *"
