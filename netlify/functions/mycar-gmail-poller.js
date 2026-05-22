@@ -199,10 +199,14 @@ async function runPoller() {
       const html     = email.html || '';
       const wip      = extractWip(subject);
 
+      const $dbg = html ? cheerio.load(html) : null;
+      const tableCount = $dbg ? $dbg('table').length : 0;
+      console.log(`📧 "${subject}" | html:${!!html} | tabelas:${tableCount} | from:${from}`);
+
       const services = html ? parseTableHtml(html) : [];
 
       if (services.length === 0) {
-        console.log(`⏭️ Sem tabela de serviços em: "${subject}"`);
+        console.log(`⏭️ Sem tabela de serviços: "${subject}" (tabelas:${tableCount})`);
         continue;
       }
 
