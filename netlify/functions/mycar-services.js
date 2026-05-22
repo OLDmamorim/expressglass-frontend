@@ -31,10 +31,12 @@ async function ensureTable(client) {
       email_received_at TIMESTAMP,
       portal_id INTEGER,
       notas TEXT,
+      obs_tecnico TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_matricula ON mycar_services(matricula)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_status ON mycar_services(status)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_portal ON mycar_services(portal_id)`);
@@ -96,7 +98,7 @@ exports.handler = async (event) => {
 
     // PATCH - atualizar status de um serviço
     if (event.httpMethod === 'PATCH') {
-      const { id, status, notas } = JSON.parse(event.body || '{}');
+      const { id, status, notas, obs_tecnico } = JSON.parse(event.body || '{}');
 
       if (!id || !status) {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'id e status são obrigatórios' }) };
@@ -112,6 +114,10 @@ exports.handler = async (event) => {
       if (notas !== undefined) {
         setClauses.push(`notas = $${idx++}`);
         params.push(notas);
+      }
+      if (obs_tecnico !== undefined) {
+        setClauses.push(`obs_tecnico = $${idx++}`);
+        params.push(obs_tecnico);
       }
       params.push(id);
 

@@ -83,10 +83,12 @@ async function ensureTable(client) {
       email_received_at TIMESTAMP,
       portal_id INTEGER,
       notas TEXT,
+      obs_tecnico TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
 }
 
 // Liga ao Gmail via IMAP e devolve emails não lidos

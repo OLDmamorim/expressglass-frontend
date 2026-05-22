@@ -810,9 +810,15 @@ function renderDetailBody(plate) {
           <div class="meta-value" style="font-family:monospace">${svc.eurocode || '—'}</div>
         </div>
         ${svc.notas ? `<div class="meta-item" style="grid-column:1/-1">
-          <div class="meta-label">Notas</div>
-          <div class="meta-value">${svc.notas}</div>
+          <div class="meta-label">OBS</div>
+          <div class="meta-value" style="font-family:monospace;font-size:.82rem">${svc.notas}</div>
         </div>` : ''}
+      </div>
+      <div class="obs-tecnico-wrap" style="margin-bottom:10px">
+        <div class="meta-label" style="margin-bottom:4px">Obs técnico</div>
+        <textarea class="notes-input" id="obs-${svc.id}" rows="2"
+          placeholder="Observações do técnico…"
+          style="width:100%;resize:vertical">${svc.obs_tecnico || ''}</textarea>
       </div>
       <div class="service-actions">
         <button class="btn btn-success btn-sm" onclick="updateStatus(${svc.id}, 'tratado')"
@@ -821,9 +827,7 @@ function renderDetailBody(plate) {
           ${svc.status === 'pendente' ? 'disabled' : ''}>⏳ Pendente</button>
         <button class="btn btn-danger btn-sm" onclick="updateStatus(${svc.id}, 'rejeitado')"
           ${svc.status === 'rejeitado' ? 'disabled' : ''}>✕ Rejeitado</button>
-        <input type="text" class="notes-input" id="notes-${svc.id}"
-               placeholder="Notas…" value="${svc.notas || ''}">
-        <button class="btn btn-ghost btn-sm" onclick="saveNotes(${svc.id})">Guardar</button>
+        <button class="btn btn-ghost btn-sm" onclick="saveObsTecnico(${svc.id})">💾 Guardar obs</button>
       </div>
     </div>
   `).join('');
@@ -857,23 +861,21 @@ async function updateStatus(id, status) {
   }
 }
 
-async function saveNotes(id) {
-  const notas = document.getElementById(`notes-${id}`)?.value || '';
+async function saveObsTecnico(id) {
+  const obs_tecnico = document.getElementById(`obs-${id}`)?.value ?? '';
   const svc = allServices.find(s => s.id === id);
   if (!svc) return;
-
   try {
     const res = await fetch(`${API_BASE}/mycar-services`, {
       method: 'PATCH',
       headers: authHeaders(),
-      body: JSON.stringify({ id, status: svc.status, notas })
+      body: JSON.stringify({ id, status: svc.status, obs_tecnico })
     });
     const json = await res.json();
     if (!json.success) throw new Error(json.error);
-
     const idx = allServices.findIndex(s => s.id === id);
     if (idx >= 0) allServices[idx] = json.data;
-    toast('Notas guardadas', 'success');
+    toast('Observação guardada', 'success');
   } catch (e) {
     toast(`Erro: ${e.message}`, 'error');
   }
