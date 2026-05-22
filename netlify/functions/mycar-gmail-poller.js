@@ -1,6 +1,17 @@
 // netlify/functions/mycar-gmail-poller.js
 // Corre a cada 15 min — lê emails não lidos no Gmail e importa serviços por matrícula
 // Também aceita POST autenticado para trigger manual via UI
+
+// Polyfill: undici (dep do mailparser) usa File global disponível só no Node 20+
+// Em Node 18 o File não é global mas existe em require('buffer')
+if (typeof File === 'undefined') {
+  try { global.File = require('buffer').File; } catch (_) {
+    global.File = class File extends Blob {
+      constructor(bits, name, opts = {}) { super(bits, opts); this.name = name; this.lastModified = opts.lastModified ?? Date.now(); }
+    };
+  }
+}
+
 const { Pool } = require('pg');
 const Imap = require('imap');
 const { simpleParser } = require('mailparser');
