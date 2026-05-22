@@ -38,6 +38,9 @@ async function ensureTable(client) {
   `);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_body TEXT`);
+  await client.query(`ALTER TABLE mycar_services DROP CONSTRAINT IF EXISTS mycar_services_status_check`);
+  await client.query(`UPDATE mycar_services SET status = 'realizado' WHERE status = 'tratado'`);
+  await client.query(`ALTER TABLE mycar_services ADD CONSTRAINT mycar_services_status_check CHECK (status IN ('pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado'))`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_matricula ON mycar_services(matricula)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_status ON mycar_services(status)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_portal ON mycar_services(portal_id)`);
@@ -104,7 +107,7 @@ exports.handler = async (event) => {
       if (!id || !status) {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'id e status são obrigatórios' }) };
       }
-      if (!['pendente', 'tratado', 'rejeitado'].includes(status)) {
+      if (!['pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado'].includes(status)) {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Status inválido' }) };
       }
 
