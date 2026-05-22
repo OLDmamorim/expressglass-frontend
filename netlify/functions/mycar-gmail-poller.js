@@ -102,7 +102,7 @@ async function ensureTable(client) {
       descricao TEXT,
       valor DECIMAL(10,2),
       eurocode VARCHAR(100),
-      status VARCHAR(20) DEFAULT 'pendente' CHECK (status IN ('pendente', 'tratado', 'rejeitado')),
+      status VARCHAR(20) DEFAULT 'pendente' CHECK (status IN ('pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado')),
       email_from VARCHAR(255),
       email_subject VARCHAR(500),
       email_received_at TIMESTAMP,
@@ -115,6 +115,10 @@ async function ensureTable(client) {
   `);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_body TEXT`);
+  // Migrar constraint de status para incluir novos estados
+  await client.query(`ALTER TABLE mycar_services DROP CONSTRAINT IF EXISTS mycar_services_status_check`);
+  await client.query(`UPDATE mycar_services SET status = 'realizado' WHERE status = 'tratado'`);
+  await client.query(`ALTER TABLE mycar_services ADD CONSTRAINT mycar_services_status_check CHECK (status IN ('pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado'))`);
 }
 
 // Liga ao Gmail via IMAP e devolve emails dos últimos 3 dias

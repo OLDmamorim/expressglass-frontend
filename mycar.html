@@ -304,9 +304,11 @@
       margin-bottom: 10px;
       transition: border-color .15s;
     }
-    .service-card.status-tratado  { border-left: 4px solid var(--green); }
-    .service-card.status-pendente { border-left: 4px solid var(--orange); }
-    .service-card.status-rejeitado{ border-left: 4px solid var(--red); }
+    .service-card.status-pendente    { border-left: 4px solid var(--orange); }
+    .service-card.status-encomendado { border-left: 4px solid #6366f1; }
+    .service-card.status-realizado   { border-left: 4px solid var(--green); }
+    .service-card.status-faturado    { border-left: 4px solid #0891b2; }
+    .service-card.status-rejeitado   { border-left: 4px solid var(--red); }
     .service-card-header {
       display: flex;
       align-items: center;
@@ -348,9 +350,11 @@
       font-weight: 700;
       text-transform: capitalize;
     }
-    .status-badge.tratado   { background: var(--green-l);  color: var(--green); }
-    .status-badge.pendente  { background: var(--orange-l); color: var(--orange); }
-    .status-badge.rejeitado { background: var(--red-l);    color: var(--red); }
+    .status-badge.pendente    { background: var(--orange-l); color: var(--orange); }
+    .status-badge.encomendado { background: #ede9fe; color: #6366f1; }
+    .status-badge.realizado   { background: var(--green-l);  color: var(--green); }
+    .status-badge.faturado    { background: #cffafe; color: #0891b2; }
+    .status-badge.rejeitado   { background: var(--red-l);    color: var(--red); }
 
     /* ─── IMPORT MODAL ─── */
     .import-modal .modal { max-width: 600px; }
@@ -510,7 +514,7 @@
       <span class="stat-value" id="stat-pend">—</span>
     </div>
     <div class="stat-card trat">
-      <span class="stat-label">Tratados</span>
+      <span class="stat-label">Realizados</span>
       <span class="stat-value" id="stat-trat">—</span>
     </div>
     <div class="stat-card rej">
@@ -527,7 +531,10 @@
     <select class="filter-select" id="filter-status" onchange="filterTable()">
       <option value="">Todos os estados</option>
       <option value="pendente">Pendente</option>
-      <option value="tratado">Tratado</option>
+      <option value="encomendado">Encomendado</option>
+      <option value="realizado">Realizado</option>
+      <option value="faturado">Faturado</option>
+      <option value="rejeitado">Rejeitado</option>
       <option value="rejeitado">Rejeitado</option>
     </select>
     <button class="btn btn-secondary" id="check-email-btn" onclick="checkEmail()">
@@ -735,7 +742,7 @@ function buildGroups(services) {
 function updateStats() {
   const total = allServices.length;
   const pend  = allServices.filter(s => s.status === 'pendente').length;
-  const trat  = allServices.filter(s => s.status === 'tratado').length;
+  const trat  = allServices.filter(s => s.status === 'realizado' || s.status === 'faturado').length;
   const rej   = allServices.filter(s => s.status === 'rejeitado').length;
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-pend').textContent  = pend;
@@ -761,7 +768,7 @@ function renderTable(groups) {
 
   tbody.innerHTML = groups.map(g => {
     const pend = g.services.filter(s => s.status === 'pendente').length;
-    const trat = g.services.filter(s => s.status === 'tratado').length;
+    const trat = g.services.filter(s => s.status === 'realizado' || s.status === 'faturado').length;
     const rej  = g.services.filter(s => s.status === 'rejeitado').length;
     const last = g.lastDate ? fmtDate(g.lastDate) : '—';
     return `
@@ -851,12 +858,16 @@ function renderDetailBody(plate) {
           style="width:100%;resize:vertical">${svc.obs_tecnico || ''}</textarea>
       </div>
       <div class="service-actions">
-        <button class="btn btn-success btn-sm" onclick="updateStatus(${svc.id}, 'tratado')"
-          ${svc.status === 'tratado' ? 'disabled' : ''}>✓ Tratado</button>
-        <button class="btn btn-warning btn-sm" onclick="updateStatus(${svc.id}, 'pendente')"
-          ${svc.status === 'pendente' ? 'disabled' : ''}>⏳ Pendente</button>
+        <button class="btn btn-sm" style="background:#f1f5f9;border:1px solid #cbd5e1" onclick="updateStatus(${svc.id}, 'pendente')"
+          ${svc.status === 'pendente' ? 'disabled style="opacity:.45"' : ''}>⏳ Pendente</button>
+        <button class="btn btn-sm" style="background:#ede9fe;color:#6366f1;border:1px solid #c4b5fd" onclick="updateStatus(${svc.id}, 'encomendado')"
+          ${svc.status === 'encomendado' ? 'disabled style="opacity:.45"' : ''}>📦 Encomendado</button>
+        <button class="btn btn-success btn-sm" onclick="updateStatus(${svc.id}, 'realizado')"
+          ${svc.status === 'realizado' ? 'disabled style="opacity:.45"' : ''}>✓ Realizado</button>
+        <button class="btn btn-sm" style="background:#cffafe;color:#0891b2;border:1px solid #a5f3fc" onclick="updateStatus(${svc.id}, 'faturado')"
+          ${svc.status === 'faturado' ? 'disabled style="opacity:.45"' : ''}>🧾 Faturado</button>
         <button class="btn btn-danger btn-sm" onclick="updateStatus(${svc.id}, 'rejeitado')"
-          ${svc.status === 'rejeitado' ? 'disabled' : ''}>✕ Rejeitado</button>
+          ${svc.status === 'rejeitado' ? 'disabled style="opacity:.45"' : ''}>✕ Rejeitado</button>
         <button class="btn btn-ghost btn-sm" onclick="saveObsTecnico(${svc.id})">💾 Guardar obs</button>
       </div>
     </div>
