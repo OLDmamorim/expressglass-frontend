@@ -85,6 +85,39 @@ function parseTableHtml(html) {
   return services;
 }
 
+// Extrai o texto útil do email — remove headers de FW, assinaturas e linhas de tabela
+function cleanEmailBody(text) {
+  if (!text) return null;
+
+  // Se é email encaminhado, pegar só o conteúdo após os headers do original
+  const fwdRx = /[-]{4,}\s*(Forwarded message|Mensagem encaminhada|Original Message)/i;
+  const fwdIdx = text.search(fwdRx);
+  if (fwdIdx >= 0) {
+    const after = text.slice(fwdIdx);
+    const lines = after.split('\n');
+    // saltar linha do marker + headers (From/Date/Subject/To)
+    let bodyStart = 0;
+    let inHeaders = false;
+    for (let i = 0; i < lines.length; i++) {
+      if (/^(From|De|Date|Data|Subject|Assunto|To|Para|Cc):/i.test(lines[i].trim())) { inHeaders = true; continue; }
+      if (inHeaders && lines[i].trim() === '') { bodyStart = i + 1; break; }
+    }
+    text = lines.slice(bodyStart).join('\n');
+  }
+
+  const cleaned = text.split('\n').filter(line => {
+    const t = line.trim();
+    if (!t) return false;
+    if (/^[-=_*>]{3,}$/.test(t)) return false;           // dividers / quoted markers
+    if (/^(From|De|Date|Data|Subject|Assunto|To|Para|Cc|Sent|Enviado):/i.test(t)) return false;
+    if (/^\[?(image|imagem|cid:)/i.test(t)) return false; // inline images
+    if ((t.match(/\t/g) || []).length >= 2) return false;  // linhas de tabela
+    return true;
+  }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
+
+  return cleaned.slice(0, 600) || null;
+}
+
 // Lookup do portal Mycar Center na DB
 async function getMycaPortalId(client) {
   const { rows } = await client.query(
@@ -214,8 +247,7 @@ async function runPoller() {
       const date     = email.date || new Date();
       const html     = email.html || '';
       const wip      = extractWip(subject);
-      // Corpo do email em texto simples (limita a 2000 chars para não sobrecarregar a DB)
-      const body     = (email.text || '').trim().slice(0, 2000);
+      const body     = cleanEmailBody(email.text || '');
 
       const $dbg = html ? cheerio.load(html) : null;
       const tableCount = $dbg ? $dbg('table').length : 0;
