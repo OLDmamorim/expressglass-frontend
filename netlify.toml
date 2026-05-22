@@ -10,3 +10,7 @@
 
 [functions."cleanup-old-data"]
   schedule = "0 3 * * *"
+
+[functions."mycar-gmail-poller"]
+  node_bundler = "zisi"
+  schedule = "*/30 * * * *"
