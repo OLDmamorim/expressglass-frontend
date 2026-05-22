@@ -260,7 +260,8 @@ async function runPoller() {
 }
 
 exports.handler = async (event) => {
-  console.log('🔔 Invocado | httpMethod:', event?.httpMethod ?? 'NONE', '| next_run:', event?.next_run ?? 'NONE');
+  const method = event?.httpMethod;
+  console.log('🔔 Invocado | httpMethod:', method ?? 'NONE', '| next_run:', event?.next_run ?? 'NONE');
 
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -269,21 +270,10 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json'
   };
 
-  // Scheduled invocation: no httpMethod, or GET (some Netlify scheduler versions send GET)
-  if (!event?.httpMethod || event.httpMethod === 'GET') {
-    try {
-      const result = await runPoller();
-      return { statusCode: 200, body: JSON.stringify({ success: true, ...result }) };
-    } catch (error) {
-      console.error('❌ Erro mycar-gmail-poller:', error.message);
-      return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) };
-    }
-  }
+  if (method === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
-  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-
-  if (event.httpMethod === 'POST') {
-    // Require JWT auth
+  // POST via UI — requer autenticação JWT
+  if (method === 'POST') {
     try {
       const authHeader = event.headers.authorization || event.headers.Authorization || '';
       if (!authHeader.startsWith('Bearer ')) throw new Error('Não autenticado');
@@ -291,15 +281,14 @@ exports.handler = async (event) => {
     } catch {
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Não autenticado' }) };
     }
-
-    try {
-      const result = await runPoller();
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, ...result }) };
-    } catch (error) {
-      console.error('❌ Erro mycar-gmail-poller:', error.message);
-      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
-    }
   }
 
-  return { statusCode: 405, headers, body: JSON.stringify({ success: false, error: 'Método não permitido' }) };
+  // Qualquer outra invocação (scheduled, GET, HEAD, etc.) — corre o poller
+  try {
+    const result = await runPoller();
+    return { statusCode: 200, headers, body: JSON.stringify({ success: true, ...result }) };
+  } catch (error) {
+    console.error('❌ Erro mycar-gmail-poller:', error.message);
+    return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+  }
 };
