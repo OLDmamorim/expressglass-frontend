@@ -839,6 +839,10 @@ function renderDetailBody(plate) {
           <div class="meta-label">OBS</div>
           <div class="meta-value" style="font-family:monospace;font-size:.82rem">${svc.notas}</div>
         </div>` : ''}
+        ${svc.email_body ? `<div class="meta-item" style="grid-column:1/-1">
+          <div class="meta-label">Corpo do email</div>
+          <div class="meta-value" style="font-size:.78rem;white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;max-height:140px;overflow-y:auto;color:#374151">${svc.email_body.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        </div>` : ''}
       </div>
       <div class="obs-tecnico-wrap" style="margin-bottom:10px">
         <div class="meta-label" style="margin-bottom:4px">Obs técnico</div>

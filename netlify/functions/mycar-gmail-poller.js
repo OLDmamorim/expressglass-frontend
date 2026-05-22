@@ -114,6 +114,7 @@ async function ensureTable(client) {
     )
   `);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_body TEXT`);
 }
 
 // Liga ao Gmail via IMAP e devolve emails dos últimos 3 dias
@@ -209,6 +210,8 @@ async function runPoller() {
       const date     = email.date || new Date();
       const html     = email.html || '';
       const wip      = extractWip(subject);
+      // Corpo do email em texto simples (limita a 2000 chars para não sobrecarregar a DB)
+      const body     = (email.text || '').trim().slice(0, 2000);
 
       const $dbg = html ? cheerio.load(html) : null;
       const tableCount = $dbg ? $dbg('table').length : 0;
@@ -234,10 +237,10 @@ async function runPoller() {
         await client.query(
           `INSERT INTO mycar_services
              (matricula, descricao, valor, eurocode, status,
-              email_from, email_subject, email_received_at, portal_id, notas)
-           VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9)`,
+              email_from, email_subject, email_received_at, portal_id, notas, email_body)
+           VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9,$10)`,
           [svc.matricula, svc.descricao, svc.valor, svc.eurocode,
-           from, subject, date, portalId, wip]
+           from, subject, date, portalId, wip, body || null]
         );
         totalImported++;
         console.log(`✅ Importado: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
