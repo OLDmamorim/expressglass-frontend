@@ -37,6 +37,7 @@ async function ensureTable(client) {
     )
   `);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_body TEXT`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_matricula ON mycar_services(matricula)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_status ON mycar_services(status)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_portal ON mycar_services(portal_id)`);
