@@ -202,14 +202,37 @@
       color: var(--text);
     }
     .plate-badge {
-      display: inline-block;
-      background: #1e3a8a;
-      color: white;
-      padding: 3px 10px;
-      border-radius: 5px;
-      font-family: monospace;
-      font-size: .92rem;
-      letter-spacing: 1.5px;
+      display: inline-flex;
+      align-items: stretch;
+      border: 2px solid #222;
+      border-radius: 4px;
+      overflow: hidden;
+      font-family: 'Arial Black', 'Arial Bold', sans-serif;
+      font-size: .88rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      line-height: 1;
+      box-shadow: 0 1px 3px rgba(0,0,0,.18);
+    }
+    .plate-badge::before {
+      content: 'P';
+      background: #003399;
+      color: #fff;
+      font-size: .62rem;
+      font-weight: 700;
+      letter-spacing: 0;
+      padding: 2px 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+    }
+    .plate-badge-text {
+      background: #fff;
+      color: #111;
+      padding: 3px 8px;
+      display: flex;
+      align-items: center;
     }
     .count-badge {
       display: inline-block;
@@ -474,7 +497,7 @@
       /* Tabela */
       .table-card { overflow-x: hidden; }
       td, thead th { padding: 10px 10px; font-size: .82rem; }
-      .plate-badge { font-size: .82rem; padding: 3px 7px; letter-spacing: .8px; }
+      .plate-badge { font-size: .78rem; } .plate-badge-text { padding: 2px 5px; letter-spacing: 1px; }
       /* Empty state */
       .empty-state { padding: 40px 16px; }
       .empty-state p { font-size: .88rem; word-break: break-word; }
@@ -779,7 +802,7 @@ function renderTable(groups) {
     return `
       <tr class="${g.isNew ? 'row-new' : ''}" onclick="openDetail('${g.matricula}')">
         <td class="plate-cell">
-          <span class="plate-badge">${g.matricula}</span>
+          <span class="plate-badge"><span class="plate-badge-text">${g.matricula}</span></span>
           ${g.isNew ? '<span class="count-badge badge-new" style="margin-left:6px">Novo</span>' : ''}
         </td>
         <td class="col-total"><span class="count-badge badge-neutral">${g.services.length}</span></td>
@@ -822,7 +845,7 @@ function openDetail(plate) {
     });
   });
 
-  document.getElementById('detail-title').textContent = `Matrícula: ${plate}`;
+  document.getElementById('detail-title').innerHTML = `<span class="plate-badge"><span class="plate-badge-text">${plate}</span></span>`;
   document.getElementById('detail-subtitle').textContent = '';
 
   renderDetailBody(plate);
