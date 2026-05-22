@@ -448,11 +448,33 @@
       .header-nav { display: none; }
       .form-row-2 { grid-template-columns: 1fr; }
       .service-meta { grid-template-columns: 1fr; }
+      /* Tabela: esconder colunas secundárias */
+      .col-total, .col-trat, .col-rej, .col-last, .col-arrow { display: none; }
+      .col-pend { display: table-cell; }
     }
     @media (max-width: 480px) {
-      .stats-grid { grid-template-columns: 1fr 1fr; }
-      .modal { border-radius: 14px 14px 0 0; max-height: 95vh; }
+      /* Header compacto */
+      .header { height: auto; padding: 10px 14px; flex-wrap: nowrap; gap: 10px; }
+      .header-logo { height: 24px; flex-shrink: 0; }
+      .header-title { font-size: .9rem; }
+      .header-subtitle { display: none; }
+      .btn-logout { padding: 5px 10px; font-size: .78rem; flex-shrink: 0; }
+      /* Stats menores */
+      .stat-card { padding: 12px 14px; }
+      .stat-value { font-size: 1.6rem; }
+      /* Tabela */
+      .table-card { overflow-x: hidden; }
+      td, thead th { padding: 10px 10px; font-size: .82rem; }
+      .plate-badge { font-size: .82rem; padding: 3px 7px; letter-spacing: .8px; }
+      /* Empty state */
+      .empty-state { padding: 40px 16px; }
+      .empty-state p { font-size: .88rem; word-break: break-word; }
+      /* Modal bottom sheet */
+      .modal { border-radius: 16px 16px 0 0; max-height: 92vh; }
       .modal-overlay { align-items: flex-end; padding: 0; }
+      /* Toasts */
+      .toast-container { bottom: 16px; right: 12px; left: 12px; }
+      .toast { max-width: 100%; }
     }
   </style>
 </head>
@@ -518,12 +540,12 @@
       <thead>
         <tr>
           <th>Matrícula</th>
-          <th>Total</th>
-          <th>Pendentes</th>
-          <th>Tratados</th>
-          <th>Rejeitados</th>
-          <th>Último registo</th>
-          <th></th>
+          <th class="col-total">Total</th>
+          <th class="col-pend">Pendentes</th>
+          <th class="col-trat">Tratados</th>
+          <th class="col-rej">Rejeitados</th>
+          <th class="col-last">Último registo</th>
+          <th class="col-arrow"></th>
         </tr>
       </thead>
       <tbody id="table-body">
@@ -739,12 +761,12 @@ function renderTable(groups) {
     return `
       <tr onclick="openDetail('${g.matricula}')">
         <td class="plate-cell"><span class="plate-badge">${g.matricula}</span></td>
-        <td><span class="count-badge badge-neutral">${g.services.length}</span></td>
-        <td>${pend > 0 ? `<span class="count-badge badge-pending">${pend}</span>` : '<span style="color:#d1d5db">0</span>'}</td>
-        <td>${trat > 0 ? `<span class="count-badge badge-done">${trat}</span>`    : '<span style="color:#d1d5db">0</span>'}</td>
-        <td>${rej  > 0 ? `<span class="count-badge badge-reject">${rej}</span>`   : '<span style="color:#d1d5db">0</span>'}</td>
-        <td style="color:var(--gray);font-size:.82rem">${last}</td>
-        <td><span style="color:var(--blue);font-size:.82rem">Ver →</span></td>
+        <td class="col-total"><span class="count-badge badge-neutral">${g.services.length}</span></td>
+        <td class="col-pend">${pend > 0 ? `<span class="count-badge badge-pending">${pend}</span>` : '<span style="color:#d1d5db">0</span>'}</td>
+        <td class="col-trat">${trat > 0 ? `<span class="count-badge badge-done">${trat}</span>`    : '<span style="color:#d1d5db">0</span>'}</td>
+        <td class="col-rej">${rej  > 0 ? `<span class="count-badge badge-reject">${rej}</span>`   : '<span style="color:#d1d5db">0</span>'}</td>
+        <td class="col-last" style="color:var(--gray);font-size:.82rem">${last}</td>
+        <td class="col-arrow"><span style="color:var(--blue);font-size:.82rem">Ver →</span></td>
       </tr>`;
   }).join('');
 }
