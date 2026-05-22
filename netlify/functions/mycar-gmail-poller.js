@@ -13,6 +13,12 @@ const pool = new Pool({
 const GMAIL_USER     = process.env.MYCAR_GMAIL_USER;
 const GMAIL_PASSWORD = process.env.MYCAR_GMAIL_PASSWORD;
 
+// Extrai o número WIP do assunto: "RE: BR-04-QA | SJNTAAJ12U2111980 | WIP: 61336" → "WIP: 61336"
+function extractWip(subject) {
+  const m = subject.match(/WIP[:\s]+(\w+)/i);
+  return m ? `WIP: ${m[1]}` : null;
+}
+
 function parseValor(str) {
   if (!str) return null;
   const v = parseFloat(str.replace(/[^\d,.-]/g, '').replace(',', '.'));
@@ -171,6 +177,7 @@ exports.handler = async () => {
         const from     = email.from?.text || '';
         const date     = email.date || new Date();
         const html     = email.html || '';
+        const wip      = extractWip(subject); // ex: "WIP: 61336"
 
         // Só processar emails que têm tabela com matrícula
         const services = html ? parseTableHtml(html) : [];
@@ -194,10 +201,10 @@ exports.handler = async () => {
           await client.query(
             `INSERT INTO mycar_services
                (matricula, descricao, valor, eurocode, status,
-                email_from, email_subject, email_received_at, portal_id)
-             VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8)`,
+                email_from, email_subject, email_received_at, portal_id, notas)
+             VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9)`,
             [svc.matricula, svc.descricao, svc.valor, svc.eurocode,
-             from, subject, date, portalId]
+             from, subject, date, portalId, wip]
           );
           totalImported++;
           console.log(`✅ Importado: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
