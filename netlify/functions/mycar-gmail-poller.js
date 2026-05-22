@@ -253,6 +253,8 @@ async function runPoller() {
 }
 
 exports.handler = async (event) => {
+  console.log('🔔 Invocado | httpMethod:', event?.httpMethod ?? 'NONE', '| next_run:', event?.next_run ?? 'NONE');
+
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -260,8 +262,8 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json'
   };
 
-  // Scheduled invocation (no httpMethod)
-  if (!event || !event.httpMethod) {
+  // Scheduled invocation: no httpMethod, or GET (some Netlify scheduler versions send GET)
+  if (!event?.httpMethod || event.httpMethod === 'GET') {
     try {
       const result = await runPoller();
       return { statusCode: 200, body: JSON.stringify({ success: true, ...result }) };
