@@ -33,21 +33,29 @@ function parseTableHtml(html) {
   const services = [];
 
   $('table').each((_, table) => {
-    // Ignorar tabelas de assinatura/layout (poucas colunas ou sem texto de cabeçalho relevante)
-    const headerCells = $(table).find('tr').first().find('th, td');
-    if (headerCells.length < 3) return;
+    const $rows = $(table).find('tr');
+    let headerRowIdx = -1;
+    let headers = [];
 
-    const headers = headerCells.map((_, c) => $(c).text().trim().toLowerCase()).get();
+    // Procura a linha de cabeçalho que contém "Matrícula" — pode não ser a primeira linha
+    $rows.each((rowIdx, row) => {
+      const cells = $(row).find('th, td').map((_, c) => $(c).text().trim().toLowerCase()).get();
+      if (cells.some(h => /matr[ií]cula/i.test(h))) {
+        headerRowIdx = rowIdx;
+        headers = cells;
+        return false; // break
+      }
+    });
+
+    if (headerRowIdx < 0) return; // tabela sem coluna Matrícula
 
     const matIdx = headers.findIndex(h => /matr[ií]cula/i.test(h));
-    if (matIdx < 0) return; // não é a tabela certa
-
     const svcIdx = headers.findIndex(h => /servi[çc]o|descri[çc][aã]o/i.test(h));
     const valIdx = headers.findIndex(h => /valor/i.test(h));
     const neIdx  = headers.findIndex(h => /^ne$/i.test(h));
     const notIdx = headers.findIndex(h => /notas?/i.test(h));
 
-    $(table).find('tr').slice(1).each((_, row) => {
+    $rows.slice(headerRowIdx + 1).each((_, row) => {
       const cells = $(row).find('td').map((_, c) => $(c).text().trim()).get();
       if (cells.length < 2) return;
       const mat = cells[matIdx]?.replace(/\s/g, '').toUpperCase();
@@ -97,7 +105,7 @@ async function ensureTable(client) {
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
 }
 
-// Liga ao Gmail via IMAP e devolve emails não lidos
+// Liga ao Gmail via IMAP e devolve emails dos últimos 3 dias
 function fetchUnseenEmails() {
   return new Promise((resolve, reject) => {
     if (!GMAIL_USER || !GMAIL_PASSWORD) {
@@ -122,14 +130,16 @@ function fetchUnseenEmails() {
       imap.openBox('INBOX', false, (err) => {
         if (err) { imap.end(); reject(err); return; }
 
-        // Procurar emails não lidos
-        imap.search(['UNSEEN'], (err, uids) => {
+        // Pesquisar emails dos últimos 3 dias (apanha emails já lidos que falharam o parse)
+        const since = new Date();
+        since.setDate(since.getDate() - 3);
+        imap.search([['SINCE', since]], (err, uids) => {
           if (err) { imap.end(); reject(err); return; }
           if (!uids || uids.length === 0) { imap.end(); resolve([]); return; }
 
-          console.log(`📬 ${uids.length} email(s) não lido(s) encontrado(s)`);
+          console.log(`📬 ${uids.length} email(s) encontrado(s) nos últimos 3 dias`);
 
-          const fetch = imap.fetch(uids, { bodies: '', markSeen: true });
+          const fetch = imap.fetch(uids, { bodies: '', markSeen: false });
           const pending = [];
 
           fetch.on('message', (msg) => {
