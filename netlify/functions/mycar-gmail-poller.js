@@ -1,5 +1,6 @@
 // netlify/functions/mycar-gmail-poller.js
-// Corre a cada 30 min — lê emails não lidos no Gmail e importa serviços por matrícula
+// Corre a cada 15 min — lê emails não lidos no Gmail e importa serviços por matrícula
+// Também aceita POST autenticado para trigger manual via UI
 const { Pool } = require('pg');
 const Imap = require('imap');
 const { simpleParser } = require('mailparser');
@@ -25,13 +26,17 @@ function parseValor(str) {
   return isNaN(v) ? null : v;
 }
 
-// Lê a tabela HTML do email e devolve array de serviços
+// Lê a tabela HTML do email (incluindo emails encaminhados/FW) e devolve array de serviços
 function parseTableHtml(html) {
+  if (!html) return [];
   const $ = cheerio.load(html);
   const services = [];
 
   $('table').each((_, table) => {
+    // Ignorar tabelas de assinatura/layout (poucas colunas ou sem texto de cabeçalho relevante)
     const headerCells = $(table).find('tr').first().find('th, td');
+    if (headerCells.length < 3) return;
+
     const headers = headerCells.map((_, c) => $(c).text().trim().toLowerCase()).get();
 
     const matIdx = headers.findIndex(h => /matr[ií]cula/i.test(h));
@@ -44,6 +49,7 @@ function parseTableHtml(html) {
 
     $(table).find('tr').slice(1).each((_, row) => {
       const cells = $(row).find('td').map((_, c) => $(c).text().trim()).get();
+      if (cells.length < 2) return;
       const mat = cells[matIdx]?.replace(/\s/g, '').toUpperCase();
       if (!mat || mat.length < 4) return;
 
@@ -157,71 +163,109 @@ function fetchUnseenEmails() {
   });
 }
 
-exports.handler = async () => {
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
+
+async function runPoller() {
   console.log('🔄 Mycar Gmail Poller: início');
 
+  const emails = await fetchUnseenEmails();
+
+  if (emails.length === 0) {
+    console.log('📭 Sem emails novos');
+    return { processed: 0, emails: 0 };
+  }
+
+  const client = await pool.connect();
   try {
-    const emails = await fetchUnseenEmails();
+    await ensureTable(client);
+    const portalId = await getMycaPortalId(client);
+    let totalImported = 0;
 
-    if (emails.length === 0) {
-      console.log('📭 Sem emails novos');
-      return { statusCode: 200, body: JSON.stringify({ success: true, processed: 0 }) };
-    }
+    for (const email of emails) {
+      const subject  = email.subject || '';
+      const from     = email.from?.text || '';
+      const date     = email.date || new Date();
+      const html     = email.html || '';
+      const wip      = extractWip(subject);
 
-    const client = await pool.connect();
-    try {
-      await ensureTable(client);
-      const portalId = await getMycaPortalId(client);
-      let totalImported = 0;
+      const services = html ? parseTableHtml(html) : [];
 
-      for (const email of emails) {
-        const subject  = email.subject || '';
-        const from     = email.from?.text || '';
-        const date     = email.date || new Date();
-        const html     = email.html || '';
-        const wip      = extractWip(subject); // ex: "WIP: 61336"
+      if (services.length === 0) {
+        console.log(`⏭️ Sem tabela de serviços em: "${subject}"`);
+        continue;
+      }
 
-        // Só processar emails que têm tabela com matrícula
-        const services = html ? parseTableHtml(html) : [];
-
-        if (services.length === 0) {
-          console.log(`⏭️ Sem tabela de serviços em: "${subject}"`);
+      for (const svc of services) {
+        const { rows: existing } = await client.query(
+          `SELECT id FROM mycar_services WHERE matricula = $1 AND email_subject = $2 LIMIT 1`,
+          [svc.matricula, subject]
+        );
+        if (existing.length > 0) {
+          console.log(`⏭️ Duplicado ignorado: ${svc.matricula} / "${subject}"`);
           continue;
         }
 
-        for (const svc of services) {
-          // Evitar duplicados: mesma matrícula + mesmo assunto
-          const { rows: existing } = await client.query(
-            `SELECT id FROM mycar_services WHERE matricula = $1 AND email_subject = $2 LIMIT 1`,
-            [svc.matricula, subject]
-          );
-          if (existing.length > 0) {
-            console.log(`⏭️ Duplicado ignorado: ${svc.matricula} / "${subject}"`);
-            continue;
-          }
-
-          await client.query(
-            `INSERT INTO mycar_services
-               (matricula, descricao, valor, eurocode, status,
-                email_from, email_subject, email_received_at, portal_id, notas)
-             VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9)`,
-            [svc.matricula, svc.descricao, svc.valor, svc.eurocode,
-             from, subject, date, portalId, wip]
-          );
-          totalImported++;
-          console.log(`✅ Importado: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
-        }
+        await client.query(
+          `INSERT INTO mycar_services
+             (matricula, descricao, valor, eurocode, status,
+              email_from, email_subject, email_received_at, portal_id, notas)
+           VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9)`,
+          [svc.matricula, svc.descricao, svc.valor, svc.eurocode,
+           from, subject, date, portalId, wip]
+        );
+        totalImported++;
+        console.log(`✅ Importado: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
       }
-
-      console.log(`📊 Total: ${totalImported} serviço(s) de ${emails.length} email(s)`);
-      return { statusCode: 200, body: JSON.stringify({ success: true, processed: totalImported, emails: emails.length }) };
-
-    } finally {
-      client.release();
     }
 
-  } catch (error) {
-    console.error('❌ Erro mycar-gmail-poller:', error.message);
-    return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) };
+    console.log(`📊 Total: ${totalImported} serviço(s) de ${emails.length} email(s)`);
+    return { processed: totalImported, emails: emails.length };
+
+  } finally {
+    client.release();
   }
+}
+
+exports.handler = async (event) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json'
+  };
+
+  // Scheduled invocation (no httpMethod)
+  if (!event || !event.httpMethod) {
+    try {
+      const result = await runPoller();
+      return { statusCode: 200, body: JSON.stringify({ success: true, ...result }) };
+    } catch (error) {
+      console.error('❌ Erro mycar-gmail-poller:', error.message);
+      return { statusCode: 500, body: JSON.stringify({ success: false, error: error.message }) };
+    }
+  }
+
+  if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+
+  if (event.httpMethod === 'POST') {
+    // Require JWT auth
+    try {
+      const authHeader = event.headers.authorization || event.headers.Authorization || '';
+      if (!authHeader.startsWith('Bearer ')) throw new Error('Não autenticado');
+      jwt.verify(authHeader.substring(7), JWT_SECRET);
+    } catch {
+      return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Não autenticado' }) };
+    }
+
+    try {
+      const result = await runPoller();
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, ...result }) };
+    } catch (error) {
+      console.error('❌ Erro mycar-gmail-poller:', error.message);
+      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+    }
+  }
+
+  return { statusCode: 405, headers, body: JSON.stringify({ success: false, error: 'Método não permitido' }) };
 };

@@ -147,6 +147,8 @@
     }
     .btn-primary { background: var(--blue); color: white; }
     .btn-primary:hover { background: var(--blue-d); }
+    .btn-secondary { background: #f1f5f9; color: var(--text-s); border: 1px solid #cbd5e1; }
+    .btn-secondary:hover { background: #e2e8f0; }
     .btn-success { background: var(--green); color: white; }
     .btn-success:hover { background: #15803d; }
     .btn-warning { background: var(--orange); color: white; }
@@ -528,6 +530,10 @@
       <option value="tratado">Tratado</option>
       <option value="rejeitado">Rejeitado</option>
     </select>
+    <button class="btn btn-secondary" id="check-email-btn" onclick="checkEmail()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      Verificar Email
+    </button>
     <button class="btn btn-primary" onclick="openImport()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Importar Email
@@ -904,6 +910,36 @@ async function saveObsTecnico(id) {
 }
 
 // ─── IMPORT MODAL ─────────────────────────────────────────────────────────────
+async function checkEmail() {
+  const btn = document.getElementById('check-email-btn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> A verificar…';
+
+  try {
+    const token = localStorage.getItem('eg_auth_token');
+    const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    if (data.success) {
+      const msg = data.processed > 0
+        ? `✅ ${data.processed} serviço(s) importado(s)!`
+        : '📭 Sem emails novos';
+      toast(msg);
+      if (data.processed > 0) await loadServices();
+    } else {
+      toast('❌ ' + (data.error || 'Erro ao verificar email'));
+    }
+  } catch (e) {
+    toast('❌ Erro: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
 function openImport() {
   document.getElementById('import-modal').classList.add('open');
   document.getElementById('parse-preview').style.display = 'none';
