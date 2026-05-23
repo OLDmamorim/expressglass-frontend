@@ -14,4 +14,7 @@
 
 [functions."mycar-gmail-poller"]
   node_bundler = "zisi"
+
+[functions."mycar-poller-cron"]
+  node_bundler = "zisi"
   schedule = "*/15 * * * *"
