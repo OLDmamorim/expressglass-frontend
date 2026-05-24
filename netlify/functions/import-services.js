@@ -41,6 +41,12 @@ exports.handler = async (event) => {
 
     const results = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] };
 
+    // Garantir colunas car e n_obra em mycar_services
+    try {
+      await pool.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS car TEXT`);
+      await pool.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
+    } catch(e) { console.warn('Migration mycar_services warning:', e.message); }
+
     for (const svc of services) {
       try {
         if (!svc.portal_id || !svc.plate) {
@@ -93,6 +99,11 @@ exports.handler = async (event) => {
           if (svc.damage_details) {
             updateFields.push(`damage_details = $${idx++}`);
             updateVals.push(svc.damage_details);
+          }
+          // Actualizar n_obra se Excel tem valor
+          if (svc.n_obra) {
+            updateFields.push(`n_obra = $${idx++}`);
+            updateVals.push(svc.n_obra);
           }
 
           // Se NÃO está na agenda mas Excel tem data → colocar na agenda
@@ -167,6 +178,26 @@ exports.handler = async (event) => {
 
           results.created++;
           results.details.push({ plate: svc.plate, portal_id: svc.portal_id, status: 'created' });
+        }
+
+        // Atualizar mycar_services com car e n_obra se a matrícula constar no mural
+        if (svc.car || svc.n_obra) {
+          const myCols = [];
+          const myVals = [];
+          let myIdx = 1;
+          if (svc.car) { myCols.push(`car = $${myIdx++}`); myVals.push(svc.car); }
+          if (svc.n_obra) { myCols.push(`n_obra = $${myIdx++}`); myVals.push(svc.n_obra); }
+          myCols.push(`updated_at = $${myIdx++}`);
+          myVals.push(new Date().toISOString());
+          myVals.push(String(svc.plate).replace(/[^A-Z0-9]/gi, '').toUpperCase());
+          try {
+            await pool.query(
+              `UPDATE mycar_services
+               SET ${myCols.join(', ')}
+               WHERE UPPER(REGEXP_REPLACE(matricula, '[^A-Z0-9]', '', 'g')) = $${myIdx}`,
+              myVals
+            );
+          } catch(e) { console.warn('mycar_services update warning:', e.message); }
         }
 
       } catch (err) {
