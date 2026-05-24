@@ -1066,6 +1066,7 @@ async function startSync() {
   if (!confirm('🔄 SINCRONIZAR COM EXCEL\n\nO que vai acontecer:\n✅ Cria os serviços que faltam\n✅ Move para agenda os que têm hora\n🗑️ Apaga os pendentes (sem data) que não estão no Excel\n🔒 Nunca toca nos já agendados (com data)\n\nTens a certeza?')) return;
 
   const nmdosCol = importHeaders.findIndex(h => h.toLowerCase() === 'nmdos');
+  const obraCol  = importHeaders.findIndex(h => h.toLowerCase() === 'obrano');
   const plateCol = importHeaders.findIndex(h => h.toLowerCase() === 'matricula');
   const marcaCol = importHeaders.findIndex(h => h.toLowerCase() === 'marca');
   const modeloCol = importHeaders.findIndex(h => h.toLowerCase() === 'modelo');
@@ -1120,6 +1121,7 @@ async function startSync() {
     const segurado = seguradoCol >= 0 && row[seguradoCol] ? String(row[seguradoCol]).trim() : '';
     const obs = obsCol >= 0 && row[obsCol] ? String(row[obsCol]).trim() : '';
     const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
+    const n_obra = obraCol >= 0 && row[obraCol] ? String(row[obraCol]).trim() : null;
     const createdAt = dataObraCol >= 0 ? excelDateToISO(row[dataObraCol]) : null;
 
     // ✅ MAPEAMENTO CORRECTO (confirmado com utilizador):
@@ -1146,7 +1148,8 @@ async function startSync() {
       portal_id: portalInfo.id, plate, car, service: 'PB',
       notes, extra, client_name, phone, status: 'NE', createdAt,
       date: scheduleDate || null, period: schedulePeriod || null,
-      confirmed: false  // sempre pré-agendamento ao importar do Excel
+      confirmed: false,  // sempre pré-agendamento ao importar do Excel
+      n_obra: n_obra || null
     });
   });
 
