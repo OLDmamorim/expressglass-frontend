@@ -34,6 +34,11 @@ exports.handler = async (event) => {
   }
 
   try {
+    // Ensure n_obra column exists (migration guard)
+    try {
+      await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
+    } catch(e) { console.warn('Migration n_obra warning:', e.message); }
+
     const { portal_id, services } = JSON.parse(event.body || '{}');
 
     if (!portal_id || !Array.isArray(services)) {
