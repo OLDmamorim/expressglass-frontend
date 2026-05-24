@@ -75,6 +75,7 @@ class ProcessadorPersonalizado {
 
   async processarLinha(row, numeroLinha) {
     const matricula   = row[8]  || '';
+    const nObra       = (row[2]  || '').toString().trim() || null;
     const marca       = (row[11] || '').trim();
     const modelo      = (row[12] || '').trim();
     // ✅ CORRECÇÃO: Obs (col J, índice 9) → Eurocode; Segurado (col K, índice 10) → Observações
@@ -161,6 +162,7 @@ class ProcessadorPersonalizado {
       confirmed:     false,
       km:            null,
       sortIndex:     1,
+      n_obra:        nObra,
       createdAt:     dataCriacao,
       importedAt:    new Date().toISOString(),
       importedFrom:  'excel_personalizado'
