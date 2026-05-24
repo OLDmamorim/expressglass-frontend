@@ -878,6 +878,7 @@ function analyzeDistribution() {
 
 async function startImport() {
   const nmdosCol = importHeaders.findIndex(h => h.toLowerCase() === 'nmdos');
+  const obraCol  = importHeaders.findIndex(h => h.toLowerCase() === 'obrano');
   const plateCol = importHeaders.findIndex(h => h.toLowerCase() === 'matricula');
   const marcaCol = importHeaders.findIndex(h => h.toLowerCase() === 'marca');
   const modeloCol = importHeaders.findIndex(h => h.toLowerCase() === 'modelo');
@@ -952,6 +953,7 @@ async function startImport() {
     const phone = phoneCol >= 0 && row[phoneCol] ? String(row[phoneCol]).trim() : '';
     const email = emailCol >= 0 && row[emailCol] ? String(row[emailCol]).trim() : '';
     const eurocode = eurocodeCol >= 0 && row[eurocodeCol] ? String(row[eurocodeCol]).trim() : '';
+    const n_obra = obraCol >= 0 && row[obraCol] ? String(row[obraCol]).trim() : null;
 
     // ✅ MAPEAMENTO CORRECTO (confirmado com utilizador):
     // Nome do cliente (DB: client_name) → col K - Segurado
@@ -991,7 +993,8 @@ async function startImport() {
       createdAt,
       date: scheduleDate || null,
       period: schedulePeriod || null,
-      confirmed: false  // sempre pré-agendamento ao importar do Excel
+      confirmed: false,  // sempre pré-agendamento ao importar do Excel
+      n_obra: n_obra || null
     });
   });
 
