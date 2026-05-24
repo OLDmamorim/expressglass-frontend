@@ -2288,6 +2288,7 @@ function editAppointment(id) {
   document.getElementById('appointmentAddress').value = appointment.address || '';
   document.getElementById('appointmentPhone').value = appointment.phone || '';
   if (document.getElementById('appointmentClientName')) document.getElementById('appointmentClientName').value = appointment.client_name || '';
+  if (document.getElementById('appointmentNObra')) document.getElementById('appointmentNObra').value = appointment.n_obra || '';
   // Parse extra field (may be JSON with eurocode + photo_url + history)
   let _extraParsed = null;
   if (appointment.extra) {
@@ -2584,7 +2585,7 @@ function buildDesktopCard(a){
     <div class="appointment desk-card${needsLoc}${isPreAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar} ${glassRemovedBorderStyle}">
-      <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
+      <div class="dc-title"><span class="dc-title-text">${plate}</span>${a.n_obra ? `<span style="font-size:11px;font-weight:600;color:#6b7280;margin-left:6px;">📋 ${a.n_obra}</span>` : ''}</div>
       <div class="dc-meta" data-ms-patched="1">
         ${getAllServices(a).map(s => `<span class="dc-badge">${s.service||''}</span>`).join('')}
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}

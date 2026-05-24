@@ -69,6 +69,9 @@ class ExpressglassFileProcessor {
     
     // Matrícula (coluna 8)
     result.plate = this.formatPlate(row[8] || '');
+
+    // Nº de obra/ficha (coluna 2)
+    result.n_obra = (row[2] || '').toString().trim() || null;
     
     // Carro - combinar Marca + Modelo (colunas 11 e 12)
     const marca = (row[11] || '').trim();

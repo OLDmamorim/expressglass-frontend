@@ -136,9 +136,9 @@ exports.handler = async (event) => {
             `INSERT INTO appointments (
               date, period, plate, car, service, locality, status,
               notes, address, extra, phone, km, sortIndex, "glassOrdered",
-              auto_imported, confirmed, damage_details, portal_id, created_at, updated_at
+              auto_imported, confirmed, damage_details, n_obra, portal_id, created_at, updated_at
             ) VALUES (
-              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
+              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
             ) RETURNING id`,
             [
               svc.date || null,
@@ -158,6 +158,7 @@ exports.handler = async (event) => {
               hasAutoDate,    // auto_imported
               false,          // confirmed
               svc.damage_details || null,
+              svc.n_obra || null,
               svc.portal_id,
               svc.createdAt || new Date().toISOString(),
               new Date().toISOString()

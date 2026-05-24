@@ -1010,6 +1010,7 @@ function bootApp() {
         : null,
       client_name: (document.getElementById('appointmentClientName')?.value || '').trim() || null,
       damage_details: (document.getElementById('appointmentDamageDetails')?.value || '').trim() || null,
+      n_obra: (document.getElementById('appointmentNObra')?.value || '').trim() || null,
       custom_service_time: document.getElementById('appointmentService')?.value === 'OUT'
         ? (parseInt(document.getElementById('appointmentCustomTime')?.value) || null)
         : null,
