@@ -146,7 +146,7 @@ const telBtn = phone ? `
         ${wazeBtn}${mapsBtn}${telBtn}
       </div>
       <div style="${iconPadding}">
-        <div class="m-title"><span class="m-title-text">${plate}</span></div>
+        <div class="m-title"><span class="m-title-text">${plate}</span>${a.n_obra ? `<span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);margin-left:6px;">📋 ${a.n_obra}</span>` : ''}</div>
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips" data-ms-patched="1">${chips}</div>` : ''}
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
