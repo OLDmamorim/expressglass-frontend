@@ -76,12 +76,20 @@
         while (i < g.length && i < ec.length && g[i] === ec[i]) i++;
         return i >= 10 && /^\d{4}/.test(g);
       };
-      if (!eurocodes.some(matches)) return;
+
+      // Determine which guide contains the matching eurocode
+      let matchedGuideKey = null;
+      if (guides.today?.eurocodes?.map(e => e.toUpperCase()).some(matches)) {
+        matchedGuideKey = 'today';
+      } else if (guides.tomorrow?.eurocodes?.map(e => e.toUpperCase()).some(matches)) {
+        matchedGuideKey = 'tomorrow';
+      }
+      if (!matchedGuideKey) return;
 
       const badge = document.createElement('button');
       badge.className = 'guia-at-badge';
       badge.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1V2l-2 1-2-1-2 1-2-1-2 1-2-1z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg> Guia AT';
-      badge.onclick = (e) => { e.stopPropagation(); openViewer(); };
+      badge.onclick = (e) => { e.stopPropagation(); openViewer(matchedGuideKey); };
       badge.classList.add('guia-at-badge--inline');
       const chipsRow = card.querySelector('.m-chips');
       const kmRow = card.querySelector('[data-km-row]');
@@ -122,9 +130,8 @@
     return { url: URL.createObjectURL(new Blob([arr], { type: ft })), type: ft };
   }
 
-  function openViewer() {
-    // Prefer today's guide for viewing; fall back to tomorrow's
-    todayGuide = guides.today || guides.tomorrow;
+  function openViewer(whichGuide) {
+    todayGuide = (whichGuide && guides[whichGuide]) || guides.today || guides.tomorrow;
     if (!todayGuide?.pdf_data) return;
     const { url, type } = makeGuideUrl();
 
