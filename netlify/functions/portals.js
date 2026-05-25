@@ -218,6 +218,17 @@ exports.handler = async (event) => {
       };
     }
 
+    // ---------- PATCH - Aplicar matrícula a todos os portais SM ----------
+    if (event.httpMethod === 'PATCH') {
+      const data = JSON.parse(event.body || '{}');
+      const vp = (data.vehicle_plate || '').trim().toUpperCase().replace(/\s/g, '') || null;
+      const { rowCount } = await pool.query(
+        `UPDATE portals SET vehicle_plate = $1, updated_at = $2 WHERE COALESCE(portal_type, 'sm') NOT IN ('loja', 'mycar')`,
+        [vp, new Date().toISOString()]
+      );
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, updated: rowCount }) };
+    }
+
     // ---------- DELETE - Eliminar portal ----------
     if (event.httpMethod === 'DELETE') {
       const id = (event.path || '').split('/').pop();
