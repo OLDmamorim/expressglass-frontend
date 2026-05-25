@@ -24,7 +24,8 @@
     // Extrai apenas o código puro (4 dígitos + letras), ignorando texto extra
     function cleanEc(raw) {
       if (!raw) return '';
-      const m = String(raw).trim().toUpperCase().match(/^(\d{4}[A-Z]{3,}[0-9A-Z]*)/);
+      const stripped = String(raw).trim().toUpperCase().replace(/^[^A-Z0-9]+/, '');
+      const m = stripped.match(/^(\d{4}[A-Z]{3,}[0-9A-Z]*)/);
       return m ? m[1] : '';
     }
     if (appt.extra) {
