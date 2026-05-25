@@ -103,7 +103,7 @@ exports.handler = async (event) => {
 
     const query = `
       SELECT u.id, u.username, u.password_hash, u.portal_id, u.role,
-             p.name as portal_name, p.departure_address, p.localities, p.portal_type
+             p.name as portal_name, p.departure_address, p.localities, p.portal_type, p.vehicle_plate
       FROM users u
       LEFT JOIN portals p ON u.portal_id = p.id
       WHERE u.username = $1
@@ -138,7 +138,7 @@ exports.handler = async (event) => {
     let multiPortals = [];
     if (user.role === 'coordenador' || user.role === 'comercial') {
       const cp = await pool.query(`
-        SELECT p.id, p.name, p.departure_address, p.localities, p.portal_type
+        SELECT p.id, p.name, p.departure_address, p.localities, p.portal_type, p.vehicle_plate
         FROM coordinator_portals cp
         JOIN portals p ON cp.portal_id = p.id
         WHERE cp.user_id = $1
@@ -150,7 +150,8 @@ exports.handler = async (event) => {
         name: p.name,
         departureAddress: p.departure_address,
         localities: p.localities,
-        portalType: p.portal_type || 'sm'
+        portalType: p.portal_type || 'sm',
+        vehiclePlate: p.vehicle_plate || null
       }));
 
       tokenPayload.portalIds = multiPortals.map(p => p.id);
@@ -160,7 +161,7 @@ exports.handler = async (event) => {
     let consultablePortals = [];
     if (user.role === 'coordenador') {
       const consult = await pool.query(`
-        SELECT p.id, p.name, p.departure_address, p.localities, p.portal_type
+        SELECT p.id, p.name, p.departure_address, p.localities, p.portal_type, p.vehicle_plate
         FROM consultable_portals cpc
         JOIN portals p ON cpc.portal_id = p.id
         WHERE cpc.user_id = $1
@@ -173,6 +174,7 @@ exports.handler = async (event) => {
         departureAddress: p.departure_address,
         localities: p.localities,
         portalType: p.portal_type || 'sm',
+        vehiclePlate: p.vehicle_plate || null,
         readOnly: true
       }));
 
@@ -192,7 +194,8 @@ exports.handler = async (event) => {
         name: user.portal_name,
         departureAddress: user.departure_address,
         localities: user.localities,
-        portalType: user.portal_type || 'sm'
+        portalType: user.portal_type || 'sm',
+        vehiclePlate: user.vehicle_plate || null
       } : (multiPortals.length > 0 ? multiPortals[0] : null)
     };
 
