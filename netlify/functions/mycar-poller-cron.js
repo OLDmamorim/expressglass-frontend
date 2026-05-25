@@ -34,6 +34,10 @@ function parseValor(str) {
   return isNaN(v) ? null : v;
 }
 
+// Portuguese plate: AA-##-AA (current), ##-AA-## or ##-##-AA (older)
+const PLATE_RX = /^[A-Z]{2}-\d{2}-[A-Z]{2}$|^\d{2}-[A-Z]{2}-\d{2}$|^\d{2}-\d{2}-[A-Z]{2}$/i;
+const EUROCODE_RX = /\b\d{4}[A-Z]{3,}[0-9A-Z]*\b/i;
+
 function parseTableHtml(html) {
   if (!html) return [];
   const $ = cheerio.load(html);
@@ -53,28 +57,53 @@ function parseTableHtml(html) {
       }
     });
 
-    if (headerRowIdx < 0) return;
+    if (headerRowIdx >= 0) {
+      // Standard parsing with header row
+      const matIdx = headers.findIndex(h => /matr[ií]cula/i.test(h));
+      const svcIdx = headers.findIndex(h => /servi[çc]o|descri[çc][aã]o/i.test(h));
+      const valIdx = headers.findIndex(h => /valor/i.test(h));
+      const neIdx  = headers.findIndex(h => /^ne$/i.test(h));
+      const notIdx = headers.findIndex(h => /notas?/i.test(h));
 
-    const matIdx = headers.findIndex(h => /matr[ií]cula/i.test(h));
-    const svcIdx = headers.findIndex(h => /servi[çc]o|descri[çc][aã]o/i.test(h));
-    const valIdx = headers.findIndex(h => /valor/i.test(h));
-    const neIdx  = headers.findIndex(h => /^ne$/i.test(h));
-    const notIdx = headers.findIndex(h => /notas?/i.test(h));
+      $rows.slice(headerRowIdx + 1).each((_, row) => {
+        const cells = $(row).find('td').map((_, c) => $(c).text().trim()).get();
+        if (cells.length < 2) return;
+        const mat = cells[matIdx]?.replace(/\s/g, '').toUpperCase();
+        if (!mat || mat.length < 4) return;
 
-    $rows.slice(headerRowIdx + 1).each((_, row) => {
-      const cells = $(row).find('td').map((_, c) => $(c).text().trim()).get();
-      if (cells.length < 2) return;
-      const mat = cells[matIdx]?.replace(/\s/g, '').toUpperCase();
-      if (!mat || mat.length < 4) return;
-
-      services.push({
-        matricula: mat,
-        descricao: svcIdx >= 0 ? (cells[svcIdx] || null) : null,
-        valor:     valIdx >= 0 ? parseValor(cells[valIdx]) : null,
-        eurocode:  notIdx >= 0 ? (cells[notIdx] || null) : null,
-        ne:        neIdx  >= 0 ? (cells[neIdx]  || null) : null,
+        services.push({
+          matricula: mat,
+          descricao: svcIdx >= 0 ? (cells[svcIdx] || null) : null,
+          valor:     valIdx >= 0 ? parseValor(cells[valIdx]) : null,
+          eurocode:  notIdx >= 0 ? (cells[notIdx] || null) : null,
+          ne:        neIdx  >= 0 ? (cells[neIdx]  || null) : null,
+        });
       });
-    });
+    } else {
+      // Fallback: headerless table — detect plate pattern in first column
+      // Handles emails like BR-42-XN that go straight to data rows without headers
+      $rows.each((_, row) => {
+        const cells = $(row).find('td').map((_, c) => $(c).text().trim()).get();
+        if (cells.length < 2) return;
+        const mat = cells[0]?.replace(/\s/g, '').toUpperCase();
+        if (!mat || !PLATE_RX.test(mat)) return;
+
+        // Columns: [0]=plate, [1]=description, [2]=value, [3..n]=scan for eurocode
+        let eurocode = null;
+        for (let i = 2; i < cells.length; i++) {
+          const m = cells[i]?.toUpperCase().match(EUROCODE_RX);
+          if (m) { eurocode = m[0]; break; }
+        }
+
+        services.push({
+          matricula: mat,
+          descricao: cells[1] || null,
+          valor:     cells.length > 2 ? parseValor(cells[2]) : null,
+          eurocode,
+          ne: null,
+        });
+      });
+    }
   });
 
   return services;
