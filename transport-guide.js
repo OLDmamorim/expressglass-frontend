@@ -89,6 +89,7 @@
       if (chipsRow) {
         chipsRow.appendChild(badge);
       } else if (kmRow) {
+        badge.classList.add('guia-at-badge--km');
         kmRow.appendChild(badge);
       } else if (statusRow) {
         badge.style.margin = '6px 0 4px';

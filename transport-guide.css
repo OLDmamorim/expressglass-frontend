@@ -67,9 +67,9 @@
   align-items: center;
   gap: 4px;
   padding: 4px 9px;
-  background: rgba(255,255,255,0.18);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,0.3);
+  background: #f59e0b;
+  color: #1a1a1a;
+  border: none;
   border-radius: 20px;
   font-size: 10px;
   font-weight: 800;
@@ -78,7 +78,8 @@
   transition: background 0.15s, transform 0.1s;
   white-space: nowrap;
 }
-.guia-at-badge--inline { margin-left: auto; }
+.guia-at-badge--inline { }
+.guia-at-badge--km { margin-left: auto; }
 .guia-at-badge--abs {
   position: absolute;
   bottom: 10px;
