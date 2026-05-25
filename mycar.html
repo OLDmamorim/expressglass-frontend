@@ -75,7 +75,7 @@
     .btn-logout:hover { background: rgba(255,255,255,.22); }
 
     /* ─── MAIN LAYOUT ─── */
-    .main { max-width: 1200px; margin: 0 auto; padding: 24px 16px; }
+    .main { max-width: 1600px; margin: 0 auto; padding: 24px 32px; }
 
     /* ─── STATS ─── */
     .stats-grid {
@@ -289,8 +289,8 @@
       border-radius: 16px;
       box-shadow: 0 24px 64px rgba(0,0,0,.25);
       width: 100%;
-      max-width: 680px;
-      max-height: 90vh;
+      max-width: 960px;
+      max-height: 92vh;
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -343,9 +343,9 @@
     }
     .service-meta {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 6px 16px;
-      margin-bottom: 10px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px 20px;
+      margin-bottom: 12px;
     }
     .meta-item { font-size: .82rem; }
     .meta-label { color: var(--gray); font-size: .7rem; text-transform: uppercase; letter-spacing: .4px; }
@@ -383,7 +383,7 @@
     .status-badge.rejeitado   { background: var(--red-l);    color: var(--red); }
 
     /* ─── IMPORT MODAL ─── */
-    .import-modal .modal { max-width: 600px; }
+    .import-modal .modal { max-width: 700px; }
     .tabs {
       display: flex;
       border-bottom: 1px solid var(--border);
@@ -892,17 +892,17 @@ function renderDetailBody(plate) {
           <div class="meta-label">Nº Ficha</div>
           <div class="meta-value" style="font-weight:700">${svc.n_obra}</div>
         </div>` : ''}
-        <div class="meta-item" style="grid-column:1/-1">
+        <div class="meta-item">
           <div class="meta-label">Eurocode</div>
           <div class="meta-value" style="font-family:monospace">${svc.eurocode || '—'}</div>
         </div>
-        ${svc.notas ? `<div class="meta-item" style="grid-column:1/-1">
+        ${svc.notas ? `<div class="meta-item" style="grid-column:span 2">
           <div class="meta-label">OBS</div>
           <div class="meta-value" style="font-family:monospace;font-size:.82rem">${svc.notas}</div>
-        </div>` : ''}
+        </div>` : '<div class="meta-item"></div>'}
         ${svc.email_body ? `<div class="meta-item" style="grid-column:1/-1">
           <div class="meta-label">Corpo do email</div>
-          <div class="meta-value" style="font-size:.78rem;white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;max-height:140px;overflow-y:auto;color:#374151">${svc.email_body.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+          <div class="meta-value" style="font-size:.78rem;white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px;max-height:220px;overflow-y:auto;color:#374151">${svc.email_body.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
         </div>` : ''}
       </div>
       <div class="obs-tecnico-wrap" style="margin-bottom:10px">
