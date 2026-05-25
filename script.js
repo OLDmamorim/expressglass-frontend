@@ -2505,8 +2505,8 @@ function buildDesktopCard(a){
     try { const _p = JSON.parse(_extraDisplay); _extraDisplay = _p.eurocode || ''; } catch(e) {}
   }
   const sub = loja
-    ? [clientNameStr, _extraDisplay, a.notes].filter(Boolean).join(' | ')
-    : [a.locality, clientNameStr, _extraDisplay, a.notes].filter(Boolean).join(' | ');
+    ? [clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ')
+    : [a.locality, clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
   // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
@@ -2585,7 +2585,7 @@ function buildDesktopCard(a){
     <div class="appointment desk-card${needsLoc}${isPreAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar} ${glassRemovedBorderStyle}">
-      <div class="dc-title"><span class="dc-title-text">${plate}</span>${a.n_obra ? `<span style="font-size:11px;font-weight:600;color:#6b7280;margin-left:6px;">FS${a.n_obra}</span>` : ''}</div>
+      <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
       <div class="dc-meta" data-ms-patched="1">
         ${getAllServices(a).map(s => `<span class="dc-badge">${s.service||''}</span>`).join('')}
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}

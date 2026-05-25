@@ -63,7 +63,7 @@ const telBtn = phone ? `
   ].filter(Boolean).join('');
   let _extraDisp = '';
   if (a.extra) { try { _extraDisp = JSON.parse(a.extra).eurocode || ''; } catch(e) { const _m = a.extra.match(/"eurocode"\s*:\s*"([^"]+)"/); _extraDisp = _m ? _m[1] : a.extra; } }
-  const notes = [a.client_name, _extraDisp, a.notes].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
+  const notes = [a.client_name, _extraDisp, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
   const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
@@ -146,7 +146,7 @@ const telBtn = phone ? `
         ${wazeBtn}${mapsBtn}${telBtn}
       </div>
       <div style="${iconPadding}">
-        <div class="m-title"><span class="m-title-text">${plate}</span>${a.n_obra ? `<span style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.75);margin-left:6px;">FS${a.n_obra}</span>` : ''}</div>
+        <div class="m-title"><span class="m-title-text">${plate}</span></div>
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips" data-ms-patched="1">${chips}</div>` : ''}
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
