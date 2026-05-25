@@ -87,9 +87,17 @@
         badge.classList.add('guia-at-badge--inline');
         kmRow.appendChild(badge);
       } else {
-        badge.classList.add('guia-at-badge--abs');
-        card.style.position = 'relative';
-        card.appendChild(badge);
+        // No km row (e.g. card without distance): inject inline before status buttons
+        const statusRow = card.querySelector('.m-status-row');
+        if (statusRow) {
+          badge.classList.add('guia-at-badge--inline');
+          badge.style.margin = '6px 0 4px';
+          statusRow.parentNode.insertBefore(badge, statusRow);
+        } else {
+          badge.classList.add('guia-at-badge--abs');
+          card.style.position = 'relative';
+          card.appendChild(badge);
+        }
       }
     });
   }
