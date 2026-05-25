@@ -89,6 +89,16 @@
 }
 .guia-at-badge:hover { background: rgba(255,255,255,0.28); transform: scale(1.05); }
 .guia-at-badge:active { transform: scale(0.95); }
+.guia-at-badge--sem-guia {
+  background: #dc2626;
+  color: #fff;
+  cursor: default;
+  animation: semGuiaBlink 1s ease-in-out infinite;
+}
+@keyframes semGuiaBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
 
 /* ── Full-screen PDF viewer modal ── */
 #guiaATModal {
