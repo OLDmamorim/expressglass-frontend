@@ -291,6 +291,16 @@ function buildPortalSwitcher(portals, activeId) {
   wrapper.appendChild(label);
   wrapper.appendChild(select);
 
+  // Move the plate badge into the blue switcher bar (right side)
+  let vpEl = document.getElementById('headerVehiclePlate');
+  if (!vpEl) {
+    vpEl = document.createElement('div');
+    vpEl.id = 'headerVehiclePlate';
+    vpEl.style.display = 'none';
+  }
+  vpEl.style.marginLeft = 'auto';
+  wrapper.appendChild(vpEl);
+
   const header = document.querySelector('.page-header');
   if (header && header.nextSibling) {
     header.parentNode.insertBefore(wrapper, header.nextSibling);
