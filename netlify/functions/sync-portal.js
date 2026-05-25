@@ -37,7 +37,9 @@ exports.handler = async (event) => {
     // Ensure n_obra column exists (migration guard)
     try {
       await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
-    } catch(e) { console.warn('Migration n_obra warning:', e.message); }
+      await pool.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS car TEXT`);
+      await pool.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
+    } catch(e) { console.warn('Migration warning:', e.message); }
 
     const { portal_id, services } = JSON.parse(event.body || '{}');
 
@@ -100,26 +102,43 @@ exports.handler = async (event) => {
             );
           }
           results.updated++;
-          continue;
+        } else {
+          // Não existe → criar
+          await pool.query(
+            `INSERT INTO appointments (
+               date, period, plate, car, service, locality, status,
+               notes, extra, phone, client_name, n_obra, km, sortIndex, "glassOrdered",
+               auto_imported, confirmed, portal_id, created_at, updated_at
+             ) VALUES ($1,$2,$3,$4,$5,null,$6,$7,$8,$9,$10,$11,null,1,false,$12,false,$13,$14,$15)`,
+            [
+              svc.date||null, svc.period||null,
+              String(svc.plate).trim(), svc.car||null, svc.service||null,
+              svc.status||'NE', svc.notes||null, svc.extra||null, svc.phone||null,
+              svc.client_name||null, svc.n_obra||null,
+              !!svc.date, portal_id,
+              svc.createdAt||now, now
+            ]
+          );
+          results.created++;
         }
 
-        // Não existe → criar
-        await pool.query(
-          `INSERT INTO appointments (
-             date, period, plate, car, service, locality, status,
-             notes, extra, phone, client_name, n_obra, km, sortIndex, "glassOrdered",
-             auto_imported, confirmed, portal_id, created_at, updated_at
-           ) VALUES ($1,$2,$3,$4,$5,null,$6,$7,$8,$9,$10,$11,null,1,false,$12,false,$13,$14,$15)`,
-          [
-            svc.date||null, svc.period||null,
-            String(svc.plate).trim(), svc.car||null, svc.service||null,
-            svc.status||'NE', svc.notes||null, svc.extra||null, svc.phone||null,
-            svc.client_name||null, svc.n_obra||null,
-            !!svc.date, portal_id,
-            svc.createdAt||now, now
-          ]
-        );
-        results.created++;
+        // Sincronizar car e n_obra no mural mycar_services se a matrícula constar
+        if (svc.car || svc.n_obra) {
+          const myCols = [];
+          const myVals = [];
+          let myIdx = 1;
+          if (svc.car) { myCols.push(`car = $${myIdx++}`); myVals.push(svc.car); }
+          if (svc.n_obra) { myCols.push(`n_obra = $${myIdx++}`); myVals.push(svc.n_obra); }
+          myCols.push(`updated_at = $${myIdx++}`);
+          myVals.push(now);
+          myVals.push(plateNorm);
+          try {
+            await pool.query(
+              `UPDATE mycar_services SET ${myCols.join(', ')} WHERE UPPER(REGEXP_REPLACE(matricula, '[^A-Z0-9]', '', 'g')) = $${myIdx}`,
+              myVals
+            );
+          } catch(e) { console.warn('mycar_services sync warning:', e.message); }
+        }
 
       } catch (err) {
         console.error('Erro svc', svc.plate, err.message);
