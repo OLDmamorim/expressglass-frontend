@@ -275,30 +275,6 @@ function populateNmdosSelect() {
   });
 }
 
-// Mostrar/esconder campos baseado no tipo de portal
-async function applyGlobalPlate() {
-  const plate = document.getElementById('globalVehiclePlate').value.trim().toUpperCase().replace(/\s/g,'');
-  if (!plate) { alert('Preenche a matrícula primeiro.'); return; }
-  const statusEl = document.getElementById('globalPlateStatus');
-  statusEl.style.display = 'none';
-  try {
-    const resp = await authClient.authenticatedFetch('/.netlify/functions/portals', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ vehicle_plate: plate })
-    });
-    const data = await resp.json();
-    if (data.success) {
-      statusEl.textContent = `✓ Aplicado a ${data.updated} portal(ais)`;
-      statusEl.style.display = '';
-      setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
-      loadPortals();
-    } else {
-      alert('Erro: ' + (data.error || 'desconhecido'));
-    }
-  } catch(e) { alert('Erro de rede: ' + e.message); }
-}
-
 function togglePortalTypeFields() {
   const type = document.getElementById('portalType').value;
   const localitiesSection = document.getElementById('localitiesSection');
