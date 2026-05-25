@@ -357,6 +357,7 @@ document.getElementById('portalForm').addEventListener('submit', async (e) => {
   const portalType = document.getElementById('portalType').value;
   
   const portalData = {
+    id: editingPortalId || undefined,
     name,
     departure_address: address,
     localities: {},

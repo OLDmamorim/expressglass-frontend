@@ -142,8 +142,10 @@ exports.handler = async (event) => {
 
     // ---------- PUT - Atualizar portal ----------
     if (event.httpMethod === 'PUT') {
-      const id = (event.path || '').split('/').pop();
       const data = JSON.parse(event.body || '{}');
+      // ID from body (reliable) or fallback to last path segment
+      const pathId = (event.path || '').split('/').filter(Boolean).pop();
+      const id = (data.id && parseInt(data.id)) || pathId;
 
       // Validar localities
       let localities = data.localities;
@@ -216,17 +218,6 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({ success: true, data: rows[0] })
       };
-    }
-
-    // ---------- PATCH - Aplicar matrícula a todos os portais SM ----------
-    if (event.httpMethod === 'PATCH') {
-      const data = JSON.parse(event.body || '{}');
-      const vp = (data.vehicle_plate || '').trim().toUpperCase().replace(/\s/g, '') || null;
-      const { rowCount } = await pool.query(
-        `UPDATE portals SET vehicle_plate = $1, updated_at = $2 WHERE COALESCE(portal_type, 'sm') NOT IN ('loja', 'mycar')`,
-        [vp, new Date().toISOString()]
-      );
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, updated: rowCount }) };
     }
 
     // ---------- DELETE - Eliminar portal ----------
