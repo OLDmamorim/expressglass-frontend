@@ -41,6 +41,15 @@
         <h2>Gestão de Portais</h2>
         <button id="addPortalBtn" class="btn-primary">+ Novo Portal</button>
       </div>
+
+      <!-- Matrícula global SM -->
+      <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:.88rem;font-weight:700;color:#1e40af">🚐 Matrícula SM (todos os portais)</span>
+        <input type="text" id="globalVehiclePlate" placeholder="Ex: BR-42-XN" maxlength="10"
+          style="text-transform:uppercase;letter-spacing:2px;font-weight:700;font-family:monospace;padding:6px 10px;border:1.5px solid #93c5fd;border-radius:7px;font-size:.9rem;width:130px;outline:none">
+        <button onclick="applyGlobalPlate()" class="btn-primary" style="padding:6px 16px;font-size:.85rem">Aplicar a todos os SMs</button>
+        <span id="globalPlateStatus" style="font-size:.82rem;color:#16a34a;display:none">✓ Guardado</span>
+      </div>
       <div class="table-container">
         <table class="data-table">
           <thead>
