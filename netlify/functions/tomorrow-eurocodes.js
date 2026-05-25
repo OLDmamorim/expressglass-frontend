@@ -10,15 +10,25 @@ function getUserFromToken(event) {
   return jwt.verify(auth.substring(7), JWT_SECRET);
 }
 
-function extractEurocode(extra) {
-  if (!extra) return null;
-  try {
-    const ec = (JSON.parse(extra).eurocode || '').trim().toUpperCase();
-    return ec || null;
-  } catch {
-    const ec = extra.trim().toUpperCase();
-    return ec || null;
+const EC_RX = /\b\d{4}[A-Z]{3,}[0-9A-Z]*/i;
+
+function extractEurocode(extra, notes) {
+  if (extra) {
+    try {
+      const ec = (JSON.parse(extra).eurocode || '').trim().toUpperCase();
+      if (ec) return ec;
+    } catch {
+      const m = extra.match(EC_RX);
+      if (m) return m[0].toUpperCase();
+      const t = extra.trim().toUpperCase();
+      if (t) return t;
+    }
   }
+  if (notes) {
+    const m = notes.match(EC_RX);
+    if (m) return m[0].toUpperCase();
+  }
+  return null;
 }
 
 exports.handler = async (event) => {
@@ -47,25 +57,31 @@ exports.handler = async (event) => {
     if (user.role === 'admin' && !portalId) {
       // Admin sem portal específico — mostra todos os SM
       const res = await client.query(`
-        SELECT a.portal_id, p.name AS portal_name, a.extra, a.plate, a.car
+        SELECT a.portal_id, p.name AS portal_name, a.extra, a.notes, a.plate, a.car
         FROM appointments a
         JOIN portals p ON p.id = a.portal_id
         WHERE a.date::date = (CURRENT_DATE + INTERVAL '1 day')::date
           AND COALESCE(p.portal_type, 'sm') = 'sm'
-          AND a.extra IS NOT NULL AND a.extra != ''
+          AND (
+            (a.extra IS NOT NULL AND a.extra != '')
+            OR (a.notes IS NOT NULL AND a.notes != '')
+          )
         ORDER BY p.name, a.id
       `);
       rows = res.rows;
     } else {
       if (!portalId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Portal não identificado' }) };
       const res = await client.query(`
-        SELECT a.portal_id, p.name AS portal_name, a.extra, a.plate, a.car
+        SELECT a.portal_id, p.name AS portal_name, a.extra, a.notes, a.plate, a.car
         FROM appointments a
         JOIN portals p ON p.id = a.portal_id
         WHERE a.date::date = (CURRENT_DATE + INTERVAL '1 day')::date
           AND a.portal_id = $1
           AND COALESCE(p.portal_type, 'sm') = 'sm'
-          AND a.extra IS NOT NULL AND a.extra != ''
+          AND (
+            (a.extra IS NOT NULL AND a.extra != '')
+            OR (a.notes IS NOT NULL AND a.notes != '')
+          )
         ORDER BY a.id
       `, [portalId]);
       rows = res.rows;
@@ -74,7 +90,7 @@ exports.handler = async (event) => {
     // Group by portal, deduplicate eurocodes
     const byPortal = {};
     for (const row of rows) {
-      const ec = extractEurocode(row.extra);
+      const ec = extractEurocode(row.extra, row.notes);
       if (!ec) continue;
       if (!byPortal[row.portal_id]) {
         byPortal[row.portal_id] = { portal_id: row.portal_id, portal_name: row.portal_name, eurocodes: [] };
