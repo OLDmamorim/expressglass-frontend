@@ -398,6 +398,14 @@
       // Fallback: if portalReady never fires (e.g. single-portal user path), run after 3s
       setTimeout(_runInit, 3000);
     }
+    // Always re-fetch guides when portal changes (handles race: 3s fallback fired before portalReady)
+    window.addEventListener('portalReady', () => {
+      if (_initDone) {
+        refreshGuides().then(() => {
+          if (guides.today || guides.tomorrow) scheduleInject();
+        }).catch(() => {});
+      }
+    });
   }
 
   if (document.readyState === 'loading') {
