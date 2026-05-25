@@ -66,8 +66,16 @@
       const appt = appts.find(a => String(a.id) === card.dataset.id);
       if (!appt) return;
       const ec = getEurocode(appt);
-      // Guide codes may have extra suffix (e.g. "6564AGNVZPBL" from pdf-parse table concat)
-      if (!ec || !eurocodes.some(g => g === ec || g.startsWith(ec) || ec.startsWith(g))) return;
+      if (!ec) return;
+      const matches = (g) => {
+        if (!g) return false;
+        if (g === ec || g.startsWith(ec) || ec.startsWith(g)) return true;
+        // Common-prefix fallback: handles PDF table-concat artifacts (e.g. guide has "2485AGACMVZ2PBL" vs appt "2485AGACMVZ2L")
+        let i = 0;
+        while (i < g.length && i < ec.length && g[i] === ec[i]) i++;
+        return i >= 10 && /^\d{4}/.test(g);
+      };
+      if (!eurocodes.some(matches)) return;
 
       const badge = document.createElement('button');
       badge.className = 'guia-at-badge';
