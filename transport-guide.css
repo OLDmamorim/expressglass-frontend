@@ -81,9 +81,9 @@
 .guia-at-badge--inline { margin-left: auto; }
 .guia-at-badge--abs {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
-  z-index: 5;
+  bottom: 10px;
+  right: 52px;
+  z-index: 15;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 .guia-at-badge:hover { background: rgba(255,255,255,0.28); transform: scale(1.05); }

@@ -14,8 +14,16 @@ function getUserFromToken(event) {
 
 function extractEurocodes(text) {
   const upper = text.toUpperCase();
-  const matches = upper.match(/\b\d{4}-?[A-Z]{3,}[0-9A-Z]*\b/g) || [];
-  return [...new Set(matches.map(m => m.replace(/-/g, '')))];
+  const codes = new Set();
+  // Word-first: split on whitespace/punctuation so PDF table columns don't concatenate
+  upper.split(/[\s\/,;|]+/).forEach(token => {
+    const clean = token.replace(/^[^A-Z0-9]+/, '').replace(/[^A-Z0-9]+$/, '');
+    const m = clean.match(/^(\d{4}-?[A-Z]{3,}[0-9A-Z]*)$/);
+    if (m) codes.add(m[1].replace(/-/g, ''));
+  });
+  // Fallback regex for non-whitespace-delimited cases
+  (upper.match(/\b\d{4}-?[A-Z]{3,}[0-9A-Z]*\b/g) || []).forEach(m => codes.add(m.replace(/-/g, '')));
+  return [...codes];
 }
 
 function callAnthropicVision(imageBase64, mimeType) {
