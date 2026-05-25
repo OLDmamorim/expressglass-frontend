@@ -191,8 +191,8 @@
     tbody tr:hover { background: #f0f7ff; }
     tbody tr:last-child { border-bottom: none; }
     td {
-      padding: 12px 14px;
-      font-size: .88rem;
+      padding: 16px 20px;
+      font-size: .9rem;
       vertical-align: middle;
     }
     .plate-cell {
@@ -204,41 +204,41 @@
     .plate-badge {
       display: inline-flex;
       align-items: stretch;
-      border: 2px solid #222;
-      border-radius: 4px;
+      border: 2.5px solid #111;
+      border-radius: 5px;
       overflow: hidden;
       font-family: 'Arial Black', 'Arial Bold', sans-serif;
-      font-size: .88rem;
+      font-size: 1rem;
       font-weight: 900;
-      letter-spacing: 2px;
+      letter-spacing: 2.5px;
       line-height: 1;
-      box-shadow: 0 1px 3px rgba(0,0,0,.18);
+      box-shadow: 0 2px 6px rgba(0,0,0,.2);
     }
     .plate-badge::before {
       content: 'P';
       background: #003399;
       color: #fff;
-      font-size: .62rem;
+      font-size: .65rem;
       font-weight: 700;
       letter-spacing: 0;
-      padding: 2px 5px;
+      padding: 3px 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      min-width: 18px;
+      min-width: 22px;
     }
     .plate-badge-text {
       background: #fff;
       color: #111;
-      padding: 3px 8px;
+      padding: 5px 10px;
       display: flex;
       align-items: center;
     }
     .count-badge {
       display: inline-block;
-      padding: 2px 9px;
+      padding: 4px 12px;
       border-radius: 99px;
-      font-size: .78rem;
+      font-size: .82rem;
       font-weight: 700;
     }
     .badge-pending { background: var(--orange-l); color: var(--orange); }
@@ -497,7 +497,7 @@
       /* Tabela */
       .table-card { overflow-x: hidden; }
       td, thead th { padding: 10px 10px; font-size: .82rem; }
-      .plate-badge { font-size: .78rem; } .plate-badge-text { padding: 2px 5px; letter-spacing: 1px; }
+      .plate-badge { font-size: .82rem; } .plate-badge-text { padding: 3px 7px; letter-spacing: 1px; }
       /* Empty state */
       .empty-state { padding: 40px 16px; }
       .empty-state p { font-size: .88rem; word-break: break-word; }
@@ -806,8 +806,8 @@ function renderTable(groups) {
         <td class="plate-cell">
           <span class="plate-badge"><span class="plate-badge-text">${g.matricula}</span></span>
           ${g.isNew ? '<span class="count-badge badge-new" style="margin-left:6px">Novo</span>' : ''}
-          ${g.car ? `<div style="font-size:.75rem;color:#6b7280;margin-top:3px">${g.car}</div>` : ''}
-          ${g.n_obra ? `<div style="font-size:.75rem;color:#2563eb;font-weight:600;margin-top:2px">FS${g.n_obra}</div>` : ''}
+          ${g.car ? `<div style="font-size:.82rem;color:#374151;font-weight:600;margin-top:5px">${g.car}</div>` : ''}
+          ${g.n_obra ? `<div style="font-size:.8rem;color:#2563eb;font-weight:700;margin-top:2px">FS${g.n_obra}</div>` : ''}
         </td>
         <td class="col-total"><span class="count-badge badge-neutral">${g.services.length}</span></td>
         <td class="col-pend">${pend > 0 ? `<span class="count-badge badge-pending">${pend}</span>` : '<span style="color:#d1d5db">0</span>'}</td>
