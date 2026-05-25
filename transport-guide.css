@@ -91,7 +91,7 @@
 .guia-at-badge:active { transform: scale(0.95); }
 .guia-at-badge--sem-guia {
   background: #dc2626;
-  color: #fff;
+  color: #fff !important;
   cursor: default;
   animation: semGuiaBlink 1s ease-in-out infinite;
 }
