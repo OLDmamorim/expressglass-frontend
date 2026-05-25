@@ -58,10 +58,12 @@
 
   function injectBadges() {
     const eurocodes = allEurocodes();
-    if (!eurocodes.length) return;
     const appts = window.appointments || [];
 
     document.querySelectorAll('.guia-at-badge').forEach(b => b.remove());
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
     document.querySelectorAll('.m-card[data-id], .desk-card[data-id]').forEach(card => {
       const appt = appts.find(a => String(a.id) === card.dataset.id);
@@ -79,18 +81,29 @@
 
       // Determine which guide contains the matching eurocode
       let matchedGuideKey = null;
-      if (guides.today?.eurocodes?.map(e => e.toUpperCase()).some(matches)) {
-        matchedGuideKey = 'today';
-      } else if (guides.tomorrow?.eurocodes?.map(e => e.toUpperCase()).some(matches)) {
-        matchedGuideKey = 'tomorrow';
+      if (eurocodes.length) {
+        if (guides.today?.eurocodes?.map(e => e.toUpperCase()).some(matches)) {
+          matchedGuideKey = 'today';
+        } else if (guides.tomorrow?.eurocodes?.map(e => e.toUpperCase()).some(matches)) {
+          matchedGuideKey = 'tomorrow';
+        }
       }
-      if (!matchedGuideKey) return;
 
-      const badge = document.createElement('button');
-      badge.className = 'guia-at-badge';
-      badge.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1V2l-2 1-2-1-2 1-2-1-2 1-2-1z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg> Guia AT';
-      badge.onclick = (e) => { e.stopPropagation(); openViewer(matchedGuideKey); };
-      badge.classList.add('guia-at-badge--inline');
+      let badge;
+      if (matchedGuideKey) {
+        badge = document.createElement('button');
+        badge.className = 'guia-at-badge guia-at-badge--inline';
+        badge.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1V2l-2 1-2-1-2 1-2-1-2 1-2-1z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg> Guia AT';
+        badge.onclick = (e) => { e.stopPropagation(); openViewer(matchedGuideKey); };
+      } else {
+        // No guide loaded — show blinking red warning only for today and tomorrow
+        const apptDate = appt.date;
+        if (!apptDate || (apptDate !== todayStr && apptDate !== tomorrowStr)) return;
+        badge = document.createElement('span');
+        badge.className = 'guia-at-badge guia-at-badge--sem-guia guia-at-badge--inline';
+        badge.textContent = 'SEM GUIA';
+      }
+
       const chipsRow = card.querySelector('.m-chips');
       const kmRow = card.querySelector('[data-km-row]');
       const statusRow = card.querySelector('.m-status-row');
