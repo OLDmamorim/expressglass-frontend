@@ -282,6 +282,10 @@ function togglePortalTypeFields() {
   if (localitiesSection) {
     localitiesSection.style.display = type === 'loja' ? 'none' : 'block';
   }
+  const vpSection = document.getElementById('vehiclePlateSection');
+  if (vpSection) {
+    vpSection.style.display = (type === 'sm' || type === 'pesados') ? 'block' : 'none';
+  }
 }
 
 // Gestão de localidades - REMOVIDO (308 concelhos automáticos no frontend)
@@ -309,6 +313,7 @@ function editPortal(id) {
   document.getElementById('portalName').value = portal.name;
   document.getElementById('portalAddress').value = portal.departure_address;
   document.getElementById('portalType').value = portal.portal_type || 'sm';
+  document.getElementById('portalVehiclePlate').value = portal.vehicle_plate || '';
 
   populateNmdosSelect();
   document.getElementById('portalNmdos').value = portal.nmdos_code || '';
@@ -358,7 +363,8 @@ document.getElementById('portalForm').addEventListener('submit', async (e) => {
     localities: {},
     nmdos_code: document.getElementById('portalNmdos').value || null,
     powering_loja_id: document.getElementById('portalPoweringLoja')?.value || null,
-    portal_type: portalType
+    portal_type: portalType,
+    vehicle_plate: document.getElementById('portalVehiclePlate').value.trim().toUpperCase() || null
   };
   
   try {

@@ -45,9 +45,11 @@ exports.handler = async (event) => {
 
     // ---------- GET - Listar todos os portais ----------
     if (event.httpMethod === 'GET') {
+      // Ensure vehicle_plate column exists
+      await pool.query(`ALTER TABLE portals ADD COLUMN IF NOT EXISTS vehicle_plate VARCHAR(20)`);
       const query = `
         SELECT id, name, departure_address, localities, nmdos_code, portal_type,
-               powering_loja_id, powering_eg_loja_id,
+               powering_loja_id, powering_eg_loja_id, vehicle_plate,
                last_import_at, created_at, updated_at,
                (SELECT COUNT(*) FROM users WHERE portal_id = portals.id) as user_count,
                (SELECT COUNT(*) FROM appointments
@@ -106,13 +108,14 @@ exports.handler = async (event) => {
       const query = `
         INSERT INTO portals (
           name, departure_address, localities, nmdos_code, portal_type,
-          powering_loja_id, powering_eg_loja_id,
+          powering_loja_id, powering_eg_loja_id, vehicle_plate,
           created_at, updated_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *
       `;
 
+      const vp = (data.vehicle_plate || '').trim().toUpperCase().replace(/\s/g, '') || null;
       const values = [
         data.name.trim(),
         data.departure_address.trim(),
@@ -120,7 +123,8 @@ exports.handler = async (event) => {
         data.nmdos_code || null,
         data.portal_type || 'sm',
         poweringId,
-        poweringId,                     // duplicar nas 2 colunas para compatibilidade
+        poweringId,
+        vp,
         new Date().toISOString(),
         new Date().toISOString()
       ];
@@ -172,11 +176,13 @@ exports.handler = async (event) => {
             portal_type = $5,
             powering_loja_id = $6,
             powering_eg_loja_id = $7,
-            updated_at = $8
-        WHERE id = $9
+            vehicle_plate = $8,
+            updated_at = $9
+        WHERE id = $10
         RETURNING *
       `;
 
+      const vp = (data.vehicle_plate || '').trim().toUpperCase().replace(/\s/g, '') || null;
       const values = [
         data.name?.trim(),
         data.departure_address?.trim(),
@@ -184,7 +190,8 @@ exports.handler = async (event) => {
         data.nmdos_code || null,
         data.portal_type || 'sm',
         poweringId,
-        poweringId,                     // duplicar nas 2 colunas para compatibilidade
+        poweringId,
+        vp,
         new Date().toISOString(),
         id
       ];
