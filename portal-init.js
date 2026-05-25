@@ -48,6 +48,7 @@
             departureAddress: p.departure_address || p.departureAddress,
             localities: p.localities || {},
             portalType: p.portal_type || p.portalType || 'sm',
+            vehiclePlate: p.vehicle_plate || p.vehiclePlate || null,
             base_lat: p.base_lat,
             base_lng: p.base_lng,
             max_daily: p.max_daily || 4
@@ -93,7 +94,8 @@
             name: p.name,
             departureAddress: p.departure_address || p.departureAddress,
             localities: p.localities || {},
-            portalType: p.portal_type || p.portalType || 'sm'
+            portalType: p.portal_type || p.portalType || 'sm',
+            vehiclePlate: p.vehicle_plate || null
           };
         });
 
@@ -180,8 +182,26 @@ function applyPortalConfig(portalConfig) {
     name: portalConfig.name,
     departureAddress: portalConfig.departureAddress,
     localities: portalConfig.localities || {},
-    portalType: portalConfig.portalType || 'sm'
+    portalType: portalConfig.portalType || 'sm',
+    vehiclePlate: portalConfig.vehiclePlate || null
   };
+
+  // Render vehicle plate badge in header (SM/pesados portals only)
+  const vpEl = document.getElementById('headerVehiclePlate');
+  if (vpEl) {
+    const plate = portalConfig.vehiclePlate;
+    const type = portalConfig.portalType || 'sm';
+    if (plate && type !== 'loja' && type !== 'mycar') {
+      vpEl.innerHTML = `
+        <span style="display:inline-flex;align-items:stretch;border:2.5px solid #fff;border-radius:5px;overflow:hidden;font-family:'Arial Black','Arial Bold',sans-serif;font-size:.95rem;font-weight:900;letter-spacing:2.5px;box-shadow:0 2px 8px rgba(0,0,0,.3)">
+          <span style="background:#003399;color:#fff;font-size:.6rem;font-weight:700;letter-spacing:0;padding:3px 5px;display:flex;align-items:center;justify-content:center;min-width:20px">P</span>
+          <span style="background:#fff;color:#111;padding:5px 10px;display:flex;align-items:center">${plate}</span>
+        </span>`;
+      vpEl.style.display = '';
+    } else {
+      vpEl.style.display = 'none';
+    }
+  }
 
   const muralBtn = document.getElementById('mycarMuralBtn');
   if (muralBtn) {
