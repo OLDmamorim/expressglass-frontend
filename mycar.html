@@ -807,6 +807,7 @@ function renderTable(groups) {
           <span class="plate-badge"><span class="plate-badge-text">${g.matricula}</span></span>
           ${g.isNew ? '<span class="count-badge badge-new" style="margin-left:6px">Novo</span>' : ''}
           ${g.car ? `<div style="font-size:.75rem;color:#6b7280;margin-top:3px">${g.car}</div>` : ''}
+          ${g.n_obra ? `<div style="font-size:.75rem;color:#2563eb;font-weight:600;margin-top:2px">FS${g.n_obra}</div>` : ''}
         </td>
         <td class="col-total"><span class="count-badge badge-neutral">${g.services.length}</span></td>
         <td class="col-pend">${pend > 0 ? `<span class="count-badge badge-pending">${pend}</span>` : '<span style="color:#d1d5db">0</span>'}</td>
