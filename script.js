@@ -2665,6 +2665,8 @@ function renderSchedule(){
           .sort((a,b) => {
             if (a.first_of_day && !b.first_of_day) return -1;
             if (!a.first_of_day && b.first_of_day) return 1;
+            if (a.second_of_day && !b.second_of_day) return -1;
+            if (!a.second_of_day && b.second_of_day) return 1;
             return (a.sortIndex||0) - (b.sortIndex||0);
           })
       );
