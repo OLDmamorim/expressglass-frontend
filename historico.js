@@ -4,32 +4,32 @@
 
   // ── Modal HTML ─────────────────────────────────────────────
   const MODAL_HTML = `
-<div id="historicoModal" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.7);align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 0;">
-  <div style="background:#0f172a;border-radius:16px;width:min(98vw,1200px);margin:auto;box-shadow:0 24px 80px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.08);">
+<div id="historicoModal" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.55);align-items:flex-start;justify-content:center;overflow-y:auto;padding:20px 0;">
+  <div style="background:#fff;border-radius:16px;width:min(98vw,1200px);margin:auto;box-shadow:0 24px 80px rgba(0,0,0,0.25);border:1px solid #e2e8f0;">
 
     <!-- Header -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid rgba(255,255,255,0.08);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid #e2e8f0;">
       <div style="display:flex;align-items:center;gap:10px;">
         <span style="font-size:20px;">🕘</span>
-        <span style="color:#f1f5f9;font-size:17px;font-weight:800;">Histórico de Serviços</span>
-        <span id="historicoCount" style="background:rgba(255,255,255,0.1);color:#94a3b8;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;">—</span>
+        <span style="color:#0f172a;font-size:17px;font-weight:800;">Histórico de Serviços</span>
+        <span id="historicoCount" style="background:#f1f5f9;color:#64748b;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;">—</span>
       </div>
-      <button onclick="window.historicoModal.close()" style="background:none;border:none;color:#64748b;font-size:24px;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>
+      <button onclick="window.historicoModal.close()" style="background:none;border:none;color:#94a3b8;font-size:24px;cursor:pointer;line-height:1;padding:0 4px;">&times;</button>
     </div>
 
     <!-- Filters -->
-    <div style="display:flex;flex-wrap:wrap;gap:10px;padding:16px 24px;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.02);">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;padding:16px 24px;border-bottom:1px solid #e2e8f0;background:#f8fafc;">
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">De</label>
-        <input type="date" id="histFilterFrom" style="background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#e2e8f0;font-size:13px;padding:6px 10px;outline:none;" oninput="window.historicoModal.render()">
+        <input type="date" id="histFilterFrom" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#1e293b;font-size:13px;padding:6px 10px;outline:none;" oninput="window.historicoModal.render()">
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Até</label>
-        <input type="date" id="histFilterTo" style="background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#e2e8f0;font-size:13px;padding:6px 10px;outline:none;" oninput="window.historicoModal.render()">
+        <input type="date" id="histFilterTo" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#1e293b;font-size:13px;padding:6px 10px;outline:none;" oninput="window.historicoModal.render()">
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Estado</label>
-        <select id="histFilterStatus" style="background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#e2e8f0;font-size:13px;padding:6px 10px;outline:none;cursor:pointer;" onchange="window.historicoModal.render()">
+        <select id="histFilterStatus" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#1e293b;font-size:13px;padding:6px 10px;outline:none;cursor:pointer;" onchange="window.historicoModal.render()">
           <option value="">Todos</option>
           <option value="realizado">✅ Realizado</option>
           <option value="nao_realizado">❌ Não Realizado</option>
@@ -40,10 +40,10 @@
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px;">
         <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Pesquisar</label>
-        <input type="text" id="histFilterSearch" placeholder="Matrícula, carro, cliente…" style="background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#e2e8f0;font-size:13px;padding:6px 10px;outline:none;width:100%;" oninput="window.historicoModal.render()">
+        <input type="text" id="histFilterSearch" placeholder="Matrícula, carro, cliente…" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#1e293b;font-size:13px;padding:6px 10px;outline:none;width:100%;" oninput="window.historicoModal.render()">
       </div>
       <div style="display:flex;align-items:flex-end;gap:6px;">
-        <button onclick="window.historicoModal.resetFilters()" style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#94a3b8;font-size:12px;font-weight:600;padding:7px 14px;cursor:pointer;">↺ Limpar</button>
+        <button onclick="window.historicoModal.resetFilters()" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#64748b;font-size:12px;font-weight:600;padding:7px 14px;cursor:pointer;">↺ Limpar</button>
       </div>
     </div>
 
@@ -51,28 +51,28 @@
     <div style="overflow-x:auto;max-height:60vh;overflow-y:auto;" id="historicoTableWrap">
       <table style="width:100%;border-collapse:collapse;font-size:13px;" id="historicoTable">
         <thead>
-          <tr style="position:sticky;top:0;background:#0f172a;z-index:1;">
-            <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;" onclick="window.historicoModal.sort('date')" class="hist-th-sort">Data ↕</th>
-            <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.08);white-space:nowrap;">Matrícula</th>
-            <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.08);">Carro</th>
-            <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.08);">Serviço</th>
-            <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.08);">Localidade</th>
-            <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.08);">Cliente</th>
-            <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.08);">Estado</th>
-            <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:1px solid rgba(255,255,255,0.08);">Notas</th>
+          <tr style="position:sticky;top:0;background:#f1f5f9;z-index:1;">
+            <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0;white-space:nowrap;cursor:pointer;" onclick="window.historicoModal.sort('date')">Data ↕</th>
+            <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0;white-space:nowrap;">Matrícula</th>
+            <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0;">Carro</th>
+            <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0;">Serviço</th>
+            <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0;">Localidade</th>
+            <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0;">Cliente</th>
+            <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0;">Estado</th>
+            <th style="padding:10px 12px;text-align:left;color:#475569;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-bottom:2px solid #e2e8f0;">Notas</th>
           </tr>
         </thead>
         <tbody id="historicoTbody"></tbody>
       </table>
-      <div id="historicoEmpty" style="display:none;padding:48px 24px;text-align:center;color:#475569;font-size:14px;">
+      <div id="historicoEmpty" style="display:none;padding:48px 24px;text-align:center;color:#94a3b8;font-size:14px;">
         Nenhum serviço encontrado com os filtros selecionados.
       </div>
     </div>
 
     <!-- Footer -->
-    <div style="display:flex;justify-content:flex-end;padding:14px 24px;border-top:1px solid rgba(255,255,255,0.08);gap:8px;">
-      <button onclick="window.historicoModal.print()" style="display:inline-flex;align-items:center;gap:6px;background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#e2e8f0;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">🖨️ Imprimir</button>
-      <button onclick="window.historicoModal.close()" style="background:#334155;border:none;border-radius:8px;color:#e2e8f0;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">Fechar</button>
+    <div style="display:flex;justify-content:flex-end;padding:14px 24px;border-top:1px solid #e2e8f0;gap:8px;background:#f8fafc;border-radius:0 0 16px 16px;">
+      <button onclick="window.historicoModal.print()" style="display:inline-flex;align-items:center;gap:6px;background:#1e40af;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">🖨️ Imprimir</button>
+      <button onclick="window.historicoModal.close()" style="background:#e2e8f0;border:none;border-radius:8px;color:#374151;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">Fechar</button>
     </div>
 
   </div>
@@ -176,18 +176,17 @@
     if (count) count.textContent = rows.length + (rows.length === 1 ? ' serviço' : ' serviços');
 
     tbody.innerHTML = rows.map((a, i) => {
-      const bg = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.025)';
-      const notesText = [a.client_name ? '' : '', a.notes, a.not_done_reason ? `Motivo: ${a.not_done_reason}` : ''].filter(Boolean).join(' · ') || '—';
-      return `<tr style="background:${bg};transition:background 0.1s;" onmouseenter="this.style.background='rgba(255,255,255,0.06)'" onmouseleave="this.style.background='${bg}'">
-        <td style="padding:10px 12px;color:#94a3b8;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,0.04);">${fmtDate(a.date)}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);"><span style="font-family:monospace;font-weight:700;color:#f1f5f9;letter-spacing:0.5px;">${(a.plate||'—').toUpperCase()}</span></td>
-        <td style="padding:10px 12px;color:#cbd5e1;border-bottom:1px solid rgba(255,255,255,0.04);">${a.car||'—'}</td>
-        <td style="padding:10px 12px;color:#cbd5e1;border-bottom:1px solid rgba(255,255,255,0.04);">${a.service||'—'}</td>
-        <td style="padding:10px 12px;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,0.04);">${a.locality||'—'}</td>
-        <td style="padding:10px 12px;color:#94a3b8;border-bottom:1px solid rgba(255,255,255,0.04);">${a.client_name||'—'}</td>
-        <td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.04);">${statusBadge(a)}</td>
-        <td style="padding:10px 12px;color:#64748b;font-size:12px;border-bottom:1px solid rgba(255,255,255,0.04);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(a.notes||'').replace(/"/g,"'")}">
-          ${a.notes || a.not_done_reason ? `<span style="color:#94a3b8;">${a.not_done_reason ? `<em style="color:#f87171;">Motivo: ${a.not_done_reason}</em>` : (a.notes||'')}</span>` : '<span style="color:#334155;">—</span>'}
+      const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+      return `<tr style="background:${bg};transition:background 0.1s;" onmouseenter="this.style.background='#eff6ff'" onmouseleave="this.style.background='${bg}'">
+        <td style="padding:10px 12px;color:#64748b;white-space:nowrap;border-bottom:1px solid #f1f5f9;">${fmtDate(a.date)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;"><span style="font-family:monospace;font-weight:700;color:#1e293b;letter-spacing:0.5px;">${(a.plate||'—').toUpperCase()}</span></td>
+        <td style="padding:10px 12px;color:#374151;border-bottom:1px solid #f1f5f9;">${a.car||'—'}</td>
+        <td style="padding:10px 12px;color:#374151;border-bottom:1px solid #f1f5f9;">${a.service||'—'}</td>
+        <td style="padding:10px 12px;color:#64748b;border-bottom:1px solid #f1f5f9;">${a.locality||'—'}</td>
+        <td style="padding:10px 12px;color:#64748b;border-bottom:1px solid #f1f5f9;">${a.client_name||'—'}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;">${statusBadge(a)}</td>
+        <td style="padding:10px 12px;color:#64748b;font-size:12px;border-bottom:1px solid #f1f5f9;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(a.notes||'').replace(/"/g,"'")}">
+          ${a.not_done_reason ? `<em style="color:#dc2626;">Motivo: ${a.not_done_reason}</em>` : (a.notes || '<span style="color:#cbd5e1;">—</span>')}
         </td>
       </tr>`;
     }).join('');
