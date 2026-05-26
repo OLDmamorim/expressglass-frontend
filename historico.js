@@ -205,8 +205,10 @@
         <td style="padding:10px 12px;color:#64748b;border-bottom:1px solid #f1f5f9;">${getLocality(a)}</td>
         <td style="padding:10px 12px;color:#64748b;border-bottom:1px solid #f1f5f9;">${a.client_name||'—'}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;">${statusBadge(a)}</td>
-        <td style="padding:10px 12px;color:#64748b;font-size:12px;border-bottom:1px solid #f1f5f9;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(a.notes||'').replace(/"/g,"'")}">
-          ${a.not_done_reason ? `<em style="color:#dc2626;">Motivo: ${a.not_done_reason}</em><br><span style="color:#9ca3af;font-size:11px;">${fmtDate(a.date)}</span>` : (a.notes || '<span style="color:#cbd5e1;">—</span>')}
+        <td style="padding:10px 12px;color:#64748b;font-size:12px;border-bottom:1px solid #f1f5f9;max-width:260px;word-break:break-word;" title="${(a.notes||'').replace(/"/g,"'")}">
+          ${a.not_done_reason
+            ? `<div><em style="color:#dc2626;font-style:normal;font-weight:600;">Motivo: ${a.not_done_reason}</em></div><div style="color:#64748b;font-size:11px;margin-top:2px;">📅 ${fmtDate(a.date)}</div>`
+            : (a.notes || '<span style="color:#cbd5e1;">—</span>')}
         </td>
       </tr>`;
     }).join('');
