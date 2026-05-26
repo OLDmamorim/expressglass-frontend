@@ -124,6 +124,9 @@
         card.appendChild(badge);
       }
     });
+
+    // Re-inject glass buttons in case renderMobileDay() was called directly (bypassing the renderAll hook)
+    setTimeout(() => window._injectGlassButtons?.(), 60);
   }
 
   function scheduleInject() {
