@@ -2541,10 +2541,13 @@ function buildDesktopCard(a){
   const isPastOrToday = a.date && a.date <= todayISO2;
   const _roleDesk = window.authClient?.getUser?.()?.role || '';
   const canExecDesk = isPastOrToday || _roleDesk === 'admin' || _roleDesk === 'coordenador';
-  const motivoDesktop = (a.executed === false && a.not_done_reason) ? `
-    <div style="margin:4px 0 0;padding:5px 10px;background:rgba(220,38,38,0.12);border-left:3px solid #dc2626;border-radius:5px;font-size:11px;font-weight:700;color:#dc2626;">
-      ❌ ${a.not_done_reason}
-    </div>` : '';
+  const motivoDesktop = (a.executed === false && a.not_done_reason) ? (() => {
+    const _nd = a.not_done_reason;
+    const _ndDate = a.date ? (() => { const _d = new Date(a.date + 'T00:00:00'); return _d.toLocaleDateString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric'}); })() : null;
+    return `<div style="margin:4px 0 0;padding:5px 10px;background:rgba(220,38,38,0.12);border-left:3px solid #dc2626;border-radius:5px;font-size:11px;font-weight:700;color:#dc2626;">
+      ❌ ${_nd}${_ndDate ? `<span style="font-weight:400;color:#64748b;margin-left:8px;">📅 ${_ndDate}</span>` : ''}
+    </div>`;
+  })() : '';
 
   const execBadge = (canExecDesk && !isPreAgendado && a.date) ? `
     <div class="dc-exec-row" data-id="${a.id}">
