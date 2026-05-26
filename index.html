@@ -896,6 +896,46 @@
   <script src="transport-guide.js?v=2026-05-19j"></script>
   <script src="eurocode-reminder.js?v=2026-05-19a"></script>
   <script src="historico.js?v=2026-05-26f"></script>
+  <script>
+  /* inline: inject not-done date into Histórico — bypasses JS file cache */
+  (function() {
+    function fmtD(iso) {
+      if (!iso) return null;
+      var d = new Date(iso + 'T00:00:00');
+      return d.toLocaleDateString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric'});
+    }
+    function injectDates() {
+      var tbody = document.getElementById('historicoTbody');
+      if (!tbody) return;
+      var appts = window.appointments || [];
+      Array.from(tbody.rows).forEach(function(tr) {
+        if (tr.dataset.ndDate) return;
+        tr.dataset.ndDate = '1';
+        var plateTd = tr.cells[1];
+        if (!tr.cells[6]) return;
+        var statusTd = tr.cells[6];
+        var badgeEl  = statusTd.querySelector('span');
+        if (!badgeEl || badgeEl.textContent.indexOf('Não Realizado') < 0) return;
+        var plate = plateTd ? plateTd.textContent.trim().replace(/\s/g,'') : '';
+        var appt  = appts.find(function(a) {
+          return a.plate && a.plate.replace(/[^A-Z0-9]/gi,'').toUpperCase() === plate
+              && a.executed === false && a.not_done_reason;
+        });
+        if (!appt) return;
+        var dateStr = fmtD(appt.date);
+        if (!dateStr) return;
+        var div = document.createElement('div');
+        div.style.cssText = 'font-size:11px;color:#475569;margin-top:4px;font-weight:600;';
+        div.textContent = '📅 ' + dateStr;
+        statusTd.appendChild(div);
+      });
+    }
+    var obs = new MutationObserver(function() { setTimeout(injectDates, 50); });
+    document.addEventListener('DOMContentLoaded', function() {
+      obs.observe(document.body, {childList:true, subtree:true});
+    });
+  })();
+  </script>
 
 
 </body>
