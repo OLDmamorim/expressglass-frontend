@@ -122,7 +122,11 @@
       pendente:        { bg: '#475569', color: '#cbd5e1', label: '— Pendente' },
     };
     const { bg, color, label } = map[s] || map.pendente;
-    return `<span style="display:inline-block;background:${bg};color:${color};font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;">${label}</span>`;
+    const badge = `<span style="display:inline-block;background:${bg};color:${color};font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap;">${label}</span>`;
+    if (s === 'nao_realizado' && a.date) {
+      return badge + `<div style="font-size:11px;color:#64748b;margin-top:4px;">📅 ${fmtDate(a.date)}</div>`;
+    }
+    return badge;
   }
 
   function fmtDate(iso) {
