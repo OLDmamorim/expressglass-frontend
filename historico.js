@@ -93,6 +93,17 @@
   }
 
   // ── Helpers ───────────────────────────────────────────────
+
+  // For Pesados portals, locality is stored as the first segment of notes
+  // e.g. "Matosinhos | Cliente | Código..." → "Matosinhos"
+  function getLocality(a) {
+    if (a.notes) {
+      const m = a.notes.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\-\.]+?)\s*\|/);
+      if (m) return m[1].trim();
+    }
+    return a.locality || '—';
+  }
+
   function getStatus(a) {
     if (a.glass_removed) return 'vidro_retirado';
     if (a.executed === true) return 'realizado';
@@ -182,7 +193,7 @@
         <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;"><span style="font-family:monospace;font-weight:700;color:#1e293b;letter-spacing:0.5px;">${(a.plate||'—').toUpperCase()}</span></td>
         <td style="padding:10px 12px;color:#374151;border-bottom:1px solid #f1f5f9;">${a.car||'—'}</td>
         <td style="padding:10px 12px;color:#374151;border-bottom:1px solid #f1f5f9;">${a.service||'—'}</td>
-        <td style="padding:10px 12px;color:#64748b;border-bottom:1px solid #f1f5f9;">${a.locality||'—'}</td>
+        <td style="padding:10px 12px;color:#64748b;border-bottom:1px solid #f1f5f9;">${getLocality(a)}</td>
         <td style="padding:10px 12px;color:#64748b;border-bottom:1px solid #f1f5f9;">${a.client_name||'—'}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;">${statusBadge(a)}</td>
         <td style="padding:10px 12px;color:#64748b;font-size:12px;border-bottom:1px solid #f1f5f9;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(a.notes||'').replace(/"/g,"'")}">
@@ -263,7 +274,7 @@
         <td><strong>${(a.plate||'—').toUpperCase()}</strong></td>
         <td>${a.car||'—'}</td>
         <td>${a.service||'—'}</td>
-        <td>${a.locality||'—'}</td>
+        <td>${getLocality(a)}</td>
         <td>${a.client_name||'—'}</td>
         <td><span style="display:inline-block;background:${statusColor[s]||'#6b7280'};color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${statusLabel[s]||'—'}</span></td>
         <td>${nota}</td>
