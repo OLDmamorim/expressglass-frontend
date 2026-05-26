@@ -897,8 +897,9 @@
   <script src="eurocode-reminder.js?v=2026-05-19a"></script>
   <script src="historico.js?v=2026-05-26f"></script>
   <script>
-  /* inline: inject not-done date into Histórico — bypasses JS file cache */
+  /* inline: inject not-done date into Histórico */
   (function() {
+    function norm(p) { return (p||'').replace(/[^A-Z0-9]/gi,'').toUpperCase(); }
     function fmtD(iso) {
       if (!iso) return null;
       var d = new Date(iso + 'T00:00:00');
@@ -907,36 +908,38 @@
     function injectDates() {
       var tbody = document.getElementById('historicoTbody');
       if (!tbody) return;
-      var appts = window.appointments || [];
+      var appts = (window.appointments || []).filter(function(a) {
+        return a.executed === false && a.not_done_reason;
+      });
       Array.from(tbody.rows).forEach(function(tr) {
-        if (tr.dataset.ndDate) return;
-        tr.dataset.ndDate = '1';
-        var plateTd = tr.cells[1];
-        if (!tr.cells[6]) return;
+        if (tr.dataset.ndDone) return;
         var statusTd = tr.cells[6];
-        var badgeEl  = statusTd.querySelector('span');
+        if (!statusTd) return;
+        var badgeEl = statusTd.querySelector('span');
         if (!badgeEl || badgeEl.textContent.indexOf('Não Realizado') < 0) return;
-        var plate = plateTd ? plateTd.textContent.trim().replace(/\s/g,'') : '';
-        var appt  = appts.find(function(a) {
-          return a.plate && a.plate.replace(/[^A-Z0-9]/gi,'').toUpperCase() === plate
-              && a.executed === false && a.not_done_reason;
-        });
-        if (!appt) return;
+        tr.dataset.ndDone = '1';
+        var plateTd = tr.cells[1];
+        var plateNorm = norm(plateTd ? plateTd.textContent : '');
+        var appt = appts.find(function(a) { return norm(a.plate) === plateNorm; });
+        if (!appt || !appt.date) return;
         var dateStr = fmtD(appt.date);
         if (!dateStr) return;
+        /* remove any existing date div first */
+        var existing = statusTd.querySelector('.nd-date-div');
+        if (existing) existing.remove();
         var div = document.createElement('div');
-        div.style.cssText = 'font-size:11px;color:#475569;margin-top:4px;font-weight:600;';
+        div.className = 'nd-date-div';
+        div.style.cssText = 'font-size:12px;color:#1e293b;margin-top:4px;font-weight:700;';
         div.textContent = '📅 ' + dateStr;
         statusTd.appendChild(div);
       });
     }
-    var obs = new MutationObserver(function() { setTimeout(injectDates, 50); });
+    var obs = new MutationObserver(function() { setTimeout(injectDates, 80); });
     document.addEventListener('DOMContentLoaded', function() {
       obs.observe(document.body, {childList:true, subtree:true});
     });
   })();
   </script>
-
 
 </body>
 </html>
