@@ -151,16 +151,25 @@
     const status = document.getElementById('histFilterStatus')?.value || '';
     const search = (document.getElementById('histFilterSearch')?.value || '').toLowerCase().trim();
 
-    let rows = appts.filter(a => {
+    // Base filter: date + search (no status yet)
+    const baseRows = appts.filter(a => {
       if (!a.date) return false;
       if (from && a.date < from) return false;
       if (to   && a.date > to)   return false;
-      if (status && getStatus(a) !== status) return false;
       if (search) {
         const hay = [a.plate, a.car, a.client_name, a.locality, a.service, a.notes].join(' ').toLowerCase();
         if (!hay.includes(search)) return false;
       }
       return true;
+    });
+
+    // Count badge always includes nao_realizado (shows full total)
+    const totalCount = status ? baseRows.filter(a => getStatus(a) === status).length : baseRows.length;
+
+    // Display rows: if no status selected, hide nao_realizado by default
+    let rows = baseRows.filter(a => {
+      if (status) return getStatus(a) === status;
+      return getStatus(a) !== 'nao_realizado';
     });
 
     // Sort
@@ -176,15 +185,15 @@
 
     if (!tbody) return;
 
+    if (count) count.textContent = totalCount + (totalCount === 1 ? ' serviço' : ' serviços');
+
     if (rows.length === 0) {
       tbody.innerHTML = '';
       if (empty) empty.style.display = 'block';
-      if (count) count.textContent = '0';
       return;
     }
 
     if (empty) empty.style.display = 'none';
-    if (count) count.textContent = rows.length + (rows.length === 1 ? ' serviço' : ' serviços');
 
     tbody.innerHTML = rows.map((a, i) => {
       const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
@@ -246,16 +255,19 @@
     const status = document.getElementById('histFilterStatus')?.value || '';
     const search = (document.getElementById('histFilterSearch')?.value || '').toLowerCase().trim();
 
-    let rows = appts.filter(a => {
+    const baseRowsPrint = appts.filter(a => {
       if (!a.date) return false;
       if (from && a.date < from) return false;
       if (to   && a.date > to)   return false;
-      if (status && getStatus(a) !== status) return false;
       if (search) {
         const hay = [a.plate, a.car, a.client_name, a.locality, a.service, a.notes].join(' ').toLowerCase();
         if (!hay.includes(search)) return false;
       }
       return true;
+    });
+    let rows = baseRowsPrint.filter(a => {
+      if (status) return getStatus(a) === status;
+      return getStatus(a) !== 'nao_realizado';
     });
     rows.sort((a, b) => {
       const av = a[_sortField] || ''; const bv = b[_sortField] || '';
