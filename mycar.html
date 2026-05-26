@@ -765,10 +765,10 @@ function buildGroups(services) {
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
 function updateStats() {
-  const total = allServices.length;
+  const rej   = allServices.filter(s => s.status === 'rejeitado').length;
   const pend  = allServices.filter(s => s.status === 'pendente').length;
   const trat  = allServices.filter(s => s.status === 'realizado' || s.status === 'faturado').length;
-  const rej   = allServices.filter(s => s.status === 'rejeitado').length;
+  const total = pend + trat;
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-pend').textContent  = pend;
   document.getElementById('stat-trat').textContent  = trat;
