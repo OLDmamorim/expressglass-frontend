@@ -737,7 +737,7 @@ async function loadServices() {
     if (!json.success) throw new Error(json.error);
     allServices = json.data;
     updateStats();
-    renderTable(buildGroups(allServices));
+    filterTable();
   } catch (e) {
     console.error(e);
     document.getElementById('table-body').innerHTML =
@@ -758,14 +758,9 @@ function buildGroups(services) {
     if (svc.car && !map[key].car) map[key].car = svc.car;
     if (svc.n_obra && !map[key].n_obra) map[key].n_obra = svc.n_obra;
   }
-  return Object.values(map).sort((a, b) => {
-    // Ordenar: primeiro os novos, depois os que têm pendentes
-    if (b.isNew !== a.isNew) return b.isNew ? 1 : -1;
-    const ap = a.services.filter(s => s.status === 'pendente').length;
-    const bp = b.services.filter(s => s.status === 'pendente').length;
-    if (bp !== ap) return bp - ap;
-    return (b.lastDate || '').localeCompare(a.lastDate || '');
-  });
+  return Object.values(map).sort((a, b) =>
+    (b.lastDate || '').localeCompare(a.lastDate || '')
+  );
 }
 
 // ─── STATS ────────────────────────────────────────────────────────────────────
@@ -825,7 +820,11 @@ function filterTable() {
   const status = document.getElementById('filter-status').value;
 
   let filtered = allServices;
-  if (status) filtered = filtered.filter(s => s.status === status);
+  if (status) {
+    filtered = filtered.filter(s => s.status === status);
+  } else {
+    filtered = filtered.filter(s => s.status !== 'rejeitado');
+  }
 
   const groups = buildGroups(filtered).filter(g =>
     !search || g.matricula.includes(search)
