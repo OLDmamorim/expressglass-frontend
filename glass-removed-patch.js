@@ -179,5 +179,7 @@
   style.textContent = `.m-status-active-gr{background:#2563eb!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#2563eb!important;} .m-status-active-gr .m-status-dot{background:#fff!important;}`;
   document.head.appendChild(style);
 
+  window._injectGlassButtons = injectGlassButtons;
+
   console.log('🪟 Glass Removed Patch carregado');
 })();
