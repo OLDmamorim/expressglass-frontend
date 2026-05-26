@@ -768,7 +768,7 @@ function updateStats() {
   const rej   = allServices.filter(s => s.status === 'rejeitado').length;
   const pend  = allServices.filter(s => s.status === 'pendente').length;
   const trat  = allServices.filter(s => s.status === 'realizado' || s.status === 'faturado').length;
-  const total = pend + trat;
+  const total = allServices.length;
   document.getElementById('stat-total').textContent = total;
   document.getElementById('stat-pend').textContent  = pend;
   document.getElementById('stat-trat').textContent  = trat;
