@@ -3,6 +3,15 @@
 // Chave para localStorage
 const GLASS_ORDERS_KEY = 'glassOrders';
 
+function _getEurocodeFromAppt(a) {
+  if (a.extra) {
+    try { const ec = JSON.parse(a.extra).eurocode; if (ec) return String(ec).trim().toUpperCase(); } catch(e) {}
+    const m = a.extra.match(/"eurocode"\s*:\s*"([^"]+)"/);
+    if (m) return m[1].trim().toUpperCase();
+  }
+  return '';
+}
+
 /// Obter estado de encomenda dos serviços (da base de dados)
 function getGlassOrders() {
   // Agora usa o campo glassOrdered de cada appointment
@@ -148,16 +157,19 @@ function renderGlassAlertList() {
     }
     
     // Item do serviço
-    const rowStyle = isOrdered 
-      ? 'background: #d1fae5; border-left: 4px solid #10b981;' 
+    const rowStyle = isOrdered
+      ? 'background: #d1fae5; border-left: 4px solid #10b981;'
       : 'background: #fee2e2; border-left: 4px solid #ef4444;';
-    
+
+    const eurocode = _getEurocodeFromAppt(service);
+
     html += `
       <div style="${rowStyle} padding: 12px; border-radius: 6px; margin-bottom: 8px;">
         <div style="display: flex; justify-content: space-between; align-items: start; gap: 16px;">
           <div style="flex: 1;">
             <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px;">
               ${service.plate || '—'} • ${service.car || '—'}
+              ${eurocode ? `<span style="display:inline-block;margin-left:8px;background:#1e40af;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:0.3px;">${eurocode}</span>` : ''}
             </div>
             <div style="font-size: 13px; color: #6b7280; display: flex; gap: 12px; flex-wrap: wrap;">
               <span>🔧 ${service.service || '—'}</span>
@@ -272,6 +284,7 @@ function printGlassAlert() {
       ? '<span style="display: inline-block; width: 18px; height: 18px; border: 2px solid #000; background: #000; color: #fff; text-align: center; line-height: 18px; vertical-align: middle;">✓</span>' 
       : '<span style="display: inline-block; width: 18px; height: 18px; border: 2px solid #000; vertical-align: middle;"></span>';
     
+    const printEc = _getEurocodeFromAppt(service);
     tableRows += `
       <tr>
         <td>${dateStr}</td>
@@ -279,6 +292,7 @@ function printGlassAlert() {
         <td>${service.car || '—'}</td>
         <td>${service.service || '—'}</td>
         <td>${service.locality || '—'}</td>
+        <td>${printEc || '—'}</td>
         <td>${service.notes || '—'}</td>
         <td style="text-align: center;">${checkboxHtml}</td>
       </tr>
@@ -374,6 +388,7 @@ function printGlassAlert() {
             <th>Carro</th>
             <th>Serviço</th>
             <th>Localidade</th>
+            <th>Eurocode</th>
             <th>Observações</th>
             <th style="width: 80px;">Encomendado</th>
           </tr>
