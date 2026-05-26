@@ -4,11 +4,14 @@
 const GLASS_ORDERS_KEY = 'glassOrders';
 
 function _getEurocodeFromAppt(a) {
-  if (a.extra) {
-    try { const ec = JSON.parse(a.extra).eurocode; if (ec) return String(ec).trim().toUpperCase(); } catch(e) {}
-    const m = a.extra.match(/"eurocode"\s*:\s*"([^"]+)"/);
-    if (m) return m[1].trim().toUpperCase();
-  }
+  if (!a.extra) return '';
+  try {
+    const parsed = JSON.parse(a.extra);
+    const ec = parsed.eurocode || parsed.EUROCODE || '';
+    if (ec && /^\d{4}[A-Z]{2,}/i.test(String(ec).trim())) return String(ec).trim().toUpperCase();
+  } catch(e) {}
+  const m = a.extra.match(/"[Ee][Uu][Rr][Oo][Cc][Oo][Dd][Ee]"\s*:\s*"([^"]+)"/);
+  if (m && /^\d{4}[A-Z]{2,}/i.test(m[1].trim())) return m[1].trim().toUpperCase();
   return '';
 }
 
