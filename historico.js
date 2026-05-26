@@ -206,7 +206,7 @@
         <td style="padding:10px 12px;color:#64748b;border-bottom:1px solid #f1f5f9;">${a.client_name||'—'}</td>
         <td style="padding:10px 12px;border-bottom:1px solid #f1f5f9;">${statusBadge(a)}</td>
         <td style="padding:10px 12px;color:#64748b;font-size:12px;border-bottom:1px solid #f1f5f9;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${(a.notes||'').replace(/"/g,"'")}">
-          ${a.not_done_reason ? `<em style="color:#dc2626;">Motivo: ${a.not_done_reason}</em><span style="color:#9ca3af;font-size:11px;margin-left:6px;">${fmtDate(a.date)}</span>` : (a.notes || '<span style="color:#cbd5e1;">—</span>')}
+          ${a.not_done_reason ? `<em style="color:#dc2626;">Motivo: ${a.not_done_reason}</em><br><span style="color:#9ca3af;font-size:11px;">${fmtDate(a.date)}</span>` : (a.notes || '<span style="color:#cbd5e1;">—</span>')}
         </td>
       </tr>`;
     }).join('');
