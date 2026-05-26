@@ -142,6 +142,7 @@ exports.handler = async (event) => {
 
     // ---------- PUT - Atualizar portal ----------
     if (event.httpMethod === 'PUT') {
+      await pool.query(`ALTER TABLE portals ADD COLUMN IF NOT EXISTS vehicle_plate VARCHAR(20)`);
       const data = JSON.parse(event.body || '{}');
       // ID from body (reliable) or fallback to last path segment
       const pathId = (event.path || '').split('/').filter(Boolean).pop();

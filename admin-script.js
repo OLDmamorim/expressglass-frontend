@@ -122,7 +122,7 @@ function renderPortals() {
   const tbody = document.getElementById('portalsTableBody');
   
   if (portals.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="loading">Nenhum portal criado</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="loading">Nenhum portal criado</td></tr>';
     return;
   }
 
@@ -140,11 +140,15 @@ function renderPortals() {
     const poweringBadge = portal.powering_loja_id
       ? `<span title="PoweringEG #${portal.powering_loja_id}" style="background:#f5f3ff;color:#7c3aed;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-left:4px;">⚡ EG</span>`
       : '';
+    const plateBadge = portal.vehicle_plate
+      ? `<span style="display:inline-flex;align-items:stretch;border:2px solid #374151;border-radius:4px;overflow:hidden;font-family:monospace;font-size:12px;font-weight:700;letter-spacing:1px;"><span style="background:#003399;color:#fff;font-size:10px;padding:2px 4px;display:flex;align-items:center;">P</span><span style="background:#fff;color:#111;padding:2px 6px;display:flex;align-items:center;">${portal.vehicle_plate}</span></span>`
+      : '<span style="color:#9ca3af">—</span>';
     return `
     <tr>
       <td><strong>${portal.name}</strong> ${typeLabel}${poweringBadge}</td>
       <td>${portal.departure_address}</td>
       <td>${portal.nmdos_code || '<span style="color:#9ca3af">—</span>'}</td>
+      <td>${plateBadge}</td>
       <td>${portal.service_count || 0}</td>
       <td>${lastImport}</td>
       <td class="table-actions">
