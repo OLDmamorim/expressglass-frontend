@@ -69,6 +69,12 @@
       </div>
     </div>
 
+    <!-- Footer -->
+    <div style="display:flex;justify-content:flex-end;padding:14px 24px;border-top:1px solid rgba(255,255,255,0.08);gap:8px;">
+      <button onclick="window.historicoModal.print()" style="display:inline-flex;align-items:center;gap:6px;background:#1e293b;border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:#e2e8f0;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">🖨️ Imprimir</button>
+      <button onclick="window.historicoModal.close()" style="background:#334155;border:none;border-radius:8px;color:#e2e8f0;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">Fechar</button>
+    </div>
+
   </div>
 </div>`;
 
@@ -223,7 +229,83 @@
     render();
   }
 
-  window.historicoModal = { open, close, render, sort, resetFilters };
+  function print() {
+    const appts = window.appointments || [];
+    const from   = document.getElementById('histFilterFrom')?.value || '';
+    const to     = document.getElementById('histFilterTo')?.value || '';
+    const status = document.getElementById('histFilterStatus')?.value || '';
+    const search = (document.getElementById('histFilterSearch')?.value || '').toLowerCase().trim();
+
+    let rows = appts.filter(a => {
+      if (!a.date) return false;
+      if (from && a.date < from) return false;
+      if (to   && a.date > to)   return false;
+      if (status && getStatus(a) !== status) return false;
+      if (search) {
+        const hay = [a.plate, a.car, a.client_name, a.locality, a.service, a.notes].join(' ').toLowerCase();
+        if (!hay.includes(search)) return false;
+      }
+      return true;
+    });
+    rows.sort((a, b) => {
+      const av = a[_sortField] || ''; const bv = b[_sortField] || '';
+      return av < bv ? _sortDir : av > bv ? -_sortDir : 0;
+    });
+
+    const statusLabel = { realizado: 'Realizado', nao_realizado: 'Não Realizado', vidro_retirado: 'Vidro Retirado', pre_agendado: 'Pré-agendado', pendente: 'Pendente' };
+    const statusColor = { realizado: '#16a34a', nao_realizado: '#dc2626', vidro_retirado: '#2563eb', pre_agendado: '#d97706', pendente: '#6b7280' };
+
+    const tableRows = rows.map((a, i) => {
+      const s = getStatus(a);
+      const bg = i % 2 === 0 ? '#fff' : '#f8fafc';
+      const nota = a.not_done_reason ? `Motivo: ${a.not_done_reason}` : (a.notes || '—');
+      return `<tr style="background:${bg};">
+        <td>${fmtDate(a.date)}</td>
+        <td><strong>${(a.plate||'—').toUpperCase()}</strong></td>
+        <td>${a.car||'—'}</td>
+        <td>${a.service||'—'}</td>
+        <td>${a.locality||'—'}</td>
+        <td>${a.client_name||'—'}</td>
+        <td><span style="display:inline-block;background:${statusColor[s]||'#6b7280'};color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${statusLabel[s]||'—'}</span></td>
+        <td>${nota}</td>
+      </tr>`;
+    }).join('');
+
+    const filterInfo = [
+      from ? `De: ${fmtDate(from)}` : '',
+      to   ? `Até: ${fmtDate(to)}`  : '',
+      status ? `Estado: ${statusLabel[status]||status}` : '',
+      search ? `Pesquisa: "${search}"` : ''
+    ].filter(Boolean).join('  •  ');
+
+    const html = `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="UTF-8">
+<title>Histórico de Serviços</title>
+<style>
+  @page { margin: 12mm; size: A4 landscape; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 11px; color: #111; background: #fff; }
+  h1 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .meta { font-size: 11px; color: #555; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #1e293b; color: #fff; padding: 7px 8px; text-align: left; font-size: 11px; font-weight: 700; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  @media print { body { padding: 0; } }
+</style></head><body>
+<h1>🕘 Histórico de Serviços</h1>
+<div class="meta">Impresso em ${new Date().toLocaleDateString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}${filterInfo ? '  •  ' + filterInfo : ''}  •  ${rows.length} serviço(s)</div>
+<table>
+  <thead><tr><th>Data</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Cliente</th><th>Estado</th><th>Notas</th></tr></thead>
+  <tbody>${tableRows}</tbody>
+</table>
+<script>window.onload=function(){window.print();}<\/script>
+</body></html>`;
+
+    const w = window.open('', '_blank', 'width=1000,height=700');
+    if (w) { w.document.write(html); w.document.close(); }
+    else alert('Ativa os pop-ups para imprimir.');
+  }
+
+  window.historicoModal = { open, close, render, sort, resetFilters, print };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
