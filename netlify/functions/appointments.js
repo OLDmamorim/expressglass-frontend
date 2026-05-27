@@ -39,6 +39,11 @@ exports.handler = async (event) => {
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
   } catch(migErr) { console.warn('Migration n_obra warning:', migErr.message); }
 
+  try {
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS order_ref TEXT`);
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS glass_eurocode TEXT`);
+  } catch(migErr) { console.warn('Migration order_ref/eurocode warning:', migErr.message); }
+
   // Migração: actualizar constraint de service para incluir RV e OUT
   try {
     await pool.query(`ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_service_check`);
@@ -79,7 +84,8 @@ exports.handler = async (event) => {
                vehicle_type, travel_time, auto_imported, executed, confirmed,
                calibration, first_of_day, second_of_day, not_done_reason, commercial_user_id,
                return_km, return_time, client_name, damage_details, glass_removed, glass_removed_date,
-               custom_service_time, foreign_plate, extra_services, n_obra, created_at, updated_at
+               custom_service_time, foreign_plate, extra_services, n_obra,
+               order_ref, glass_eurocode, created_at, updated_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -114,9 +120,10 @@ exports.handler = async (event) => {
           notes, address, extra, phone, km, sortIndex, "glassOrdered",
           vehicle_type, travel_time, confirmed, calibration, first_of_day, second_of_day,
           not_done_reason, commercial_user_id, return_km, return_time, client_name, damage_details,
-          glass_removed_date, custom_service_time, foreign_plate, extra_services, n_obra, portal_id, created_at, updated_at
+          glass_removed_date, custom_service_time, foreign_plate, extra_services, n_obra,
+          order_ref, glass_eurocode, portal_id, created_at, updated_at
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36
         ) RETURNING *
       `;
       const v = [
@@ -141,6 +148,8 @@ exports.handler = async (event) => {
         data.foreign_plate === true,
         data.extra_services ? JSON.stringify(data.extra_services) : null,
         data.n_obra || null,
+        data.order_ref || null,
+        data.glass_eurocode || data.eurocode || null,
         portalId, createdAt, new Date().toISOString()
       ];
       const { rows } = await pool.query(q, v);

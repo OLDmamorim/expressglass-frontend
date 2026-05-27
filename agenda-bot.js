@@ -157,7 +157,17 @@
     `;
 
     widget.innerHTML = `
-      <!-- Botão toggle -->
+      <!-- Botão Receção Vidros -->
+      <button id="recBotBtn" onclick="window.glassReception?.openScan()" style="
+        width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
+        background:linear-gradient(135deg,#1d4ed8,#0f172a);
+        color:#fff;font-size:22px;
+        box-shadow:0 4px 16px rgba(29,78,216,0.5);
+        display:flex;align-items:center;justify-content:center;
+        transition:transform .15s;position:relative;
+      " title="Receção de Vidros">📦<span id="recBotBadge" style="display:none;position:absolute;top:2px;right:2px;width:10px;height:10px;background:#ef4444;border-radius:50%;animation:recPulse 1.2s infinite;"></span></button>
+
+      <!-- Botão toggle chatbot -->
       <button id="botToggle" onclick="window._toggleBot()" style="
         width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
         background:linear-gradient(135deg,#3b82f6,#1d4ed8);
