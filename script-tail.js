@@ -119,14 +119,17 @@ const telBtn = phone ? `
   if (a.glass_removed && a.glass_removed_date) {
     const _mGrNorm = String(a.glass_removed_date).slice(0, 10);
     const _mGrDays = Math.floor((Date.now() - new Date(_mGrNorm + 'T00:00:00').getTime()) / 86400000);
+    const _mGrDateFmt = new Date(_mGrNorm + 'T00:00:00').toLocaleDateString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric'});
+    const _mGrDateDiv = `<div style="margin:2px 8px 4px;font-size:11px;font-weight:600;color:#2563eb;">🪟 Retirado: ${_mGrDateFmt}</div>`;
     if (_mGrDays >= 14) {
       mGlassRemovedBorderStyle = 'border-bottom:4px solid #dc2626;';
-      mGlassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-red gr-pulse">🚨 ${_mGrDays}d</div>`;
+      mGlassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-red gr-pulse">🚨 ${_mGrDays}d</div>${_mGrDateDiv}`;
     } else if (_mGrDays >= 7) {
       mGlassRemovedBorderStyle = 'border-bottom:4px solid #f59e0b;';
-      mGlassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-orange">⚠️ ${_mGrDays}d</div>`;
+      mGlassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-orange">⚠️ ${_mGrDays}d</div>${_mGrDateDiv}`;
     } else {
       mGlassRemovedBorderStyle = 'border-bottom:4px solid #2563eb;';
+      mGlassRemovedBadge = _mGrDateDiv;
     }
   }
 
