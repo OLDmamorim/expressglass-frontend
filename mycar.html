@@ -717,6 +717,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const token = getToken();
   if (!token) { location.href = 'login.html'; return; }
 
+  document.getElementById('filter-status').value = 'pendente';
+
   const user = getUser();
   if (user?.role === 'admin') {
     document.getElementById('nav-admin').style.display = '';
