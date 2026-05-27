@@ -174,6 +174,8 @@ function autoDetectColumns() {
     'mapPlate': ['matricula', 'matrícula', 'plate', 'placa'],
     'mapCar': ['carro', 'modelo', 'car', 'vehicle', 'veiculo', 'veículo'],
     'mapNotes': ['observacoes', 'observações', 'notes', 'obs', 'comentarios', 'comentários'],
+    'mapOrderRef': ['encomenda', 'enc', 'order', 'ordem', 'pedido_enc', 'data_enc'],
+    'mapReceptionRef': ['recep', 'receção', 'rececao', 'reception', 'stock', 'em_stock', 'data_rec'],
     'mapAddress': ['morada', 'endereco', 'endereço', 'address', 'rua'],
     'mapPhone': ['telefone', 'contacto', 'contato', 'phone', 'telemovel', 'telemóvel'],
     'mapExtra': ['extra', 'outros', 'adicional', 'dados'],

@@ -253,8 +253,16 @@ class ExcelImporter {
     service.phone = service.phone || '';
     service.extra = service.extra || '';
     
-    // Campos padrão
-    service.status = 'NE'; // Não Executado
+    // Derivar status do vidro a partir das colunas de encomenda e receção
+    const _orderRef     = (service.order_ref     || '').trim();
+    const _receptionRef = (service.reception_ref || '').trim();
+    if (_receptionRef) {
+      service.status = 'ST'; // vidro em stock
+    } else if (_orderRef) {
+      service.status = 'VE'; // vidro encomendado
+    } else {
+      service.status = 'NE'; // não encomendado
+    }
     service.date = null; // Sem data (por agendar)
     service.period = null;
     service.km = null;
@@ -449,23 +457,21 @@ class ExcelImporter {
 
         // Verificar duplicado no mesmo lote (evita chamadas duplas ao backend)
         if (existingPlates.has(plateNormalized)) {
-          // Se tem damage_details, tentar atualizar registo existente
-          if (service.damage_details) {
-            const existing = existingAppointments.find(a =>
-              String(a.plate).toUpperCase().trim() === plateNormalized
-            );
-            if (existing?.id) {
-              try {
-                await window.apiClient.updateAppointment(existing.id, {
-                  ...existing,
-                  damage_details: service.damage_details
-                });
-                results.details.push({ plate: service.plate, status: 'updated', reason: 'damage_details atualizado' });
-              } catch (e) {
-                results.skipped++;
-                results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no lote' });
-              }
-            } else {
+          const existing = existingAppointments.find(a =>
+            String(a.plate).toUpperCase().trim() === plateNormalized
+          );
+          // Atualizar status de vidro se mudou (encomenda/receção), ou damage_details
+          const statusChanged = existing && service.status && service.status !== existing.status;
+          const hasDamage = !!service.damage_details;
+          if (existing?.id && (statusChanged || hasDamage)) {
+            try {
+              await window.apiClient.updateAppointment(existing.id, {
+                ...existing,
+                ...(statusChanged ? { status: service.status } : {}),
+                ...(hasDamage ? { damage_details: service.damage_details } : {})
+              });
+              results.details.push({ plate: service.plate, status: 'updated', reason: statusChanged ? `Status → ${service.status}` : 'damage_details atualizado' });
+            } catch (e) {
               results.skipped++;
               results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no lote' });
             }
