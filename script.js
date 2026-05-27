@@ -2571,16 +2571,19 @@ function buildDesktopCard(a){
   let glassRemovedBorderStyle = '';
   let glassRemovedBadge = '';
   if (a.glass_removed && a.glass_removed_date) {
-    const _grNorm = String(a.glass_removed_date).slice(0, 10); // normaliza ISO completo → YYYY-MM-DD
+    const _grNorm = String(a.glass_removed_date).slice(0, 10);
     const _grDays = Math.floor((Date.now() - new Date(_grNorm + 'T00:00:00').getTime()) / 86400000);
+    const _grDateFmt = new Date(_grNorm + 'T00:00:00').toLocaleDateString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric'});
+    const _grDateDiv = `<div style="margin:2px 8px 4px;font-size:11px;font-weight:600;color:#2563eb;">🪟 Retirado: ${_grDateFmt}</div>`;
     if (_grDays >= 14) {
       glassRemovedBorderStyle = 'border-bottom:4px solid #dc2626;';
-      glassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-red gr-pulse">🚨 ${_grDays}d</div>`;
+      glassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-red gr-pulse">🚨 ${_grDays}d</div>${_grDateDiv}`;
     } else if (_grDays >= 7) {
       glassRemovedBorderStyle = 'border-bottom:4px solid #f59e0b;';
-      glassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-orange">⚠️ ${_grDays}d</div>`;
+      glassRemovedBadge = `<div class="gr-urgency-badge gr-urgency-orange">⚠️ ${_grDays}d</div>${_grDateDiv}`;
     } else {
       glassRemovedBorderStyle = 'border-bottom:4px solid #2563eb;';
+      glassRemovedBadge = _grDateDiv;
     }
   }
 
