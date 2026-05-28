@@ -109,8 +109,10 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       const p = event.queryStringParameters || {};
       const date = p.date || new Date().toISOString().split('T')[0];
-      let portalId = user.portalId;
-      if (!portalId && p.portal_id) portalId = parseInt(p.portal_id);
+      // Prefer explicit portal_id from query (sent from window.activePortalId for coordinators
+      // managing multiple portals) over the JWT portal (which may be their primary portal, not
+      // the one they're currently viewing).
+      let portalId = p.portal_id ? parseInt(p.portal_id) : user.portalId;
       if (!portalId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Portal não identificado' }) };
       const res = await client.query(
         `SELECT id, guide_date, guide_number, pdf_data, eurocodes, uploaded_at, COALESCE(file_type, 'application/pdf') AS file_type
@@ -131,8 +133,9 @@ exports.handler = async (event) => {
       const { pdf_data, file_type, _portalId, guide_date: rawGuideDate } = body;
       if (!pdf_data) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Ficheiro em falta' }) };
 
-      let portalId = user.portalId;
-      if (!portalId && _portalId) portalId = parseInt(_portalId);
+      // Prefer _portalId (from window.activePortalId on the frontend) over JWT portal so that
+      // coordinators managing multiple portals upload the guide to the correct portal.
+      let portalId = _portalId ? parseInt(_portalId) : user.portalId;
       if (!portalId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Portal não identificado' }) };
 
       // guide_date: accept 'today', 'tomorrow', or ISO date string; default today
