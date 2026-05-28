@@ -182,7 +182,7 @@ exports.handler = async (event) => {
 
       if (!confirmed_portal_id) {
         const availRes = await pool.query(`
-          SELECT p.id, p.name, p.max_daily,
+          SELECT p.id, p.name, p.max_daily, p.localities,
             COALESCE(
               (SELECT COUNT(*) FROM appointments a
                WHERE a.portal_id = p.id
@@ -207,19 +207,39 @@ exports.handler = async (event) => {
           ORDER BY week_count ASC, today_count ASC, tomorrow_count ASC
         `, [assignedIds, nextWeekdayISO]);
 
-        const portals = availRes.rows.map(p => ({
-          id: p.id,
-          name: p.name,
-          max_daily: p.max_daily || 8,
-          today_count: parseInt(p.today_count),
-          tomorrow_count: parseInt(p.tomorrow_count),
-          week_count: parseInt(p.week_count),
-          next_weekday_label: nextWeekdayLabel,
-          today_available: (p.max_daily || 8) - parseInt(p.today_count),
-          tomorrow_available: (p.max_daily || 8) - parseInt(p.tomorrow_count),
-        }));
+        const reqLocality = (locality || '').trim().toLowerCase();
 
-        suggested = portals[0] || null; // o menos ocupado hoje
+        const portals = availRes.rows.map(p => {
+          // Check if this portal explicitly serves the requested locality
+          let servesLocality = false;
+          if (reqLocality) {
+            try {
+              const locs = typeof p.localities === 'string' ? JSON.parse(p.localities) : (p.localities || {});
+              servesLocality = Object.keys(locs).some(k => k.toLowerCase() === reqLocality);
+            } catch (e) { /* ignore */ }
+          }
+          return {
+            id: p.id,
+            name: p.name,
+            max_daily: p.max_daily || 8,
+            today_count: parseInt(p.today_count),
+            tomorrow_count: parseInt(p.tomorrow_count),
+            week_count: parseInt(p.week_count),
+            next_weekday_label: nextWeekdayLabel,
+            today_available: (p.max_daily || 8) - parseInt(p.today_count),
+            tomorrow_available: (p.max_daily || 8) - parseInt(p.tomorrow_count),
+            serves_locality: servesLocality,
+          };
+        });
+
+        // Portals that serve the locality come first; within each group, sort by workload
+        portals.sort((a, b) => {
+          if (a.serves_locality !== b.serves_locality) return a.serves_locality ? -1 : 1;
+          if (a.week_count !== b.week_count) return a.week_count - b.week_count;
+          return a.today_count - b.today_count;
+        });
+
+        suggested = portals[0] || null;
         return {
           statusCode: 200, headers,
           body: JSON.stringify({ success: true, action: 'suggest', portals, suggested })
