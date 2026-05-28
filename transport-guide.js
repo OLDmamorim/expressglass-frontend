@@ -340,7 +340,7 @@
 
   // Calcula portalParam usando activePortalId (admin/coord) ou portalId do JWT (técnico)
   function getPortalParam() {
-    const id = window.activePortalId || window.authClient?.getUser?.()?.portalId;
+    const id = window.activePortalId || window.authClient?.getUser?.()?.portalId || window.portalConfig?.id;
     return id ? `&portal_id=${id}` : '';
   }
 
