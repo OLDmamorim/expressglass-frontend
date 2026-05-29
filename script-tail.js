@@ -63,7 +63,9 @@ const telBtn = phone ? `
   ].filter(Boolean).join('');
   let _extraDisp = '';
   if (a.extra) { try { _extraDisp = JSON.parse(a.extra).eurocode || ''; } catch(e) { const _m = a.extra.match(/"eurocode"\s*:\s*"([^"]+)"/); _extraDisp = _m ? _m[1] : a.extra; } }
-  const notes = [a.client_name, _extraDisp, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
+  const _mRole = window.authClient?.getUser?.()?.role;
+  const _orderRefMobile = (_mRole === 'admin' || _mRole === 'coordenador') && a.order_ref ? `📦 Enc: ${a.order_ref}` : null;
+  const notes = [a.client_name, _extraDisp, a.notes, a.n_obra ? `FS${a.n_obra}` : null, _orderRefMobile].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
   const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
