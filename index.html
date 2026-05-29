@@ -1272,7 +1272,7 @@
   const API = '/.netlify/functions';
 
   function authHeaders() {
-    const t = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token') || '';
+    const t = window.authClient?.getToken() || localStorage.getItem('eg_auth_token') || '';
     return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + t };
   }
 
