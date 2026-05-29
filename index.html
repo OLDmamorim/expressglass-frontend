@@ -1307,7 +1307,7 @@
         </div>
         <div style="text-align:center;color:#94a3b8;font-size:12px;">— ou introduz manualmente —</div>
         <input id="grManualOrder" type="text" placeholder="N.º de encomenda (opcional)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;width:100%;">
-        <input id="grManualEurocode" type="text" placeholder="Eurocode (ex: FW1234)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;width:100%;">
+        <input id="grManualEurocode" type="text" placeholder="Eurocode (ex: 6577AGACMVZ)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;width:100%;">
         <button onclick="window.glassReception._manualSearch()" style="background:#0f172a;color:#fff;font-weight:700;font-size:14px;padding:12px;border-radius:12px;border:none;cursor:pointer;">🔍 Procurar</button>
       </div>
     `;
@@ -1346,12 +1346,15 @@
   function _step1() { renderStep1(); }
 
   function _doSearch(orderRef, eurocode, rawText, photoBase64) {
+    const ecLow = eurocode ? eurocode.trim().toLowerCase() : null;
     const appts = (window.appointments || []).filter(a => {
       if (a.executed === true || a.glass_removed) return false;
       const matchOrder = orderRef && a.order_ref && a.order_ref.trim().toLowerCase() === orderRef.trim().toLowerCase();
-      const matchEuro  = eurocode  && a.glass_eurocode && a.glass_eurocode.trim().toLowerCase() === eurocode.trim().toLowerCase();
-      // Also search in notes/n_obra for eurocode as fallback
-      const matchEuroNotes = eurocode && ((a.notes || '') + ' ' + (a.n_obra || '')).toLowerCase().includes(eurocode.toLowerCase());
+      const matchEuro  = ecLow && a.glass_eurocode && a.glass_eurocode.trim().toLowerCase() === ecLow;
+      // Search in notes, n_obra, and extra JSON for eurocode
+      let extraEuro = '';
+      if (a.extra) { try { extraEuro = (JSON.parse(a.extra).eurocode || '').toLowerCase(); } catch(e) { extraEuro = (a.extra || '').toLowerCase(); } }
+      const matchEuroNotes = ecLow && ((a.notes || '') + ' ' + (a.n_obra || '') + ' ' + extraEuro).toLowerCase().includes(ecLow);
       return matchOrder || matchEuro || matchEuroNotes;
     });
 
