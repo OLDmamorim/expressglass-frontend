@@ -72,7 +72,8 @@ exports.handler = async (event) => {
       if (!portalId && user.portalIds?.length > 0) portalId = user.portalIds[0];
     }
 
-    if (!portalId) {
+    const isCrossPortalSearch = !!(params.search_eurocode || params.search_order_ref);
+    if (!portalId && !isCrossPortalSearch) {
       return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Utilizador sem portal atribuído' }) };
     }
 
