@@ -27,9 +27,13 @@ function callVision(imageBase64, mediaType) {
           },
           {
             type: 'text',
-            text: `Analisa esta etiqueta de vidro automóvel. Extrai APENAS:
-1. Número de encomenda (campo "Order", "Pedido", "Enc.", "N.º Enc", ou similar — normalmente numérico ou alfanumérico)
-2. Eurocode do vidro (identificador do tipo de vidro — formato comum: 2 letras + 4-6 dígitos, ex: FW1234, AGC5678, ou similar)
+            text: `Analisa esta guia/etiqueta de entrega de vidro automóvel de um transportador português (ex: A Sua Pressa, Garland, etc.).
+
+Extrai APENAS estes dois campos:
+
+1. Número de encomenda — procura nos campos: "PEDIDO", "N.º Enc", "Order", "Enc.", "COD AT" ou referência numérica/alfanumérica do pedido. Exemplo: "65178" ou "GARLA.2026.012396"
+
+2. Eurocode do vidro — código técnico do vidro com formato: 4 dígitos seguidos de letras maiúsculas (ex: 6577AGACMVZ, 3739ABCDE, 5385AGNVZPBL). Procura nos campos: "PICK_LABELS" (o código vem após "/"), "Observações", "OBS" ou qualquer campo com esse padrão numérico-alfanumérico. IGNORA prefixos como "1605/" antes do código.
 
 Responde EXCLUSIVAMENTE em JSON válido, sem texto adicional:
 {"order_ref": "...", "eurocode": "...", "raw_text": "..."}
