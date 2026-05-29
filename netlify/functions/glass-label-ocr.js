@@ -31,9 +31,14 @@ function callVision(imageBase64, mediaType) {
 
 Extrai APENAS estes dois campos:
 
-1. Número de encomenda — procura nos campos: "PEDIDO", "N.º Enc", "Order", "Enc.", "COD AT" ou referência numérica/alfanumérica do pedido. Exemplo: "65178" ou "GARLA.2026.012396"
+1. Número de encomenda — procura nos campos: "PEDIDO", "N.º Enc", "Order", "Enc.", "COD AT" ou referência numérica/alfanumérica do pedido. Exemplo: "65178"
 
-2. Eurocode do vidro — código técnico do vidro com formato: 4 dígitos seguidos de letras maiúsculas (ex: 6577AGACMVZ, 3739ABCDE, 5385AGNVZPBL). Procura nos campos: "PICK_LABELS" (o código vem após "/"), "Observações", "OBS" ou qualquer campo com esse padrão numérico-alfanumérico. IGNORA prefixos como "1605/" antes do código.
+2. Eurocode do vidro — código com formato EXATO: 4 dígitos seguidos IMEDIATAMENTE de 3 ou mais letras maiúsculas (ex: 6577AGACMVZ, 3739ABCDE, 5385AGNVZPBL).
+   Procura em campos como PICK_LABELS, OBS, Observações.
+   REGRA CRÍTICA para PICK_LABELS com formato "NNNN/DDDDLLLLL" (ex: "1605/6577AGACMVZ"):
+   - O número ANTES da barra "/" (ex: 1605) é uma sequência — NÃO é o eurocode
+   - O eurocode é o código COMPLETO APÓS a barra "/" (ex: 6577AGACMVZ)
+   - NUNCA combines dígitos de antes da barra com letras de depois da barra
 
 Responde EXCLUSIVAMENTE em JSON válido, sem texto adicional:
 {"order_ref": "...", "eurocode": "...", "raw_text": "..."}
@@ -64,7 +69,24 @@ Se não encontrares algum campo coloca null.`
           const parsed = JSON.parse(data);
           const text = parsed.content?.[0]?.text || '';
           const m = text.match(/\{[\s\S]*\}/);
-          resolve(m ? JSON.parse(m[0]) : { order_ref: null, eurocode: null, raw_text: text });
+          const result = m ? JSON.parse(m[0]) : { order_ref: null, eurocode: null, raw_text: text };
+
+          // Validate and fix eurocode using regex on raw_text.
+          // If AI returned something like "1605AGACMVZ" (digits from before "/" combined
+          // with letters from after "/"), correct it by finding valid eurocodes in raw_text.
+          const isValidEc = (ec) => ec && /^\d{4}[A-Z]{3,}/.test(String(ec).toUpperCase());
+          if (result.raw_text && !isValidEc(result.eurocode)) {
+            const rawUpper = String(result.raw_text).toUpperCase();
+            // Split on common separators so "1605/6577AGACMVZ" → tokens include "6577AGACMVZ"
+            const candidates = rawUpper.split(/[\s\/,;|:]+/)
+              .map(t => t.replace(/^[^A-Z0-9]+/, '').replace(/[^A-Z0-9]+$/, ''))
+              .filter(t => /^\d{4}[A-Z]{3,}/.test(t));
+            if (candidates.length > 0) {
+              // Prefer the longest candidate (more specific code)
+              result.eurocode = candidates.sort((a, b) => b.length - a.length)[0];
+            }
+          }
+          resolve(result);
         } catch (e) {
           reject(new Error('Erro ao processar resposta da IA: ' + e.message));
         }
