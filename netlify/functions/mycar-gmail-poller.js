@@ -105,13 +105,29 @@ function cleanEmailBody(text) {
     text = lines.slice(bodyStart).join('\n');
   }
 
+  // Cortar na palavra de fecho — assinatura começa depois
+  const closingRx = /^(Obrigad[ao][\.\!,]?|Cumprimentos[\.\!]?|Com os melhores cumprimentos|Atenciosamente[\.\!]?|Com estima|Regards|Best regards|Abraços)/im;
+  const closingMatch = text.match(closingRx);
+  if (closingMatch) {
+    text = text.slice(0, closingMatch.index + closingMatch[0].length);
+  }
+
   const cleaned = text.split('\n').filter(line => {
     const t = line.trim();
     if (!t) return false;
-    if (/^[-=_*>]{3,}$/.test(t)) return false;           // dividers / quoted markers
+    if (/^[-=_*>]{3,}$/.test(t)) return false;                        // dividers / quoted markers
     if (/^(From|De|Date|Data|Subject|Assunto|To|Para|Cc|Sent|Enviado):/i.test(t)) return false;
-    if (/^\[?(image|imagem|cid:)/i.test(t)) return false; // inline images
-    if ((t.match(/\t/g) || []).length >= 2) return false;  // linhas de tabela
+    if (/^\[?(image|imagem|cid:)/i.test(t)) return false;             // inline images
+    if ((t.match(/\t/g) || []).length >= 2) return false;             // linhas de tabela
+    // Avisos de segurança do servidor de email
+    if (/segurança.*email|email.*nossa.*organiza|email externo|não carregue|atenção.*email/i.test(t)) return false;
+    if (/^[\[🔒].*segurança/i.test(t) || /^\[aten/i.test(t)) return false;
+    // Linhas de assinatura
+    if (/\d{4}-\d{3}/.test(t)) return false;                         // código postal
+    if (/^T[:\.\s]+[\+\d]/.test(t) || /^Tel[:\.\s]+[\+\d]/i.test(t)) return false; // telefone
+    if (/mailto:|<[^>]+@[^>]{1,30}>/.test(t)) return false;          // mailto / email entre <>
+    if (/^(Rua|Av\.|Avenida|Largo|Travessa|Praceta|Estrada)\s/i.test(t)) return false; // morada
+    if (/^Enviada?:/i.test(t)) return false;                         // data de reencaminhamento
     return true;
   }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 
