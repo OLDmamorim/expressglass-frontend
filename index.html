@@ -1293,12 +1293,18 @@
 
   function renderStep1() {
     document.getElementById('grScanBody').innerHTML = `
-      <p style="color:#64748b;font-size:13px;margin-bottom:16px;">Tira uma foto à etiqueta do vidro ou introduz os dados manualmente.</p>
+      <p style="color:#64748b;font-size:13px;margin-bottom:16px;">Tira uma foto à etiqueta do vidro ou escolhe uma imagem da galeria.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
-        <label style="display:flex;align-items:center;justify-content:center;gap:8px;background:#1d4ed8;color:#fff;font-weight:700;font-size:14px;padding:14px;border-radius:12px;cursor:pointer;border:none;">
-          📷 Tirar/Escolher Foto
-          <input id="grPhotoInput" type="file" accept="image/*" capture="environment" style="display:none;" onchange="window.glassReception._onPhoto(this)">
-        </label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <label style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1d4ed8;color:#fff;font-weight:700;font-size:13px;padding:13px 8px;border-radius:12px;cursor:pointer;text-align:center;">
+            📷 Tirar Foto
+            <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="window.glassReception._onPhoto(this)">
+          </label>
+          <label style="display:flex;align-items:center;justify-content:center;gap:6px;background:#0f172a;color:#fff;font-weight:700;font-size:13px;padding:13px 8px;border-radius:12px;cursor:pointer;text-align:center;">
+            🖼️ Galeria
+            <input id="grPhotoInput" type="file" accept="image/*" style="display:none;" onchange="window.glassReception._onPhoto(this)">
+          </label>
+        </div>
         <div style="text-align:center;color:#94a3b8;font-size:12px;">— ou introduz manualmente —</div>
         <input id="grManualOrder" type="text" placeholder="N.º de encomenda (opcional)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;width:100%;">
         <input id="grManualEurocode" type="text" placeholder="Eurocode (ex: FW1234)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;width:100%;">
