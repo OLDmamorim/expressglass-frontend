@@ -78,6 +78,55 @@ exports.handler = async (event) => {
 
     // ---------- GET ----------
     if (event.httpMethod === 'GET') {
+      // Cross-portal search for glass reception matching
+      if (params.search_eurocode || params.search_order_ref) {
+        let allowedPortalIds;
+        if (user.role === 'admin') {
+          const { rows: allPortals } = await pool.query('SELECT id FROM portals');
+          allowedPortalIds = allPortals.map(r => r.id);
+        } else {
+          const ids = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
+          allowedPortalIds = ids;
+        }
+        if (!allowedPortalIds.length) {
+          return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: [] }) };
+        }
+
+        const conditions = [];
+        const vals = [allowedPortalIds];
+        let idx = 2;
+
+        if (params.search_eurocode) {
+          conditions.push(`(LOWER(glass_eurocode) = LOWER($${idx}) OR LOWER(notes) LIKE '%' || LOWER($${idx}) || '%' OR LOWER(extra::text) LIKE '%' || LOWER($${idx}) || '%')`);
+          vals.push(params.search_eurocode.trim());
+          idx++;
+        }
+        if (params.search_order_ref) {
+          conditions.push(`LOWER(order_ref) = LOWER($${idx})`);
+          vals.push(params.search_order_ref.trim());
+          idx++;
+        }
+
+        const searchQ = `
+          SELECT id, date, period, plate, car, service, locality, status,
+                 notes, address, extra, phone, km, sortIndex, "glassOrdered",
+                 vehicle_type, travel_time, auto_imported, executed, confirmed,
+                 calibration, first_of_day, second_of_day, not_done_reason, commercial_user_id,
+                 return_km, return_time, client_name, damage_details, glass_removed, glass_removed_date,
+                 custom_service_time, foreign_plate, extra_services, n_obra,
+                 order_ref, glass_eurocode, created_at, updated_at, portal_id
+          FROM appointments
+          WHERE portal_id = ANY($1)
+            AND executed IS NOT TRUE
+            AND glass_removed IS NOT TRUE
+            AND (${conditions.join(' OR ')})
+          ORDER BY date ASC NULLS LAST, created_at ASC
+          LIMIT 50
+        `;
+        const { rows } = await pool.query(searchQ, vals);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
+      }
+
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
                notes, address, extra, phone, km, sortIndex, "glassOrdered",
