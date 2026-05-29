@@ -1501,7 +1501,11 @@
       const aptId = json.data?.appointment_id;
       if (aptId && window.appointments) {
         const apt = window.appointments.find(a => a.id === aptId);
-        if (apt) { apt.status = 'ST'; apt.glass_eurocode = json.data.eurocode || apt.glass_eurocode; }
+        if (apt) {
+          apt.status = 'ST';
+          apt.glass_eurocode = json.data.eurocode || apt.glass_eurocode;
+          apt.order_ref = json.data.order_ref || apt.order_ref;
+        }
         if (typeof renderAll === 'function') renderAll();
         window.guiaAT?.injectBadges();
       }

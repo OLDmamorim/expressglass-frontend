@@ -2504,9 +2504,10 @@ function buildDesktopCard(a){
   if (_extraDisplay) {
     try { const _p = JSON.parse(_extraDisplay); _extraDisplay = _p.eurocode || ''; } catch(e) {}
   }
+  const _orderRefStr = (userRole === 'admin' || userRole === 'coordenador') && a.order_ref ? `📦 Enc: ${a.order_ref}` : null;
   const sub = loja
-    ? [clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ')
-    : [a.locality, clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
+    ? [clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null, _orderRefStr].filter(Boolean).join(' | ')
+    : [a.locality, clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null, _orderRefStr].filter(Boolean).join(' | ');
   // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
