@@ -1389,7 +1389,7 @@
           <span style="font-size:13px;font-weight:600;color:#374151;">${a.car||'—'}</span>
         </div>
         <div style="display:flex;gap:16px;font-size:12px;color:#64748b;flex-wrap:wrap;">
-          <span>🏪 ${a.locality || a.portal_name || '—'}</span>
+          <span>🏪 ${a.locality || window.portalConfig?.name || '—'}</span>
           <span>🔧 ${a.service || '—'}</span>
           ${a.date ? `<span>📅 ${fmtDate(a.date)}</span>` : '<span style="color:#f59e0b;">Sem data</span>'}
         </div>
