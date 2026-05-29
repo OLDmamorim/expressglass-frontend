@@ -71,18 +71,14 @@ Se não encontrares algum campo coloca null.`
           const m = text.match(/\{[\s\S]*\}/);
           const result = m ? JSON.parse(m[0]) : { order_ref: null, eurocode: null, raw_text: text };
 
-          // Validate and fix eurocode using regex on raw_text.
-          // If AI returned something like "1605AGACMVZ" (digits from before "/" combined
-          // with letters from after "/"), correct it by finding valid eurocodes in raw_text.
-          const isValidEc = (ec) => ec && /^\d{4}[A-Z]{3,}/.test(String(ec).toUpperCase());
-          if (result.raw_text && !isValidEc(result.eurocode)) {
+          // Always extract eurocode from raw_text via regex — more reliable than AI parsing.
+          // Splits on "/" so "1605/6577AGACMVZ" yields ["1605", "6577AGACMVZ"] and finds 6577AGACMVZ.
+          if (result.raw_text) {
             const rawUpper = String(result.raw_text).toUpperCase();
-            // Split on common separators so "1605/6577AGACMVZ" → tokens include "6577AGACMVZ"
             const candidates = rawUpper.split(/[\s\/,;|:]+/)
               .map(t => t.replace(/^[^A-Z0-9]+/, '').replace(/[^A-Z0-9]+$/, ''))
               .filter(t => /^\d{4}[A-Z]{3,}/.test(t));
             if (candidates.length > 0) {
-              // Prefer the longest candidate (more specific code)
               result.eurocode = candidates.sort((a, b) => b.length - a.length)[0];
             }
           }
