@@ -1350,16 +1350,18 @@
     const body = document.getElementById('grScanBody');
     if (body) body.innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A procurar em todos os portais…</p>`;
 
-    const ecLow = eurocode ? eurocode.trim().toLowerCase() : null;
+    // Normalize I↔1 and O↔0 to handle OCR character confusion
+    const normEc = s => (s || '').toLowerCase().replace(/i/g, '1').replace(/o/g, '0');
+    const ecNorm = eurocode ? normEc(eurocode.trim()) : null;
 
     // Local search first (active portal appointments already loaded)
     const localResults = (window.appointments || []).filter(a => {
       if (a.executed === true || a.glass_removed) return false;
       const matchOrder = orderRef && a.order_ref && a.order_ref.trim().toLowerCase() === orderRef.trim().toLowerCase();
-      const matchEuro  = ecLow && a.glass_eurocode && a.glass_eurocode.trim().toLowerCase() === ecLow;
+      const matchEuro  = ecNorm && a.glass_eurocode && normEc(a.glass_eurocode) === ecNorm;
       let extraEuro = '';
-      if (a.extra) { try { extraEuro = (JSON.parse(a.extra).eurocode || '').toLowerCase(); } catch(e) { extraEuro = (a.extra || '').toLowerCase(); } }
-      const matchEuroNotes = ecLow && ((a.notes || '') + ' ' + (a.n_obra || '') + ' ' + extraEuro).toLowerCase().includes(ecLow);
+      if (a.extra) { try { extraEuro = (JSON.parse(a.extra).eurocode || ''); } catch(e) { extraEuro = (a.extra || ''); } }
+      const matchEuroNotes = ecNorm && normEc((a.notes || '') + ' ' + (a.n_obra || '') + ' ' + extraEuro).includes(ecNorm);
       return matchOrder || matchEuro || matchEuroNotes;
     });
 
