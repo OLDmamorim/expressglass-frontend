@@ -98,7 +98,12 @@ exports.handler = async (event) => {
         let idx = 2;
 
         if (params.search_eurocode) {
-          conditions.push(`(LOWER(glass_eurocode) = LOWER($${idx}) OR LOWER(notes) LIKE '%' || LOWER($${idx}) || '%' OR LOWER(extra::text) LIKE '%' || LOWER($${idx}) || '%')`);
+          // Normalize I↔1 and O↔0 to handle OCR character confusion
+          conditions.push(`(
+            REPLACE(REPLACE(LOWER(glass_eurocode), 'i', '1'), 'o', '0') = REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0')
+            OR REPLACE(REPLACE(LOWER(notes), 'i', '1'), 'o', '0') LIKE '%' || REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0') || '%'
+            OR REPLACE(REPLACE(LOWER(extra::text), 'i', '1'), 'o', '0') LIKE '%' || REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0') || '%'
+          )`);
           vals.push(params.search_eurocode.trim());
           idx++;
         }
