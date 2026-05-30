@@ -114,19 +114,22 @@ exports.handler = async (event) => {
         }
 
         const searchQ = `
-          SELECT id, date, period, plate, car, service, locality, status,
-                 notes, address, extra, phone, km, sortIndex, "glassOrdered",
-                 vehicle_type, travel_time, auto_imported, executed, confirmed,
-                 calibration, first_of_day, second_of_day, not_done_reason, commercial_user_id,
-                 return_km, return_time, client_name, damage_details, glass_removed, glass_removed_date,
-                 custom_service_time, foreign_plate, extra_services, n_obra,
-                 order_ref, glass_eurocode, created_at, updated_at, portal_id
-          FROM appointments
-          WHERE portal_id = ANY($1)
-            AND executed IS NOT TRUE
-            AND glass_removed IS NOT TRUE
+          SELECT a.id, a.date, a.period, a.plate, a.car, a.service, a.locality, a.status,
+                 a.notes, a.address, a.extra, a.phone, a.km, a.sortIndex, a."glassOrdered",
+                 a.vehicle_type, a.travel_time, a.auto_imported, a.executed, a.confirmed,
+                 a.calibration, a.first_of_day, a.second_of_day, a.not_done_reason, a.commercial_user_id,
+                 a.return_km, a.return_time, a.client_name, a.damage_details, a.glass_removed, a.glass_removed_date,
+                 a.custom_service_time, a.foreign_plate, a.extra_services, a.n_obra,
+                 a.order_ref, a.glass_eurocode, a.created_at, a.updated_at, a.portal_id,
+                 p.name AS portal_name
+          FROM appointments a
+          LEFT JOIN portals p ON p.id = a.portal_id
+          WHERE a.portal_id = ANY($1)
+            AND a.executed IS NOT TRUE
+            AND a.glass_removed IS NOT TRUE
+            AND (a.date IS NULL OR a.date >= CURRENT_DATE - INTERVAL '5 days')
             AND (${conditions.join(' OR ')})
-          ORDER BY date ASC NULLS LAST, created_at ASC
+          ORDER BY a.date ASC NULLS LAST, a.created_at ASC
           LIMIT 50
         `;
         const { rows } = await pool.query(searchQ, vals);
