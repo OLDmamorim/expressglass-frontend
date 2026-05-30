@@ -33,12 +33,19 @@ Extrai APENAS estes dois campos:
 
 1. Número de encomenda — procura nos campos: "PEDIDO", "N.º Enc", "Order", "Enc.", "COD AT" ou referência numérica/alfanumérica do pedido. Exemplo: "65178"
 
-2. Eurocode do vidro — código com formato EXATO: 4 dígitos seguidos IMEDIATAMENTE de 3 ou mais letras maiúsculas (ex: 6577AGACMVZ, 3739ABCDE, 5385AGNVZPBL).
+2. Eurocode do vidro — código com formato EXATO: 4 dígitos seguidos IMEDIATAMENTE de 3 ou mais caracteres alfanuméricos maiúsculos (ex: 6577AGACMVZ, 3739ABCDE, 7274AGAM1R).
    Procura em campos como PICK_LABELS, OBS, Observações.
    REGRA CRÍTICA para PICK_LABELS com formato "NNNN/DDDDLLLLL" (ex: "1605/6577AGACMVZ"):
    - O número ANTES da barra "/" (ex: 1605) é uma sequência — NÃO é o eurocode
    - O eurocode é o código COMPLETO APÓS a barra "/" (ex: 6577AGACMVZ)
    - NUNCA combines dígitos de antes da barra com letras de depois da barra
+
+   ⚠️ ATENÇÃO CRÍTICA — confusão 1 vs I vs O vs 0:
+   Nesta fonte de impressora térmica, o DÍGITO '1' (um) e a LETRA 'I' maiúscula são visualmente muito semelhantes. O mesmo para o DÍGITO '0' (zero) e a LETRA 'O'.
+   Em eurocodes, os sistemas de vidro automóvel NÃO utilizam as letras 'I' nem 'O' no código para evitar exactamente esta confusão. Por isso:
+   - Se vires um caracter que parece 'I' dentro do eurocode → é o DÍGITO '1'
+   - Se vires um caracter que parece 'O' dentro do eurocode → é o DÍGITO '0'
+   Exemplo: "7274AGAM1R" tem um dígito '1' a seguir a 'AGAM', NÃO a letra 'I'.
 
 Responde EXCLUSIVAMENTE em JSON válido, sem texto adicional:
 {"order_ref": "...", "eurocode": "...", "raw_text": "..."}
@@ -77,11 +84,20 @@ Se não encontrares algum campo coloca null.`
             const rawUpper = String(result.raw_text).toUpperCase();
             const candidates = rawUpper.split(/[\s\/,;|:]+/)
               .map(t => t.replace(/^[^A-Z0-9]+/, '').replace(/[^A-Z0-9]+$/, ''))
-              .filter(t => /^\d{4}[A-Z]{3,}/.test(t));
+              .filter(t => /^\d{4}[A-Z0-9]{3,}/.test(t));
             if (candidates.length > 0) {
               result.eurocode = candidates.sort((a, b) => b.length - a.length)[0];
             }
           }
+
+          // Normalize I→1 and O→0 in the eurocode: auto-glass eurocode systems
+          // never use the letters I or O precisely to avoid confusion with digits.
+          if (result.eurocode) {
+            const ec = String(result.eurocode).toUpperCase();
+            // Keep first 4 chars as-is (already digits from regex), normalize rest
+            result.eurocode = ec.slice(0, 4) + ec.slice(4).replace(/I/g, '1').replace(/O/g, '0');
+          }
+
           resolve(result);
         } catch (e) {
           reject(new Error('Erro ao processar resposta da IA: ' + e.message));
