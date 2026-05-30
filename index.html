@@ -1459,12 +1459,44 @@
   // ── COORDINATOR PANEL ────────────────────────────────────────────────────
   async function openCoordPanel() {
     document.getElementById('grCoordModal').style.display = 'flex';
-    document.getElementById('grCoordBody').innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A carregar…</p>`;
-    await _loadCoordList();
+    document.getElementById('grCoordBody').innerHTML = `
+      <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:0;">
+        <button id="grTabPending" onclick="window.glassReception._switchTab('pending')"
+                style="padding:10px 18px;border:none;border-bottom:3px solid #2563eb;margin-bottom:-2px;font-weight:700;cursor:pointer;color:#2563eb;background:transparent;font-size:13px;">
+          📋 Pendentes
+        </button>
+        <button id="grTabHistory" onclick="window.glassReception._switchTab('history')"
+                style="padding:10px 18px;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:600;cursor:pointer;color:#94a3b8;background:transparent;font-size:13px;">
+          📊 Histórico
+        </button>
+      </div>
+      <div id="grTabContent" style="padding-top:12px;"></div>
+    `;
+    await _switchTab('pending');
   }
 
   function closeCoord() {
     document.getElementById('grCoordModal').style.display = 'none';
+  }
+
+  async function _switchTab(tab) {
+    const tabs = { pending: 'grTabPending', history: 'grTabHistory' };
+    Object.entries(tabs).forEach(([key, id]) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      const active = key === tab;
+      btn.style.borderBottomColor = active ? '#2563eb' : 'transparent';
+      btn.style.color = active ? '#2563eb' : '#94a3b8';
+      btn.style.fontWeight = active ? '700' : '600';
+    });
+    const content = document.getElementById('grTabContent');
+    if (!content) return;
+    if (tab === 'pending') {
+      content.innerHTML = `<p style="text-align:center;padding:20px;color:#64748b;">A carregar…</p>`;
+      await _loadCoordList();
+    } else {
+      await _openHistory();
+    }
   }
 
   async function _loadCoordList() {
@@ -1474,7 +1506,8 @@
       if (!json.success) throw new Error(json.error);
       _renderCoordList(json.data);
     } catch (e) {
-      document.getElementById('grCoordBody').innerHTML = `<p style="color:#dc2626;text-align:center;padding:20px;">Erro: ${e.message}</p>`;
+      const el = document.getElementById('grTabContent');
+      if (el) el.innerHTML = `<p style="color:#dc2626;text-align:center;padding:20px;">Erro: ${e.message}</p>`;
     }
   }
 
@@ -1482,8 +1515,11 @@
     const badge = document.getElementById('grCoordBadge');
     if (badge) { badge.textContent = items.length + ' pendente' + (items.length !== 1 ? 's' : ''); badge.style.display = items.length ? '' : 'none'; }
 
+    const content = document.getElementById('grTabContent');
+    if (!content) return;
+
     if (items.length === 0) {
-      document.getElementById('grCoordBody').innerHTML = `
+      content.innerHTML = `
         <div style="text-align:center;padding:40px;color:#94a3b8;">
           <div style="font-size:40px;margin-bottom:12px;">✅</div>
           <p style="font-size:14px;font-weight:600;">Sem vidros pendentes de receção.</p>
@@ -1491,7 +1527,7 @@
       return;
     }
 
-    document.getElementById('grCoordBody').innerHTML = items.map(r => `
+    content.innerHTML = items.map(r => `
       <div id="grRow${r.id}" style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;background:#fff;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
           <span style="font-family:monospace;font-weight:800;font-size:14px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${(r.apt_plate || r.order_ref || '—').toUpperCase()}</span>
@@ -1507,6 +1543,192 @@
         <button onclick="window.glassReception._markReceived(${r.id})" style="background:#16a34a;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">✅ Rececionado</button>
       </div>
     `).join('');
+  }
+
+  // ── HISTORY ───────────────────────────────────────────────────────────────
+  async function _openHistory() {
+    const content = document.getElementById('grTabContent');
+    if (!content) return;
+    content.innerHTML = `<p style="text-align:center;padding:16px;color:#64748b;">A carregar…</p>`;
+
+    let portals = [];
+    try {
+      const res = await fetch(API + '/glass-reception?list_portals=true', { headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) portals = json.data;
+    } catch(_) {}
+
+    const now = new Date();
+    const fromDef = now.toISOString().slice(0, 7) + '-01';
+    const today   = now.toISOString().slice(0, 10);
+
+    const portalOpts = `<option value="">Todos os portais</option>` +
+      portals.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+    content.innerHTML = `
+      <div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">PORTAL</label>
+            <select id="grHPortal" style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:8px;font-size:13px;background:#fff;">
+              ${portalOpts}
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">BUSCA</label>
+            <input id="grHSearch" type="text" placeholder="Matrícula, eurocode ou enc." onkeydown="if(event.key==='Enter')window.glassReception._loadHistory()"
+                   style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:8px;font-size:13px;box-sizing:border-box;">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">DE</label>
+            <input id="grHFrom" type="date" value="${fromDef}" style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:8px;font-size:13px;box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">ATÉ</label>
+            <input id="grHTo" type="date" value="${today}" style="width:100%;border:1.5px solid #e2e8f0;border-radius:7px;padding:8px;font-size:13px;box-sizing:border-box;">
+          </div>
+        </div>
+        <button onclick="window.glassReception._loadHistory()" style="background:#0f172a;color:#fff;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;width:100%;">🔍 Filtrar</button>
+      </div>
+      <div id="grHResults"><p style="text-align:center;color:#94a3b8;font-size:13px;padding:12px;">Aplica os filtros para ver o histórico.</p></div>
+    `;
+  }
+
+  async function _loadHistory() {
+    const content = document.getElementById('grHResults');
+    if (!content) return;
+    content.innerHTML = `<p style="text-align:center;padding:16px;color:#64748b;">A carregar…</p>`;
+
+    const portalId = document.getElementById('grHPortal')?.value || '';
+    const search   = (document.getElementById('grHSearch')?.value || '').trim();
+    const fromDate = document.getElementById('grHFrom')?.value || '';
+    const toDate   = document.getElementById('grHTo')?.value || '';
+
+    const qp = new URLSearchParams({ history: 'true' });
+    if (portalId) qp.set('portal_id', portalId);
+    if (search)   qp.set('search', search);
+    if (fromDate) qp.set('from_date', fromDate);
+    if (toDate)   qp.set('to_date', toDate);
+
+    try {
+      const res = await fetch(API + '/glass-reception?' + qp.toString(), { headers: authHeaders() });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      _renderHistoryTable(json.data);
+    } catch (e) {
+      if (content) content.innerHTML = `<p style="color:#dc2626;text-align:center;padding:12px;">Erro: ${e.message}</p>`;
+    }
+  }
+
+  function _statusLabel(s) {
+    if (s === 'received')  return '<span style="color:#16a34a;font-weight:700;">✅ Recebido</span>';
+    if (s === 'confirmed') return '<span style="color:#f59e0b;font-weight:700;">⏳ Confirmado</span>';
+    return '<span style="color:#94a3b8;">Pendente</span>';
+  }
+
+  function _renderHistoryTable(rows) {
+    const content = document.getElementById('grHResults');
+    if (!content) return;
+    window._grHistoryData = rows;
+
+    if (rows.length === 0) {
+      content.innerHTML = `<p style="text-align:center;color:#94a3b8;padding:20px;font-size:13px;">Sem resultados para os filtros seleccionados.</p>`;
+      return;
+    }
+
+    content.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:12px;color:#64748b;">${rows.length} registo${rows.length !== 1 ? 's' : ''}</span>
+        <div style="display:flex;gap:8px;">
+          <button onclick="window.glassReception._exportCSV()" style="background:#16a34a;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:7px;border:none;cursor:pointer;">📥 Excel</button>
+          <button onclick="window.glassReception._printHistory()" style="background:#2563eb;color:#fff;font-size:12px;font-weight:700;padding:7px 14px;border-radius:7px;border:none;cursor:pointer;">🖨️ Imprimir</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:560px;">
+          <thead>
+            <tr style="background:#0f172a;color:#fff;">
+              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Data</th>
+              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Matrícula</th>
+              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Carro</th>
+              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Loja</th>
+              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Eurocode</th>
+              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Encomenda</th>
+              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Técnico</th>
+              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((r, i) => `
+              <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${fmtDate(r.created_at)}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">${(r.apt_plate || '—').toUpperCase()}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${r.apt_car || '—'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${r.portal_label || '—'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;">${r.eurocode || '—'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${r.order_ref || '—'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${r.technician_name || '—'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${_statusLabel(r.status)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function _exportCSV() {
+    const data = window._grHistoryData || [];
+    if (!data.length) return;
+    const hdr = ['Data','Matrícula','Carro','Loja','Eurocode','Encomenda','Técnico','Estado'];
+    const statusTxt = s => s === 'received' ? 'Recebido' : s === 'confirmed' ? 'Confirmado' : 'Pendente';
+    const rows = data.map(r => [
+      fmtDate(r.created_at), (r.apt_plate || '').toUpperCase(),
+      r.apt_car || '', r.portal_label || '',
+      r.eurocode || '', r.order_ref || '',
+      r.technician_name || '', statusTxt(r.status)
+    ]);
+    const csv = [hdr, ...rows].map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `rececao-vidros-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+  function _printHistory() {
+    const data = window._grHistoryData || [];
+    const statusTxt = s => s === 'received' ? 'Recebido' : s === 'confirmed' ? 'Confirmado' : 'Pendente';
+    const w = window.open('', '_blank');
+    w.document.write(`<!DOCTYPE html><html><head><title>Histórico Receção de Vidros</title>
+      <style>
+        body{font-family:Arial,sans-serif;font-size:11px;margin:20px;}
+        h2{font-size:16px;margin-bottom:4px;}
+        p.meta{color:#666;font-size:11px;margin-bottom:12px;}
+        table{border-collapse:collapse;width:100%;}
+        th,td{border:1px solid #ccc;padding:4px 8px;text-align:left;}
+        th{background:#0f172a;color:#fff;}
+        tr:nth-child(even) td{background:#f8fafc;}
+        @media print{body{margin:8px;}}
+      </style>
+    </head><body>
+      <h2>Histórico — Receção de Vidros</h2>
+      <p class="meta">Impresso em ${new Date().toLocaleDateString('pt-PT')} — ${data.length} registo${data.length !== 1 ? 's' : ''}</p>
+      <table>
+        <thead><tr><th>Data</th><th>Matrícula</th><th>Carro</th><th>Loja</th><th>Eurocode</th><th>Encomenda</th><th>Técnico</th><th>Estado</th></tr></thead>
+        <tbody>${data.map(r => `<tr>
+          <td>${fmtDate(r.created_at)}</td>
+          <td style="font-family:monospace;font-weight:bold;">${(r.apt_plate||'—').toUpperCase()}</td>
+          <td>${r.apt_car||'—'}</td><td>${r.portal_label||'—'}</td>
+          <td style="font-family:monospace;">${r.eurocode||'—'}</td>
+          <td>${r.order_ref||'—'}</td><td>${r.technician_name||'—'}</td>
+          <td>${statusTxt(r.status)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </body></html>`);
+    w.document.close(); w.print();
   }
 
   async function _markReceived(id) {
@@ -1582,7 +1804,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _onPhoto, _manualSearch, _step1, _doSearch, _confirmReception, _markReceived };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _onPhoto, _manualSearch, _step1, _doSearch, _confirmReception, _markReceived, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);

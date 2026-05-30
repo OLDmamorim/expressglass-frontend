@@ -49,6 +49,62 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'GET') {
       const p = event.queryStringParameters || {};
 
+      // ── List portals accessible to this user (for history dropdown) ──────────
+      if (p.list_portals === 'true') {
+        let pq, pVals;
+        if (user.role === 'admin') {
+          pq = `SELECT id, name FROM portals ORDER BY name`;
+          pVals = [];
+        } else {
+          const ids = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
+          pq = `SELECT id, name FROM portals WHERE id = ANY($1) ORDER BY name`;
+          pVals = [ids];
+        }
+        const { rows: pRows } = await client.query(pq, pVals);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: pRows }) };
+      }
+
+      // ── History query ─────────────────────────────────────────────────────────
+      if (p.history === 'true') {
+        let hq = `
+          SELECT gr.*,
+                 a.plate    AS apt_plate,
+                 a.car      AS apt_car,
+                 a.locality AS apt_locality,
+                 a.service  AS apt_service,
+                 a.date     AS apt_date,
+                 po.name    AS portal_label
+          FROM glass_receptions gr
+          LEFT JOIN appointments a  ON a.id = gr.appointment_id
+          LEFT JOIN portals po      ON po.id = gr.portal_id
+          WHERE 1=1
+        `;
+        const hVals = [];
+        let hIdx = 1;
+
+        // Portal access control
+        if (user.role === 'user') {
+          hq += ` AND gr.portal_id = $${hIdx++}`; hVals.push(user.portalId);
+        } else if (user.role !== 'admin') {
+          const ids = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
+          if (ids.length) { hq += ` AND gr.portal_id = ANY($${hIdx++})`; hVals.push(ids); }
+        }
+
+        if (p.portal_id) { hq += ` AND gr.portal_id = $${hIdx++}`; hVals.push(parseInt(p.portal_id)); }
+        if (p.from_date) { hq += ` AND gr.created_at >= $${hIdx++}`; hVals.push(p.from_date); }
+        if (p.to_date)   { hq += ` AND gr.created_at < ($${hIdx++}::date + INTERVAL '1 day')`; hVals.push(p.to_date); }
+        if (p.search) {
+          const s = '%' + p.search.trim().toLowerCase() + '%';
+          hq += ` AND (LOWER(gr.eurocode) LIKE $${hIdx} OR LOWER(gr.order_ref) LIKE $${hIdx} OR LOWER(a.plate) LIKE $${hIdx})`;
+          hVals.push(s); hIdx++;
+        }
+
+        hq += ` ORDER BY gr.created_at DESC LIMIT 1000`;
+        const { rows: hRows } = await client.query(hq, hVals);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: hRows }) };
+      }
+
+      // ── Default: pending list ─────────────────────────────────────────────────
       let q = `
         SELECT gr.*,
                a.plate    AS apt_plate,
