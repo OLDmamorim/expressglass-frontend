@@ -139,13 +139,15 @@ exports.handler = async (event) => {
       // Pending conclusion: appointments from previous days without a final service status
       if (params.pending_conclusion === 'true') {
         const { rows } = await pool.query(`
-          SELECT id, date, period, plate, car, service, locality,
-                 executed, glass_removed, status
+          SELECT id, date, period, plate, car, service, locality
           FROM appointments
           WHERE portal_id = $1
             AND date <= CURRENT_DATE
             AND date >= CURRENT_DATE - INTERVAL '30 days'
-            AND executed IS NULL
+            AND (
+              executed IS NULL
+              OR (executed = false AND (not_done_reason IS NULL OR not_done_reason = ''))
+            )
             AND glass_removed IS NOT TRUE
           ORDER BY date ASC
         `, [portalId]);
