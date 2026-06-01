@@ -136,6 +136,21 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
       }
 
+      // Pending conclusion: appointments from previous days without a final service status
+      if (params.pending_conclusion === 'true') {
+        const { rows } = await pool.query(`
+          SELECT id, date, period, plate, car, service, locality
+          FROM appointments
+          WHERE portal_id = $1
+            AND date < CURRENT_DATE
+            AND date >= CURRENT_DATE - INTERVAL '7 days'
+            AND executed IS NULL
+            AND glass_removed IS NOT TRUE
+          ORDER BY date ASC
+        `, [portalId]);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
+      }
+
       const q = `
         SELECT id, date, period, plate, car, service, locality, status,
                notes, address, extra, phone, km, sortIndex, "glassOrdered",
