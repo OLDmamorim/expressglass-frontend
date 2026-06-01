@@ -31,6 +31,38 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'portal_id, date_from, date_to obrigatórios' }) };
   }
 
+  // Detail list for a specific KPI card
+  if (params.list) {
+    const type = params.list; // agendados | realizados | nao_realizados
+    let q, vals;
+    if (type === 'realizados') {
+      q = `SELECT date, plate, car, service, locality, period, not_done_reason
+           FROM appointments
+           WHERE portal_id = $1 AND date BETWEEN $2 AND $3 AND executed = true
+           ORDER BY date ASC, plate ASC`;
+      vals = [portalId, dateFrom, dateTo];
+    } else if (type === 'nao_realizados') {
+      q = `SELECT date, plate, car, service, locality, period, not_done_reason,
+                  GREATEST(0, ROUND(EXTRACT(EPOCH FROM (updated_at - date::timestamp)) / 86400)::int) AS days_to_close
+           FROM appointments
+           WHERE portal_id = $1 AND date BETWEEN $2 AND $3 AND executed = false
+           ORDER BY date ASC, plate ASC`;
+      vals = [portalId, dateFrom, dateTo];
+    } else {
+      q = `SELECT date, plate, car, service, locality, period, not_done_reason
+           FROM appointments
+           WHERE portal_id = $1 AND date BETWEEN $2 AND $3
+           ORDER BY date ASC, plate ASC`;
+      vals = [portalId, dateFrom, dateTo];
+    }
+    try {
+      const { rows } = await pool.query(q, vals);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
+    } catch(e) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) };
+    }
+  }
+
   try {
     // 1. Totais gerais
     const { rows: totals } = await pool.query(`

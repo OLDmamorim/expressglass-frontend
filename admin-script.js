@@ -1483,6 +1483,82 @@ function initReportFilters() {
   document.getElementById('reportTo').value = ym;
 }
 
+let _currentReportParams = null; // portal_id, date_from, date_to for detail drill-down
+
+async function showKpiDetail(type) {
+  if (!_currentReportParams) return;
+  const { portalId, dateFrom, dateTo } = _currentReportParams;
+
+  const titles = { agendados: 'Agendados', realizados: 'Realizados', nao_realizados: 'Não Realizados' };
+  const modal = document.getElementById('kpiDetailModal');
+  const body  = document.getElementById('kpiDetailBody');
+  document.getElementById('kpiDetailTitle').textContent = titles[type] || 'Detalhe';
+  body.innerHTML = '<p style="color:#6b7280;padding:20px 0;">A carregar…</p>';
+  modal.classList.add('show');
+
+  try {
+    const token = authClient.getToken();
+    const resp = await fetch(
+      `/.netlify/functions/reports?portal_id=${portalId}&date_from=${dateFrom}&date_to=${dateTo}&list=${type}`,
+      { headers: { Authorization: 'Bearer ' + token } }
+    );
+    const data = await resp.json();
+    if (!data.success) throw new Error(data.error || 'Erro');
+
+    const rows = data.data;
+    if (!rows.length) {
+      body.innerHTML = '<p style="text-align:center;color:#6b7280;padding:32px 0;">Nenhum registo encontrado.</p>';
+      return;
+    }
+
+    const isNR = type === 'nao_realizados';
+    const fmtD = iso => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+
+    const thStyle = 'padding:9px 12px;text-align:left;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #e2e8f0;white-space:nowrap;';
+    const tdStyle = 'padding:9px 12px;font-size:13px;border-bottom:1px solid #f1f5f9;vertical-align:middle;';
+
+    const extraTh = isNR ? `<th style="${thStyle}">Motivo</th><th style="${thStyle}">Dias em aberto</th>` : '';
+
+    const rowsHTML = rows.map(r => {
+      let extra = '';
+      if (isNR) {
+        const motivo = r.not_done_reason || '—';
+        const days = r.days_to_close != null ? r.days_to_close : '—';
+        const daysBadge = r.days_to_close != null
+          ? `<span style="background:${r.days_to_close > 3 ? '#fee2e2' : '#f0fdf4'};color:${r.days_to_close > 3 ? '#dc2626' : '#16a34a'};font-weight:700;border-radius:6px;padding:2px 8px;font-size:12px;">${days === 0 ? 'mesmo dia' : days + 'd'}</span>`
+          : '—';
+        extra = `<td style="${tdStyle}">${motivo}</td><td style="${tdStyle}">${daysBadge}</td>`;
+      }
+      return `<tr>
+        <td style="${tdStyle}">${fmtD(r.date)}</td>
+        <td style="${tdStyle}"><strong>${r.plate || '—'}</strong></td>
+        <td style="${tdStyle}">${r.car || '—'}</td>
+        <td style="${tdStyle}">${r.service || '—'}</td>
+        <td style="${tdStyle}">${r.locality || '—'}</td>
+        ${extra}
+      </tr>`;
+    }).join('');
+
+    body.innerHTML = `
+      <div style="margin-bottom:10px;font-size:13px;color:#6b7280;">${rows.length} registo${rows.length > 1 ? 's' : ''}</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr>
+            <th style="${thStyle}">Data</th>
+            <th style="${thStyle}">Matrícula</th>
+            <th style="${thStyle}">Viatura</th>
+            <th style="${thStyle}">Serviço</th>
+            <th style="${thStyle}">Localidade</th>
+            ${extraTh}
+          </tr></thead>
+          <tbody>${rowsHTML}</tbody>
+        </table>
+      </div>`;
+  } catch(e) {
+    body.innerHTML = `<p style="color:#dc2626;padding:20px 0;">Erro: ${e.message}</p>`;
+  }
+}
+
 async function generateReport() {
   const portalId = document.getElementById('reportPortal').value;
   const fromMonth = document.getElementById('reportFrom').value;
@@ -1491,6 +1567,7 @@ async function generateReport() {
 
   const dateFrom = fromMonth + '-01';
   const dateTo   = toMonth + '-' + new Date(toMonth.split('-')[0], toMonth.split('-')[1], 0).getDate();
+  _currentReportParams = { portalId, dateFrom, dateTo };
 
   document.getElementById('reportLoading').style.display = 'block';
   document.getElementById('reportContent').style.display = 'none';
