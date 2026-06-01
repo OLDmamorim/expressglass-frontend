@@ -139,16 +139,29 @@ exports.handler = async (event) => {
       // Pending conclusion: appointments from previous days without a final service status
       if (params.pending_conclusion === 'true') {
         const { rows } = await pool.query(`
-          SELECT id, date, period, plate, car, service, locality
+          SELECT id, date, period, plate, car, service, locality,
+                 executed, glass_removed, status
           FROM appointments
           WHERE portal_id = $1
-            AND date < CURRENT_DATE
-            AND date >= CURRENT_DATE - INTERVAL '7 days'
+            AND date <= CURRENT_DATE
+            AND date >= CURRENT_DATE - INTERVAL '30 days'
             AND executed IS NULL
             AND glass_removed IS NOT TRUE
           ORDER BY date ASC
         `, [portalId]);
-        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
+
+        // diagnostic: also count total recent appointments regardless of status
+        const { rows: diag } = await pool.query(`
+          SELECT COUNT(*) AS total,
+                 COUNT(*) FILTER (WHERE executed IS NULL) AS null_exec,
+                 COUNT(*) FILTER (WHERE executed = true) AS done,
+                 COUNT(*) FILTER (WHERE executed = false) AS not_done,
+                 MIN(date) AS oldest, MAX(date) AS newest
+          FROM appointments
+          WHERE portal_id = $1 AND date >= CURRENT_DATE - INTERVAL '30 days'
+        `, [portalId]);
+
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows, diag: diag[0] }) };
       }
 
       const q = `
