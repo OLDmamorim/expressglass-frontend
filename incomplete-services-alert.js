@@ -31,20 +31,22 @@
   async function fetchPending() {
     try {
       const token = window.authClient?.getToken?.() || localStorage.getItem('eg_auth_token');
-      if (!token) return [];
+      if (!token) { console.warn('[IncServ] sem token'); return []; }
       const user = window.authClient?.getUser?.();
       // userData stores portal as user.portal.id (not user.portalId)
       const portalId = user?.portal?.id || window.portalConfig?.id;
-      if (!portalId) return [];
+      console.log('[IncServ] role=' + user?.role + ' portalId=' + portalId + ' dismissed=' + isDismissed());
+      if (!portalId) { console.warn('[IncServ] sem portalId'); return []; }
       const resp = await fetch(
         `/.netlify/functions/appointments?portal_id=${portalId}&pending_conclusion=true`,
         { headers: { Authorization: 'Bearer ' + token } }
       );
       const data = await resp.json();
+      console.log('[IncServ] API resposta: success=' + data.success + ' count=' + (data.data?.length ?? 'N/A'));
       if (!data.success || !Array.isArray(data.data)) return [];
       return data.data;
     } catch (e) {
-      console.warn('[IncompleteServices] Fetch error:', e);
+      console.warn('[IncServ] Fetch error:', e);
       return [];
     }
   }
