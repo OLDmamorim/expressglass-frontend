@@ -178,9 +178,15 @@
     };
   }
 
+  // Management roles that should NOT see this alert
+  const SKIP_ROLES = new Set(['admin', 'coordenador', 'coordinator', 'comercial', 'pesados_coord']);
+
   async function check() {
     const role = window.authClient?.getUser?.()?.role;
-    if (role !== 'user') return;
+    // Skip if auth not ready yet — will retry on next interval
+    if (!role) return;
+    // Skip management / multi-portal roles
+    if (SKIP_ROLES.has(role)) return;
     if (!isPastShowTime()) return;
     if (isDismissed()) return;
 
@@ -189,7 +195,10 @@
   }
 
   function init() {
-    setTimeout(check, 3500);
+    // Try at 4s, 8s, 15s to handle slow auth init, then every 5 minutes
+    setTimeout(check, 4000);
+    setTimeout(check, 8000);
+    setTimeout(check, 15000);
     setInterval(check, 5 * 60 * 1000);
   }
 
