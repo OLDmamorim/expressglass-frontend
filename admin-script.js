@@ -1512,7 +1512,12 @@ async function showKpiDetail(type) {
     }
 
     const isNR = type === 'nao_realizados';
-    const fmtD = iso => iso ? new Date(iso + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—';
+    const fmtD = iso => {
+      if (!iso) return '—';
+      const s = String(iso).slice(0, 10); // extract YYYY-MM-DD regardless of backend format
+      const d = new Date(s + 'T12:00:00');
+      return isNaN(d) ? '—' : d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    };
 
     const thStyle = 'padding:9px 12px;text-align:left;font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #e2e8f0;white-space:nowrap;';
     const tdStyle = 'padding:9px 12px;font-size:13px;border-bottom:1px solid #f1f5f9;vertical-align:middle;';
