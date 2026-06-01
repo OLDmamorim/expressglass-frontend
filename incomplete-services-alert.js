@@ -1,10 +1,9 @@
 // incomplete-services-alert.js
-// Morning alert for technicians: appointments from previous days without a final service status.
-// Shows a blocking popup (similar to glass-alert-urgent.js) at or after 09:00 once per day.
+// Alert for technicians: appointments from previous days without a final service status.
+// Shows a blocking popup (similar to glass-alert-urgent.js) once per day on first open.
 
 (function () {
   const DISMISS_PREFIX = 'incompleteServicesDismissed_';
-  const SHOW_AFTER_HOUR = 9; // show at/after 09:00
 
   function todayKey() {
     return DISMISS_PREFIX + new Date().toDateString();
@@ -16,10 +15,6 @@
 
   function dismiss() {
     localStorage.setItem(todayKey(), '1');
-  }
-
-  function isPastShowTime() {
-    return new Date().getHours() >= SHOW_AFTER_HOUR;
   }
 
   function fmtDate(iso) {
@@ -187,10 +182,9 @@
   async function check() {
     const role = window.authClient?.getUser?.()?.role;
     const portalId = window.authClient?.getUser?.()?.portal?.id || window.portalConfig?.id;
-    console.log('[IncServ] check: role=' + role + ' portalId=' + portalId + ' time=' + new Date().getHours() + 'h dismissed=' + isDismissed());
+    console.log('[IncServ] check: role=' + role + ' portalId=' + portalId + ' dismissed=' + isDismissed());
     if (!role) return;
     if (SKIP_ROLES.has(role)) return;
-    if (!isPastShowTime()) return;
     if (isDismissed()) return;
 
     const pending = await fetchPending();
