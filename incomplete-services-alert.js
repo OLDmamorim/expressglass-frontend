@@ -37,7 +37,7 @@
         { headers: { Authorization: 'Bearer ' + token } }
       );
       const data = await resp.json();
-      console.log('[IncServ] API resposta: success=' + data.success + ' count=' + (data.data?.length ?? 'N/A'));
+      console.log('[IncServ] API resposta: success=' + data.success + ' count=' + (data.data?.length ?? 'N/A'), 'diag:', JSON.stringify(data.diag));
       if (!data.success || !Array.isArray(data.data)) return [];
       return data.data;
     } catch (e) {
