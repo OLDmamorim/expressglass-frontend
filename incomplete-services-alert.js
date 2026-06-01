@@ -30,10 +30,11 @@
 
   async function fetchPending() {
     try {
-      const token = window.authClient?.getToken?.() || localStorage.getItem('authToken');
+      const token = window.authClient?.getToken?.() || localStorage.getItem('eg_auth_token');
       if (!token) return [];
       const user = window.authClient?.getUser?.();
-      const portalId = user?.portalId || window.portalConfig?.id;
+      // userData stores portal as user.portal.id (not user.portalId)
+      const portalId = user?.portal?.id || window.portalConfig?.id;
       if (!portalId) return [];
       const resp = await fetch(
         `/.netlify/functions/appointments?portal_id=${portalId}&pending_conclusion=true`,
