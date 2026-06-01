@@ -83,9 +83,8 @@ const telBtn = phone ? `
 
   const motivoBadge = isNaoRealizado && a.not_done_reason ? (() => {
     const _nd = a.not_done_reason;
-    const _ndDate = a.date ? (() => { const _d = new Date(a.date + 'T00:00:00'); return _d.toLocaleDateString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric'}); })() : null;
     return `<div style="margin:6px 8px 0;padding:7px 12px;background:rgba(220,38,38,0.15);border-left:3px solid #dc2626;border-radius:6px;font-size:12px;font-weight:700;color:#dc2626;">
-      <div style="display:flex;align-items:center;gap:6px;">❌ <span style="color:inherit;">${_nd}</span></div>${_ndDate ? `<div style="font-size:11px;font-weight:400;color:#64748b;margin-top:3px;">📅 ${_ndDate}</div>` : ''}
+      <div style="display:flex;align-items:center;gap:6px;">❌ <span style="color:inherit;">${_nd}</span></div>
     </div>`;
   })() : '';
 
