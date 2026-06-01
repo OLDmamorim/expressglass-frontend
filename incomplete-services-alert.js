@@ -186,9 +186,9 @@
 
   async function check() {
     const role = window.authClient?.getUser?.()?.role;
-    // Skip if auth not ready yet — will retry on next interval
+    const portalId = window.authClient?.getUser?.()?.portal?.id || window.portalConfig?.id;
+    console.log('[IncServ] check: role=' + role + ' portalId=' + portalId + ' time=' + new Date().getHours() + 'h dismissed=' + isDismissed());
     if (!role) return;
-    // Skip management / multi-portal roles
     if (SKIP_ROLES.has(role)) return;
     if (!isPastShowTime()) return;
     if (isDismissed()) return;
@@ -204,6 +204,8 @@
     setTimeout(check, 15000);
     setInterval(check, 5 * 60 * 1000);
   }
+
+  console.log('[IncServ] script carregado v2026-06-01c');
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
