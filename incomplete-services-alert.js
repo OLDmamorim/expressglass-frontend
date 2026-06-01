@@ -19,8 +19,9 @@
 
   function fmtDate(iso) {
     if (!iso) return '';
-    const d = new Date(iso + 'T00:00:00');
-    return d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', weekday: 'short' });
+    const s = String(iso).slice(0, 10);
+    const d = new Date(s + 'T12:00:00');
+    return isNaN(d) ? s : d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', weekday: 'short' });
   }
 
   async function fetchPending() {
@@ -37,7 +38,7 @@
         { headers: { Authorization: 'Bearer ' + token } }
       );
       const data = await resp.json();
-      console.log('[IncServ] API resposta: success=' + data.success + ' count=' + (data.data?.length ?? 'N/A'), 'diag:', JSON.stringify(data.diag));
+      console.log('[IncServ] API resposta: success=' + data.success + ' count=' + (data.data?.length ?? 'N/A'));
       if (!data.success || !Array.isArray(data.data)) return [];
       return data.data;
     } catch (e) {

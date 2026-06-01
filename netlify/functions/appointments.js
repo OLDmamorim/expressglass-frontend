@@ -142,8 +142,8 @@ exports.handler = async (event) => {
           SELECT id, date, period, plate, car, service, locality
           FROM appointments
           WHERE portal_id = $1
-            AND date <= CURRENT_DATE
-            AND date >= CURRENT_DATE - INTERVAL '30 days'
+            AND date < CURRENT_DATE
+            AND date >= CURRENT_DATE - INTERVAL '7 days'
             AND (
               executed IS NULL
               OR (executed = false AND (not_done_reason IS NULL OR not_done_reason = ''))
@@ -152,18 +152,7 @@ exports.handler = async (event) => {
           ORDER BY date ASC
         `, [portalId]);
 
-        // diagnostic: also count total recent appointments regardless of status
-        const { rows: diag } = await pool.query(`
-          SELECT COUNT(*) AS total,
-                 COUNT(*) FILTER (WHERE executed IS NULL) AS null_exec,
-                 COUNT(*) FILTER (WHERE executed = true) AS done,
-                 COUNT(*) FILTER (WHERE executed = false) AS not_done,
-                 MIN(date) AS oldest, MAX(date) AS newest
-          FROM appointments
-          WHERE portal_id = $1 AND date >= CURRENT_DATE - INTERVAL '30 days'
-        `, [portalId]);
-
-        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows, diag: diag[0] }) };
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
       }
 
       const q = `
