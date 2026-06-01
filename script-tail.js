@@ -1583,11 +1583,24 @@ document.addEventListener('DOMContentLoaded', function() {
             const localityField = document.getElementById('appointmentLocality');
             const currentLocality = localityField?.value || '';
             const known = window._localityList || [];
-            const match = known.find(l => 
-              l.toLowerCase() === detectedLocality.toLowerCase() ||
-              detectedLocality.toLowerCase().includes(l.toLowerCase()) ||
-              l.toLowerCase().includes(detectedLocality.toLowerCase())
-            );
+            const dLow = detectedLocality.toLowerCase().trim();
+
+            // Priority: superset match (e.g. "Vila Nova de Famalicão" when Google returns "Famalicão")
+            // > exact match > subset match
+            const supersetMatches = known.filter(l => l.toLowerCase().includes(dLow) && l.toLowerCase() !== dLow);
+            const exactMatches    = known.filter(l => l.toLowerCase() === dLow);
+            const subsetMatches   = known.filter(l => dLow.includes(l.toLowerCase()) && l.toLowerCase() !== dLow);
+
+            let match = null;
+            if (supersetMatches.length > 0) {
+              // Shortest superset = most direct extension (e.g. "Vila Nova de Famalicão" over "Famalicão, Vila Nova de Famalicão")
+              match = supersetMatches.sort((a, b) => a.length - b.length)[0];
+            } else if (exactMatches.length > 0) {
+              match = exactMatches[0];
+            } else if (subsetMatches.length > 0) {
+              match = subsetMatches.sort((a, b) => b.length - a.length)[0];
+            }
+
             const toSet = match || detectedLocality;
 
             if (currentLocality && currentLocality !== toSet) {
