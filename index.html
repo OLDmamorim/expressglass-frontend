@@ -1541,7 +1541,10 @@
           ${r.order_ref ? `<span>📦 ${r.order_ref}</span>` : ''}
           ${r.eurocode   ? `<span>🔢 ${r.eurocode}</span>` : ''}
         </div>
-        <button onclick="window.glassReception._markReceived(${r.id})" style="background:#16a34a;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">✅ Rececionado</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button onclick="window.glassReception._markReceived(${r.id})" style="background:#16a34a;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">✅ Rececionado</button>
+          <button onclick="window.glassReception._rejectReception(${r.id},'${(r.apt_plate||r.order_ref||'').replace(/'/g,"\\'")}')" style="background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">❌ Rejeitar</button>
+        </div>
       </div>
     `).join('');
   }
@@ -1767,6 +1770,23 @@
     }
   }
 
+  async function _rejectReception(id, plate) {
+    if (!confirm(`Rejeitar receção de "${plate || 'este vidro'}"?\nEsta ação remove o registo pendente.`)) return;
+    try {
+      const res = await fetch(API + '/glass-reception', {
+        method: 'DELETE',
+        headers: authHeaders(),
+        body: JSON.stringify({ id })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      document.getElementById('grRow' + id)?.remove();
+      _pollPendingBadge();
+    } catch (e) {
+      alert('Erro: ' + e.message);
+    }
+  }
+
   // ── BADGE POLLING ────────────────────────────────────────────────────────
   async function _pollPendingBadge() {
     try {
@@ -1805,7 +1825,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _onPhoto, _manualSearch, _step1, _doSearch, _confirmReception, _markReceived, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _onPhoto, _manualSearch, _step1, _doSearch, _confirmReception, _markReceived, _rejectReception, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
