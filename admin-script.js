@@ -1929,3 +1929,116 @@ function renderReport(data) {
 function downloadReportPDF() {
   window.print();
 }
+
+// ── Sincronizar Encomendas PHC ────────────────────────────────────────────────
+
+function syncEncPreview(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const sh = wb.Sheets[wb.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json(sh, { header: 1, defval: '' });
+      if (rawRows.length < 2) { alert('Ficheiro sem dados.'); return; }
+
+      const hdrs = rawRows[0].map(h => String(h).trim().toLowerCase());
+      const col = name => hdrs.indexOf(name);
+
+      const iMatricula = col('matricula');
+      const iArmazem   = col('armazem');
+      const iEnc       = col('numeros_encomendas');
+      const iRec       = col('numeros_rececao_mercadorias');
+      const iRef       = col('ref');
+
+      if (iMatricula < 0 || iArmazem < 0 || iEnc < 0) {
+        alert('Colunas obrigatórias não encontradas: matricula, armazem, numeros_encomendas');
+        return;
+      }
+
+      const rows = [];
+      for (let r = 1; r < rawRows.length; r++) {
+        const row = rawRows[r];
+        const enc = String(row[iEnc] || '').trim();
+        const rec = String(row[iRec] || '').trim();
+        if (!enc && !rec) continue;
+        const plate = String(row[iMatricula] || '').trim();
+        const armazem = String(row[iArmazem] || '').trim().replace(/\.0$/, '');
+        const ref = String(row[iRef] || '').trim();
+        if (!plate || !armazem) continue;
+        rows.push({ plate, portal_id: parseInt(armazem), enc: enc || null, rec: rec || null, ref: ref || null });
+      }
+
+      if (rows.length === 0) { alert('Nenhuma linha com encomenda ou receção preenchida.'); return; }
+
+      const withRec = rows.filter(r => r.rec).length;
+      const withEnc = rows.filter(r => r.enc && !r.rec).length;
+
+      document.getElementById('syncEncPreview').style.display = 'block';
+      document.getElementById('syncEncPreview').innerHTML = `
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;margin-bottom:12px;">
+          <div style="font-weight:700;font-size:14px;color:#15803d;">📊 Resumo do ficheiro</div>
+          <div style="font-size:13px;color:#374151;margin-top:6px;">
+            ${rows.length} linhas com dados · ${withRec} com receção (→ ST) · ${withEnc} só com encomenda (→ VE)
+          </div>
+        </div>
+        <button onclick="syncEncRun(${JSON.stringify(rows).split('"').join('&quot;')})"
+          style="background:#7c3aed;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">
+          🔄 Sincronizar agora (${rows.length} linhas)
+        </button>`;
+
+      // Store rows in window for the onclick
+      window._syncEncRows = rows;
+      document.getElementById('syncEncPreview').innerHTML = `
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;margin-bottom:12px;">
+          <div style="font-weight:700;font-size:14px;color:#15803d;">📊 Resumo do ficheiro</div>
+          <div style="font-size:13px;color:#374151;margin-top:6px;">
+            ${rows.length} linhas com dados · ${withRec} com receção (→ ST) · ${withEnc} só com encomenda (→ VE)
+          </div>
+        </div>
+        <button onclick="syncEncRun()"
+          style="background:#7c3aed;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">
+          🔄 Sincronizar agora (${rows.length} linhas)
+        </button>`;
+    } catch(e) {
+      alert('Erro ao ler ficheiro: ' + e.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function syncEncRun() {
+  const rows = window._syncEncRows;
+  if (!rows || !rows.length) return;
+  const btn = document.querySelector('#syncEncPreview button');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ A sincronizar…'; }
+
+  try {
+    const token = authClient.getToken();
+    const resp = await fetch('/.netlify/functions/sync-enc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ rows })
+    });
+    const data = await resp.json();
+    const resDiv = document.getElementById('syncEncResult');
+    resDiv.style.display = 'block';
+    if (data.success) {
+      resDiv.innerHTML = `
+        <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;">
+          <div style="font-weight:700;font-size:15px;color:#15803d;">✅ Sincronização concluída</div>
+          <div style="font-size:13px;color:#374151;margin-top:6px;">
+            Actualizados: <strong>${data.updated}</strong> ·
+            Não encontrados: <strong>${data.not_found}</strong> ·
+            Ignorados: <strong>${data.skipped}</strong>
+          </div>
+        </div>`;
+    } else {
+      resDiv.innerHTML = `<div style="color:#dc2626;font-weight:700;">Erro: ${data.error}</div>`;
+    }
+  } catch(e) {
+    document.getElementById('syncEncResult').style.display = 'block';
+    document.getElementById('syncEncResult').innerHTML = `<div style="color:#dc2626;">Erro: ${e.message}</div>`;
+  }
+}
