@@ -460,17 +460,27 @@ class ExcelImporter {
           const existing = existingAppointments.find(a =>
             String(a.plate).toUpperCase().trim() === plateNormalized
           );
-          // Atualizar status de vidro se mudou (encomenda/receção), ou damage_details
-          const statusChanged = existing && service.status && service.status !== existing.status;
-          const hasDamage = !!service.damage_details;
-          if (existing?.id && (statusChanged || hasDamage)) {
+          // Atualizar status, order_ref, reception_ref e damage_details
+          const statusChanged   = existing && service.status && service.status !== existing.status;
+          const hasDamage       = !!service.damage_details;
+          const hasOrderRef     = service.order_ref     && !existing.order_ref;
+          const hasReceptionRef = service.reception_ref && !existing.reception_ref;
+          if (existing?.id && (statusChanged || hasDamage || hasOrderRef || hasReceptionRef)) {
             try {
               await window.apiClient.updateAppointment(existing.id, {
                 ...existing,
-                ...(statusChanged ? { status: service.status } : {}),
-                ...(hasDamage ? { damage_details: service.damage_details } : {})
+                ...(statusChanged    ? { status:        service.status }        : {}),
+                ...(hasDamage        ? { damage_details: service.damage_details } : {}),
+                ...(hasOrderRef      ? { order_ref:     service.order_ref }      : {}),
+                ...(hasReceptionRef  ? { reception_ref: service.reception_ref }  : {})
               });
-              results.details.push({ plate: service.plate, status: 'updated', reason: statusChanged ? `Status → ${service.status}` : 'damage_details atualizado' });
+              const reasons = [
+                statusChanged    ? `Status → ${service.status}` : null,
+                hasOrderRef      ? `Enc. ${service.order_ref}` : null,
+                hasReceptionRef  ? `Rec. ${service.reception_ref}` : null,
+                hasDamage        ? 'damage_details' : null
+              ].filter(Boolean).join(', ');
+              results.details.push({ plate: service.plate, status: 'updated', reason: reasons });
             } catch (e) {
               results.skipped++;
               results.details.push({ plate: service.plate, status: 'skipped', reason: 'Duplicado no lote' });
