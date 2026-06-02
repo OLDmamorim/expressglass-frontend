@@ -579,6 +579,7 @@
       <thead>
         <tr>
           <th>Matrícula</th>
+          <th class="col-glass" style="white-space:nowrap">Vidro</th>
           <th class="col-total">Total</th>
           <th class="col-pend">Pendentes</th>
           <th class="col-trat">Tratados</th>
@@ -752,13 +753,15 @@ function buildGroups(services) {
   const map = {};
   for (const svc of services) {
     const key = svc.matricula.toUpperCase();
-    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null };
+    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null };
     map[key].services.push(svc);
     const d = svc.email_received_at || svc.created_at;
     if (d && (!map[key].lastDate || d > map[key].lastDate)) map[key].lastDate = d;
     if (!svc.viewed_at) map[key].isNew = true;
     if (svc.car && !map[key].car) map[key].car = svc.car;
     if (svc.n_obra && !map[key].n_obra) map[key].n_obra = svc.n_obra;
+    if (svc.glass_status && !map[key].glass_status) map[key].glass_status = svc.glass_status;
+    if (svc.apt_order_ref && !map[key].apt_order_ref) map[key].apt_order_ref = svc.apt_order_ref;
   }
   return Object.values(map).sort((a, b) =>
     (b.lastDate || '').localeCompare(a.lastDate || '')
@@ -806,6 +809,15 @@ function renderTable(groups) {
           ${g.car ? `<div style="font-size:.82rem;color:#374151;font-weight:600;margin-top:5px">${g.car}</div>` : ''}
           ${g.n_obra ? `<div style="font-size:.8rem;color:#2563eb;font-weight:700;margin-top:2px">FS${g.n_obra}</div>` : ''}
         </td>
+        <td class="col-glass">${(function(){
+          const gs = g.glass_status;
+          const col = gs === 'ST' ? '#10b981' : gs === 'VE' ? '#f59e0b' : gs === 'NE' ? '#ef4444' : '#d1d5db';
+          const lbl = gs === 'ST' ? 'ST' : gs === 'VE' ? 'V/E' : gs === 'NE' ? 'N/E' : '—';
+          return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+            <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${col};flex-shrink:0"></span>
+            ${g.apt_order_ref ? `<span style="font-size:.72rem;font-weight:700;color:#374151;white-space:nowrap">📦 ${g.apt_order_ref}</span>` : `<span style="font-size:.72rem;color:#9ca3af">${lbl}</span>`}
+          </div>`;
+        })()}</td>
         <td class="col-total"><span class="count-badge badge-neutral">${g.services.length}</span></td>
         <td class="col-pend">${pend > 0 ? `<span class="count-badge badge-pending">${pend}</span>` : '<span style="color:#d1d5db">0</span>'}</td>
         <td class="col-trat">${trat > 0 ? `<span class="count-badge badge-done">${trat}</span>`    : '<span style="color:#d1d5db">0</span>'}</td>
