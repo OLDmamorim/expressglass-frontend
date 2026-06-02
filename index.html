@@ -1440,11 +1440,23 @@
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
 
+      // Update in-memory appointment so card turns green immediately
+      if (appointmentId && window.appointments) {
+        const apt = window.appointments.find(a => a.id === appointmentId || String(a.id) === String(appointmentId));
+        if (apt) {
+          apt.status = 'ST';
+          if (eurocode) apt.glass_eurocode = eurocode;
+          if (orderRef) apt.order_ref = orderRef;
+        }
+        if (typeof renderAll === 'function') renderAll();
+        window.guiaAT?.injectBadges();
+      }
+
       document.getElementById('grScanBody').innerHTML = `
         <div style="text-align:center;padding:24px 0;">
           <div style="font-size:48px;margin-bottom:12px;">✅</div>
           <p style="font-size:16px;font-weight:800;color:#16a34a;margin-bottom:6px;">Receção registada!</p>
-          <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Matrícula <strong>${plate}</strong> — aguarda confirmação do coordenador.</p>
+          <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Matrícula <strong>${plate}</strong> — vidro rececionado.</p>
           <button onclick="window.glassReception.closeScan()" style="background:#0f172a;color:#fff;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
         </div>
       `;

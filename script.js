@@ -2367,6 +2367,10 @@ function editAppointment(id) {
     extras.forEach(function(s) { _addExtraServiceRow(s.service, s.custom_service_time); });
   }
 
+  // Preencher Status do Vidro (NE/VE/ST)
+  const statusEl = document.getElementById('appointmentStatus');
+  if (statusEl) statusEl.value = appointment.status || 'NE';
+
   applyLojaModalMode();
   document.getElementById('appointmentModal').classList.add('show');
 }
