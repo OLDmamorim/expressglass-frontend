@@ -40,8 +40,9 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
-  const client = await pool.connect();
+  let client;
   try {
+    client = await pool.connect();
     const user = verifyToken(event);
     await ensureTable(client);
 
@@ -200,6 +201,6 @@ exports.handler = async (event) => {
     const code = err.message.includes('autenticado') ? 401 : 500;
     return { statusCode: code, headers, body: JSON.stringify({ success: false, error: err.message }) };
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
