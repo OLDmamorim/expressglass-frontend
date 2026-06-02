@@ -1361,7 +1361,7 @@
 
     // Local search first (active portal appointments already loaded)
     const localResults = (window.appointments || []).filter(a => {
-      if (a.executed === true || a.glass_removed) return false;
+      if (a.executed === true) return false;
       const matchOrder = orderRef && a.order_ref && a.order_ref.trim().toLowerCase() === orderRef.trim().toLowerCase();
       const matchEuro  = ecNorm && a.glass_eurocode && normEc(a.glass_eurocode) === ecNorm;
       let extraEuro = '';
