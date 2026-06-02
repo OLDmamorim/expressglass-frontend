@@ -152,12 +152,18 @@ exports.handler = async (event) => {
         status
       ]);
 
-      // Propagate order_ref to the appointment so coordinators can see it on the card
-      if (d.appointment_id && d.order_ref) {
+      // When glass is matched to an appointment: set status ST (received) and propagate order_ref
+      if (d.appointment_id) {
         await client.query(
-          `UPDATE appointments SET order_ref = $1, updated_at = NOW() WHERE id = $2 AND (order_ref IS NULL OR order_ref = '')`,
-          [d.order_ref, d.appointment_id]
+          `UPDATE appointments SET status = 'ST', updated_at = NOW() WHERE id = $1`,
+          [d.appointment_id]
         );
+        if (d.order_ref) {
+          await client.query(
+            `UPDATE appointments SET order_ref = $1 WHERE id = $2 AND (order_ref IS NULL OR order_ref = '')`,
+            [d.order_ref, d.appointment_id]
+          );
+        }
       }
 
       return { statusCode: 201, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
