@@ -57,7 +57,7 @@ exports.handler = async (event) => {
 
         // Verificar se já existe
         const existing = await pool.query(
-          `SELECT id, date, period, car, phone, extra, notes, auto_imported, confirmed
+          `SELECT id, date, period, car, phone, extra, notes, auto_imported, confirmed, status, order_ref, reception_ref
            FROM appointments
            WHERE portal_id = $1
            AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
@@ -106,6 +106,24 @@ exports.handler = async (event) => {
             updateVals.push(svc.n_obra);
           }
 
+          // Actualizar order_ref se Excel tem valor e BD está vazio
+          if (svc.order_ref && !row.order_ref) {
+            updateFields.push(`order_ref = $${idx++}`);
+            updateVals.push(svc.order_ref);
+          }
+          // Actualizar reception_ref se Excel tem valor e BD está vazio
+          if (svc.reception_ref && !row.reception_ref) {
+            updateFields.push(`reception_ref = $${idx++}`);
+            updateVals.push(svc.reception_ref);
+          }
+          // Status upgrade baseado em enc/rec
+          const newStatusUpgrade = svc.reception_ref && row.status !== 'ST' ? 'ST'
+            : (svc.order_ref && !svc.reception_ref && row.status === 'NE' ? 'VE' : null);
+          if (newStatusUpgrade) {
+            updateFields.push(`status = $${idx++}`);
+            updateVals.push(newStatusUpgrade);
+          }
+
           // Se NÃO está na agenda mas Excel tem data → colocar na agenda
           if (!hasDateInDB && hasDateInExcel) {
             updateFields.push(`date = $${idx++}`);
@@ -143,13 +161,14 @@ exports.handler = async (event) => {
           // ── SERVIÇO NOVO ──
           const hasAutoDate = !!svc.date;
 
+          const insertStatus = svc.reception_ref ? 'ST' : (svc.order_ref ? 'VE' : (svc.status || 'NE'));
           await pool.query(
             `INSERT INTO appointments (
               date, period, plate, car, service, locality, status,
               notes, address, extra, phone, km, sortIndex, "glassOrdered",
-              auto_imported, confirmed, damage_details, n_obra, portal_id, created_at, updated_at
+              auto_imported, confirmed, damage_details, n_obra, order_ref, reception_ref, portal_id, created_at, updated_at
             ) VALUES (
-              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
+              $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
             ) RETURNING id`,
             [
               svc.date || null,
@@ -158,7 +177,7 @@ exports.handler = async (event) => {
               svc.car || null,
               svc.service || null,
               null,           // locality
-              svc.status || 'NE',
+              insertStatus,
               svc.notes || null,
               null,           // address
               svc.extra || null,
@@ -170,6 +189,8 @@ exports.handler = async (event) => {
               false,          // confirmed
               svc.damage_details || null,
               svc.n_obra || null,
+              svc.order_ref || null,
+              svc.reception_ref || null,
               svc.portal_id,
               svc.createdAt || new Date().toISOString(),
               new Date().toISOString()
