@@ -64,8 +64,12 @@ const telBtn = phone ? `
   let _extraDisp = '';
   if (a.extra) { try { _extraDisp = JSON.parse(a.extra).eurocode || ''; } catch(e) { const _m = a.extra.match(/"eurocode"\s*:\s*"([^"]+)"/); _extraDisp = _m ? _m[1] : a.extra; } }
   const _mRole = window.authClient?.getUser?.()?.role;
-  const _orderRefMobile = (_mRole === 'admin' || _mRole === 'coordenador') && a.order_ref ? `📦 Enc: ${a.order_ref}` : null;
-  const notes = [a.client_name, _extraDisp, a.notes, a.n_obra ? `FS${a.n_obra}` : null, _orderRefMobile].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
+  const notes = [a.client_name, _extraDisp, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
+  const mEncRecFooter = (a.order_ref || a.reception_ref) ? `
+    <div style="margin:5px 8px 0;padding:3px 10px;background:rgba(0,0,0,0.18);border-radius:6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.92);display:flex;gap:10px;flex-wrap:wrap;">
+      ${a.order_ref ? `<span>📦 Enc: ${a.order_ref}</span>` : ''}
+      ${a.reception_ref ? `<span>✅ Rec: ${a.reception_ref}</span>` : ''}
+    </div>` : '';
   const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
@@ -167,6 +171,7 @@ const telBtn = phone ? `
           : ''
         }
         ${isLoja() ? '' : buildKmRow(a)}
+        ${mEncRecFooter}
       </div>
       ${statusToggle}
       ${mGlassRemovedBadge}

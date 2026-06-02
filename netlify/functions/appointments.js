@@ -48,6 +48,10 @@ exports.handler = async (event) => {
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS not_done_at TIMESTAMPTZ`);
   } catch(migErr) { console.warn('Migration not_done_at warning:', migErr.message); }
 
+  try {
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reception_ref TEXT`);
+  } catch(migErr) { console.warn('Migration reception_ref warning:', migErr.message); }
+
   // Migração: actualizar constraint de service para incluir RV e OUT
   try {
     await pool.query(`ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_service_check`);
@@ -124,7 +128,7 @@ exports.handler = async (event) => {
                  a.calibration, a.first_of_day, a.second_of_day, a.not_done_reason, a.commercial_user_id,
                  a.return_km, a.return_time, a.client_name, a.damage_details, a.glass_removed, a.glass_removed_date,
                  a.custom_service_time, a.foreign_plate, a.extra_services, a.n_obra,
-                 a.order_ref, a.glass_eurocode, a.created_at, a.updated_at, a.not_done_at, a.portal_id,
+                 a.order_ref, a.glass_eurocode, a.reception_ref, a.created_at, a.updated_at, a.not_done_at, a.portal_id,
                  p.name AS portal_name
           FROM appointments a
           LEFT JOIN portals p ON p.id = a.portal_id
@@ -166,7 +170,7 @@ exports.handler = async (event) => {
                calibration, first_of_day, second_of_day, not_done_reason, commercial_user_id,
                return_km, return_time, client_name, damage_details, glass_removed, glass_removed_date,
                custom_service_time, foreign_plate, extra_services, n_obra,
-               order_ref, glass_eurocode, created_at, updated_at, not_done_at
+               order_ref, glass_eurocode, reception_ref, created_at, updated_at, not_done_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -281,7 +285,7 @@ exports.handler = async (event) => {
           executed = $18, confirmed = $19, calibration = $20,
           first_of_day = $21, second_of_day = $22, not_done_reason = $23, commercial_user_id = $24,
           return_km = $25, return_time = $26, client_name = $27, damage_details = $28, glass_removed = $29, extra_services = $30,
-          glass_removed_date = $31, n_obra = $32, updated_at = $33, not_done_at = $36
+          glass_removed_date = $31, n_obra = $32, updated_at = $33, not_done_at = $36, reception_ref = $37
         WHERE id = $34 AND portal_id = $35
         RETURNING *
       `;
@@ -311,7 +315,8 @@ exports.handler = async (event) => {
         JSON.stringify(data.extra_services !== undefined ? (data.extra_services || []) : (existing.extra_services || [])),
         data.glass_removed_date !== undefined ? (data.glass_removed_date || null) : (existing.glass_removed_date || null),
         data.n_obra !== undefined ? (data.n_obra || null) : null,
-        new Date().toISOString(), id, effectivePortalId, notDoneAtVal
+        new Date().toISOString(), id, effectivePortalId, notDoneAtVal,
+        data.reception_ref !== undefined ? (data.reception_ref || null) : null
       ];
       const { rows } = await pool.query(q, v);
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
