@@ -31,7 +31,13 @@ function callVision(imageBase64, mediaType) {
 
 Extrai APENAS estes dois campos:
 
-1. Número de encomenda — procura nos campos: "PEDIDO", "N.º Enc", "Order", "Enc.", "COD AT" ou referência numérica/alfanumérica do pedido. Exemplo: "65178"
+1. Número de encomenda do CLIENTE (ExpressGlass) — é o número interno da ExpressGlass, NÃO o número de entrega do transportador.
+   Procura NESTA ORDEM DE PRIORIDADE:
+   a) "Encomendas Cliente nº XXXXX" ou "Enc. Cliente nº XXXXX" — este é o número CORRECTO
+   b) "OBS: ... nº XXXXX" — normalmente contém o número de cliente no campo de observações
+   c) "N.º Enc", "Enc." — referência de encomenda
+   ⚠️ NÃO uses "PEDIDO:XXXXX" nem "COD AT:XXXXX" — esses são números INTERNOS do transportador, não são o número da encomenda do cliente.
+   Exemplo correcto: "OBS:Encomendas Cliente nº 48932" → order_ref = "48932"
 
 2. Eurocode do vidro — código com formato EXATO: 4 dígitos seguidos IMEDIATAMENTE de 3 ou mais caracteres alfanuméricos maiúsculos (ex: 6577AGACMVZ, 3739ABCDE, 7274AGAM1R).
    Procura em campos como PICK_LABELS, OBS, Observações.
@@ -77,6 +83,13 @@ Se não encontrares algum campo coloca null.`
           const text = parsed.content?.[0]?.text || '';
           const m = text.match(/\{[\s\S]*\}/);
           const result = m ? JSON.parse(m[0]) : { order_ref: null, eurocode: null, raw_text: text };
+
+          // Always prefer "Encomendas Cliente nº XXXXX" over whatever the AI extracted.
+          // This is the ExpressGlass internal order number matching PHC's numeros_encomendas.
+          if (result.raw_text) {
+            const encMatch = String(result.raw_text).match(/Encomendas?\s+Cliente\s+n[ºo°]?\s*\.?\s*(\d+)/i);
+            if (encMatch) result.order_ref = encMatch[1];
+          }
 
           // Always extract eurocode from raw_text via regex — more reliable than AI parsing.
           // Splits on "/" so "1605/6577AGACMVZ" yields ["1605", "6577AGACMVZ"] and finds 6577AGACMVZ.
