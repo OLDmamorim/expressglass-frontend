@@ -2510,9 +2510,9 @@ function buildDesktopCard(a){
     ? [clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ')
     : [a.locality, clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
   const encRecFooter = (a.order_ref || a.reception_ref) ? `
-    <div style="margin:4px 0 0;padding:3px 8px;background:rgba(0,0,0,0.18);border-radius:6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.92);display:flex;gap:10px;flex-wrap:wrap;">
-      ${a.order_ref ? `<span>📦 Enc: ${a.order_ref}</span>` : ''}
-      ${a.reception_ref ? `<span>✅ Rec: ${a.reception_ref}</span>` : ''}
+    <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);">
+      ${a.order_ref ? `<span>📦 ${a.order_ref}</span>` : ''}
+      ${a.reception_ref ? `<span>✅ ${a.reception_ref}</span>` : ''}
     </div>` : '';
   // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const isPreAgendado = a.confirmed === false;
@@ -2621,8 +2621,9 @@ function buildDesktopCard(a){
         ${a.photo_url ? `<a href="${a.photo_url}" target="_blank" rel="noopener" class="icon" title="Ver foto" style="text-decoration:none;">📷</a>` : ''}
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
+        ${encRecFooter}
       </div>
-    ${encRecFooter}${glassRemovedBadge}${diasAbertoBadge}${loja ? '' : buildKmRow(a)}${phcFooter}</div>`;
+    ${glassRemovedBadge}${diasAbertoBadge}${loja ? '' : buildKmRow(a)}${phcFooter}</div>`;
 }
 
 function renderSchedule(){
