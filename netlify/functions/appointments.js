@@ -140,7 +140,6 @@ exports.handler = async (event) => {
           LEFT JOIN portals p ON p.id = a.portal_id
           WHERE a.portal_id = ANY($1)
             AND a.executed IS NOT TRUE
-            AND a.glass_removed IS NOT TRUE
           AND (a.date IS NULL OR a.date >= CURRENT_DATE - INTERVAL '60 days')
             AND (${conditions.join(' OR ')})
           ORDER BY a.date ASC NULLS LAST, a.created_at ASC
