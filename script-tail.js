@@ -66,9 +66,9 @@ const telBtn = phone ? `
   const _mRole = window.authClient?.getUser?.()?.role;
   const notes = [a.client_name, _extraDisp, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
   const mEncRecFooter = (a.order_ref || a.reception_ref) ? `
-    <div style="margin:5px 8px 0;padding:3px 10px;background:rgba(0,0,0,0.18);border-radius:6px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.92);display:flex;gap:10px;flex-wrap:wrap;">
-      ${a.order_ref ? `<span>📦 Enc: ${a.order_ref}</span>` : ''}
-      ${a.reception_ref ? `<span>✅ Rec: ${a.reception_ref}</span>` : ''}
+    <div style="margin:4px 0 0;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);display:flex;gap:8px;flex-wrap:wrap;">
+      ${a.order_ref ? `<span>📦 ${a.order_ref}</span>` : ''}
+      ${a.reception_ref ? `<span>✅ ${a.reception_ref}</span>` : ''}
     </div>` : '';
   const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
