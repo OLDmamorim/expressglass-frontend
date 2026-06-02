@@ -811,8 +811,8 @@ function renderTable(groups) {
         </td>
         <td class="col-glass">${(function(){
           const gs = g.glass_status;
-          const col = gs === 'ST' ? '#10b981' : gs === 'VE' ? '#f59e0b' : gs === 'NE' ? '#ef4444' : '#d1d5db';
-          const lbl = gs === 'ST' ? 'ST' : gs === 'VE' ? 'V/E' : gs === 'NE' ? 'N/E' : '—';
+          const col = gs === 'ST' ? '#10b981' : gs === 'VE' ? '#f59e0b' : '#ef4444';
+          const lbl = gs === 'ST' ? 'ST' : gs === 'VE' ? 'V/E' : 'N/E';
           return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
             <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${col};flex-shrink:0"></span>
             ${g.apt_order_ref ? `<span style="font-size:.72rem;font-weight:700;color:#374151;white-space:nowrap">📦 ${g.apt_order_ref}</span>` : `<span style="font-size:.72rem;color:#9ca3af">${lbl}</span>`}
