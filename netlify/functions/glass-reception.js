@@ -138,6 +138,20 @@ exports.handler = async (event) => {
       const d = JSON.parse(event.body || '{}');
       const status = d.appointment_id ? 'confirmed' : 'pending';
 
+      // When admin (no portalId) links to an appointment, resolve portal from the appointment
+      let resolvedPortalId = user.portalId || null;
+      let resolvedPortalName = d.portal_name || null;
+      if (d.appointment_id && !resolvedPortalId) {
+        const aptRow = await client.query(
+          `SELECT a.portal_id, p.name AS portal_name FROM appointments a LEFT JOIN portals p ON p.id = a.portal_id WHERE a.id = $1`,
+          [d.appointment_id]
+        );
+        if (aptRow.rows.length) {
+          resolvedPortalId = aptRow.rows[0].portal_id || resolvedPortalId;
+          resolvedPortalName = resolvedPortalName || aptRow.rows[0].portal_name;
+        }
+      }
+
       const { rows } = await client.query(`
         INSERT INTO glass_receptions
           (order_ref, eurocode, raw_label_text, appointment_id,
@@ -148,7 +162,7 @@ exports.handler = async (event) => {
         d.order_ref || null, d.eurocode || null, d.raw_label_text || null,
         d.appointment_id || null,
         user.userId || user.id, user.username,
-        user.portalId || null, d.portal_name || null,
+        resolvedPortalId, resolvedPortalName,
         status
       ]);
 
@@ -198,6 +212,18 @@ exports.handler = async (event) => {
       }
 
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
+    }
+
+    // ── DELETE ─────────────────────────────────────────────────────────────────
+    if (event.httpMethod === 'DELETE') {
+      const body = JSON.parse(event.body || '{}');
+      const id = body.id || (event.path || '').split('/').filter(Boolean).pop();
+      if (!id) return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'ID obrigatório' }) };
+      if (!['admin', 'coordenador', 'coordinator'].includes(user.role)) {
+        return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Sem permissão' }) };
+      }
+      await client.query(`DELETE FROM glass_receptions WHERE id = $1`, [parseInt(id)]);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
     }
 
     return { statusCode: 405, headers, body: JSON.stringify({ success: false, error: 'Método não permitido' }) };
