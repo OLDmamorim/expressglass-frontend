@@ -96,7 +96,21 @@ exports.handler = async (event) => {
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
       const { rows } = await client.query(
-        `SELECT * FROM mycar_services ${where} ORDER BY email_received_at DESC NULLS LAST, created_at DESC`,
+        `SELECT ms.*,
+                apt.status    AS glass_status,
+                apt.order_ref AS apt_order_ref
+         FROM mycar_services ms
+         LEFT JOIN LATERAL (
+           SELECT status, order_ref
+           FROM appointments
+           WHERE REGEXP_REPLACE(UPPER(plate), '[^A-Z0-9]', '', 'g')
+               = REGEXP_REPLACE(UPPER(ms.matricula), '[^A-Z0-9]', '', 'g')
+             AND executed IS NOT TRUE
+           ORDER BY updated_at DESC NULLS LAST
+           LIMIT 1
+         ) apt ON true
+         ${where}
+         ORDER BY ms.email_received_at DESC NULLS LAST, ms.created_at DESC`,
         params
       );
 
