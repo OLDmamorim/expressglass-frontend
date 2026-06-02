@@ -159,14 +159,25 @@
         throw new Error(errBody.error || ('Erro ao criar em ' + _selectedPortalName + ' (' + postResp.status + ')'));
       }
 
+      var newAppt = {};
+      try { var postBody = await postResp.json(); newAppt = postBody.data || {}; } catch(e2) {}
+
       // ── 2. Só apagar do portal ORIGEM depois de confirmar criação ──
       var delResp = await window.authClient.authenticatedFetch(
         '/.netlify/functions/appointments/' + apptId + '?portal_id=' + currentPortalId,
         { method: 'DELETE' }
       );
       if (!delResp.ok) {
-        // Criou no destino mas não apagou na origem — avisar sem esconder o sucesso
-        console.warn('transfer-sm-patch: DELETE falhou mas POST teve sucesso. Registo duplicado temporário.');
+        // Rollback: apagar a cópia criada no destino
+        if (newAppt.id) {
+          await window.authClient.authenticatedFetch(
+            '/.netlify/functions/appointments/' + newAppt.id + '?portal_id=' + _selectedPortalId,
+            { method: 'DELETE' }
+          ).catch(function() {});
+        }
+        var delErrBody = {};
+        try { delErrBody = await delResp.json(); } catch(e2) {}
+        throw new Error('Não foi possível remover o agendamento de origem (' + (delErrBody.error || delResp.status) + '). Transferência cancelada.');
       }
 
       // Remover da lista local
