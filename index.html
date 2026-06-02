@@ -1307,6 +1307,7 @@
           </label>
         </div>
         <div style="text-align:center;color:#94a3b8;font-size:12px;">— ou introduz manualmente —</div>
+        <input id="grManualPlate" type="text" placeholder="Matrícula (ex: AA-19-DC)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;width:100%;" oninput="this.value=this.value.toUpperCase()">
         <input id="grManualOrder" type="text" placeholder="N.º de encomenda (opcional)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;width:100%;">
         <input id="grManualEurocode" type="text" placeholder="Eurocode (ex: 6577AGACMVZ)" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;width:100%;">
         <button onclick="window.glassReception._manualSearch()" style="background:#0f172a;color:#fff;font-weight:700;font-size:14px;padding:12px;border-radius:12px;border:none;cursor:pointer;">🔍 Procurar</button>
@@ -1338,15 +1339,16 @@
   }
 
   function _manualSearch() {
+    const plate = (document.getElementById('grManualPlate')?.value || '').trim();
     const order = (document.getElementById('grManualOrder')?.value || '').trim();
     const euro  = (document.getElementById('grManualEurocode')?.value || '').trim();
-    if (!order && !euro) { alert('Introduz pelo menos o n.º de encomenda ou eurocode.'); return; }
-    _doSearch(order || null, euro || null, null, null);
+    if (!plate && !order && !euro) { alert('Introduz pelo menos a matrícula, n.º de encomenda ou eurocode.'); return; }
+    _doSearch(order || null, euro || null, null, null, plate || null);
   }
 
   function _step1() { renderStep1(); }
 
-  async function _doSearch(orderRef, eurocode, rawText, photoBase64) {
+  async function _doSearch(orderRef, eurocode, rawText, photoBase64, plate) {
     // Show loading state
     const body = document.getElementById('grScanBody');
     if (body) body.innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A procurar em todos os portais…</p>`;
@@ -1354,6 +1356,8 @@
     // Normalize I↔1 and O↔0 to handle OCR character confusion
     const normEc = s => (s || '').toLowerCase().replace(/i/g, '1').replace(/o/g, '0');
     const ecNorm = eurocode ? normEc(eurocode.trim()) : null;
+    const plateNorm = p => (p || '').replace(/[-\s]/g, '').toLowerCase();
+    const pNorm = plate ? plateNorm(plate) : null;
 
     // Local search first (active portal appointments already loaded)
     const localResults = (window.appointments || []).filter(a => {
@@ -1363,7 +1367,8 @@
       let extraEuro = '';
       if (a.extra) { try { extraEuro = (JSON.parse(a.extra).eurocode || ''); } catch(e) { extraEuro = (a.extra || ''); } }
       const matchEuroNotes = ecNorm && normEc((a.notes || '') + ' ' + (a.n_obra || '') + ' ' + extraEuro).includes(ecNorm);
-      return matchOrder || matchEuro || matchEuroNotes;
+      const matchPlate = pNorm && plateNorm(a.plate) === pNorm;
+      return matchOrder || matchEuro || matchEuroNotes || matchPlate;
     });
 
     // Cross-portal API search
@@ -1372,6 +1377,7 @@
       const qp = new URLSearchParams();
       if (eurocode) qp.set('search_eurocode', eurocode.trim());
       if (orderRef) qp.set('search_order_ref', orderRef.trim());
+      if (plate)    qp.set('search_plate', plate.trim());
       if (qp.toString()) {
         const res = await fetch(API + '/appointments?' + qp.toString(), { headers: authHeaders() });
         const json = await res.json();
@@ -1383,17 +1389,18 @@
     const seen = new Set(localResults.map(a => a.id));
     const merged = [...localResults, ...apiResults.filter(a => !seen.has(a.id))];
 
-    renderMatches(merged, orderRef, eurocode, rawText, photoBase64);
+    renderMatches(merged, orderRef, eurocode, rawText, photoBase64, plate);
   }
 
-  function renderMatches(appts, orderRef, eurocode, rawText, photoBase64) {
+  function renderMatches(appts, orderRef, eurocode, rawText, photoBase64, plate) {
     const body = document.getElementById('grScanBody');
 
     const infoHtml = `
       <div style="background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#64748b;">
-        ${orderRef ? `<div>📦 Encomenda: <strong style="color:#1e293b;">${orderRef}</strong></div>` : ''}
+        ${plate     ? `<div>🚗 Matrícula: <strong style="color:#1e293b;">${plate}</strong></div>` : ''}
+        ${orderRef  ? `<div>📦 Encomenda: <strong style="color:#1e293b;">${orderRef}</strong></div>` : ''}
         ${eurocode  ? `<div>🔢 Eurocode: <strong style="color:#1e293b;">${eurocode}</strong></div>` : ''}
-        ${!orderRef && !eurocode ? '<div>⚠️ Nenhum código identificado</div>' : ''}
+        ${!plate && !orderRef && !eurocode ? '<div>⚠️ Nenhum código identificado</div>' : ''}
       </div>
     `;
 

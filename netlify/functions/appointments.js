@@ -80,7 +80,7 @@ exports.handler = async (event) => {
       if (!portalId && user.portalIds?.length > 0) portalId = user.portalIds[0];
     }
 
-    const isCrossPortalSearch = !!(params.search_eurocode || params.search_order_ref);
+    const isCrossPortalSearch = !!(params.search_eurocode || params.search_order_ref || params.search_plate);
     if (!portalId && !isCrossPortalSearch) {
       return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Utilizador sem portal atribuído' }) };
     }
@@ -118,6 +118,12 @@ exports.handler = async (event) => {
         if (params.search_order_ref) {
           conditions.push(`LOWER(order_ref) = LOWER($${idx})`);
           vals.push(params.search_order_ref.trim());
+          idx++;
+        }
+        if (params.search_plate) {
+          // Normalize plate for comparison (remove dashes/spaces)
+          conditions.push(`REGEXP_REPLACE(LOWER(a.plate), '[^a-z0-9]', '', 'g') = REGEXP_REPLACE(LOWER($${idx}), '[^a-z0-9]', '', 'g')`);
+          vals.push(params.search_plate.trim());
           idx++;
         }
 
