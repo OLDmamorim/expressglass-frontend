@@ -2631,8 +2631,9 @@ function buildDesktopCard(a){
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
       ${a.damage_details ? `<div class="dc-sub" style="margin-top:3px;font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : ''}
-      ${a.comp_sales_desc && !a.comp_sales_faturado ? `<div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(124,58,237,0.18);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;color:#ede9fe;">💰 Venda complementar</div>` : ''}
-      ${a.comp_sales_desc && a.comp_sales_faturado ? `<div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(5,150,105,0.15);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;color:#d1fae5;">✅ Venda faturada</div>` : ''}
+      ${a.comp_sales_desc && !a.comp_sales_faturado ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:#fef3c7;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#92400e;cursor:pointer;">💰 Venda pendente</button>` : ''}
+      ${a.comp_sales_desc && a.comp_sales_faturado ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:#d1fae5;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#065f46;cursor:pointer;">✅ Venda faturada</button>` : ''}
+      ${!a.comp_sales_desc ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(124,58,237,0.12);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#7c3aed;cursor:pointer;">💰 Venda compl.</button>` : ''}
       ${preAgendadoBadge}
       ${confirmBtn}
       ${locWarning}
