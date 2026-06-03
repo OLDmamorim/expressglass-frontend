@@ -707,8 +707,8 @@
 
   <script src="portal-init.js?v=2026-05-15h"></script>
   <script src="api.js?v=2026-04-09"></script>
-  <script src="script.js?v=2026-06-03f"></script>
-  <script src="script-tail.js?v=2026-06-03f"></script>
+  <script src="script.js?v=2026-06-03g"></script>
+  <script src="script-tail.js?v=2026-06-03g"></script>
   <script src="portal-consult-patch.js?v=2"></script>
   <script src="transfer-sm-patch.js?v=2"></script>
   <script src="/glass-removed-patch.js?v=5"></script>
@@ -1401,12 +1401,17 @@
     const localResults = (window.appointments || []).filter(a => {
       if (a.executed === true) return false;
       const matchOrder = orderRef && a.order_ref && a.order_ref.trim().toLowerCase() === orderRef.trim().toLowerCase();
+      const matchOrderNotes = orderRef && (
+        (a.notes || '').includes(orderRef) ||
+        (a.n_obra || '').includes(orderRef) ||
+        ((a.extra || '').includes && (a.extra || '').includes(orderRef))
+      );
       const matchEuro  = ecNorm && a.glass_eurocode && normEc(a.glass_eurocode) === ecNorm;
       let extraEuro = '';
       if (a.extra) { try { extraEuro = (JSON.parse(a.extra).eurocode || ''); } catch(e) { extraEuro = (a.extra || ''); } }
       const matchEuroNotes = ecNorm && normEc((a.notes || '') + ' ' + (a.n_obra || '') + ' ' + extraEuro).includes(ecNorm);
       const matchPlate = pNorm && plateNorm(a.plate) === pNorm;
-      return matchOrder || matchEuro || matchEuroNotes || matchPlate;
+      return matchOrder || matchOrderNotes || matchEuro || matchEuroNotes || matchPlate;
     });
 
     // Cross-portal API search
@@ -1445,8 +1450,22 @@
     if (appts.length === 0) {
       body.innerHTML = infoHtml + `
         <p style="color:#ef4444;font-weight:600;text-align:center;margin:16px 0;">Nenhum processo encontrado com estes dados.</p>
+        <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:10px;padding:14px;margin-bottom:12px;">
+          <p style="font-size:13px;font-weight:700;color:#92400e;margin:0 0 10px 0;">🔍 Procura pela matrícula do carro:</p>
+          <div style="display:flex;gap:8px;">
+            <input id="grFallbackPlate" type="text" placeholder="ex: 64-95-TC" maxlength="8"
+              style="flex:1;padding:10px 12px;border:2px solid #fbbf24;border-radius:8px;font-size:14px;font-weight:700;font-family:monospace;text-transform:uppercase;outline:none;"
+              oninput="this.value=this.value.toUpperCase()"
+              onkeydown="if(event.key==='Enter'){var v=this.value.replace(/\\s/g,'');if(v)window.glassReception._doSearch('${orderRef||''}','${eurocode||''}','${(rawText||'').substring(0,200)}',null,v);}">
+            <button onclick="(function(){var v=document.getElementById('grFallbackPlate')?.value?.replace(/\\s/g,'');if(v)window.glassReception._doSearch('${orderRef||''}','${eurocode||''}','${(rawText||'').substring(0,200)}',null,v);})()"
+              style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;">
+              Procurar
+            </button>
+          </div>
+        </div>
         <button onclick="window.glassReception._step1()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;width:100%;">← Tentar novamente</button>
       `;
+      setTimeout(() => document.getElementById('grFallbackPlate')?.focus(), 50);
       return;
     }
 
