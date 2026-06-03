@@ -540,6 +540,41 @@
             <textarea id="appointmentNotes" placeholder="Informações adicionais (não aparece no calendário)" rows="3"></textarea>
           </div>
 
+          <!-- VENDAS COMPLEMENTARES -->
+          <div class="form-group" id="compSalesSection" style="margin-bottom:16px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:13px;color:#374151;margin-bottom:0;">
+              <input type="checkbox" id="hasCompSales" onchange="toggleCompSales(this.checked)"
+                style="width:16px;height:16px;accent-color:#7c3aed;cursor:pointer;">
+              💰 Venda complementar
+            </label>
+            <div id="compSalesFields" style="display:none;margin-top:10px;padding:12px 14px;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:10px;">
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <div>
+                  <label style="font-size:12px;font-weight:600;color:#5b21b6;display:block;margin-bottom:4px;">Descrição da venda *</label>
+                  <textarea id="compSalesDesc" rows="2" placeholder="Ex: Câmara traseira, sensor de estacionamento..."
+                    style="width:100%;border:1.5px solid #ddd8fe;border-radius:8px;padding:8px;font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                  <div>
+                    <label style="font-size:12px;font-weight:600;color:#5b21b6;display:block;margin-bottom:4px;">Nome do cliente</label>
+                    <input type="text" id="compSalesName" placeholder="Nome completo"
+                      style="width:100%;border:1.5px solid #ddd8fe;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box;">
+                  </div>
+                  <div>
+                    <label style="font-size:12px;font-weight:600;color:#5b21b6;display:block;margin-bottom:4px;">NIF</label>
+                    <input type="text" id="compSalesNif" placeholder="Ex: 123456789" maxlength="20"
+                      style="width:100%;border:1.5px solid #ddd8fe;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box;">
+                  </div>
+                </div>
+                <div id="compSalesFaturadoRow" style="display:none;align-items:center;gap:8px;">
+                  <input type="checkbox" id="compSalesFaturado"
+                    style="width:16px;height:16px;accent-color:#059669;cursor:pointer;">
+                  <label for="compSalesFaturado" style="font-size:13px;font-weight:700;color:#065f46;cursor:pointer;">✅ Faturado no programa</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- LINHA 10: Estado do Agendamento -->
           <div class="form-group" style="margin-bottom:20px;">
             <label style="font-weight:700;font-size:13px;color:#374151;margin-bottom:8px;display:block;">Estado do Agendamento *</label>

@@ -71,6 +71,11 @@ const telBtn = phone ? `
       ${a.reception_ref ? `<span>✅ ${a.reception_ref}</span>` : ''}
     </div>` : '';
   const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
+  const compSalesBadge = a.comp_sales_desc
+    ? (a.comp_sales_faturado
+        ? `<div style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:rgba(5,150,105,0.15);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;color:#d1fae5;">✅ Venda faturada</div>`
+        : `<div style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:rgba(124,58,237,0.18);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;color:#ede9fe;">💰 Venda complementar</div>`)
+    : '';
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
   const phcFooter = isAutoImported ? `
@@ -165,6 +170,7 @@ const telBtn = phone ? `
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${damageRow}
+        ${compSalesBadge}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
         ${preAgendadoM
           ? `<div class="m-pending-confirm">⏳ Aguarda confirmação do coordenador</div>`
@@ -826,6 +832,27 @@ function setConfirmed(value) {
 }
 
 
+function toggleCompSales(show) {
+  const fields = document.getElementById('compSalesFields');
+  if (fields) fields.style.display = show ? 'block' : 'none';
+  if (!show) {
+    ['compSalesDesc','compSalesName','compSalesNif'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const fatEl = document.getElementById('compSalesFaturado');
+    if (fatEl) fatEl.checked = false;
+  }
+}
+
+function _syncCompSalesFaturadoVisibility() {
+  const row = document.getElementById('compSalesFaturadoRow');
+  if (!row) return;
+  const role = window.authClient?.getUser?.()?.role;
+  const canFaturar = role === 'admin' || role === 'coordenador' || role === 'coordinator';
+  row.style.display = canFaturar ? 'flex' : 'none';
+}
+
 function _injectLocalityFirstOverlay() {
   var existing = document.getElementById('localityFirstOverlay');
   if (existing) existing.remove();
@@ -1029,7 +1056,14 @@ function bootApp() {
         ? (parseInt(document.getElementById('appointmentCustomTime')?.value) || null)
         : null,
       foreign_plate: document.getElementById('foreignPlate')?.checked || false,
-      extra_services: typeof _readExtraServices === 'function' ? _readExtraServices() : []
+      extra_services: typeof _readExtraServices === 'function' ? _readExtraServices() : [],
+      comp_sales_desc: document.getElementById('hasCompSales')?.checked
+        ? ((document.getElementById('compSalesDesc')?.value || '').trim() || null) : null,
+      comp_sales_nif: document.getElementById('hasCompSales')?.checked
+        ? ((document.getElementById('compSalesNif')?.value || '').trim() || null) : null,
+      comp_sales_name: document.getElementById('hasCompSales')?.checked
+        ? ((document.getElementById('compSalesName')?.value || '').trim() || null) : null,
+      comp_sales_faturado: document.getElementById('compSalesFaturado')?.checked || false
     };
   }
 
@@ -1185,6 +1219,8 @@ cancelEdit?.();
       selectedDot.style.backgroundColor = '';
     }
     applyLojaModalMode();
+    toggleCompSales(false);
+    _syncCompSalesFaturadoVisibility();
     document.getElementById('appointmentModal').classList.add('show');
     if (!isLoja()) {
       setTimeout(() => _injectLocalityFirstOverlay(), 50);

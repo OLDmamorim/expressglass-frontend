@@ -2303,6 +2303,25 @@ function editAppointment(id) {
   if (document.getElementById('appointmentDamageDetails')) {
     document.getElementById('appointmentDamageDetails').value = appointment.damage_details || '';
   }
+
+  // Vendas complementares
+  const hasCS = !!(appointment.comp_sales_desc);
+  const hasCompSalesCb = document.getElementById('hasCompSales');
+  if (hasCompSalesCb) {
+    hasCompSalesCb.checked = hasCS;
+    if (typeof toggleCompSales === 'function') toggleCompSales(hasCS);
+  }
+  if (hasCS) {
+    const el = document.getElementById('compSalesDesc');
+    if (el) el.value = appointment.comp_sales_desc || '';
+    const elName = document.getElementById('compSalesName');
+    if (elName) elName.value = appointment.comp_sales_name || '';
+    const elNif = document.getElementById('compSalesNif');
+    if (elNif) elNif.value = appointment.comp_sales_nif || '';
+    const elFat = document.getElementById('compSalesFaturado');
+    if (elFat) elFat.checked = !!appointment.comp_sales_faturado;
+  }
+  if (typeof _syncCompSalesFaturadoVisibility === 'function') _syncCompSalesFaturadoVisibility();
   
   // Preencher campo de quilómetros se existir
   const kmValue = getKmValue(appointment);
@@ -2612,6 +2631,8 @@ function buildDesktopCard(a){
       </div>
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
       ${a.damage_details ? `<div class="dc-sub" style="margin-top:3px;font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : ''}
+      ${a.comp_sales_desc && !a.comp_sales_faturado ? `<div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(124,58,237,0.18);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;color:#ede9fe;">💰 Venda complementar</div>` : ''}
+      ${a.comp_sales_desc && a.comp_sales_faturado ? `<div style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(5,150,105,0.15);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;color:#d1fae5;">✅ Venda faturada</div>` : ''}
       ${preAgendadoBadge}
       ${confirmBtn}
       ${locWarning}
