@@ -960,6 +960,100 @@ function _syncCompSalesFaturadoVisibility() {
   row.style.display = canFaturar ? 'flex' : 'none';
 }
 
+function _updateVendasComplBadge() {
+  const pendingCount = (window.appointments || []).filter(function(a) {
+    return a.comp_sales_desc && !a.comp_sales_faturado;
+  }).length;
+  ['vendasComplBadge', 'vendasComplBadgeDesk'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (pendingCount > 0) {
+      el.textContent = pendingCount;
+      el.style.display = 'inline-block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+function openVendasComplPanel() {
+  var existing = document.getElementById('vendasComplPanel');
+  if (existing) existing.remove();
+
+  var role = window.authClient?.getUser?.()?.role;
+  var canFaturar = role === 'admin' || role === 'coordenador' || role === 'coordinator';
+
+  var appts = (window.appointments || []).filter(function(a) { return !!a.comp_sales_desc; });
+  appts.sort(function(a, b) {
+    // pending first, then by plate
+    var ap = (!a.comp_sales_faturado) ? 0 : 1;
+    var bp = (!b.comp_sales_faturado) ? 0 : 1;
+    if (ap !== bp) return ap - bp;
+    return (a.plate || '').localeCompare(b.plate || '');
+  });
+
+  var rows = '';
+  if (appts.length === 0) {
+    rows = '<tr><td colspan="' + (canFaturar ? '5' : '4') + '" style="text-align:center;padding:24px;color:#94a3b8;font-style:italic;">Sem vendas complementares registadas</td></tr>';
+  } else {
+    appts.forEach(function(a) {
+      var faturado = !!a.comp_sales_faturado;
+      var badge = faturado
+        ? '<span style="background:#059669;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">✅ Faturado</span>'
+        : '<span style="background:#d97706;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;">⏳ Pendente</span>';
+      var actionBtn = '';
+      if (canFaturar && !faturado) {
+        actionBtn = '<button onclick="vendasComplMarkFaturado(\'' + a.id + '\')" style="background:#059669;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;cursor:pointer;">✅ Faturar</button>';
+      }
+      rows += '<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">'
+        + '<td style="padding:8px 10px;font-weight:700;color:#fbbf24;">' + (a.plate || '—') + '</td>'
+        + '<td style="padding:8px 10px;max-width:200px;word-break:break-word;">' + (a.comp_sales_desc || '—') + '</td>'
+        + '<td style="padding:8px 10px;">' + (a.comp_sales_name || '—') + '<br><span style="font-size:11px;color:#94a3b8;">' + (a.comp_sales_nif || '') + '</span></td>'
+        + '<td style="padding:8px 10px;">' + badge + '</td>'
+        + (canFaturar ? '<td style="padding:8px 10px;">' + actionBtn + '</td>' : '')
+        + '</tr>';
+    });
+  }
+
+  var panel = document.createElement('div');
+  panel.id = 'vendasComplPanel';
+  panel.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);padding:16px;box-sizing:border-box;';
+  panel.innerHTML = '<div style="background:#1e293b;border-radius:16px;width:100%;max-width:700px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.5);">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.1);">'
+    + '<h3 style="margin:0;color:#fff;font-size:16px;">💰 Vendas Complementares</h3>'
+    + '<button onclick="document.getElementById(\'vendasComplPanel\').remove()" style="background:none;border:none;color:#94a3b8;font-size:20px;cursor:pointer;line-height:1;">✕</button>'
+    + '</div>'
+    + '<div style="overflow-y:auto;flex:1;">'
+    + '<table style="width:100%;border-collapse:collapse;color:#e2e8f0;font-size:13px;">'
+    + '<thead><tr style="background:rgba(255,255,255,0.05);"><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Matrícula</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Descrição</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Cliente / NIF</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Estado</th>' + (canFaturar ? '<th style="padding:8px 10px;"></th>' : '') + '</tr></thead>'
+    + '<tbody>' + rows + '</tbody>'
+    + '</table>'
+    + '</div>'
+    + '</div>';
+
+  panel.addEventListener('click', function(e) { if (e.target === panel) panel.remove(); });
+  document.body.appendChild(panel);
+}
+
+async function vendasComplMarkFaturado(id) {
+  var appt = (window.appointments || []).find(function(a) { return String(a.id) === String(id); });
+  if (!appt) return;
+  var btn = document.querySelector('[onclick="vendasComplMarkFaturado(\'' + id + '\')"]');
+  if (btn) { btn.disabled = true; btn.textContent = '...'; }
+  try {
+    var updated = Object.assign({}, appt, { comp_sales_faturado: true });
+    await window.apiClient.updateAppointment(id, updated);
+    var idx = (window.appointments || []).findIndex(function(a) { return String(a.id) === String(id); });
+    if (idx !== -1) window.appointments[idx].comp_sales_faturado = true;
+    if (typeof renderAll === 'function') renderAll();
+    document.getElementById('vendasComplPanel')?.remove();
+    openVendasComplPanel();
+  } catch(e) {
+    if (btn) { btn.disabled = false; btn.textContent = '✅ Faturar'; }
+    alert('Erro ao atualizar: ' + e.message);
+  }
+}
+
 function _injectLocalityFirstOverlay() {
   var existing = document.getElementById('localityFirstOverlay');
   if (existing) existing.remove();
@@ -1050,16 +1144,7 @@ function bootApp() {
   });
   document.getElementById('calculateRoutesMobile')?.addEventListener('click', calculateAllRoutesFromToday);
 
-  // ── Relatório semanal (mobile + desktop) ──
-  const openRelatorio = () => {
-    buildRelatorio();
-    document.getElementById('relatorioModal')?.classList.add('show');
-  };
-  document.getElementById('btnRelatorio')?.addEventListener('click', openRelatorio);
-  document.getElementById('btnRelatorioDesk')?.addEventListener('click', openRelatorio);
-  document.getElementById('closeRelatorio')?.addEventListener('click', () => {
-    document.getElementById('relatorioModal')?.classList.remove('show');
-  });
+  // Vendas Complementares badge/panel buttons wired via onclick in HTML
 
   // Event listeners para edição
   document.getElementById('cancelForm')?.addEventListener('click', cancelEdit);
@@ -2421,6 +2506,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.renderAll = function() {
           origRA.apply(this, arguments);
           checkNotifications();
+          _updateVendasComplBadge();
         };
       }
     }, 800);
@@ -2428,6 +2514,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Also check once on initial load after appointments are available
   setTimeout(checkNotifications, 3000);
+  setTimeout(_updateVendasComplBadge, 3500);
 })();
 
 // ===== Filter bar logic =====
