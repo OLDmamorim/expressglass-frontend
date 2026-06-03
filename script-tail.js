@@ -73,9 +73,9 @@ const telBtn = phone ? `
   const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   const compSalesBadge = a.comp_sales_desc
     ? (a.comp_sales_faturado
-        ? `<div style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:rgba(5,150,105,0.15);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;color:#d1fae5;">✅ Venda faturada</div>`
-        : `<div style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:rgba(124,58,237,0.18);border-radius:6px;padding:2px 8px;font-size:11px;font-weight:800;color:#ede9fe;">💰 Venda complementar</div>`)
-    : '';
+        ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:#d1fae5;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#065f46;cursor:pointer;">✅ Venda faturada</button>`
+        : `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:#fef3c7;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#92400e;cursor:pointer;">💰 Venda pendente</button>`)
+    : `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.15);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);cursor:pointer;">💰 Venda compl.</button>`;
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
   const phcFooter = isAutoImported ? `
@@ -835,6 +835,8 @@ function setConfirmed(value) {
 function toggleCompSales(show) {
   const fields = document.getElementById('compSalesFields');
   if (fields) fields.style.display = show ? 'block' : 'none';
+  const cb = document.getElementById('hasCompSales');
+  if (cb) cb.checked = show;
   if (!show) {
     ['compSalesDesc','compSalesName','compSalesNif'].forEach(id => {
       const el = document.getElementById(id);
@@ -842,6 +844,111 @@ function toggleCompSales(show) {
     });
     const fatEl = document.getElementById('compSalesFaturado');
     if (fatEl) fatEl.checked = false;
+  }
+}
+
+// ── Mini modal de Venda Complementar (para técnicos e coordenadores) ─────────
+window._csEditId = null;
+
+function openCompSalesModal(id) {
+  window._csEditId = id;
+  var appt = (window.appointments || []).find(function(a) { return String(a.id) === String(id); });
+  document.getElementById('_compSalesModal')?.remove();
+
+  var role = window.authClient?.getUser?.()?.role || '';
+  var canFaturar = role === 'admin' || role === 'coordenador' || role === 'coordinator';
+  var isFaturado = appt && appt.comp_sales_faturado;
+  var faturadoRow = canFaturar
+    ? '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#ecfdf5;border-radius:8px;border:1.5px solid #6ee7b7;">' +
+        '<input type="checkbox" id="_csMFaturado" ' + (isFaturado ? 'checked' : '') + ' style="width:18px;height:18px;accent-color:#059669;cursor:pointer;">' +
+        '<label for="_csMFaturado" style="font-size:13px;font-weight:800;color:#065f46;cursor:pointer;">✅ Faturado no programa</label>' +
+      '</div>'
+    : '';
+
+  var el = document.createElement('div');
+  el.id = '_compSalesModal';
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  el.innerHTML =
+    '<div style="background:#fff;border-radius:16px;padding:24px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">' +
+        '<span style="font-size:22px;">💰</span>' +
+        '<h3 style="margin:0;font-size:16px;font-weight:800;color:#5b21b6;">Venda Complementar</h3>' +
+        '<button onclick="document.getElementById(\'_compSalesModal\').remove()" style="margin-left:auto;background:none;border:none;font-size:22px;cursor:pointer;color:#9ca3af;line-height:1;padding:0 4px;">×</button>' +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:12px;">' +
+        '<div>' +
+          '<label style="font-size:12px;font-weight:700;color:#5b21b6;display:block;margin-bottom:4px;">Descrição da venda *</label>' +
+          '<textarea id="_csMDesc" rows="3" placeholder="Ex: Câmara traseira, sensor de estacionamento..." style="width:100%;border:1.5px solid #ddd8fe;border-radius:8px;padding:8px;font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+          '<div>' +
+            '<label style="font-size:12px;font-weight:700;color:#5b21b6;display:block;margin-bottom:4px;">Nome do cliente</label>' +
+            '<input type="text" id="_csMName" placeholder="Nome completo" style="width:100%;border:1.5px solid #ddd8fe;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box;">' +
+          '</div>' +
+          '<div>' +
+            '<label style="font-size:12px;font-weight:700;color:#5b21b6;display:block;margin-bottom:4px;">NIF</label>' +
+            '<input type="text" id="_csMNif" placeholder="Ex: 123456789" style="width:100%;border:1.5px solid #ddd8fe;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box;">' +
+          '</div>' +
+        '</div>' +
+        faturadoRow +
+      '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">' +
+        '<button onclick="document.getElementById(\'_compSalesModal\').remove()" style="padding:10px 20px;border-radius:8px;border:none;background:#f3f4f6;color:#374151;font-weight:700;cursor:pointer;font-size:14px;">Cancelar</button>' +
+        '<button id="_csMSaveBtn" onclick="saveCompSales()" style="padding:10px 20px;border-radius:8px;border:none;background:#7c3aed;color:#fff;font-weight:700;cursor:pointer;font-size:14px;">💾 Guardar</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(el);
+
+  if (appt) {
+    document.getElementById('_csMDesc').value = appt.comp_sales_desc || '';
+    document.getElementById('_csMName').value = appt.comp_sales_name || '';
+    document.getElementById('_csMNif').value  = appt.comp_sales_nif  || '';
+  }
+  setTimeout(function() { document.getElementById('_csMDesc')?.focus(); }, 50);
+}
+
+async function saveCompSales() {
+  var id   = window._csEditId;
+  if (!id) return;
+  var appt = (window.appointments || []).find(function(a) { return String(a.id) === String(id); });
+  if (!appt) return;
+
+  var desc     = (document.getElementById('_csMDesc')?.value  || '').trim();
+  var name     = (document.getElementById('_csMName')?.value  || '').trim();
+  var nif      = (document.getElementById('_csMNif')?.value   || '').trim();
+  var faturado = !!(document.getElementById('_csMFaturado')?.checked);
+
+  if (!desc) {
+    const d = document.getElementById('_csMDesc');
+    if (d) { d.style.border = '1.5px solid #dc2626'; d.focus(); }
+    return;
+  }
+
+  var btn = document.getElementById('_csMSaveBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'A guardar…'; }
+
+  try {
+    await window.apiClient.updateAppointment(id, Object.assign({}, appt, {
+      comp_sales_desc: desc,
+      comp_sales_name: name || null,
+      comp_sales_nif:  nif  || null,
+      comp_sales_faturado: faturado
+    }));
+
+    var idx = (window.appointments || []).findIndex(function(a) { return String(a.id) === String(id); });
+    if (idx >= 0) {
+      window.appointments[idx] = Object.assign({}, window.appointments[idx], {
+        comp_sales_desc: desc, comp_sales_name: name || null,
+        comp_sales_nif: nif || null, comp_sales_faturado: faturado
+      });
+    }
+
+    document.getElementById('_compSalesModal')?.remove();
+    if (typeof renderAll === 'function') renderAll();
+    if (typeof showToast === 'function') showToast('💰 Venda complementar guardada', 'success');
+  } catch (e) {
+    if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Erro ao guardar'), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Guardar'; }
   }
 }
 
