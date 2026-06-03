@@ -1448,24 +1448,44 @@
     `;
 
     if (appts.length === 0) {
+      const safeOrderRef = (orderRef||'').replace(/'/g,"\\'");
+      const safeRaw = (rawText||'').substring(0,200).replace(/'/g,"\\'");
       body.innerHTML = infoHtml + `
         <p style="color:#ef4444;font-weight:600;text-align:center;margin:16px 0;">Nenhum processo encontrado com estes dados.</p>
         <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:10px;padding:14px;margin-bottom:12px;">
-          <p style="font-size:13px;font-weight:700;color:#92400e;margin:0 0 10px 0;">🔍 Procura pela matrícula do carro:</p>
-          <div style="display:flex;gap:8px;">
-            <input id="grFallbackPlate" type="text" placeholder="ex: 64-95-TC" maxlength="8"
-              style="flex:1;padding:10px 12px;border:2px solid #fbbf24;border-radius:8px;font-size:14px;font-weight:700;font-family:monospace;text-transform:uppercase;outline:none;"
-              oninput="this.value=this.value.toUpperCase()"
-              onkeydown="if(event.key==='Enter'){var v=this.value.replace(/\\s/g,'');if(v)window.glassReception._doSearch('${orderRef||''}','${eurocode||''}','${(rawText||'').substring(0,200)}',null,v);}">
-            <button onclick="(function(){var v=document.getElementById('grFallbackPlate')?.value?.replace(/\\s/g,'');if(v)window.glassReception._doSearch('${orderRef||''}','${eurocode||''}','${(rawText||'').substring(0,200)}',null,v);})()"
-              style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;">
-              Procurar
-            </button>
+          <p style="font-size:13px;font-weight:700;color:#92400e;margin:0 0 10px 0;">✏️ Corrige os dados e tenta novamente:</p>
+          <div style="margin-bottom:8px;">
+            <label style="font-size:11px;font-weight:700;color:#92400e;display:block;margin-bottom:4px;">Eurocode</label>
+            <input id="grFallbackEuro" type="text" placeholder="ex: 6097AGA1MV" value="${(eurocode||'').replace(/"/g,'&quot;')}"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #fbbf24;border-radius:8px;font-size:14px;font-weight:700;font-family:monospace;text-transform:uppercase;outline:none;"
+              oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div style="margin-bottom:8px;">
+            <label style="font-size:11px;font-weight:700;color:#92400e;display:block;margin-bottom:4px;">N.º Encomenda</label>
+            <input id="grFallbackOrder" type="text" placeholder="ex: 48871" value="${(orderRef||'').replace(/"/g,'&quot;')}"
+              style="width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #fbbf24;border-radius:8px;font-size:14px;font-weight:700;font-family:monospace;outline:none;">
+          </div>
+          <div style="margin-bottom:4px;">
+            <label style="font-size:11px;font-weight:700;color:#92400e;display:block;margin-bottom:4px;">Ou pesquisa pela matrícula</label>
+            <div style="display:flex;gap:8px;">
+              <input id="grFallbackPlate" type="text" placeholder="ex: 64-95-TC" maxlength="8"
+                style="flex:1;padding:10px 12px;border:2px solid #fbbf24;border-radius:8px;font-size:14px;font-weight:700;font-family:monospace;text-transform:uppercase;outline:none;"
+                oninput="this.value=this.value.toUpperCase()">
+              <button onclick="(function(){
+                  var ec=document.getElementById('grFallbackEuro')?.value?.trim()||null;
+                  var or=document.getElementById('grFallbackOrder')?.value?.trim()||null;
+                  var pl=document.getElementById('grFallbackPlate')?.value?.replace(/\\s/g,'')||null;
+                  if(ec||or||pl) window.glassReception._doSearch(or,ec,'${safeRaw}',null,pl||null);
+                })()"
+                style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+                Procurar
+              </button>
+            </div>
           </div>
         </div>
         <button onclick="window.glassReception._step1()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;width:100%;">← Tentar novamente</button>
       `;
-      setTimeout(() => document.getElementById('grFallbackPlate')?.focus(), 50);
+      setTimeout(() => document.getElementById('grFallbackEuro')?.focus(), 50);
       return;
     }
 
