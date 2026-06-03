@@ -960,6 +960,25 @@ function _syncCompSalesFaturadoVisibility() {
   row.style.display = canFaturar ? 'flex' : 'none';
 }
 
+async function _silentRefreshAppointments() {
+  if (!window.apiClient?.getAppointments) return;
+  try {
+    var fresh = await window.apiClient.getAppointments();
+    fresh.forEach(function(a) {
+      if (a.date) a.date = String(a.date).slice(0, 10);
+      if (!a.createdAt && a.created_at) a.createdAt = a.created_at;
+      if (a.sortIndex === null || a.sortIndex === undefined) {
+        a.sortIndex = (a.sortindex !== null && a.sortindex !== undefined) ? a.sortindex : 1;
+      }
+    });
+    // Replace the module-level appointments array in-place so renderAll() picks it up
+    appointments.length = 0;
+    fresh.forEach(function(a) { appointments.push(a); });
+    window.appointments = appointments;
+    _updateVendasComplBadge();
+  } catch(e) { /* silent */ }
+}
+
 function _updateVendasComplBadge() {
   const pendingCount = (window.appointments || []).filter(function(a) {
     return a.comp_sales_desc && !a.comp_sales_faturado;
@@ -976,9 +995,19 @@ function _updateVendasComplBadge() {
   });
 }
 
-function openVendasComplPanel() {
+async function openVendasComplPanel() {
   var existing = document.getElementById('vendasComplPanel');
   if (existing) existing.remove();
+
+  // Show loading spinner while fetching fresh data
+  var loadingEl = document.createElement('div');
+  loadingEl.id = 'vendasComplPanel';
+  loadingEl.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);';
+  loadingEl.innerHTML = '<div style="color:#fff;font-size:15px;">💰 A carregar...</div>';
+  document.body.appendChild(loadingEl);
+
+  await _silentRefreshAppointments();
+  loadingEl.remove();
 
   var role = window.authClient?.getUser?.()?.role;
   var canFaturar = role === 'admin' || role === 'coordenador' || role === 'coordinator';
@@ -2515,6 +2544,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Also check once on initial load after appointments are available
   setTimeout(checkNotifications, 3000);
   setTimeout(_updateVendasComplBadge, 3500);
+  // Poll every 90s to keep badge live when others add comp sales
+  setInterval(_silentRefreshAppointments, 90000);
 })();
 
 // ===== Filter bar logic =====
