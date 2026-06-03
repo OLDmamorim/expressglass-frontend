@@ -52,6 +52,13 @@ exports.handler = async (event) => {
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reception_ref TEXT`);
   } catch(migErr) { console.warn('Migration reception_ref warning:', migErr.message); }
 
+  try {
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_desc TEXT`);
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_nif VARCHAR(20)`);
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_name VARCHAR(255)`);
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_faturado BOOLEAN DEFAULT FALSE`);
+  } catch(migErr) { console.warn('Migration comp_sales warning:', migErr.message); }
+
   // Migração: actualizar constraint de service para incluir RV e OUT
   try {
     await pool.query(`ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_service_check`);
@@ -134,7 +141,9 @@ exports.handler = async (event) => {
                  a.calibration, a.first_of_day, a.second_of_day, a.not_done_reason, a.commercial_user_id,
                  a.return_km, a.return_time, a.client_name, a.damage_details, a.glass_removed, a.glass_removed_date,
                  a.custom_service_time, a.foreign_plate, a.extra_services, a.n_obra,
-                 a.order_ref, a.glass_eurocode, a.reception_ref, a.created_at, a.updated_at, a.not_done_at, a.portal_id,
+                 a.order_ref, a.glass_eurocode, a.reception_ref,
+                 a.comp_sales_desc, a.comp_sales_nif, a.comp_sales_name, a.comp_sales_faturado,
+                 a.created_at, a.updated_at, a.not_done_at, a.portal_id,
                  p.name AS portal_name
           FROM appointments a
           LEFT JOIN portals p ON p.id = a.portal_id
@@ -175,7 +184,9 @@ exports.handler = async (event) => {
                calibration, first_of_day, second_of_day, not_done_reason, commercial_user_id,
                return_km, return_time, client_name, damage_details, glass_removed, glass_removed_date,
                custom_service_time, foreign_plate, extra_services, n_obra,
-               order_ref, glass_eurocode, reception_ref, created_at, updated_at, not_done_at
+               order_ref, glass_eurocode, reception_ref,
+               comp_sales_desc, comp_sales_nif, comp_sales_name, comp_sales_faturado,
+               created_at, updated_at, not_done_at
         FROM appointments
         WHERE portal_id = $1
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
@@ -211,9 +222,10 @@ exports.handler = async (event) => {
           vehicle_type, travel_time, confirmed, calibration, first_of_day, second_of_day,
           not_done_reason, commercial_user_id, return_km, return_time, client_name, damage_details,
           glass_removed_date, custom_service_time, foreign_plate, extra_services, n_obra,
-          order_ref, glass_eurocode, portal_id, created_at, updated_at
+          order_ref, glass_eurocode, portal_id, created_at, updated_at,
+          comp_sales_desc, comp_sales_nif, comp_sales_name, comp_sales_faturado
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40
         ) RETURNING *
       `;
       const v = [
@@ -240,7 +252,11 @@ exports.handler = async (event) => {
         data.n_obra || null,
         data.order_ref || null,
         data.glass_eurocode || data.eurocode || null,
-        portalId, createdAt, new Date().toISOString()
+        portalId, createdAt, new Date().toISOString(),
+        data.comp_sales_desc || null,
+        data.comp_sales_nif || null,
+        data.comp_sales_name || null,
+        data.comp_sales_faturado === true
       ];
       const { rows } = await pool.query(q, v);
       return { statusCode: 201, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
@@ -290,7 +306,8 @@ exports.handler = async (event) => {
           executed = $18, confirmed = $19, calibration = $20,
           first_of_day = $21, second_of_day = $22, not_done_reason = $23, commercial_user_id = $24,
           return_km = $25, return_time = $26, client_name = $27, damage_details = $28, glass_removed = $29, extra_services = $30,
-          glass_removed_date = $31, n_obra = $32, updated_at = $33, not_done_at = $36, reception_ref = $37
+          glass_removed_date = $31, n_obra = $32, updated_at = $33, not_done_at = $36, reception_ref = $37,
+          comp_sales_desc = $38, comp_sales_nif = $39, comp_sales_name = $40, comp_sales_faturado = $41
         WHERE id = $34 AND portal_id = $35
         RETURNING *
       `;
@@ -321,7 +338,11 @@ exports.handler = async (event) => {
         data.glass_removed_date !== undefined ? (data.glass_removed_date || null) : (existing.glass_removed_date || null),
         data.n_obra !== undefined ? (data.n_obra || null) : null,
         new Date().toISOString(), id, effectivePortalId, notDoneAtVal,
-        data.reception_ref !== undefined ? (data.reception_ref || null) : null
+        data.reception_ref !== undefined ? (data.reception_ref || null) : null,
+        data.comp_sales_desc !== undefined ? (data.comp_sales_desc || null) : null,
+        data.comp_sales_nif !== undefined ? (data.comp_sales_nif || null) : null,
+        data.comp_sales_name !== undefined ? (data.comp_sales_name || null) : null,
+        data.comp_sales_faturado !== undefined ? (!!data.comp_sales_faturado) : false
       ];
       const { rows } = await pool.query(q, v);
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
