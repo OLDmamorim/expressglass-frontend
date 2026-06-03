@@ -73,9 +73,9 @@ const telBtn = phone ? `
   const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   const compSalesBadge = a.comp_sales_desc
     ? (a.comp_sales_faturado
-        ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:#d1fae5;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#065f46;cursor:pointer;">✅ Venda faturada</button>`
-        : `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:#fef3c7;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#92400e;cursor:pointer;">💰 Venda pendente</button>`)
-    : `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.15);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:rgba(255,255,255,0.85);cursor:pointer;">💰 Venda compl.</button>`;
+        ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:#059669;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#fff;cursor:pointer;">✅ Venda faturada</button>`
+        : `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:#d97706;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#fff;cursor:pointer;">💰 Venda pendente</button>`)
+    : `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.25);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;">💰 Venda compl.</button>`;
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
   const phcFooter = isAutoImported ? `
