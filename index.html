@@ -541,35 +541,37 @@
           </div>
 
           <!-- VENDAS COMPLEMENTARES -->
-          <div class="form-group" id="compSalesSection" style="margin-bottom:16px;">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:13px;color:#374151;margin-bottom:0;">
-              <input type="checkbox" id="hasCompSales" onchange="toggleCompSales(this.checked)"
-                style="width:16px;height:16px;accent-color:#7c3aed;cursor:pointer;">
-              💰 Venda complementar
-            </label>
-            <div id="compSalesFields" style="display:none;margin-top:10px;padding:12px 14px;background:#f5f3ff;border:1.5px solid #c4b5fd;border-radius:10px;">
+          <div id="compSalesSection" style="margin-bottom:16px;border:2px solid #e9d5ff;border-radius:12px;overflow:hidden;">
+            <button type="button" onclick="toggleCompSales(!document.getElementById('hasCompSales').checked)"
+              style="width:100%;display:flex;align-items:center;gap:10px;padding:12px 16px;background:#f5f3ff;border:none;cursor:pointer;text-align:left;">
+              <input type="checkbox" id="hasCompSales" onclick="event.stopPropagation();toggleCompSales(this.checked)"
+                style="width:18px;height:18px;accent-color:#7c3aed;cursor:pointer;flex-shrink:0;">
+              <span style="font-weight:800;font-size:14px;color:#5b21b6;">💰 Venda Complementar</span>
+              <span style="margin-left:auto;font-size:11px;color:#7c3aed;font-weight:600;">Preencher se aplicável</span>
+            </button>
+            <div id="compSalesFields" style="display:none;padding:14px 16px;background:#faf5ff;border-top:1.5px solid #e9d5ff;">
               <div style="display:flex;flex-direction:column;gap:10px;">
                 <div>
-                  <label style="font-size:12px;font-weight:600;color:#5b21b6;display:block;margin-bottom:4px;">Descrição da venda *</label>
+                  <label style="font-size:12px;font-weight:700;color:#5b21b6;display:block;margin-bottom:4px;">Descrição da venda *</label>
                   <textarea id="compSalesDesc" rows="2" placeholder="Ex: Câmara traseira, sensor de estacionamento..."
                     style="width:100%;border:1.5px solid #ddd8fe;border-radius:8px;padding:8px;font-size:13px;resize:vertical;box-sizing:border-box;"></textarea>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
                   <div>
-                    <label style="font-size:12px;font-weight:600;color:#5b21b6;display:block;margin-bottom:4px;">Nome do cliente</label>
+                    <label style="font-size:12px;font-weight:700;color:#5b21b6;display:block;margin-bottom:4px;">Nome do cliente</label>
                     <input type="text" id="compSalesName" placeholder="Nome completo"
                       style="width:100%;border:1.5px solid #ddd8fe;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box;">
                   </div>
                   <div>
-                    <label style="font-size:12px;font-weight:600;color:#5b21b6;display:block;margin-bottom:4px;">NIF</label>
+                    <label style="font-size:12px;font-weight:700;color:#5b21b6;display:block;margin-bottom:4px;">NIF</label>
                     <input type="text" id="compSalesNif" placeholder="Ex: 123456789" maxlength="20"
                       style="width:100%;border:1.5px solid #ddd8fe;border-radius:8px;padding:8px;font-size:13px;box-sizing:border-box;">
                   </div>
                 </div>
-                <div id="compSalesFaturadoRow" style="display:none;align-items:center;gap:8px;">
+                <div id="compSalesFaturadoRow" style="display:none;align-items:center;gap:8px;padding:8px 12px;background:#ecfdf5;border-radius:8px;border:1.5px solid #6ee7b7;">
                   <input type="checkbox" id="compSalesFaturado"
-                    style="width:16px;height:16px;accent-color:#059669;cursor:pointer;">
-                  <label for="compSalesFaturado" style="font-size:13px;font-weight:700;color:#065f46;cursor:pointer;">✅ Faturado no programa</label>
+                    style="width:18px;height:18px;accent-color:#059669;cursor:pointer;">
+                  <label for="compSalesFaturado" style="font-size:13px;font-weight:800;color:#065f46;cursor:pointer;">✅ Faturado no programa</label>
                 </div>
               </div>
             </div>
@@ -704,8 +706,8 @@
 
   <script src="portal-init.js?v=2026-05-15h"></script>
   <script src="api.js?v=2026-04-09"></script>
-  <script src="script.js?v=2026-06-03a"></script>
-  <script src="script-tail.js?v=2026-06-03a"></script>
+  <script src="script.js?v=2026-06-03b"></script>
+  <script src="script-tail.js?v=2026-06-03b"></script>
   <script src="portal-consult-patch.js?v=2"></script>
   <script src="transfer-sm-patch.js?v=2"></script>
   <script src="/glass-removed-patch.js?v=5"></script>
