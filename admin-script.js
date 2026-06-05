@@ -1252,16 +1252,28 @@ async function startSyncOrders() {
 
   if (plateCol < 0) { showToast('Coluna MATRICULA não encontrada', 'error'); return; }
 
-  // Fetch all appointments (all portals admin has access to)
+  // Fetch all appointments portal by portal (endpoint requires portal_id)
   document.getElementById('importProgress').style.display = 'block';
   document.getElementById('importProgressText').textContent = 'A carregar processos...';
-  document.getElementById('importProgressBar').style.width = '10%';
+  document.getElementById('importProgressBar').style.width = '5%';
 
   let allAppts = [];
   try {
-    const resp = await authClient.authenticatedFetch('/.netlify/functions/appointments');
-    const json = await resp.json();
-    allAppts = json.data || json.appointments || [];
+    const portalList = portals && portals.length ? portals : (window._adminPortals || []);
+    if (!portalList.length) {
+      // Fallback: load portals first
+      const pr = await authClient.authenticatedFetch('/.netlify/functions/portals');
+      const pd = await pr.json();
+      if (pd.success) portalList.push(...pd.data);
+    }
+    for (let pi = 0; pi < portalList.length; pi++) {
+      const pct = Math.round(5 + (pi / Math.max(portalList.length, 1)) * 30);
+      document.getElementById('importProgressBar').style.width = pct + '%';
+      document.getElementById('importProgressText').textContent = `A carregar portal ${pi + 1}/${portalList.length}...`;
+      const resp = await authClient.authenticatedFetch(`/.netlify/functions/appointments?portal_id=${portalList[pi].id}`);
+      const json = await resp.json();
+      if (json.success && json.data) allAppts.push(...json.data);
+    }
   } catch (e) {
     showToast('Erro ao carregar processos: ' + e.message, 'error');
     return;
