@@ -1271,7 +1271,7 @@
 #grScanModal,#grCoordModal { display:none;position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:16px; }
 .gr-modal-box { background:#fff;border-radius:16px;width:min(96vw,520px);box-shadow:0 24px 60px rgba(0,0,0,0.25);overflow:hidden; }
 .gr-modal-header { background:#0f172a;color:#fff;padding:16px 20px;display:flex;align-items:center;gap:10px; }
-.gr-modal-body { padding:20px; }
+.gr-modal-body { padding:20px;max-height:72vh;overflow-y:auto; }
 </style>
 
 <!-- Modal Técnico: scan / receção -->
@@ -1489,27 +1489,69 @@
       return;
     }
 
-    const cardsHtml = appts.map(a => `
+    const safeRawForCard = (rawText||'').substring(0,200).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const cardsHtml = appts.map(a => {
+      const storeName = a.portal_name || window.portalConfig?.name || '—';
+      const executedBadge = a.executed
+        ? '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;">✅ Realizado</span>'
+        : '<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;">⏳ Por realizar</span>';
+      const safeId = String(a.id);
+      const safeOrderRef = (orderRef||'').replace(/'/g,"\\'");
+      const safeEuro = (eurocode||'').replace(/'/g,"\\'");
+      return `
       <div style="border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;"
            onmouseenter="this.style.borderColor='#2563eb'" onmouseleave="this.style.borderColor='#e2e8f0'"
-           onclick="window.glassReception._confirmReception(${a.id},'${(a.plate||'').replace(/'/g,"\\'")}','${orderRef||''}','${eurocode||''}','${(rawText||'').replace(/'/g,"\\'").substring(0,200)}')">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+           onclick="window.glassReception._showConfirm('${safeId}','${(a.plate||'').replace(/'/g,"\\'")}','${a.car||''}','${storeName.replace(/'/g,"\\'")}','${a.service||''}','${a.date||''}',${!!a.executed},'${safeOrderRef}','${safeEuro}','${safeRawForCard}')">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
           <span style="font-family:monospace;font-weight:800;font-size:15px;background:#0f172a;color:#fff;padding:4px 10px;border-radius:6px;">${(a.plate||'').toUpperCase()}</span>
           <span style="font-size:13px;font-weight:600;color:#374151;">${a.car||'—'}</span>
+          ${executedBadge}
         </div>
-        <div style="display:flex;gap:16px;font-size:12px;color:#64748b;flex-wrap:wrap;">
-          <span>🏪 ${a.portal_name || window.portalConfig?.name || '—'}</span>
-          <span>🔧 ${a.service || '—'}</span>
+        <div style="display:flex;gap:12px;font-size:12px;color:#64748b;flex-wrap:wrap;margin-bottom:4px;">
+          <span>🏪 ${storeName}</span>
           ${a.date ? `<span>📅 ${fmtDate(a.date)}</span>` : '<span style="color:#f59e0b;">Sem data</span>'}
         </div>
-        <div style="margin-top:8px;font-size:11px;font-weight:700;color:#2563eb;">✔ Confirmar este serviço →</div>
+        ${a.service ? `<div style="font-size:12px;color:#374151;font-weight:600;">🔧 ${a.service}</div>` : ''}
+        ${a.notes ? `<div style="font-size:11px;color:#94a3b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📝 ${a.notes}</div>` : ''}
+        <div style="margin-top:8px;font-size:11px;font-weight:700;color:#2563eb;">Selecionar →</div>
       </div>
-    `).join('');
+    `}).join('');
 
     body.innerHTML = infoHtml + `
       <p style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px;">Seleciona o processo para este vidro:</p>
       ${cardsHtml}
       <button onclick="window.glassReception._step1()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;margin-top:4px;width:100%;">← Voltar</button>
+    `;
+  }
+
+  function _showConfirm(appointmentId, plate, car, storeName, service, date, executed, orderRef, eurocode, rawText) {
+    const body = document.getElementById('grScanBody');
+    const executedBadge = executed
+      ? '<span style="background:#dcfce7;color:#166534;font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px;">✅ Já realizado</span>'
+      : '<span style="background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px;">⏳ Por realizar</span>';
+    body.innerHTML = `
+      <p style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:14px;">Confirmar receção deste vidro?</p>
+      <div style="background:#f8fafc;border:2px solid #2563eb;border-radius:12px;padding:16px;margin-bottom:18px;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+          <span style="font-family:monospace;font-weight:800;font-size:16px;background:#0f172a;color:#fff;padding:5px 12px;border-radius:7px;">${(plate||'').toUpperCase()}</span>
+          <span style="font-size:14px;font-weight:600;color:#374151;">${car||'—'}</span>
+          ${executedBadge}
+        </div>
+        <div style="font-size:13px;color:#64748b;display:flex;flex-direction:column;gap:4px;">
+          <span>🏪 ${storeName}</span>
+          ${service ? `<span>🔧 ${service}</span>` : ''}
+          ${date ? `<span>📅 ${fmtDate(date)}</span>` : '<span style="color:#f59e0b;">Sem data</span>'}
+        </div>
+        ${orderRef ? `<div style="margin-top:8px;font-size:11px;color:#94a3b8;">📦 Encomenda: ${orderRef}</div>` : ''}
+        ${eurocode ? `<div style="font-size:11px;color:#94a3b8;font-family:monospace;">🔢 ${eurocode}</div>` : ''}
+      </div>
+      <button onclick="window.glassReception._confirmReception('${appointmentId}','${(plate||'').replace(/'/g,"\\'")}','${(orderRef||'').replace(/'/g,"\\'")}','${(eurocode||'').replace(/'/g,"\\'")}','${(rawText||'').replace(/'/g,"\\'")}')"
+        style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px;">
+        ✅ Confirmar receção
+      </button>
+      <button onclick="window.glassReception._step1()" style="width:100%;background:#e2e8f0;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;">
+        ← Voltar
+      </button>
     `;
   }
 
@@ -1921,7 +1963,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _onPhoto, _manualSearch, _step1, _doSearch, _confirmReception, _markReceived, _rejectReception, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _onPhoto, _manualSearch, _step1, _doSearch, _showConfirm, _confirmReception, _markReceived, _rejectReception, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
