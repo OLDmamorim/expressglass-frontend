@@ -827,7 +827,7 @@ function analyzeDistribution() {
   // Col B (index 1) = nmdos
   const nmdosCol = importHeaders.findIndex(h => h.toLowerCase() === 'nmdos');
   if (nmdosCol < 0) {
-    showToast('Coluna "nmdos" não encontrada no Excel', 'error');
+    // Not an appointments Excel — might be an orders Excel. Don't show error; just skip analysis.
     return;
   }
 
@@ -1245,12 +1245,22 @@ async function startSyncOrders() {
   if (!importExcelData.length) { showToast('Carrega primeiro um ficheiro Excel', 'error'); return; }
   if (!confirm('📦 IMPORTAR ENCOMENDAS\n\nO que vai acontecer:\n✅ Actualiza order_ref, eurocode e reception_ref nos processos existentes\n❌ Não cria processos novos\n❌ Não apaga nada\n\nTens a certeza?')) return;
 
-  const plateCol = importHeaders.findIndex(h => h.toLowerCase() === 'matricula');
-  const encCol   = importHeaders.findIndex(h => h.toLowerCase() === 'numeros_encomendas');
-  const recCol   = importHeaders.findIndex(h => h.toLowerCase() === 'numeros_rececao_mercadorias');
-  const euroCol  = importHeaders.findIndex(h => h.toLowerCase() === 'eurocode');
+  const norm = h => String(h || '').toLowerCase().trim();
+  const plateCol = importHeaders.findIndex(h => norm(h) === 'matricula');
+  const encCol   = importHeaders.findIndex(h => norm(h) === 'numeros_encomendas');
+  const recCol   = importHeaders.findIndex(h => norm(h) === 'numeros_rececao_mercadorias');
+  const euroCol  = importHeaders.findIndex(h => norm(h) === 'eurocode');
 
-  if (plateCol < 0) { showToast('Coluna MATRICULA não encontrada', 'error'); return; }
+  console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, headers: importHeaders });
+
+  if (plateCol < 0) {
+    showToast(`❌ Coluna "matricula" não encontrada.\nColunas no Excel: ${importHeaders.map((h,i)=>`[${i}] ${h}`).join(', ')}`, 'error');
+    return;
+  }
+  if (encCol < 0) {
+    showToast(`⚠️ Coluna "numeros_encomendas" não encontrada. Colunas: ${importHeaders.join(', ')}`, 'error');
+    return;
+  }
 
   // Fetch all appointments portal by portal (endpoint requires portal_id)
   document.getElementById('importProgress').style.display = 'block';
@@ -1309,6 +1319,7 @@ async function startSyncOrders() {
 
     if (!Object.keys(updates).length) { skipped++; continue; }
 
+    console.log(`[SyncOrders] PUT ${existing.id} (${plate}):`, updates);
     try {
       const resp = await authClient.authenticatedFetch(`/.netlify/functions/appointments/${existing.id}`, {
         method: 'PUT',
@@ -1316,9 +1327,14 @@ async function startSyncOrders() {
         body: JSON.stringify({ ...existing, ...updates })
       });
       const json = await resp.json();
-      if (json.success || json.data) updated++;
-      else { errors++; }
-    } catch (e) { errors++; }
+      if (json.success || json.data) {
+        updated++;
+        console.log(`[SyncOrders] ✅ ${plate} → order_ref=${json.data?.order_ref}`);
+      } else {
+        errors++;
+        console.error(`[SyncOrders] ❌ ${plate} error:`, json);
+      }
+    } catch (e) { errors++; console.error(`[SyncOrders] ❌ ${plate} exception:`, e); }
   }
 
   document.getElementById('importProgressBar').style.width = '100%';
