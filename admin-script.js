@@ -1294,7 +1294,11 @@ async function startSyncOrders() {
   }
 
   const plateMap = {};
-  allAppts.forEach(a => { plateMap[normalizePlate(a.plate)] = a; });
+  allAppts.forEach(a => {
+    const key = normalizePlate(a.plate);
+    if (!plateMap[key]) plateMap[key] = [];
+    plateMap[key].push(a);
+  });
 
   let updated = 0, notFound = 0, skipped = 0, errors = 0;
   const notFoundPlates = [];
@@ -1310,14 +1314,13 @@ async function startSyncOrders() {
 
     const plate = normalizePlate(row[plateCol]);
     if (!plate) continue;
-    const existing = plateMap[plate];
-    if (!existing) { notFound++; notFoundPlates.push(plate); continue; }
+    const existingList = plateMap[plate];
+    if (!existingList || !existingList.length) { notFound++; notFoundPlates.push(plate); continue; }
 
-    const updates = {};
-    const orderRef   = encCol >= 0 && row[encCol]  ? String(row[encCol]).trim().replace(/\.0$/, '')  : null;
-    const recRef     = recCol >= 0 && row[recCol]   ? String(row[recCol]).trim().replace(/\.0$/, '')  : null;
-    const eurocode   = euroCol >= 0 && row[euroCol] ? String(row[euroCol]).trim() : null;
-    const refVal     = refCol  >= 0 && row[refCol]  ? String(row[refCol]).trim()  : null;
+    const orderRef = encCol >= 0 && row[encCol]  ? String(row[encCol]).trim().replace(/\.0$/, '')  : null;
+    const recRef   = recCol >= 0 && row[recCol]   ? String(row[recCol]).trim().replace(/\.0$/, '')  : null;
+    const eurocode = euroCol >= 0 && row[euroCol] ? String(row[euroCol]).trim() : null;
+    const refVal   = refCol  >= 0 && row[refCol]  ? String(row[refCol]).trim()  : null;
 
     if (matchedSample.length < 5) matchedSample.push({
       plate,
@@ -1326,43 +1329,46 @@ async function startSyncOrders() {
       ref: refCol >= 0 ? (row[refCol] != null && row[refCol] !== '' ? String(row[refCol]) : '(vazio)') : '(col N/A)',
     });
 
-    if (orderRef) updates.order_ref = orderRef;
-    if (recRef)      updates.reception_ref  = recRef;
-    if (eurocode)    updates.glass_eurocode = eurocode;
-    if (refVal) {
-      // ref column → glass code shown on card (extra field); preserve JSON if needed
-      const existExtra = existing.extra || '';
-      let extraParsed = null;
-      try { extraParsed = JSON.parse(existExtra); } catch(e) {}
-      updates.extra = (extraParsed && typeof extraParsed === 'object')
-        ? JSON.stringify({ ...extraParsed, eurocode: refVal })
-        : refVal;
-    }
-    // Status: 'ST' if glass received; 'VE' if glass ordered from supplier (numeros_encomendas)
-    if (recRef)    updates.status = 'ST';
-    else if (orderRef && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
-
-    if (!Object.keys(updates).length) { skipped++; continue; }
-
-    console.log(`[SyncOrders] PUT ${existing.id} (${plate}):`, updates);
-    try {
-      const resp = await authClient.authenticatedFetch(`/.netlify/functions/appointments/${existing.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...existing, ...updates, _portalId: existing._portalId })
-      });
-      const json = await resp.json();
-      if (json.success || json.data) {
-        updated++;
-        updatedDetails.push({ plate, order_ref: json.data?.order_ref || null, reception_ref: json.data?.reception_ref || null, extra: json.data?.extra || null, status: json.data?.status || null });
-        console.log(`[SyncOrders] ✅ ${plate} → order_ref=${json.data?.order_ref} status=${json.data?.status} extra=${json.data?.extra}`);
-      } else {
-        errors++;
-        const errMsg = json.error || json.message || resp.status || 'erro desconhecido';
-        errorDetails.push({ plate, msg: errMsg });
-        console.error(`[SyncOrders] ❌ ${plate} error:`, json);
+    for (const existing of existingList) {
+      const updates = {};
+      if (orderRef) updates.order_ref = orderRef;
+      if (recRef)      updates.reception_ref  = recRef;
+      if (eurocode)    updates.glass_eurocode = eurocode;
+      if (refVal) {
+        // ref column → glass code shown on card (extra field); preserve JSON if needed
+        const existExtra = existing.extra || '';
+        let extraParsed = null;
+        try { extraParsed = JSON.parse(existExtra); } catch(e) {}
+        updates.extra = (extraParsed && typeof extraParsed === 'object')
+          ? JSON.stringify({ ...extraParsed, eurocode: refVal })
+          : refVal;
       }
-    } catch (e) { errors++; errorDetails.push({ plate, msg: e.message }); console.error(`[SyncOrders] ❌ ${plate} exception:`, e); }
+      // Status: 'ST' if glass received; 'VE' if glass ordered from supplier (numeros_encomendas)
+      if (recRef)    updates.status = 'ST';
+      else if (orderRef && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
+
+      if (!Object.keys(updates).length) { skipped++; continue; }
+
+      console.log(`[SyncOrders] PUT ${existing.id} (${plate}):`, updates);
+      try {
+        const resp = await authClient.authenticatedFetch(`/.netlify/functions/appointments/${existing.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...existing, ...updates, _portalId: existing._portalId })
+        });
+        const json = await resp.json();
+        if (json.success || json.data) {
+          updated++;
+          updatedDetails.push({ plate, order_ref: json.data?.order_ref || null, reception_ref: json.data?.reception_ref || null, extra: json.data?.extra || null, status: json.data?.status || null });
+          console.log(`[SyncOrders] ✅ ${plate} (${existing.id}) → order_ref=${json.data?.order_ref} status=${json.data?.status}`);
+        } else {
+          errors++;
+          const errMsg = json.error || json.message || resp.status || 'erro desconhecido';
+          errorDetails.push({ plate, msg: errMsg });
+          console.error(`[SyncOrders] ❌ ${plate} error:`, json);
+        }
+      } catch (e) { errors++; errorDetails.push({ plate, msg: e.message }); console.error(`[SyncOrders] ❌ ${plate} exception:`, e); }
+    }
   }
 
   document.getElementById('importProgressBar').style.width = '100%';
