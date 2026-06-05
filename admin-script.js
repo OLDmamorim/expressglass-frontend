@@ -1295,6 +1295,7 @@ async function startSyncOrders() {
 
   let updated = 0, notFound = 0, skipped = 0, errors = 0;
   const notFoundPlates = [];
+  const updatedDetails = []; // { plate, order_ref, reception_ref, extra }
 
   const rows = importExcelData.filter(row => row[plateCol]);
   for (let i = 0; i < rows.length; i++) {
@@ -1340,6 +1341,7 @@ async function startSyncOrders() {
       const json = await resp.json();
       if (json.success || json.data) {
         updated++;
+        updatedDetails.push({ plate, order_ref: updates.order_ref || null, reception_ref: updates.reception_ref || null, extra: updates.extra || null });
         console.log(`[SyncOrders] ✅ ${plate} → order_ref=${json.data?.order_ref} extra=${json.data?.extra} glass_eurocode=${json.data?.glass_eurocode}`);
       } else {
         errors++;
@@ -1351,7 +1353,17 @@ async function startSyncOrders() {
   document.getElementById('importProgressBar').style.width = '100%';
   document.getElementById('importProgressText').textContent = 'Importação de encomendas concluída!';
 
+  const colInfo = [
+    encCol >= 0  ? `✅ encomendas[${encCol}]`  : '❌ encomendas',
+    recCol >= 0  ? `✅ receção[${recCol}]`      : '❌ receção',
+    refCol >= 0  ? `✅ ref[${refCol}]`          : '❌ ref',
+    euroCol >= 0 ? `✅ eurocode[${euroCol}]`    : '❌ eurocode',
+  ].join(' · ');
+
   document.getElementById('importResultsContent').innerHTML = `
+    <div style="margin-top:10px;padding:8px 12px;background:#eff6ff;border-radius:8px;font-size:11px;color:#1d4ed8;font-family:monospace;">
+      Colunas: ${colInfo}
+    </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px;">
       <div style="text-align:center;padding:16px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
         <div style="font-size:28px;font-weight:700;color:#16a34a;">${updated}</div>
@@ -1370,8 +1382,14 @@ async function startSyncOrders() {
         <div style="font-size:13px;color:#6b7280;">Erros</div>
       </div>
     </div>
-    ${notFoundPlates.length ? `<div style="margin-top:14px;padding:10px 14px;background:#f3f4f6;border-radius:8px;font-size:13px;color:#6b7280;">
-      <strong>Matrículas não encontradas:</strong> ${notFoundPlates.join(', ')}
+    ${updatedDetails.length ? `<div style="margin-top:14px;padding:10px 14px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#166534;">
+      <strong>Actualizados (${updatedDetails.length}):</strong>
+      <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;">
+        ${updatedDetails.map(d => `<span><strong>${d.plate}</strong> → ${[d.order_ref ? '📦 '+d.order_ref : '', d.reception_ref ? '✅ '+d.reception_ref : '', d.extra ? '🔲 '+d.extra : ''].filter(Boolean).join(', ') || '(sem dados)'}</span>`).join('')}
+      </div>
+    </div>` : ''}
+    ${notFoundPlates.length ? `<div style="margin-top:10px;padding:10px 14px;background:#f3f4f6;border-radius:8px;font-size:12px;color:#6b7280;">
+      <strong>Não encontrados (${notFoundPlates.length}):</strong> ${notFoundPlates.join(', ')}
     </div>` : ''}
   `;
   document.getElementById('importResults').style.display = 'block';
