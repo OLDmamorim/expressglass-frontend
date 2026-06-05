@@ -109,6 +109,14 @@
       </div>
 
       <div class="import-section">
+        <div style="margin-bottom:16px;padding:14px 18px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div>
+            <div style="font-weight:700;font-size:14px;color:#1e40af;">📦 Importar Encomendas</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:2px;">Carrega um Excel e actualiza order_ref / eurocode / receção nos processos existentes. Nunca cria nem apaga.</div>
+          </div>
+          <button style="background:#0369a1;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap;" id="btnSyncOrders" onclick="startSyncOrders()">📦 Importar Encomendas</button>
+        </div>
+
         <div class="import-upload-area" id="importUploadArea">
           <p style="font-size:18px;margin-bottom:8px;">📄 Arraste o ficheiro Excel ou clique para selecionar</p>
           <p style="color:#6b7280;font-size:14px;">Formato aceite: .xls, .xlsx</p>
@@ -140,7 +148,6 @@
           <div style="margin-top:12px;padding:10px 14px;background:#fef3c7;border-radius:8px;border:1px solid #fcd34d;font-size:13px;color:#92400e;" id="importUnmatchedInfo" style="display:none;"></div>
           <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
             <button style="background:#7c3aed;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;" id="btnSyncImport" onclick="startSync()">🔄 Sincronizar com Excel</button>
-            <button style="background:#0369a1;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;" id="btnSyncOrders" onclick="startSyncOrders()">📦 Importar Encomendas</button>
           </div>
         </div>
 
