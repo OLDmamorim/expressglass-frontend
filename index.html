@@ -1432,10 +1432,24 @@
     const seen = new Set(localResults.map(a => a.id));
     const merged = [...localResults, ...apiResults.filter(a => !seen.has(a.id))];
 
-    renderMatches(merged, orderRef, eurocode, rawText, photoBase64, plate);
+    // Fetch reception status for matched appointments
+    let recepMap = {};
+    if (merged.length) {
+      try {
+        const ids = merged.map(a => a.id).join(',');
+        const recRes = await fetch(API + '/glass-reception?appointment_ids=' + ids, { headers: authHeaders() });
+        const recJson = await recRes.json();
+        if (recJson.success) {
+          (recJson.data || []).forEach(r => { recepMap[r.appointment_id] = r.status; });
+        }
+      } catch(e) { /* non-critical */ }
+    }
+
+    renderMatches(merged, orderRef, eurocode, rawText, photoBase64, plate, recepMap);
   }
 
-  function renderMatches(appts, orderRef, eurocode, rawText, photoBase64, plate) {
+  function renderMatches(appts, orderRef, eurocode, rawText, photoBase64, plate, recepMap) {
+    recepMap = recepMap || {};
     const body = document.getElementById('grScanBody');
 
     const infoHtml = `
@@ -1499,6 +1513,7 @@
     window._grOrderRef = orderRef;
     window._grEurocode = eurocode;
     window._grRawText = rawText;
+    window._grRecepMap = recepMap;
     window._grSelectedStores = new Set(); // empty = show all
 
     function buildCardsHtml(filtered) {
@@ -1508,6 +1523,12 @@
         const executedBadge = a.executed
           ? '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;">✅ Realizado</span>'
           : '<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;">⏳ Por realizar</span>';
+        const recStatus = recepMap[a.id];
+        const recBadge = recStatus === 'received'
+          ? '<div style="margin-top:6px;"><span style="background:#1d4ed8;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;">📦 Já rececionado</span></div>'
+          : recStatus === 'confirmed'
+          ? '<div style="margin-top:6px;"><span style="background:#f59e0b;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;">⏳ Aguarda confirmação</span></div>'
+          : '';
         const safeId = String(a.id);
         const safeOrderRef2 = (orderRef||'').replace(/'/g,"\\'");
         const safeEuro2 = (eurocode||'').replace(/'/g,"\\'");
@@ -1526,7 +1547,8 @@
           </div>
           ${a.service ? `<div style="font-size:12px;color:#374151;font-weight:600;">🔧 ${a.service}</div>` : ''}
           ${a.notes ? `<div style="font-size:11px;color:#94a3b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📝 ${a.notes}</div>` : ''}
-          <div style="margin-top:8px;font-size:11px;font-weight:700;color:#2563eb;">Selecionar →</div>
+          ${recBadge}
+          <div style="margin-top:6px;font-size:11px;font-weight:700;color:#2563eb;">Selecionar →</div>
         </div>`;
       }).join('');
     }
@@ -1583,6 +1605,7 @@
     const safeRawForCard = (window._grRawText||'').substring(0,200).replace(/'/g,"\\'").replace(/"/g,'&quot;');
     const orderRef = window._grOrderRef || '';
     const eurocode = window._grEurocode || '';
+    const recepMap = window._grRecepMap || {};
     if (!filtered.length) {
       list.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:20px;font-style:italic;">Nenhum serviço nesta loja.</p>';
       return;
@@ -1592,6 +1615,12 @@
       const executedBadge = a.executed
         ? '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;">✅ Realizado</span>'
         : '<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;margin-left:6px;">⏳ Por realizar</span>';
+      const recStatus = recepMap[a.id];
+      const recBadge = recStatus === 'received'
+        ? '<div style="margin-top:6px;"><span style="background:#1d4ed8;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;">📦 Já rececionado</span></div>'
+        : recStatus === 'confirmed'
+        ? '<div style="margin-top:6px;"><span style="background:#f59e0b;color:#fff;font-size:11px;font-weight:700;padding:3px 9px;border-radius:10px;">⏳ Aguarda confirmação</span></div>'
+        : '';
       return `
       <div style="border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;"
            onmouseenter="this.style.borderColor='#2563eb'" onmouseleave="this.style.borderColor='#e2e8f0'"
@@ -1607,7 +1636,8 @@
         </div>
         ${a.service ? `<div style="font-size:12px;color:#374151;font-weight:600;">🔧 ${a.service}</div>` : ''}
         ${a.notes ? `<div style="font-size:11px;color:#94a3b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📝 ${a.notes}</div>` : ''}
-        <div style="margin-top:8px;font-size:11px;font-weight:700;color:#2563eb;">Selecionar →</div>
+        ${recBadge}
+        <div style="margin-top:6px;font-size:11px;font-weight:700;color:#2563eb;">Selecionar →</div>
       </div>`;
     }).join('');
   }

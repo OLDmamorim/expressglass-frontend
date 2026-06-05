@@ -105,6 +105,20 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: hRows }) };
       }
 
+      // ── By appointment IDs (for scan results status check) ───────────────────
+      if (p.appointment_ids) {
+        const ids = String(p.appointment_ids).split(',').map(Number).filter(Boolean);
+        if (!ids.length) return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: [] }) };
+        const { rows: recRows } = await client.query(
+          `SELECT id, appointment_id, status FROM glass_receptions WHERE appointment_id = ANY($1) ORDER BY created_at DESC`,
+          [ids]
+        );
+        // Return latest reception per appointment_id
+        const latest = {};
+        recRows.forEach(r => { if (!latest[r.appointment_id]) latest[r.appointment_id] = r; });
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: Object.values(latest) }) };
+      }
+
       // ── Default: pending list ─────────────────────────────────────────────────
       let q = `
         SELECT gr.*,
