@@ -1354,8 +1354,8 @@ async function startSyncOrders() {
       const json = await resp.json();
       if (json.success || json.data) {
         updated++;
-        updatedDetails.push({ plate, order_ref: updates.order_ref || null, reception_ref: updates.reception_ref || null, extra: updates.extra || null });
-        console.log(`[SyncOrders] ✅ ${plate} → order_ref=${json.data?.order_ref} extra=${json.data?.extra} glass_eurocode=${json.data?.glass_eurocode}`);
+        updatedDetails.push({ plate, order_ref: json.data?.order_ref || null, reception_ref: json.data?.reception_ref || null, extra: json.data?.extra || null, status: json.data?.status || null });
+        console.log(`[SyncOrders] ✅ ${plate} → order_ref=${json.data?.order_ref} status=${json.data?.status} extra=${json.data?.extra}`);
       } else {
         errors++;
         const errMsg = json.error || json.message || resp.status || 'erro desconhecido';
@@ -1400,7 +1400,7 @@ async function startSyncOrders() {
     ${updatedDetails.length ? `<div style="margin-top:14px;padding:10px 14px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#166534;">
       <strong>Actualizados (${updatedDetails.length}):</strong>
       <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;">
-        ${updatedDetails.map(d => `<span><strong>${d.plate}</strong> → ${[d.order_ref ? '📦 '+d.order_ref : '', d.reception_ref ? '✅ '+d.reception_ref : '', d.extra ? '🔲 '+d.extra : ''].filter(Boolean).join(', ') || '(sem dados)'}</span>`).join('')}
+        ${updatedDetails.map(d => `<span><strong>${d.plate}</strong> → ${[d.order_ref ? '📦 '+d.order_ref : '', d.reception_ref ? '✅ '+d.reception_ref : '', d.status ? '🔵 '+d.status : '', d.extra ? '🔲 '+(d.extra.length>30?d.extra.slice(0,30)+'…':d.extra) : ''].filter(Boolean).join(', ') || '(sem dados)'}</span>`).join('')}
       </div>
     </div>` : ''}
     ${matchedSample.length ? `<div style="margin-top:10px;padding:10px 14px;background:#f5f3ff;border-radius:8px;font-size:11px;color:#5b21b6;font-family:monospace;">
