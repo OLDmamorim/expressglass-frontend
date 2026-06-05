@@ -1576,6 +1576,13 @@ document.addEventListener('DOMContentLoaded', function() {
   if (dateField) dateField.addEventListener('change', window.updateSecondOfDayVisibility);
   var firstCb = document.getElementById('appointmentFirstOfDay');
   if (firstCb) firstCb.addEventListener('change', window.updateSecondOfDayVisibility);
+
+  // Mostrar botão Relatórios para coordenadores e admins
+  const _role = window.authClient?.getUser?.()?.role || JSON.parse(localStorage.getItem('user_data') || 'null')?.role;
+  if (_role === 'admin' || _role === 'coordenador') {
+    const btn = document.getElementById('btnRelatoriosDesk');
+    if (btn) btn.style.display = '';
+  }
 });
 
 // === PRINT: Preenche secções de impressão (Hoje, Amanhã, Por Agendar) ===
