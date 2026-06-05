@@ -1403,7 +1403,7 @@ async function startSyncOrders() {
     ${matchedSample.length ? `<div style="margin-top:10px;padding:10px 14px;background:#f5f3ff;border-radius:8px;font-size:11px;color:#5b21b6;font-family:monospace;">
       <strong>Amostra de matrículas encontradas (primeiras ${matchedSample.length}):</strong>
       <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
-        ${matchedSample.map(d => `<span><strong>${d.plate}</strong> → sinistro: <em>${d.sinistro}</em> | encomenda: <em>${d.enc}</em> | receção: <em>${d.rec}</em> | ref: <em>${d.ref}</em></span>`).join('')}
+        ${matchedSample.map(d => `<span><strong>${d.plate}</strong> → encomenda: <em>${d.enc}</em> | receção: <em>${d.rec}</em> | ref: <em>${d.ref}</em></span>`).join('')}
       </div>
     </div>` : ''}
     ${errorDetails.length ? `<div style="margin-top:10px;padding:10px 14px;background:#fef2f2;border-radius:8px;font-size:12px;color:#dc2626;">
