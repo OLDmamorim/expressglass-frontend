@@ -1246,20 +1246,17 @@ async function startSyncOrders() {
   if (!confirm('📦 IMPORTAR ENCOMENDAS\n\nO que vai acontecer:\n✅ Actualiza order_ref, eurocode e reception_ref nos processos existentes\n❌ Não cria processos novos\n❌ Não apaga nada\n\nTens a certeza?')) return;
 
   const norm = h => String(h || '').toLowerCase().trim();
-  const plateCol = importHeaders.findIndex(h => norm(h) === 'matricula');
-  const encCol   = importHeaders.findIndex(h => norm(h) === 'numeros_encomendas');
-  const recCol   = importHeaders.findIndex(h => norm(h) === 'numeros_rececao_mercadorias');
-  const euroCol  = importHeaders.findIndex(h => norm(h) === 'eurocode');
-  const refCol   = importHeaders.findIndex(h => norm(h) === 'ref');
+  const plateCol     = importHeaders.findIndex(h => norm(h) === 'matricula');
+  const encCol       = importHeaders.findIndex(h => norm(h) === 'numeros_encomendas');
+  const recCol       = importHeaders.findIndex(h => norm(h) === 'numeros_rececao_mercadorias');
+  const euroCol      = importHeaders.findIndex(h => norm(h) === 'eurocode');
+  const refCol       = importHeaders.findIndex(h => norm(h) === 'ref');
+  const nrsinistroCol = importHeaders.findIndex(h => norm(h) === 'nrsinistro');
 
-  console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, refCol, headers: importHeaders });
+  console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, refCol, nrsinistroCol, headers: importHeaders });
 
   if (plateCol < 0) {
     showToast(`❌ Coluna "matricula" não encontrada.\nColunas no Excel: ${importHeaders.map((h,i)=>`[${i}] ${h}`).join(', ')}`, 'error');
-    return;
-  }
-  if (encCol < 0 && refCol < 0 && euroCol < 0) {
-    showToast(`⚠️ Nenhuma coluna de encomenda/eurocode encontrada. Colunas: ${importHeaders.join(', ')}`, 'error');
     return;
   }
 
@@ -1315,23 +1312,29 @@ async function startSyncOrders() {
     if (!existing) { notFound++; notFoundPlates.push(plate); continue; }
 
     const updates = {};
-    const orderRef  = encCol >= 0 && row[encCol]  ? String(row[encCol]).trim().replace(/\.0$/, '')  : null;
-    const recRef    = recCol >= 0 && row[recCol]   ? String(row[recCol]).trim().replace(/\.0$/, '')  : null;
-    const eurocode  = euroCol >= 0 && row[euroCol] ? String(row[euroCol]).trim() : null;
-    const refVal    = refCol  >= 0 && row[refCol]  ? String(row[refCol]).trim()  : null;
+    // nrsinistro = insurance claim/job reference → shown as 📦 on card
+    const nrsinistro = nrsinistroCol >= 0 && row[nrsinistroCol] ? String(row[nrsinistroCol]).trim().replace(/\.0$/, '') : null;
+    // numeros_encomendas = supplier glass order number (only set when glass is actually ordered)
+    const orderRef   = encCol >= 0 && row[encCol]  ? String(row[encCol]).trim().replace(/\.0$/, '')  : null;
+    const recRef     = recCol >= 0 && row[recCol]   ? String(row[recCol]).trim().replace(/\.0$/, '')  : null;
+    const eurocode   = euroCol >= 0 && row[euroCol] ? String(row[euroCol]).trim() : null;
+    const refVal     = refCol  >= 0 && row[refCol]  ? String(row[refCol]).trim()  : null;
 
     if (matchedSample.length < 5) matchedSample.push({
       plate,
-      enc: encCol >= 0 ? (row[encCol] != null ? String(row[encCol]) : '(vazio)') : '(col N/A)',
-      rec: recCol >= 0 ? (row[recCol] != null ? String(row[recCol]) : '(vazio)') : '(col N/A)',
-      ref: refCol >= 0 ? (row[refCol] != null ? String(row[refCol]) : '(vazio)') : '(col N/A)',
+      enc: encCol >= 0 ? (row[encCol] != null && row[encCol] !== '' ? String(row[encCol]) : '(vazio)') : '(col N/A)',
+      rec: recCol >= 0 ? (row[recCol] != null && row[recCol] !== '' ? String(row[recCol]) : '(vazio)') : '(col N/A)',
+      ref: refCol >= 0 ? (row[refCol] != null && row[refCol] !== '' ? String(row[refCol]) : '(vazio)') : '(col N/A)',
+      sinistro: nrsinistroCol >= 0 ? (nrsinistro || '(vazio)') : '(col N/A)',
     });
 
-    if (orderRef)  updates.order_ref      = orderRef;
-    if (recRef)    updates.reception_ref  = recRef;
-    if (eurocode)  updates.glass_eurocode = eurocode;
+    // order_ref: prefer nrsinistro (always the job reference), fallback to numeros_encomendas
+    const orderRefVal = nrsinistro || orderRef;
+    if (orderRefVal) updates.order_ref = orderRefVal;
+    if (recRef)      updates.reception_ref  = recRef;
+    if (eurocode)    updates.glass_eurocode = eurocode;
     if (refVal) {
-      // ref column contains glass code(s) shown on card — preserve JSON structure if extra is already JSON
+      // ref column → glass code shown on card (extra field); preserve JSON if needed
       const existExtra = existing.extra || '';
       let extraParsed = null;
       try { extraParsed = JSON.parse(existExtra); } catch(e) {}
@@ -1339,7 +1342,8 @@ async function startSyncOrders() {
         ? JSON.stringify({ ...extraParsed, eurocode: refVal })
         : refVal;
     }
-    if (recRef)    updates.status         = 'ST';
+    // Status: 'ST' if glass received; 'VE' if glass ordered from supplier (numeros_encomendas)
+    if (recRef)    updates.status = 'ST';
     else if (orderRef && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
 
     if (!Object.keys(updates).length) { skipped++; continue; }
@@ -1369,6 +1373,7 @@ async function startSyncOrders() {
   document.getElementById('importProgressText').textContent = 'Importação de encomendas concluída!';
 
   const colInfo = [
+    nrsinistroCol >= 0 ? `✅ nrsinistro[${nrsinistroCol}]` : '❌ nrsinistro',
     encCol >= 0  ? `✅ encomendas[${encCol}]`  : '❌ encomendas',
     recCol >= 0  ? `✅ receção[${recCol}]`      : '❌ receção',
     refCol >= 0  ? `✅ ref[${refCol}]`          : '❌ ref',
@@ -1406,7 +1411,7 @@ async function startSyncOrders() {
     ${matchedSample.length ? `<div style="margin-top:10px;padding:10px 14px;background:#f5f3ff;border-radius:8px;font-size:11px;color:#5b21b6;font-family:monospace;">
       <strong>Amostra de matrículas encontradas (primeiras ${matchedSample.length}):</strong>
       <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
-        ${matchedSample.map(d => `<span><strong>${d.plate}</strong> → encomenda: <em>${d.enc}</em> | receção: <em>${d.rec}</em> | ref: <em>${d.ref}</em></span>`).join('')}
+        ${matchedSample.map(d => `<span><strong>${d.plate}</strong> → sinistro: <em>${d.sinistro}</em> | encomenda: <em>${d.enc}</em> | receção: <em>${d.rec}</em> | ref: <em>${d.ref}</em></span>`).join('')}
       </div>
     </div>` : ''}
     ${errorDetails.length ? `<div style="margin-top:10px;padding:10px 14px;background:#fef2f2;border-radius:8px;font-size:12px;color:#dc2626;">
