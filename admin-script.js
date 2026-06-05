@@ -1296,6 +1296,7 @@ async function startSyncOrders() {
   let updated = 0, notFound = 0, skipped = 0, errors = 0;
   const notFoundPlates = [];
   const updatedDetails = []; // { plate, order_ref, reception_ref, extra }
+  const errorDetails = [];   // { plate, msg }
 
   const rows = importExcelData.filter(row => row[plateCol]);
   for (let i = 0; i < rows.length; i++) {
@@ -1345,9 +1346,11 @@ async function startSyncOrders() {
         console.log(`[SyncOrders] ✅ ${plate} → order_ref=${json.data?.order_ref} extra=${json.data?.extra} glass_eurocode=${json.data?.glass_eurocode}`);
       } else {
         errors++;
+        const errMsg = json.error || json.message || resp.status || 'erro desconhecido';
+        errorDetails.push({ plate, msg: errMsg });
         console.error(`[SyncOrders] ❌ ${plate} error:`, json);
       }
-    } catch (e) { errors++; console.error(`[SyncOrders] ❌ ${plate} exception:`, e); }
+    } catch (e) { errors++; errorDetails.push({ plate, msg: e.message }); console.error(`[SyncOrders] ❌ ${plate} exception:`, e); }
   }
 
   document.getElementById('importProgressBar').style.width = '100%';
@@ -1388,8 +1391,11 @@ async function startSyncOrders() {
         ${updatedDetails.map(d => `<span><strong>${d.plate}</strong> → ${[d.order_ref ? '📦 '+d.order_ref : '', d.reception_ref ? '✅ '+d.reception_ref : '', d.extra ? '🔲 '+d.extra : ''].filter(Boolean).join(', ') || '(sem dados)'}</span>`).join('')}
       </div>
     </div>` : ''}
-    ${notFoundPlates.length ? `<div style="margin-top:10px;padding:10px 14px;background:#f3f4f6;border-radius:8px;font-size:12px;color:#6b7280;">
-      <strong>Não encontrados (${notFoundPlates.length}):</strong> ${notFoundPlates.join(', ')}
+    ${errorDetails.length ? `<div style="margin-top:10px;padding:10px 14px;background:#fef2f2;border-radius:8px;font-size:12px;color:#dc2626;">
+      <strong>Erros (${errorDetails.length}) — primeiros 5:</strong>
+      <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
+        ${errorDetails.slice(0,5).map(d => `<span><strong>${d.plate}</strong>: ${d.msg}</span>`).join('')}
+      </div>
     </div>` : ''}
   `;
   document.getElementById('importResults').style.display = 'block';
