@@ -1331,7 +1331,7 @@ async function startSyncOrders() {
 
     for (const existing of existingList) {
       const updates = {};
-      if (orderRef) updates.order_ref = orderRef;
+      if (orderRef) updates.order_ref = 'Enc.Axial ' + orderRef;
       if (recRef)      updates.reception_ref  = recRef;
       if (eurocode)    updates.glass_eurocode = eurocode;
       if (refVal) {
