@@ -192,6 +192,12 @@ exports.handler = async (event) => {
             [d.order_ref, d.appointment_id]
           );
         }
+        if (d.eurocode) {
+          await client.query(
+            `UPDATE appointments SET glass_eurocode = $1 WHERE id = $2 AND (glass_eurocode IS NULL OR glass_eurocode = '')`,
+            [d.eurocode, d.appointment_id]
+          );
+        }
       }
 
       return { statusCode: 201, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
