@@ -1240,7 +1240,104 @@ async function startSync() {
   showToast(`Sync concluído: ${totalCreated} criados, ${totalUpdated} agendados, ${totalDeleted} apagados`, 'success');
 }
 
-// ===== GESTÃO DE PASSWORDS =====
+// ===== IMPORTAR APENAS ENCOMENDAS (nunca cria/apaga) =====
+async function startSyncOrders() {
+  if (!importExcelData.length) { showToast('Carrega primeiro um ficheiro Excel', 'error'); return; }
+  if (!confirm('📦 IMPORTAR ENCOMENDAS\n\nO que vai acontecer:\n✅ Actualiza order_ref, eurocode e reception_ref nos processos existentes\n❌ Não cria processos novos\n❌ Não apaga nada\n\nTens a certeza?')) return;
+
+  const plateCol = importHeaders.findIndex(h => h.toLowerCase() === 'matricula');
+  const encCol   = importHeaders.findIndex(h => h.toLowerCase() === 'numeros_encomendas');
+  const recCol   = importHeaders.findIndex(h => h.toLowerCase() === 'numeros_rececao_mercadorias');
+  const euroCol  = importHeaders.findIndex(h => h.toLowerCase() === 'eurocode');
+
+  if (plateCol < 0) { showToast('Coluna MATRICULA não encontrada', 'error'); return; }
+
+  // Fetch all appointments (all portals admin has access to)
+  document.getElementById('importProgress').style.display = 'block';
+  document.getElementById('importProgressText').textContent = 'A carregar processos...';
+  document.getElementById('importProgressBar').style.width = '10%';
+
+  let allAppts = [];
+  try {
+    const resp = await authClient.authenticatedFetch('/.netlify/functions/appointments');
+    const json = await resp.json();
+    allAppts = json.data || json.appointments || [];
+  } catch (e) {
+    showToast('Erro ao carregar processos: ' + e.message, 'error');
+    return;
+  }
+
+  const plateMap = {};
+  allAppts.forEach(a => { plateMap[normalizePlate(a.plate)] = a; });
+
+  let updated = 0, notFound = 0, skipped = 0, errors = 0;
+  const notFoundPlates = [];
+
+  const rows = importExcelData.filter(row => row[plateCol]);
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    document.getElementById('importProgressBar').style.width = Math.round(10 + (i / rows.length) * 88) + '%';
+    document.getElementById('importProgressText').textContent = `A processar ${i + 1}/${rows.length}...`;
+
+    const plate = normalizePlate(row[plateCol]);
+    if (!plate) continue;
+    const existing = plateMap[plate];
+    if (!existing) { notFound++; notFoundPlates.push(plate); continue; }
+
+    const updates = {};
+    const orderRef  = encCol >= 0 && row[encCol]  ? String(row[encCol]).trim().replace(/\.0$/, '')  : null;
+    const recRef    = recCol >= 0 && row[recCol]   ? String(row[recCol]).trim().replace(/\.0$/, '')  : null;
+    const eurocode  = euroCol >= 0 && row[euroCol] ? String(row[euroCol]).trim() : null;
+
+    if (orderRef)  updates.order_ref      = orderRef;
+    if (recRef)    updates.reception_ref  = recRef;
+    if (eurocode)  updates.glass_eurocode = eurocode;
+    if (recRef)    updates.status         = 'ST';
+    else if (orderRef && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
+
+    if (!Object.keys(updates).length) { skipped++; continue; }
+
+    try {
+      const resp = await authClient.authenticatedFetch(`/.netlify/functions/appointments/${existing.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...existing, ...updates })
+      });
+      const json = await resp.json();
+      if (json.success || json.data) updated++;
+      else { errors++; }
+    } catch (e) { errors++; }
+  }
+
+  document.getElementById('importProgressBar').style.width = '100%';
+  document.getElementById('importProgressText').textContent = 'Importação de encomendas concluída!';
+
+  document.getElementById('importResultsContent').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px;">
+      <div style="text-align:center;padding:16px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
+        <div style="font-size:28px;font-weight:700;color:#16a34a;">${updated}</div>
+        <div style="font-size:13px;color:#6b7280;">Actualizados</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;">
+        <div style="font-size:28px;font-weight:700;color:#6b7280;">${skipped}</div>
+        <div style="font-size:13px;color:#6b7280;">Sem dados novos</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#fef3c7;border-radius:8px;border:1px solid #fcd34d;">
+        <div style="font-size:28px;font-weight:700;color:#d97706;">${notFound}</div>
+        <div style="font-size:13px;color:#6b7280;">Não encontrados</div>
+      </div>
+      <div style="text-align:center;padding:16px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;">
+        <div style="font-size:28px;font-weight:700;color:#dc2626;">${errors}</div>
+        <div style="font-size:13px;color:#6b7280;">Erros</div>
+      </div>
+    </div>
+    ${notFoundPlates.length ? `<div style="margin-top:14px;padding:10px 14px;background:#f3f4f6;border-radius:8px;font-size:13px;color:#6b7280;">
+      <strong>Matrículas não encontradas:</strong> ${notFoundPlates.join(', ')}
+    </div>` : ''}
+  `;
+  document.getElementById('importResults').style.display = 'block';
+  showToast(`Encomendas importadas: ${updated} actualizados, ${notFound} não encontrados`, updated > 0 ? 'success' : 'info');
+}
 function generatePassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
   let pass = '';

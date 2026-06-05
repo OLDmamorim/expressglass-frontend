@@ -351,14 +351,10 @@ async function importData() {
     return;
   }
 
-  const isOrdersMode = window._importMode === 'orders';
-  const loadingLabel = isOrdersMode ? 'A actualizar encomendas...' : `A importar ${processedData.data.length} serviços...`;
-  showLoading(isOrdersMode ? 'Importando encomendas...' : 'Importando dados...', loadingLabel);
+  showLoading('Importando dados...', `A importar ${processedData.data.length} serviços...`);
 
   try {
-    const results = isOrdersMode
-      ? await window.excelImporter.importOrdersData(processedData.data)
-      : await window.excelImporter.importData(processedData.data);
+    const results = await window.excelImporter.importData(processedData.data);
 
     // Mostrar resultados
     showImportResults(results);

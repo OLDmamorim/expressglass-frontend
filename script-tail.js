@@ -1477,13 +1477,6 @@ cancelEdit?.();
 
   // --- Importar Excel ---
   document.getElementById('importExcelBtn')?.addEventListener('click', () => {
-    window._importMode = 'normal';
-    openExcelImportModal();
-  });
-
-  // --- Importar Encomendas (só actualiza, nunca cria/apaga) ---
-  document.getElementById('importOrdersBtn')?.addEventListener('click', () => {
-    window._importMode = 'orders';
     openExcelImportModal();
   });
   
