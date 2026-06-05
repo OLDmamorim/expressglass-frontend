@@ -1251,9 +1251,8 @@ async function startSyncOrders() {
   const recCol       = importHeaders.findIndex(h => norm(h) === 'numeros_rececao_mercadorias');
   const euroCol      = importHeaders.findIndex(h => norm(h) === 'eurocode');
   const refCol       = importHeaders.findIndex(h => norm(h) === 'ref');
-  const nrsinistroCol = importHeaders.findIndex(h => norm(h) === 'nrsinistro');
 
-  console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, refCol, nrsinistroCol, headers: importHeaders });
+  console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, refCol, headers: importHeaders });
 
   if (plateCol < 0) {
     showToast(`❌ Coluna "matricula" não encontrada.\nColunas no Excel: ${importHeaders.map((h,i)=>`[${i}] ${h}`).join(', ')}`, 'error');
@@ -1312,9 +1311,6 @@ async function startSyncOrders() {
     if (!existing) { notFound++; notFoundPlates.push(plate); continue; }
 
     const updates = {};
-    // nrsinistro = insurance claim/job reference → shown as 📦 on card
-    const nrsinistro = nrsinistroCol >= 0 && row[nrsinistroCol] ? String(row[nrsinistroCol]).trim().replace(/\.0$/, '') : null;
-    // numeros_encomendas = supplier glass order number (only set when glass is actually ordered)
     const orderRef   = encCol >= 0 && row[encCol]  ? String(row[encCol]).trim().replace(/\.0$/, '')  : null;
     const recRef     = recCol >= 0 && row[recCol]   ? String(row[recCol]).trim().replace(/\.0$/, '')  : null;
     const eurocode   = euroCol >= 0 && row[euroCol] ? String(row[euroCol]).trim() : null;
@@ -1325,12 +1321,9 @@ async function startSyncOrders() {
       enc: encCol >= 0 ? (row[encCol] != null && row[encCol] !== '' ? String(row[encCol]) : '(vazio)') : '(col N/A)',
       rec: recCol >= 0 ? (row[recCol] != null && row[recCol] !== '' ? String(row[recCol]) : '(vazio)') : '(col N/A)',
       ref: refCol >= 0 ? (row[refCol] != null && row[refCol] !== '' ? String(row[refCol]) : '(vazio)') : '(col N/A)',
-      sinistro: nrsinistroCol >= 0 ? (nrsinistro || '(vazio)') : '(col N/A)',
     });
 
-    // order_ref: prefer nrsinistro (always the job reference), fallback to numeros_encomendas
-    const orderRefVal = nrsinistro || orderRef;
-    if (orderRefVal) updates.order_ref = orderRefVal;
+    if (orderRef) updates.order_ref = orderRef;
     if (recRef)      updates.reception_ref  = recRef;
     if (eurocode)    updates.glass_eurocode = eurocode;
     if (refVal) {
@@ -1373,7 +1366,6 @@ async function startSyncOrders() {
   document.getElementById('importProgressText').textContent = 'Importação de encomendas concluída!';
 
   const colInfo = [
-    nrsinistroCol >= 0 ? `✅ nrsinistro[${nrsinistroCol}]` : '❌ nrsinistro',
     encCol >= 0  ? `✅ encomendas[${encCol}]`  : '❌ encomendas',
     recCol >= 0  ? `✅ receção[${recCol}]`      : '❌ receção',
     refCol >= 0  ? `✅ ref[${refCol}]`          : '❌ ref',
