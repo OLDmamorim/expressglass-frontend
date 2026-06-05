@@ -567,5 +567,59 @@ class ExcelImporter {
   }
 }
 
+  // Importar APENAS encomendas — nunca cria nem apaga, só actualiza campos de encomenda
+  async importOrdersData(processedData) {
+    const results = {
+      success: 0,
+      errors: 0,
+      skipped: 0,
+      notFound: 0,
+      details: []
+    };
+
+    const existingAppointments = window.appointments || [];
+
+    for (const service of processedData) {
+      try {
+        const plateNormalized = String(service.plate).toUpperCase().trim();
+        const existing = existingAppointments.find(a =>
+          String(a.plate).toUpperCase().trim() === plateNormalized
+        );
+
+        if (!existing) {
+          results.notFound++;
+          results.details.push({ plate: service.plate, status: 'notfound', reason: 'Matrícula não encontrada na plataforma' });
+          continue;
+        }
+
+        const updates = {};
+        if (service.order_ref)     updates.order_ref     = service.order_ref;
+        if (service.reception_ref) updates.reception_ref = service.reception_ref;
+        if (service.glass_eurocode) updates.glass_eurocode = service.glass_eurocode;
+        // Derive status: ST if reception_ref, VE if order_ref only, else leave unchanged
+        if (service.reception_ref) updates.status = 'ST';
+        else if (service.order_ref && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
+
+        if (Object.keys(updates).length === 0) {
+          results.skipped++;
+          results.details.push({ plate: service.plate, status: 'skipped', reason: 'Sem dados novos' });
+          continue;
+        }
+
+        await window.apiClient.updateAppointment(existing.id, { ...existing, ...updates });
+        const reasons = Object.entries(updates).map(([k, v]) => `${k}=${v}`).join(', ');
+        results.success++;
+        results.details.push({ plate: service.plate, status: 'updated', reason: reasons });
+
+      } catch (error) {
+        results.errors++;
+        results.details.push({ plate: service.plate, status: 'error', error: error.message });
+      }
+    }
+
+    return results;
+  }
+}
+
 // Instância global
 window.excelImporter = new ExcelImporter();

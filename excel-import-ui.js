@@ -350,19 +350,23 @@ async function importData() {
     showToast('Nenhum dado válido para importar', 'error');
     return;
   }
-  
-  showLoading('Importando dados...', `A importar ${processedData.data.length} serviços...`);
-  
+
+  const isOrdersMode = window._importMode === 'orders';
+  const loadingLabel = isOrdersMode ? 'A actualizar encomendas...' : `A importar ${processedData.data.length} serviços...`;
+  showLoading(isOrdersMode ? 'Importando encomendas...' : 'Importando dados...', loadingLabel);
+
   try {
-    const results = await window.excelImporter.importData(processedData.data);
-    
+    const results = isOrdersMode
+      ? await window.excelImporter.importOrdersData(processedData.data)
+      : await window.excelImporter.importData(processedData.data);
+
     // Mostrar resultados
     showImportResults(results);
-    
+
     currentStep = 4;
     hideLoading();
     showStep(4);
-    
+
   } catch (error) {
     hideLoading();
     showToast(`Erro na importação: ${error.message}`, 'error');
@@ -382,10 +386,11 @@ function showImportResults(results) {
   detailsContainer.innerHTML = '';
   
   if (results.details.length > 0) {
-    const successList = results.details.filter(d => d.status === 'success');
+    const successList = results.details.filter(d => d.status === 'success' || d.status === 'updated');
     const errorList = results.details.filter(d => d.status === 'error');
     const skippedList = results.details.filter(d => d.status === 'skipped');
     const deletedList = results.details.filter(d => d.status === 'deleted');
+    const notFoundList = results.details.filter(d => d.status === 'notfound');
     
     if (deletedList.length > 0) {
       const deletedDiv = document.createElement('div');
@@ -397,12 +402,22 @@ function showImportResults(results) {
       detailsContainer.appendChild(deletedDiv);
     }
 
+    if (notFoundList.length > 0) {
+      const nfDiv = document.createElement('div');
+      nfDiv.innerHTML = `
+        <h5 style="color:#6b7280;">🔍 Matrículas não encontradas na plataforma (${notFoundList.length})</h5>
+        <div style="max-height:150px;overflow-y:auto;background:#f3f4f6;padding:10px;border-radius:4px;margin-bottom:15px;">
+          ${notFoundList.map(s => `<div>• ${s.plate}</div>`).join('')}
+        </div>`;
+      detailsContainer.appendChild(nfDiv);
+    }
+
     if (successList.length > 0) {
       const successDiv = document.createElement('div');
       successDiv.innerHTML = `
-        <h5 style="color: #28a745;">✅ Importados com Sucesso (${successList.length})</h5>
+        <h5 style="color: #28a745;">✅ Processos actualizados (${successList.length})</h5>
         <div style="max-height: 150px; overflow-y: auto; background: #d4edda; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
-          ${successList.map(s => `<div>• ${s.plate}</div>`).join('')}
+          ${successList.map(s => `<div>• ${s.plate}${s.reason ? ' — ' + s.reason : ''}</div>`).join('')}
         </div>
       `;
       detailsContainer.appendChild(successDiv);
