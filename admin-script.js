@@ -1250,15 +1250,16 @@ async function startSyncOrders() {
   const encCol   = importHeaders.findIndex(h => norm(h) === 'numeros_encomendas');
   const recCol   = importHeaders.findIndex(h => norm(h) === 'numeros_rececao_mercadorias');
   const euroCol  = importHeaders.findIndex(h => norm(h) === 'eurocode');
+  const refCol   = importHeaders.findIndex(h => norm(h) === 'ref');
 
-  console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, headers: importHeaders });
+  console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, refCol, headers: importHeaders });
 
   if (plateCol < 0) {
     showToast(`❌ Coluna "matricula" não encontrada.\nColunas no Excel: ${importHeaders.map((h,i)=>`[${i}] ${h}`).join(', ')}`, 'error');
     return;
   }
-  if (encCol < 0) {
-    showToast(`⚠️ Coluna "numeros_encomendas" não encontrada. Colunas: ${importHeaders.join(', ')}`, 'error');
+  if (encCol < 0 && refCol < 0 && euroCol < 0) {
+    showToast(`⚠️ Nenhuma coluna de encomenda/eurocode encontrada. Colunas: ${importHeaders.join(', ')}`, 'error');
     return;
   }
 
@@ -1310,10 +1311,20 @@ async function startSyncOrders() {
     const orderRef  = encCol >= 0 && row[encCol]  ? String(row[encCol]).trim().replace(/\.0$/, '')  : null;
     const recRef    = recCol >= 0 && row[recCol]   ? String(row[recCol]).trim().replace(/\.0$/, '')  : null;
     const eurocode  = euroCol >= 0 && row[euroCol] ? String(row[euroCol]).trim() : null;
+    const refVal    = refCol  >= 0 && row[refCol]  ? String(row[refCol]).trim()  : null;
 
     if (orderRef)  updates.order_ref      = orderRef;
     if (recRef)    updates.reception_ref  = recRef;
     if (eurocode)  updates.glass_eurocode = eurocode;
+    if (refVal) {
+      // ref column contains glass code(s) shown on card — preserve JSON structure if extra is already JSON
+      const existExtra = existing.extra || '';
+      let extraParsed = null;
+      try { extraParsed = JSON.parse(existExtra); } catch(e) {}
+      updates.extra = (extraParsed && typeof extraParsed === 'object')
+        ? JSON.stringify({ ...extraParsed, eurocode: refVal })
+        : refVal;
+    }
     if (recRef)    updates.status         = 'ST';
     else if (orderRef && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
 
@@ -1329,7 +1340,7 @@ async function startSyncOrders() {
       const json = await resp.json();
       if (json.success || json.data) {
         updated++;
-        console.log(`[SyncOrders] ✅ ${plate} → order_ref=${json.data?.order_ref}`);
+        console.log(`[SyncOrders] ✅ ${plate} → order_ref=${json.data?.order_ref} extra=${json.data?.extra} glass_eurocode=${json.data?.glass_eurocode}`);
       } else {
         errors++;
         console.error(`[SyncOrders] ❌ ${plate} error:`, json);
