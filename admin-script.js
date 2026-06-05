@@ -1283,7 +1283,11 @@ async function startSyncOrders() {
       document.getElementById('importProgressText').textContent = `A carregar portal ${pi + 1}/${portalList.length}...`;
       const resp = await authClient.authenticatedFetch(`/.netlify/functions/appointments?portal_id=${portalList[pi].id}`);
       const json = await resp.json();
-      if (json.success && json.data) allAppts.push(...json.data);
+      if (json.success && json.data) {
+        // Tag each appointment with its portal so the PUT body can include _portalId
+        json.data.forEach(a => a._portalId = portalList[pi].id);
+        allAppts.push(...json.data);
+      }
     }
   } catch (e) {
     showToast('Erro ao carregar processos: ' + e.message, 'error');
@@ -1337,7 +1341,7 @@ async function startSyncOrders() {
       const resp = await authClient.authenticatedFetch(`/.netlify/functions/appointments/${existing.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...existing, ...updates })
+        body: JSON.stringify({ ...existing, ...updates, _portalId: existing._portalId })
       });
       const json = await resp.json();
       if (json.success || json.data) {
