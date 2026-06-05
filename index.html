@@ -1499,7 +1499,7 @@
     window._grOrderRef = orderRef;
     window._grEurocode = eurocode;
     window._grRawText = rawText;
-    window._grActiveStore = null; // null = show all
+    window._grSelectedStores = new Set(); // empty = show all
 
     function buildCardsHtml(filtered) {
       if (!filtered.length) return '<p style="color:#94a3b8;text-align:center;padding:20px;font-style:italic;">Nenhum serviço nesta loja.</p>';
@@ -1555,22 +1555,28 @@
 
   function _toggleStoreFilter(storeName) {
     if (!window._grAllAppts) return;
-    // Exclusive: click → show only this store. Click same again → show all.
-    window._grActiveStore = (window._grActiveStore === storeName) ? null : storeName;
+    // Multi-select: toggle this store in the selected set
+    // Empty set = no filter = show all
+    if (!window._grSelectedStores) window._grSelectedStores = new Set();
+    if (window._grSelectedStores.has(storeName)) {
+      window._grSelectedStores.delete(storeName);
+    } else {
+      window._grSelectedStores.add(storeName);
+    }
 
-    // Update chip styles: active chip = dark, others = grey
+    // Update chip styles: selected = blue, unselected = grey
     document.querySelectorAll('[data-gr-store-btn]').forEach(btn => {
       const s = btn.getAttribute('data-gr-store-btn');
-      const active = (window._grActiveStore === null || window._grActiveStore === s);
-      btn.style.background = (window._grActiveStore === s) ? '#2563eb' : (window._grActiveStore === null ? '#e2e8f0' : '#e2e8f0');
-      btn.style.color = (window._grActiveStore === s) ? '#fff' : '#374151';
-      btn.style.fontWeight = (window._grActiveStore === s) ? '700' : '600';
-      btn.style.opacity = (!window._grActiveStore || window._grActiveStore === s) ? '1' : '0.45';
+      const sel = window._grSelectedStores.has(s);
+      btn.style.background = sel ? '#2563eb' : '#e2e8f0';
+      btn.style.color = sel ? '#fff' : '#374151';
+      btn.style.fontWeight = sel ? '700' : '600';
+      btn.style.opacity = (!window._grSelectedStores.size || sel) ? '1' : '0.5';
     });
 
-    // Re-render cards
-    const filtered = window._grActiveStore
-      ? window._grAllAppts.filter(a => (a.portal_name || window.portalConfig?.name || '—') === window._grActiveStore)
+    // Re-render cards: if nothing selected → show all; else show selected stores
+    const filtered = window._grSelectedStores.size
+      ? window._grAllAppts.filter(a => window._grSelectedStores.has(a.portal_name || window.portalConfig?.name || '—'))
       : window._grAllAppts;
     const list = document.getElementById('grCardsList');
     if (!list) return;
