@@ -760,10 +760,13 @@ function excelDateToISO(serial) {
   return new Date(epoch.getTime() + Math.floor(serial) * 86400000).toISOString();
 }
 
-// Normalizar matrícula
+// Normalizar matrícula — extrai padrão XX-XX-XX de strings como "TORIZA 36-57-VU"
 function normalizePlate(plate) {
   if (!plate) return '';
-  let n = String(plate).replace(/\s+/g, '').toUpperCase();
+  const s = String(plate).trim().toUpperCase();
+  const m = s.match(/\b([A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2})\b/);
+  if (m) return m[1];
+  let n = s.replace(/\s+/g, '');
   if (!n.includes('-') && n.length === 6) {
     n = n.slice(0,2) + '-' + n.slice(2,4) + '-' + n.slice(4,6);
   }
