@@ -1546,7 +1546,8 @@
             ${a.date ? `<span>📅 ${fmtDate(a.date)}</span>` : '<span style="color:#f59e0b;">Sem data</span>'}
           </div>
           ${a.service ? `<div style="font-size:12px;color:#374151;font-weight:600;">🔧 ${a.service}</div>` : ''}
-          ${a.notes ? `<div style="font-size:11px;color:#94a3b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📝 ${a.notes}</div>` : ''}
+          ${a.glass_eurocode ? `<div style="font-size:11px;color:#64748b;font-family:monospace;margin-top:3px;">🔢 ${a.glass_eurocode}</div>` : ''}
+          ${a.notes && a.notes !== a.glass_eurocode ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📝 ${a.notes}</div>` : ''}
           ${recBadge}
           <div style="margin-top:6px;font-size:11px;font-weight:700;color:#2563eb;">Selecionar →</div>
         </div>`;
@@ -1635,7 +1636,8 @@
           ${a.date ? `<span>📅 ${fmtDate(a.date)}</span>` : '<span style="color:#f59e0b;">Sem data</span>'}
         </div>
         ${a.service ? `<div style="font-size:12px;color:#374151;font-weight:600;">🔧 ${a.service}</div>` : ''}
-        ${a.notes ? `<div style="font-size:11px;color:#94a3b8;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📝 ${a.notes}</div>` : ''}
+        ${a.glass_eurocode ? `<div style="font-size:11px;color:#64748b;font-family:monospace;margin-top:3px;">🔢 ${a.glass_eurocode}</div>` : ''}
+        ${a.notes && a.notes !== a.glass_eurocode ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📝 ${a.notes}</div>` : ''}
         ${recBadge}
         <div style="margin-top:6px;font-size:11px;font-weight:700;color:#2563eb;">Selecionar →</div>
       </div>`;
