@@ -92,13 +92,15 @@ exports.handler = async (event) => {
 
           if (shouldUpdateDate) {
             await pool.query(
-              `UPDATE appointments SET date=$1, period=$2, car=$3, notes=$4, extra=$5, phone=$6, client_name=$7, n_obra=COALESCE($10,n_obra), auto_imported=true, confirmed=false, updated_at=$8 WHERE id=$9`,
-              [excelDate, svc.period||null, svc.car||null, svc.notes||null, svc.extra||null, svc.phone||null, svc.client_name||null, now, existing.id, svc.n_obra||null]
+              `UPDATE appointments SET date=$1, period=$2, car=$3, notes=$4, extra=$5, phone=$6, client_name=$7, n_obra=COALESCE($10,n_obra), auto_imported=true, confirmed=false, updated_at=$8,
+               order_ref=COALESCE($11,order_ref), reception_ref=COALESCE($12,reception_ref) WHERE id=$9`,
+              [excelDate, svc.period||null, svc.car||null, svc.notes||null, svc.extra||null, svc.phone||null, svc.client_name||null, now, existing.id, svc.n_obra||null, svc.order_ref||null, svc.reception_ref||null]
             );
           } else {
             await pool.query(
-              `UPDATE appointments SET car=$1, notes=$2, extra=$3, phone=$4, client_name=$5, n_obra=COALESCE($7,n_obra), updated_at=$6 WHERE id=$8`,
-              [svc.car||null, svc.notes||null, svc.extra||null, svc.phone||null, svc.client_name||null, now, svc.n_obra||null, existing.id]
+              `UPDATE appointments SET car=$1, notes=$2, extra=$3, phone=$4, client_name=$5, n_obra=COALESCE($7,n_obra), updated_at=$6,
+               order_ref=COALESCE($9,order_ref), reception_ref=COALESCE($10,reception_ref) WHERE id=$8`,
+              [svc.car||null, svc.notes||null, svc.extra||null, svc.phone||null, svc.client_name||null, now, svc.n_obra||null, existing.id, svc.order_ref||null, svc.reception_ref||null]
             );
           }
           results.updated++;
@@ -108,15 +110,17 @@ exports.handler = async (event) => {
             `INSERT INTO appointments (
                date, period, plate, car, service, locality, status,
                notes, extra, phone, client_name, n_obra, km, sortIndex, "glassOrdered",
-               auto_imported, confirmed, portal_id, created_at, updated_at
-             ) VALUES ($1,$2,$3,$4,$5,null,$6,$7,$8,$9,$10,$11,null,1,false,$12,false,$13,$14,$15)`,
+               auto_imported, confirmed, portal_id, created_at, updated_at,
+               order_ref, reception_ref
+             ) VALUES ($1,$2,$3,$4,$5,null,$6,$7,$8,$9,$10,$11,null,1,false,$12,false,$13,$14,$15,$16,$17)`,
             [
               svc.date||null, svc.period||null,
               String(svc.plate).trim(), svc.car||null, svc.service||null,
               svc.status||'NE', svc.notes||null, svc.extra||null, svc.phone||null,
               svc.client_name||null, svc.n_obra||null,
               !!svc.date, portal_id,
-              svc.createdAt||now, now
+              svc.createdAt||now, now,
+              svc.order_ref||null, svc.reception_ref||null
             ]
           );
           results.created++;
