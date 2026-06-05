@@ -1490,6 +1490,27 @@
     }
 
     const safeRawForCard = (rawText||'').substring(0,200).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+
+    // Build unique store list for filter
+    const storeNames = [...new Set(appts.map(a => a.portal_name || window.portalConfig?.name || '—'))];
+    const multiStore = storeNames.length > 1;
+    // All stores active by default
+    window._grActiveStores = new Set(storeNames);
+
+    const storeFilterHtml = multiStore ? `
+      <div style="margin-bottom:12px;">
+        <div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:6px;">Filtrar por loja:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${storeNames.map(s => `
+            <button data-gr-store-btn="${s.replace(/"/g,'&quot;')}" onclick="window.glassReception._toggleStoreFilter('${s.replace(/'/g,"\\'")}')"
+              style="background:#0f172a;color:#fff;border:none;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;transition:background .15s;">
+              🏪 ${s}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    ` : '';
+
     const cardsHtml = appts.map(a => {
       const storeName = a.portal_name || window.portalConfig?.name || '—';
       const executedBadge = a.executed
@@ -1499,7 +1520,7 @@
       const safeOrderRef = (orderRef||'').replace(/'/g,"\\'");
       const safeEuro = (eurocode||'').replace(/'/g,"\\'");
       return `
-      <div style="border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;"
+      <div data-gr-card-store="${storeName.replace(/"/g,'&quot;')}" style="border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;"
            onmouseenter="this.style.borderColor='#2563eb'" onmouseleave="this.style.borderColor='#e2e8f0'"
            onclick="window.glassReception._showConfirm('${safeId}','${(a.plate||'').replace(/'/g,"\\'")}','${a.car||''}','${storeName.replace(/'/g,"\\'")}','${a.service||''}','${a.date||''}',${!!a.executed},'${safeOrderRef}','${safeEuro}','${safeRawForCard}')">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
@@ -1519,9 +1540,35 @@
 
     body.innerHTML = infoHtml + `
       <p style="font-size:13px;font-weight:700;color:#374151;margin-bottom:10px;">Seleciona o processo para este vidro:</p>
-      ${cardsHtml}
+      ${storeFilterHtml}
+      <div id="grCardsList">
+        ${cardsHtml}
+      </div>
       <button onclick="window.glassReception._step1()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;margin-top:4px;width:100%;">← Voltar</button>
     `;
+  }
+
+  function _toggleStoreFilter(storeName) {
+    if (!window._grActiveStores) return;
+    if (window._grActiveStores.has(storeName)) {
+      // Don't allow deselecting the last active store
+      if (window._grActiveStores.size <= 1) return;
+      window._grActiveStores.delete(storeName);
+    } else {
+      window._grActiveStores.add(storeName);
+    }
+    // Update chip styles
+    document.querySelectorAll('[data-gr-store-btn]').forEach(btn => {
+      const s = btn.getAttribute('data-gr-store-btn');
+      const active = window._grActiveStores.has(s);
+      btn.style.background = active ? '#0f172a' : '#e2e8f0';
+      btn.style.color = active ? '#fff' : '#64748b';
+    });
+    // Show/hide cards
+    document.querySelectorAll('[data-gr-card-store]').forEach(card => {
+      const s = card.getAttribute('data-gr-card-store');
+      card.style.display = window._grActiveStores.has(s) ? '' : 'none';
+    });
   }
 
   function _showConfirm(appointmentId, plate, car, storeName, service, date, executed, orderRef, eurocode, rawText) {
@@ -1963,7 +2010,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _onPhoto, _manualSearch, _step1, _doSearch, _showConfirm, _confirmReception, _markReceived, _rejectReception, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
