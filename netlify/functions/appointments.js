@@ -307,7 +307,8 @@ exports.handler = async (event) => {
           first_of_day = $21, second_of_day = $22, not_done_reason = $23, commercial_user_id = $24,
           return_km = $25, return_time = $26, client_name = $27, damage_details = $28, glass_removed = $29, extra_services = $30,
           glass_removed_date = $31, n_obra = $32, updated_at = $33, not_done_at = $36, reception_ref = $37,
-          comp_sales_desc = $38, comp_sales_nif = $39, comp_sales_name = $40, comp_sales_faturado = $41
+          comp_sales_desc = $38, comp_sales_nif = $39, comp_sales_name = $40, comp_sales_faturado = $41,
+          order_ref = $42, glass_eurocode = $43
         WHERE id = $34 AND portal_id = $35
         RETURNING *
       `;
@@ -342,7 +343,9 @@ exports.handler = async (event) => {
         data.comp_sales_desc !== undefined ? (data.comp_sales_desc || null) : null,
         data.comp_sales_nif !== undefined ? (data.comp_sales_nif || null) : null,
         data.comp_sales_name !== undefined ? (data.comp_sales_name || null) : null,
-        data.comp_sales_faturado !== undefined ? (!!data.comp_sales_faturado) : false
+        data.comp_sales_faturado !== undefined ? (!!data.comp_sales_faturado) : false,
+        data.order_ref !== undefined ? (data.order_ref || null) : null,
+        data.glass_eurocode !== undefined ? (data.glass_eurocode || null) : null
       ];
       const { rows } = await pool.query(q, v);
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
