@@ -38,12 +38,17 @@ const telBtn = phone ? `
   const g = gradFromBase(base);
   const textColor = textColorForBg(base);
 
-  // Semáforo de stock: cor consoante status do vidro
-  const _sColor = { ST: '#16a34a', VE: '#f59e0b', NE: '#dc2626' }[a.status] || '#94a3b8';
+  // Semáforo de stock: três luzes (NE=vermelho, VE=amarelo, ST=verde), ativa iluminada
+  const _st = a.status || 'NE';
+  const _lights = [
+    { s: 'NE', on: '#f87171', glow: 'rgba(248,113,113,0.7)' },
+    { s: 'VE', on: '#fbbf24', glow: 'rgba(251,191,36,0.7)'  },
+    { s: 'ST', on: '#4ade80', glow: 'rgba(74,222,128,0.7)'  },
+  ];
   const stockSemaphore = `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px;">
-      <div style="width:28px;height:28px;border-radius:50%;background:${_sColor};box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid rgba(255,255,255,0.35);"></div>
-      <span style="font-size:8px;font-weight:900;color:rgba(255,255,255,0.9);letter-spacing:0.5px;text-shadow:0 1px 2px rgba(0,0,0,.4);">STOCK</span>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:4px;background:rgba(0,0,0,0.35);border-radius:16px;padding:6px 5px 4px;">
+      ${_lights.map(l => `<div style="width:14px;height:14px;border-radius:50%;background:${_st===l.s ? l.on : 'rgba(255,255,255,0.12)'};${_st===l.s ? `box-shadow:0 0 7px 2px ${l.glow};` : ''}"></div>`).join('')}
+      <span style="font-size:7px;font-weight:900;color:rgba(255,255,255,0.7);letter-spacing:0.4px;margin-top:1px;">STOCK</span>
     </div>`;
 
   // Hierarquia visual: matrícula em destaque, carro secundário
