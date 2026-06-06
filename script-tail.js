@@ -39,21 +39,20 @@ const telBtn = phone ? `
   const textColor = textColorForBg(base);
 
   // Semáforo de stock: três luzes (NE=vermelho, VE=amarelo, ST=verde), ativa iluminada
-  // Número de encomenda (sem prefixo "Enc.Axial") e receção mostrados abaixo do semáforo
+  // Enc.Axial e receção aparecem ABAIXO da caixa do semáforo, em linha horizontal, sem quebra
   const _st = a.status || 'NE';
   const _lights = [
     { s: 'NE', on: '#f87171', glow: 'rgba(248,113,113,0.7)' },
     { s: 'VE', on: '#fbbf24', glow: 'rgba(251,191,36,0.7)'  },
     { s: 'ST', on: '#4ade80', glow: 'rgba(74,222,128,0.7)'  },
   ];
-  const _orderNum = a.order_ref ? String(a.order_ref).replace(/^enc\.axial\s*/i, '').trim() : null;
   const stockSemaphore = `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:4px;background:rgba(0,0,0,0.35);border-radius:16px;padding:6px 5px 4px;max-width:44px;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:4px;background:rgba(0,0,0,0.35);border-radius:16px;padding:6px 5px 4px;">
       ${_lights.map(l => `<div style="width:14px;height:14px;border-radius:50%;background:${_st===l.s ? l.on : 'rgba(255,255,255,0.12)'};${_st===l.s ? `box-shadow:0 0 7px 2px ${l.glow};` : ''}"></div>`).join('')}
       <span style="font-size:7px;font-weight:900;color:rgba(255,255,255,0.7);letter-spacing:0.4px;margin-top:1px;">STOCK</span>
-      ${_orderNum ? `<span style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.95);text-align:center;word-break:break-all;line-height:1.3;margin-top:2px;">📦 ${_orderNum}</span>` : ''}
-      ${a.reception_ref ? `<span style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.95);text-align:center;word-break:break-all;line-height:1.3;">✅ ${String(a.reception_ref).slice(0,8)}</span>` : ''}
-    </div>`;
+    </div>
+    ${a.order_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:rgba(255,255,255,0.92);text-align:right;margin-top:3px;text-shadow:0 1px 2px rgba(0,0,0,.5);">📦 ${a.order_ref}</div>` : ''}
+    ${a.reception_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:rgba(255,255,255,0.92);text-align:right;margin-top:1px;text-shadow:0 1px 2px rgba(0,0,0,.5);">✅ ${a.reception_ref}</div>` : ''}`;
 
   // Hierarquia visual: matrícula em destaque, carro secundário
   const hasIcons = true; // semáforo de stock está sempre presente
