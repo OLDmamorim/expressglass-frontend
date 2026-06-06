@@ -114,7 +114,10 @@
             <div style="font-weight:700;font-size:14px;color:#1e40af;">📦 Importar Encomendas</div>
             <div style="font-size:12px;color:#6b7280;margin-top:2px;">Carrega um Excel e actualiza order_ref / eurocode / receção nos processos existentes. Nunca cria nem apaga.</div>
           </div>
-          <button style="background:#0369a1;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap;" id="btnSyncOrders" onclick="startSyncOrders()">📦 Importar Encomendas</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button style="background:#0369a1;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap;" id="btnSyncOrders" onclick="startSyncOrders()">📦 Importar Encomendas</button>
+            <button style="background:#6b7280;color:#fff;border:none;padding:10px 16px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;" id="btnFixEncAxial" onclick="fixEncAxialPrefix()" title="Adiciona prefixo Enc.Axial a order_refs que são apenas números">🔧 Normalizar Enc.Axial</button>
+          </div>
         </div>
 
         <div class="import-upload-area" id="importUploadArea">
@@ -579,7 +582,7 @@
     }
   </style>
   <script src="auth-client.js"></script>
-  <script src="admin-script.js?v=2026-06-05o"></script>
+  <script src="admin-script.js?v=2026-06-06a"></script>
   <script>
   // ── Auditoria ─────────────────────────────────────────────────────────────
   let auditPage = 1;
