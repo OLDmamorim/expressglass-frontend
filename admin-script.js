@@ -1425,6 +1425,63 @@ async function startSyncOrders() {
   document.getElementById('importResults').style.display = 'block';
   showToast(`Encomendas importadas: ${updated} actualizados, ${notFound} não encontrados`, updated > 0 ? 'success' : 'info');
 }
+// Normaliza order_refs existentes que são apenas números (sem prefixo "Enc.Axial")
+async function fixEncAxialPrefix() {
+  if (!confirm('🔧 NORMALIZAR PREFIXO "Enc.Axial"\n\nVai adicionar "Enc.Axial " a todos os order_refs que são apenas números (sem prefixo).\n\nTens a certeza?')) return;
+
+  const btn = document.getElementById('btnFixEncAxial');
+  if (btn) { btn.disabled = true; btn.textContent = '🔄 A normalizar...'; }
+
+  try {
+    const portalsResp = await window.authClient.authenticatedFetch('/.netlify/functions/portals');
+    const portalsData = await portalsResp.json();
+    const portalList = portalsData.portals || portalsData || [];
+
+    let allAppts = [];
+    for (const portal of portalList) {
+      try {
+        const resp = await window.authClient.authenticatedFetch(`/.netlify/functions/appointments?portal_id=${portal.id}&limit=9999`);
+        const json = await resp.json();
+        if (json.data) {
+          json.data.forEach(a => { a._portalId = portal.id; });
+          allAppts.push(...json.data);
+        }
+      } catch(e) { console.warn(`[fixEncAxial] portal ${portal.id}:`, e.message); }
+    }
+
+    const toFix = allAppts.filter(a => {
+      if (!a.order_ref) return false;
+      const v = String(a.order_ref).trim();
+      if (v.toLowerCase().startsWith('enc.axial')) return false;
+      return /^\d+$/.test(v);
+    });
+
+    if (!toFix.length) {
+      showToast('✅ Todos os order_refs já têm o prefixo Enc.Axial', 'success');
+      return;
+    }
+
+    let fixed = 0, errors = 0;
+    for (const a of toFix) {
+      try {
+        const resp = await window.authClient.authenticatedFetch(`/.netlify/functions/appointments/${a.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...a, order_ref: 'Enc.Axial ' + a.order_ref.trim(), _portalId: a._portalId })
+        });
+        if (resp.ok) fixed++;
+        else errors++;
+      } catch(e) { errors++; }
+    }
+
+    showToast(`✅ ${fixed} order_refs corrigidos${errors ? `, ${errors} erros` : ''}`, fixed > 0 ? 'success' : 'error');
+  } catch(e) {
+    showToast('❌ Erro: ' + e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🔧 Normalizar Enc.Axial'; }
+  }
+}
+
 function generatePassword() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
   let pass = '';
