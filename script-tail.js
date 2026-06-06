@@ -38,9 +38,17 @@ const telBtn = phone ? `
   const g = gradFromBase(base);
   const textColor = textColorForBg(base);
 
+  // Semáforo de stock: cor consoante status do vidro
+  const _sColor = { ST: '#16a34a', VE: '#f59e0b', NE: '#dc2626' }[a.status] || '#94a3b8';
+  const stockSemaphore = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;margin-top:2px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:${_sColor};box-shadow:0 2px 6px rgba(0,0,0,.3);border:2px solid rgba(255,255,255,0.35);"></div>
+      <span style="font-size:8px;font-weight:900;color:rgba(255,255,255,0.9);letter-spacing:0.5px;text-shadow:0 1px 2px rgba(0,0,0,.4);">STOCK</span>
+    </div>`;
+
   // Hierarquia visual: matrícula em destaque, carro secundário
-  const hasIcons = !!(wazeBtn || mapsBtn || telBtn);
-  const iconPadding = hasIcons ? 'padding-right: 52px;' : '';
+  const hasIcons = true; // semáforo de stock está sempre presente
+  const iconPadding = 'padding-right: 52px;';
 
   const plate = (a.plate || '').toUpperCase();
   const car = (a.car || '').toUpperCase();
@@ -162,6 +170,7 @@ const telBtn = phone ? `
       ${editBtn}
       <div class="map-icons">
         ${wazeBtn}${mapsBtn}${telBtn}
+        ${stockSemaphore}
       </div>
       <div style="${iconPadding}">
         <div class="m-title"><span class="m-title-text">${plate}</span></div>
