@@ -38,21 +38,25 @@ const telBtn = phone ? `
   const g = gradFromBase(base);
   const textColor = textColorForBg(base);
 
-  // Semáforo de stock: três luzes (NE=vermelho, VE=amarelo, ST=verde), ativa iluminada
-  // Enc.Axial e receção aparecem ABAIXO da caixa do semáforo, em linha horizontal, sem quebra
+  // Semáforo de stock: absolutamente posicionado (separado do map-icons para não expandir o container)
+  // Calcula o top com base no nº de botões — cada botão ocupa 28px + 8px gap = 36px
   const _st = a.status || 'NE';
   const _lights = [
     { s: 'NE', on: '#f87171', glow: 'rgba(248,113,113,0.7)' },
     { s: 'VE', on: '#fbbf24', glow: 'rgba(251,191,36,0.7)'  },
     { s: 'ST', on: '#4ade80', glow: 'rgba(74,222,128,0.7)'  },
   ];
+  const _numBtns = [wazeBtn, mapsBtn, telBtn].filter(Boolean).length;
+  const _semTop = 10 + _numBtns * 36;
   const stockSemaphore = `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:4px;background:rgba(0,0,0,0.35);border-radius:16px;padding:6px 5px 4px;">
-      ${_lights.map(l => `<div style="width:14px;height:14px;border-radius:50%;background:${_st===l.s ? l.on : 'rgba(255,255,255,0.12)'};${_st===l.s ? `box-shadow:0 0 7px 2px ${l.glow};` : ''}"></div>`).join('')}
-      <span style="font-size:7px;font-weight:900;color:rgba(255,255,255,0.7);letter-spacing:0.4px;margin-top:1px;">STOCK</span>
-    </div>
-    ${a.order_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:rgba(255,255,255,0.92);text-align:right;margin-top:3px;text-shadow:0 1px 2px rgba(0,0,0,.5);">📦 ${a.order_ref}</div>` : ''}
-    ${a.reception_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:rgba(255,255,255,0.92);text-align:right;margin-top:1px;text-shadow:0 1px 2px rgba(0,0,0,.5);">✅ ${a.reception_ref}</div>` : ''}`;
+    <div style="position:absolute;top:${_semTop}px;right:10px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;z-index:5;">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:3px;background:rgba(0,0,0,0.35);border-radius:16px;padding:6px 5px 4px;">
+        ${_lights.map(l => `<div style="width:14px;height:14px;border-radius:50%;background:${_st===l.s ? l.on : 'rgba(255,255,255,0.12)'};${_st===l.s ? `box-shadow:0 0 7px 2px ${l.glow};` : ''}"></div>`).join('')}
+        <span style="font-size:7px;font-weight:900;color:rgba(255,255,255,0.7);letter-spacing:0.4px;margin-top:1px;">STOCK</span>
+      </div>
+      ${a.order_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:rgba(255,255,255,0.92);text-shadow:0 1px 2px rgba(0,0,0,.5);">📦 ${a.order_ref}</div>` : ''}
+      ${a.reception_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:rgba(255,255,255,0.92);text-shadow:0 1px 2px rgba(0,0,0,.5);">✅ ${a.reception_ref}</div>` : ''}
+    </div>`;
 
   // Hierarquia visual: matrícula em destaque, carro secundário
   const hasIcons = true; // semáforo de stock está sempre presente
@@ -174,8 +178,8 @@ const telBtn = phone ? `
       ${editBtn}
       <div class="map-icons">
         ${wazeBtn}${mapsBtn}${telBtn}
-        ${stockSemaphore}
       </div>
+      ${stockSemaphore}
       <div style="${iconPadding}">
         <div class="m-title"><span class="m-title-text">${plate}</span></div>
         ${car ? `<div class="m-car">${car}</div>` : ''}
