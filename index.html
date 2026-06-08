@@ -2418,29 +2418,57 @@
       if (card) card.innerHTML = `<p style="font-size:12px;color:#94a3b8;text-align:center;padding:8px;">Nenhum processo encontrado — preenche os dados manualmente.</p>`;
       return;
     }
-    const best = results[0];
-    const plateStr = (best.plate || '').toUpperCase();
-    const carStr   = best.car || '—';
-    const storeStr = best.portal_name || best.store || '—';
-    card.innerHTML = `
-      <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:10px;padding:12px 14px;">
-        <p style="font-size:12px;font-weight:800;color:#15803d;margin:0 0 8px 0;">🔍 Processo encontrado — é este?</p>
-        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
-          <span style="font-family:monospace;font-weight:900;font-size:16px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${plateStr || '—'}</span>
-          <span style="font-size:13px;font-weight:700;color:#1e293b;">${carStr}</span>
-          <span style="font-size:12px;color:#64748b;">🏪 ${storeStr}</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <button onclick="window.glassReception._confirmReturnMatch(${best.id},'${plateStr.replace(/'/g,"\\'")}','${carStr.replace(/'/g,"\\'")}')"
-            style="background:#16a34a;color:#fff;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;">
-            ✅ Sim, é este
-          </button>
+
+    const top = results.slice(0, 4);
+    if (top.length === 1) {
+      const best = top[0];
+      const plateStr = (best.plate || '').toUpperCase();
+      const carStr   = best.car || '—';
+      const storeStr = best.portal_name || best.store || '—';
+      card.innerHTML = `
+        <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:10px;padding:12px 14px;">
+          <p style="font-size:12px;font-weight:800;color:#15803d;margin:0 0 8px 0;">🔍 Processo encontrado — é este?</p>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+            <span style="font-family:monospace;font-weight:900;font-size:16px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${plateStr || '—'}</span>
+            <span style="font-size:13px;font-weight:700;color:#1e293b;">${carStr}</span>
+            <span style="font-size:12px;color:#64748b;">🏪 ${storeStr}</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button onclick="window.glassReception._confirmReturnMatch(${best.id},'${plateStr.replace(/'/g,"\\'")}','${carStr.replace(/'/g,"\\'")}')"
+              style="background:#16a34a;color:#fff;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;">
+              ✅ Sim, é este
+            </button>
+            <button onclick="window.glassReception._rejectReturnMatch()"
+              style="background:#e2e8f0;color:#374151;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;">
+              ❓ Não tenho a certeza
+            </button>
+          </div>
+        </div>`;
+    } else {
+      card.innerHTML = `
+        <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:10px;padding:12px 14px;">
+          <p style="font-size:12px;font-weight:800;color:#15803d;margin:0 0 8px 0;">🔍 ${top.length} processos encontrados — qual é o correto?</p>
+          ${top.map(a => {
+            const pl = (a.plate || '').toUpperCase();
+            const ca = (a.car || '—');
+            const st = a.portal_name || a.store || '—';
+            return `
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #dcfce7;flex-wrap:wrap;">
+              <span style="font-family:monospace;font-weight:900;font-size:14px;background:#0f172a;color:#fff;padding:2px 8px;border-radius:5px;">${pl || '—'}</span>
+              <span style="font-size:12px;font-weight:600;color:#1e293b;flex:1;">${ca}</span>
+              <span style="font-size:11px;color:#64748b;">🏪 ${st}</span>
+              <button onclick="window.glassReception._confirmReturnMatch(${a.id},'${pl.replace(/'/g,"\\'")}','${ca.replace(/'/g,"\\'")}')"
+                style="background:#16a34a;color:#fff;font-weight:700;font-size:11px;padding:6px 12px;border-radius:6px;border:none;cursor:pointer;white-space:nowrap;">
+                ✅ Este
+              </button>
+            </div>`;
+          }).join('')}
           <button onclick="window.glassReception._rejectReturnMatch()"
-            style="background:#e2e8f0;color:#374151;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;">
-            ❓ Não tenho a certeza
+            style="margin-top:8px;background:#e2e8f0;color:#374151;font-weight:700;font-size:12px;padding:8px;border-radius:8px;border:none;cursor:pointer;width:100%;">
+            ❌ Nenhum destes
           </button>
-        </div>
-      </div>`;
+        </div>`;
+    }
   }
 
   function _confirmReturnMatch(aptId, plate, car) {
