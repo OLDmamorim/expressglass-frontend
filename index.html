@@ -2194,7 +2194,7 @@
     const bodyLines = [
       'Bom dia,',
       '',
-      `Recebemos o vidro ${toBold(eurocode)} partido${guidaPart}, relacionado a encomenda ${toBold(order)}.`,
+      `Recebemos o vidro ${toBold(eurocode)} partido, na presença da transportadora${guidaPart}, relacionado a encomenda ${toBold(order)}.`,
       'Devolução feita em PHC.'
     ];
     window.open(`mailto:?subject=${encodeURIComponent('Devolução - ')}&body=${encodeURIComponent(bodyLines.join('\r\n'))}`, '_blank');
