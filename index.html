@@ -1465,6 +1465,7 @@
 
   function _renderReturnEurocode(reason) {
     window._grReturnReason = reason;
+    window._grReturnSubReason = null;
     window._grReturnDamagePhotos = [];
     window._grReturnLabelPhoto = null;
     const isPartido = reason === 'partido';
@@ -1486,16 +1487,14 @@
         <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">EUROCODE (manual ou auto)</label>
         <input id="grReturnEurocode" type="text" placeholder="ex: 6577AGACMVZ" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
       </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Nº ENCOMENDA AXIAL</label>
+        <input id="grReturnOrderRef" type="text" placeholder="ex: 49380" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;">
+      </div>
       ${isPartido ? `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Nº ENCOMENDA AXIAL</label>
-          <input id="grReturnOrderRef" type="text" placeholder="ex: 49380" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;">
-        </div>
-        <div>
-          <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Nº GUIA TRANSPORTE</label>
-          <input id="grReturnCarrierGuide" type="text" placeholder="ex: GLS-123456" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;">
-        </div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Nº GUIA TRANSPORTE</label>
+        <input id="grReturnCarrierGuide" type="text" placeholder="ex: GLS-123456" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;">
       </div>
       <p style="color:#374151;font-size:13px;font-weight:600;margin-bottom:8px;">2. Fotos do dano (mín. 2)</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
@@ -1508,10 +1507,39 @@
       </div>
       <div id="grDamagePhotos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;min-height:56px;background:#f8fafc;border-radius:8px;padding:8px;"></div>
       <p id="grDamageCount" style="font-size:12px;color:#64748b;margin-bottom:12px;">0 foto(s) adicionada(s)</p>
-      ` : ''}
+      ` : `
+      <p style="color:#374151;font-size:13px;font-weight:600;margin-bottom:8px;">Motivo da devolução</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+        <button id="grSubReasonErrado" onclick="window.glassReception._selectSubReason('errado')"
+          style="padding:10px 6px;border-radius:10px;border:2px solid #e2e8f0;background:#fff;font-size:12px;font-weight:700;cursor:pointer;color:#374151;">
+          ❌ Errado
+        </button>
+        <button id="grSubReasonDesistencia" onclick="window.glassReception._selectSubReason('desistencia')"
+          style="padding:10px 6px;border-radius:10px;border:2px solid #e2e8f0;background:#fff;font-size:12px;font-weight:700;cursor:pointer;color:#374151;">
+          🚫 Desistência
+        </button>
+        <button id="grSubReasonOutro" onclick="window.glassReception._selectSubReason('outro')"
+          style="padding:10px 6px;border-radius:10px;border:2px solid #e2e8f0;background:#fff;font-size:12px;font-weight:700;cursor:pointer;color:#374151;">
+          ❓ Outro
+        </button>
+      </div>
+      `}
       <button id="grReturnSubmitBtn" onclick="window.glassReception._submitReturn()" style="width:100%;background:#0f172a;color:#fff;font-weight:800;font-size:14px;padding:14px;border-radius:12px;border:none;cursor:pointer;">↩️ Registar Devolução</button>
       <button onclick="window.glassReception._renderReturnChoice()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;width:100%;margin-top:10px;">← Voltar</button>
     `;
+  }
+
+  function _selectSubReason(sub) {
+    window._grReturnSubReason = sub;
+    ['errado', 'desistencia', 'outro'].forEach(s => {
+      const btn = document.getElementById('grSubReason' + s.charAt(0).toUpperCase() + s.slice(1));
+      if (!btn) return;
+      if (s === sub) {
+        btn.style.background = '#0f172a'; btn.style.color = '#fff'; btn.style.borderColor = '#0f172a';
+      } else {
+        btn.style.background = '#fff'; btn.style.color = '#374151'; btn.style.borderColor = '#e2e8f0';
+      }
+    });
   }
 
   async function _onReturnLabel(input) {
@@ -1528,9 +1556,15 @@
         body: JSON.stringify({ image_base64: compressed.split(',')[1], media_type: 'image/jpeg' })
       });
       const json = await res.json();
-      if (json.success && json.data?.eurocode) {
-        const f = document.getElementById('grReturnEurocode');
-        if (f) f.value = json.data.eurocode;
+      if (json.success && json.data) {
+        if (json.data.eurocode) {
+          const f = document.getElementById('grReturnEurocode');
+          if (f) f.value = json.data.eurocode;
+        }
+        if (json.data.order_ref) {
+          const o = document.getElementById('grReturnOrderRef');
+          if (o && !o.value) o.value = json.data.order_ref;
+        }
       }
     } catch (_) {}
   }
@@ -1568,16 +1602,19 @@
     const eurocode = (document.getElementById('grReturnEurocode')?.value || '').trim();
     const labelPhoto = window._grReturnLabelPhoto || null;
     const damagePhotos = window._grReturnDamagePhotos || [];
-    const orderRef = reason === 'partido' ? (document.getElementById('grReturnOrderRef')?.value || '').trim() || null : null;
+    const orderRef = (document.getElementById('grReturnOrderRef')?.value || '').trim() || null;
     const carrierGuide = reason === 'partido' ? (document.getElementById('grReturnCarrierGuide')?.value || '').trim() || null : null;
+    const subReason = window._grReturnSubReason;
+    const effectiveReason = reason === 'partido' ? 'partido' : (subReason || null);
     if (!eurocode && !labelPhoto) { alert('Introduz o eurocode ou tira uma foto da etiqueta.'); return; }
     if (reason === 'partido' && damagePhotos.length < 2) { alert('São obrigatórias no mínimo 2 fotos do dano.'); return; }
+    if (reason !== 'partido' && !effectiveReason) { alert('Seleciona o motivo da devolução.'); return; }
     const btn = document.getElementById('grReturnSubmitBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'A registar…'; }
     try {
       const res = await fetch(API + '/glass-reception', {
         method: 'POST', headers: authHeaders(),
-        body: JSON.stringify({ is_return: true, return_reason: reason, eurocode: eurocode || null, label_photo: labelPhoto, damage_photos: damagePhotos.length ? damagePhotos : null, order_ref: orderRef, carrier_guide: carrierGuide })
+        body: JSON.stringify({ is_return: true, return_reason: effectiveReason, eurocode: eurocode || null, label_photo: labelPhoto, damage_photos: damagePhotos.length ? damagePhotos : null, order_ref: orderRef, carrier_guide: carrierGuide })
       });
       const text = await res.text();
       let json;
@@ -2539,7 +2576,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
