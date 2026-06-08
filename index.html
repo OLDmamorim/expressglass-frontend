@@ -1494,6 +1494,9 @@
         <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Nº ENCOMENDA AXIAL</label>
         <input id="grReturnOrderRef" type="text" placeholder="ex: 49380" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;">
       </div>
+      <div style="margin-bottom:12px;text-align:right;">
+        <button onclick="window.glassReception._retryReturnSearch()" style="background:#f1f5f9;border:1.5px solid #cbd5e1;border-radius:8px;padding:7px 14px;font-size:12px;font-weight:700;color:#2563eb;cursor:pointer;">🔍 Procurar processo</button>
+      </div>
       ${isPartido ? `
       <div style="margin-bottom:12px;">
         <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Nº GUIA TRANSPORTE</label>
@@ -2367,6 +2370,12 @@
     w.document.close();
   }
 
+  function _retryReturnSearch() {
+    const ec = (document.getElementById('grReturnEurocode')?.value || '').trim();
+    const or = (document.getElementById('grReturnOrderRef')?.value || '').trim();
+    _doReturnSearch(ec, or);
+  }
+
   async function _doReturnSearch(eurocode, orderRef) {
     if (!eurocode && !orderRef) return;
     const card = document.getElementById('grReturnMatchCard');
@@ -2790,7 +2799,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _printReturn, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
