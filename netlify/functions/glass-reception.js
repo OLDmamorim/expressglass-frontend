@@ -145,7 +145,7 @@ exports.handler = async (event) => {
           const ids = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
           if (ids.length) { rq += ` AND gr.portal_id = ANY($${rIdx++})`; rVals.push(ids); }
         }
-        rq += ` ORDER BY gr.created_at DESC LIMIT 500`;
+        rq += ` AND gr.status != 'devolvido' ORDER BY gr.created_at DESC LIMIT 500`;
         const { rows: rRows } = await client.query(rq, rVals);
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rRows }) };
       }
