@@ -148,8 +148,8 @@ exports.handler = async (event) => {
           FROM appointments a
           LEFT JOIN portals p ON p.id = a.portal_id
           WHERE a.portal_id = ANY($1)
-            AND a.executed IS NOT TRUE
-          AND (a.date IS NULL OR a.date >= CURRENT_DATE - INTERVAL '60 days')
+            ${params.include_executed !== 'true' ? 'AND a.executed IS NOT TRUE' : ''}
+            AND (a.date IS NULL OR a.date >= CURRENT_DATE - INTERVAL '180 days')
             AND (${conditions.join(' OR ')})
           ORDER BY a.date ASC NULLS LAST, a.created_at ASC
           LIMIT 50
