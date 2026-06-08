@@ -2125,6 +2125,7 @@ function sugerirDataParaLocalidade(locality) {
     var dow = d.getDay();
     if (dow === 0 || dow === 6) continue;
     var iso = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    if (typeof isDayBlocked === 'function' && isDayBlocked(iso)) continue;
     var dia = porDia[iso] || { count: 0, localidades: [] };
     if (dia.count >= MAX_SERVICOS) continue;
     var temMesma = dia.localidades.some(function(l) { return l && l.toLowerCase() === locality.toLowerCase(); });
