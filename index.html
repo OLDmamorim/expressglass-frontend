@@ -1507,19 +1507,20 @@
   async function _onReturnLabel(input) {
     const file = input.files[0];
     if (!file) return;
-    const base64 = await fileToBase64(file);
-    window._grReturnLabelPhoto = base64.split(',')[1];
+    const raw = await fileToBase64(file);
+    const compressed = await _compressImage(raw, 1200, 0.72);
+    window._grReturnLabelPhoto = compressed.split(',')[1];
     const preview = document.getElementById('grReturnLabelPreview');
-    if (preview) preview.innerHTML = `<img src="${base64}" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;border:2px solid #16a34a;">`;
+    if (preview) preview.innerHTML = `<img src="${compressed}" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;border:2px solid #16a34a;">`;
     try {
       const res = await fetch(API + '/glass-label-ocr', {
         method: 'POST', headers: authHeaders(),
-        body: JSON.stringify({ image_base64: base64.split(',')[1], media_type: file.type })
+        body: JSON.stringify({ image_base64: compressed.split(',')[1], media_type: 'image/jpeg' })
       });
       const json = await res.json();
       if (json.success && json.data?.eurocode) {
         const f = document.getElementById('grReturnEurocode');
-        if (f && !f.value) f.value = json.data.eurocode;
+        if (f) f.value = json.data.eurocode;
       }
     } catch (_) {}
   }
@@ -1528,8 +1529,9 @@
     const files = Array.from(input.files || []);
     if (!files.length) return;
     for (const file of files) {
-      const b64 = await fileToBase64(file);
-      (window._grReturnDamagePhotos = window._grReturnDamagePhotos || []).push(b64.split(',')[1]);
+      const raw = await fileToBase64(file);
+      const compressed = await _compressImage(raw, 1200, 0.65);
+      (window._grReturnDamagePhotos = window._grReturnDamagePhotos || []).push(compressed.split(',')[1]);
     }
     _refreshDamagePhotos();
   }
@@ -1565,7 +1567,9 @@
         method: 'POST', headers: authHeaders(),
         body: JSON.stringify({ is_return: true, return_reason: reason, eurocode: eurocode || null, label_photo: labelPhoto, damage_photos: damagePhotos.length ? damagePhotos : null })
       });
-      const json = await res.json();
+      const text = await res.text();
+      let json;
+      try { json = JSON.parse(text); } catch (_) { throw new Error(res.status === 413 ? 'Fotos demasiado grandes (reduz a resolução).' : 'Erro do servidor. Tenta novamente.'); }
       if (!json.success) throw new Error(json.error);
       document.getElementById('grScanBody').innerHTML = `
         <div style="text-align:center;padding:24px 0;">
@@ -2421,6 +2425,25 @@
       r.onload = e => res(e.target.result);
       r.onerror = rej;
       r.readAsDataURL(file);
+    });
+  }
+
+  function _compressImage(dataUrl, maxDim, quality) {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
     });
   }
 
