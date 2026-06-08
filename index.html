@@ -2386,6 +2386,7 @@
       const qp = new URLSearchParams();
       if (eurocode) qp.set('search_eurocode', eurocode.trim());
       if (orderRef) qp.set('search_order_ref', orderRef.trim());
+      qp.set('include_executed', 'true');
       const res = await fetch(API + '/appointments?' + qp.toString(), { headers: authHeaders() });
       const json = await res.json();
       if (json.success) {
@@ -2394,7 +2395,10 @@
       }
     } catch (_) {}
 
-    if (!results.length) return; // no match — silent, user can fill manually
+    if (!results.length) {
+      if (card) card.innerHTML = `<p style="font-size:12px;color:#94a3b8;text-align:center;padding:8px;">Nenhum processo encontrado — preenche os dados manualmente.</p>`;
+      return;
+    }
     const best = results[0];
     const plateStr = (best.plate || '').toUpperCase();
     const carStr   = best.car || '—';
