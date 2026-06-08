@@ -1906,7 +1906,7 @@
         return `
         <div style="border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;"
              onmouseenter="this.style.borderColor='#2563eb'" onmouseleave="this.style.borderColor='#e2e8f0'"
-             onclick="window.glassReception._showConfirm('${safeId}','${(a.plate||'').replace(/'/g,"\\'")}','${(a.car||'').replace(/'/g,"\\'")}','${storeName.replace(/'/g,"\\'")}','${(a.service||'').replace(/'/g,"\\'")}','${a.date||''}',${!!a.executed},'${safeOrderRef2}','${safeEuro2}','${safeRawForCard}')">
+             onclick="window.glassReception._showConfirm('${safeId}','${(a.plate||'').replace(/'/g,"\\'")}','${(a.car||'').replace(/'/g,"\\'")}','${storeName.replace(/'/g,"\\'")}','${(a.service||'').replace(/'/g,"\\'")}','${a.date||''}',${!!a.executed},'${safeOrderRef2}','${safeEuro2}')">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
             <span style="font-family:monospace;font-weight:800;font-size:15px;background:#0f172a;color:#fff;padding:4px 10px;border-radius:6px;">${(a.plate||'').toUpperCase()}</span>
             <span style="font-size:13px;font-weight:600;color:#374151;">${a.car||'—'}</span>
@@ -1996,7 +1996,7 @@
       return `
       <div style="border:2px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s;"
            onmouseenter="this.style.borderColor='#2563eb'" onmouseleave="this.style.borderColor='#e2e8f0'"
-           onclick="window.glassReception._showConfirm('${String(a.id)}','${(a.plate||'').replace(/'/g,"\\'")}','${(a.car||'').replace(/'/g,"\\'")}','${storeName.replace(/'/g,"\\'")}','${(a.service||'').replace(/'/g,"\\'")}','${a.date||''}',${!!a.executed},'${orderRef.replace(/'/g,"\\'")}','${eurocode.replace(/'/g,"\\'")}','${safeRawForCard}')">
+           onclick="window.glassReception._showConfirm('${String(a.id)}','${(a.plate||'').replace(/'/g,"\\'")}','${(a.car||'').replace(/'/g,"\\'")}','${storeName.replace(/'/g,"\\'")}','${(a.service||'').replace(/'/g,"\\'")}','${a.date||''}',${!!a.executed},'${orderRef.replace(/'/g,"\\'")}','${eurocode.replace(/'/g,"\\'")}')">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
           <span style="font-family:monospace;font-weight:800;font-size:15px;background:#0f172a;color:#fff;padding:4px 10px;border-radius:6px;">${(a.plate||'').toUpperCase()}</span>
           <span style="font-size:13px;font-weight:600;color:#374151;">${a.car||'—'}</span>
@@ -2015,7 +2015,7 @@
     }).join('');
   }
 
-  function _showConfirm(appointmentId, plate, car, storeName, service, date, executed, orderRef, eurocode, rawText) {
+  function _showConfirm(appointmentId, plate, car, storeName, service, date, executed, orderRef, eurocode) {
     const body = document.getElementById('grScanBody');
     const executedBadge = executed
       ? '<span style="background:#dcfce7;color:#166534;font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px;">✅ Já realizado</span>'
@@ -2036,7 +2036,7 @@
         ${orderRef ? `<div style="margin-top:8px;font-size:11px;color:#94a3b8;">📦 Encomenda: ${orderRef}</div>` : ''}
         ${eurocode ? `<div style="font-size:11px;color:#94a3b8;font-family:monospace;">🔢 ${eurocode}</div>` : ''}
       </div>
-      <button onclick="window.glassReception._confirmReception('${appointmentId}','${(plate||'').replace(/'/g,"\\'")}','${(orderRef||'').replace(/'/g,"\\'")}','${(prefEuro||'').replace(/'/g,"\\'")}','${(rawText||'').replace(/'/g,"\\'")}')"
+      <button onclick="window.glassReception._confirmReception('${appointmentId}','${(plate||'').replace(/'/g,"\\'")}','${(orderRef||'').replace(/'/g,"\\'")}','${(eurocode||'').replace(/'/g,"\\'")}') "
         style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px;">
         ✅ Confirmar receção
       </button>
@@ -2046,13 +2046,13 @@
     `;
   }
 
-  async function _confirmReception(appointmentId, plate, orderRef, eurocode, rawText) {
+  async function _confirmReception(appointmentId, plate, orderRef, eurocode) {
     document.getElementById('grScanBody').innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A registar receção…</p>`;
     try {
       const res = await fetch(API + '/glass-reception', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ appointment_id: appointmentId, order_ref: orderRef, eurocode, raw_label_text: rawText })
+        body: JSON.stringify({ appointment_id: appointmentId, order_ref: orderRef, eurocode, raw_label_text: window._grRawText || null })
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
