@@ -1454,7 +1454,7 @@
           style="display:flex;align-items:center;gap:14px;background:#dc2626;color:#fff;font-weight:800;font-size:15px;padding:18px 20px;border-radius:14px;border:none;cursor:pointer;text-align:left;width:100%;">
           <span style="font-size:28px;">💔</span>
           <div>
-            <div>Partido</div>
+            <div>Danificado</div>
             <div style="font-size:11px;font-weight:400;opacity:.8;margin-top:2px;">Vidro chegou danificado (mín. 2 fotos)</div>
           </div>
         </button>
@@ -1472,7 +1472,7 @@
     const isPartido = reason === 'partido';
     document.getElementById('grScanBody').innerHTML = `
       <div style="background:${isPartido ? '#fef2f2' : '#fffbeb'};border:2px solid ${isPartido ? '#dc2626' : '#f59e0b'};border-radius:10px;padding:10px 14px;margin-bottom:14px;">
-        <p style="font-size:13px;font-weight:700;color:${isPartido ? '#dc2626' : '#92400e'};margin:0;">${isPartido ? '💔 Partido' : '❌ Errado / Cancelado'}</p>
+        <p style="font-size:13px;font-weight:700;color:${isPartido ? '#dc2626' : '#92400e'};margin:0;">${isPartido ? '💔 Danificado' : '❌ Errado / Cancelado'}</p>
       </div>
       ${_glassTypeSelectorHtml()}
       <p style="color:#374151;font-size:13px;font-weight:600;margin-bottom:8px;">1. Foto da etiqueta (Eurocode)</p>
@@ -1644,7 +1644,7 @@
         <div style="text-align:center;padding:24px 0;">
           <div style="font-size:48px;margin-bottom:12px;">${reason === 'partido' ? '💔' : '↩️'}</div>
           <p style="font-size:16px;font-weight:800;color:#dc2626;margin-bottom:6px;">Devolução registada!</p>
-          <p style="font-size:13px;color:#64748b;margin-bottom:20px;">${reason === 'partido' ? 'Vidro partido registado com fotos do dano.' : 'Vidro errado/cancelado registado para devolução.'}</p>
+          <p style="font-size:13px;color:#64748b;margin-bottom:20px;">${reason === 'partido' ? 'Vidro danificado registado com fotos do dano.' : 'Vidro errado/cancelado registado para devolução.'}</p>
           <button onclick="window.glassReception.closeScan()" style="background:#0f172a;color:#fff;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
         </div>`;
     } catch (e) {
@@ -2255,7 +2255,7 @@
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
               <span style="font-family:monospace;font-weight:800;font-size:14px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${(r.eurocode || '—').toUpperCase()}</span>
-              <span style="background:${isPartido ? '#fef2f2' : '#fffbeb'};color:${isPartido ? '#dc2626' : '#92400e'};font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${isPartido ? '💔 Partido' : r.return_reason === 'desistencia' ? '🚫 Desistência' : r.return_reason === 'outro' ? '❓ Outro' : '❌ Errado'}</span>
+              <span style="background:${isPartido ? '#fef2f2' : '#fffbeb'};color:${isPartido ? '#dc2626' : '#92400e'};font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${isPartido ? '💔 Danificado' : r.return_reason === 'desistencia' ? '🚫 Desistência' : r.return_reason === 'outro' ? '❓ Outro' : '❌ Errado'}</span>
               <span style="font-size:11px;color:#64748b;margin-left:auto;">${fmtDate(r.created_at)}</span>
             </div>
             <div style="display:flex;gap:12px;font-size:12px;color:#64748b;flex-wrap:wrap;">
@@ -2333,7 +2333,7 @@
   function _printReturn(id) {
     const r = window._grReturnItemsMap?.[id];
     if (!r) return;
-    const reasonLabels = { errado: 'Errado', desistencia: 'Desistência', outro: 'Outro', partido: 'Partido / Danificado', errado_cancelado: 'Errado / Cancelado' };
+    const reasonLabels = { errado: 'Errado', desistencia: 'Desistência', outro: 'Outro', partido: 'Danificado', errado_cancelado: 'Errado / Cancelado' };
     const reasonText = reasonLabels[r.return_reason] || r.return_reason || '—';
     const photos = _parsePhotos(r.damage_photos);
     const photoHtml = photos.length ? photos.map(b64 =>
@@ -2376,7 +2376,6 @@
 
     // Local search first
     let results = (window.appointments || []).filter(a => {
-      if (a.executed === true) return false;
       const matchOrder = orderRef && a.order_ref && a.order_ref.trim().toLowerCase() === orderRef.trim().toLowerCase();
       const matchEuro  = ecNorm && a.glass_eurocode && normEc(a.glass_eurocode) === ecNorm;
       return matchOrder || matchEuro;
