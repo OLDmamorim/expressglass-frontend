@@ -33,6 +33,7 @@ async function ensureTable(client) {
   await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS return_reason TEXT`);
   await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS damage_photos JSONB`);
   await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS label_photo TEXT`);
+  await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS carrier_guide TEXT`);
 }
 
 exports.handler = async (event) => {
@@ -197,8 +198,8 @@ exports.handler = async (event) => {
         INSERT INTO glass_receptions
           (order_ref, eurocode, raw_label_text, appointment_id,
            technician_id, technician_name, portal_id, portal_name, status,
-           is_return, return_reason, damage_photos, label_photo)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+           is_return, return_reason, damage_photos, label_photo, carrier_guide)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
         RETURNING *
       `, [
         d.order_ref || null, d.eurocode || null, d.raw_label_text || null,
@@ -209,7 +210,8 @@ exports.handler = async (event) => {
         d.is_return || false,
         d.return_reason || null,
         d.damage_photos ? JSON.stringify(d.damage_photos) : null,
-        d.label_photo || null
+        d.label_photo || null,
+        d.carrier_guide || null
       ]);
 
       // When glass is matched to an appointment: set status ST (received) and propagate order_ref
