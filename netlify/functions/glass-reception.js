@@ -28,6 +28,11 @@ async function ensureTable(client) {
       updated_at   TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  // Return/damage columns (migration-safe)
+  await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS is_return   BOOLEAN DEFAULT false`);
+  await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS return_reason TEXT`);
+  await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS damage_photos JSONB`);
+  await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS label_photo TEXT`);
 }
 
 exports.handler = async (event) => {
@@ -119,6 +124,28 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: Object.values(latest) }) };
       }
 
+      // ── Returns query (is_return=true, filtered by reason) ───────────────────
+      if (p.returns) {
+        let rq = `
+          SELECT gr.*, po.name AS portal_label
+          FROM glass_receptions gr
+          LEFT JOIN portals po ON po.id = gr.portal_id
+          WHERE gr.is_return = true
+          AND gr.return_reason = $1
+        `;
+        const rVals = [p.returns];
+        let rIdx = 2;
+        if (user.role === 'user') {
+          rq += ` AND gr.portal_id = $${rIdx++}`; rVals.push(user.portalId);
+        } else if (user.role !== 'admin') {
+          const ids = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
+          if (ids.length) { rq += ` AND gr.portal_id = ANY($${rIdx++})`; rVals.push(ids); }
+        }
+        rq += ` ORDER BY gr.created_at DESC LIMIT 500`;
+        const { rows: rRows } = await client.query(rq, rVals);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rRows }) };
+      }
+
       // ── Default: pending list ─────────────────────────────────────────────────
       let q = `
         SELECT gr.*,
@@ -150,7 +177,7 @@ exports.handler = async (event) => {
     // ── POST ───────────────────────────────────────────────────────────────────
     if (event.httpMethod === 'POST') {
       const d = JSON.parse(event.body || '{}');
-      const status = d.appointment_id ? 'confirmed' : 'pending';
+      const status = d.is_return ? 'return' : (d.appointment_id ? 'confirmed' : 'pending');
 
       // When admin (no portalId) links to an appointment, resolve portal from the appointment
       let resolvedPortalId = user.portalId || null;
@@ -169,19 +196,24 @@ exports.handler = async (event) => {
       const { rows } = await client.query(`
         INSERT INTO glass_receptions
           (order_ref, eurocode, raw_label_text, appointment_id,
-           technician_id, technician_name, portal_id, portal_name, status)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           technician_id, technician_name, portal_id, portal_name, status,
+           is_return, return_reason, damage_photos, label_photo)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
         RETURNING *
       `, [
         d.order_ref || null, d.eurocode || null, d.raw_label_text || null,
         d.appointment_id || null,
         user.userId || user.id, user.username,
         resolvedPortalId, resolvedPortalName,
-        status
+        status,
+        d.is_return || false,
+        d.return_reason || null,
+        d.damage_photos ? JSON.stringify(d.damage_photos) : null,
+        d.label_photo || null
       ]);
 
       // When glass is matched to an appointment: set status ST (received) and propagate order_ref
-      if (d.appointment_id) {
+      if (d.appointment_id && !d.is_return) {
         await client.query(
           `UPDATE appointments SET status = 'ST', updated_at = NOW() WHERE id = $1`,
           [d.appointment_id]
