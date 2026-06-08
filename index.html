@@ -2223,6 +2223,7 @@
             style="background:#7c3aed;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">
             📦 Devolvido em PHC
           </button>
+          <button onclick="window.glassReception._printReturn(${r.id})" style="background:#0f172a;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">🖨️ Imprimir</button>
           <button onclick="window.glassReception._deleteReturn(${r.id})" style="background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">🗑️ Eliminar</button>
         </div>
       </div>`;
@@ -2278,6 +2279,43 @@
         if (window._grReturnItemsMap?.[id]) window._grReturnItemsMap[id].status = 'reported';
       }
     } catch (_) {}
+  }
+
+  function _printReturn(id) {
+    const r = window._grReturnItemsMap?.[id];
+    if (!r) return;
+    const reasonLabels = { errado: 'Errado', desistencia: 'Desistência', outro: 'Outro', partido: 'Partido / Danificado', errado_cancelado: 'Errado / Cancelado' };
+    const reasonText = reasonLabels[r.return_reason] || r.return_reason || '—';
+    const photos = _parsePhotos(r.damage_photos);
+    const photoHtml = photos.length ? photos.map(b64 =>
+      `<img src="data:image/jpeg;base64,${b64}" style="width:120px;height:120px;object-fit:cover;border:1px solid #ccc;border-radius:4px;">`
+    ).join('') : '';
+    const w = window.open('', '_blank', 'width=600,height=700');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Para Devolver</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 32px; color: #000; }
+      h1 { font-size: 26px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 24px; }
+      .row { display: flex; gap: 8px; margin-bottom: 12px; align-items: flex-start; }
+      .label { font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; min-width: 120px; padding-top: 2px; }
+      .value { font-size: 15px; font-weight: 700; }
+      .eurocode { font-size: 22px; font-family: monospace; font-weight: 900; background: #000; color: #fff; padding: 4px 14px; border-radius: 6px; display: inline-block; }
+      .photos { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+      .footer { margin-top: 32px; border-top: 1px solid #ccc; padding-top: 12px; font-size: 11px; color: #888; }
+      @media print { body { padding: 16px; } }
+    </style></head><body>
+    <h1>Para Devolver</h1>
+    <div class="row"><span class="label">Eurocode</span><span class="eurocode">${(r.eurocode || '—').toUpperCase()}</span></div>
+    <div class="row"><span class="label">Nº Enc. Axial</span><span class="value">${r.order_ref || '—'}</span></div>
+    <div class="row"><span class="label">Motivo</span><span class="value">${reasonText}</span></div>
+    <div class="row"><span class="label">Guia Transporte</span><span class="value">${r.carrier_guide || '—'}</span></div>
+    <div class="row"><span class="label">Loja</span><span class="value">${r.portal_label || r.portal_name || '—'}</span></div>
+    <div class="row"><span class="label">Técnico</span><span class="value">${r.technician_name || '—'}</span></div>
+    <div class="row"><span class="label">Data</span><span class="value">${fmtDate(r.created_at)}</span></div>
+    ${photoHtml ? `<div class="row"><span class="label">Fotos do dano</span></div><div class="photos">${photoHtml}</div>` : ''}
+    <div class="footer">Impresso em ${new Date().toLocaleDateString('pt-PT')} ${new Date().toLocaleTimeString('pt-PT', {hour:'2-digit',minute:'2-digit'})}</div>
+    <script>window.onload=()=>{window.print();}<\/script>
+    </body></html>`);
+    w.document.close();
   }
 
   async function _devolvido(id) {
@@ -2618,7 +2656,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _printReturn, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
