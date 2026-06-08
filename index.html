@@ -3020,7 +3020,7 @@
             ${rows.map(r => {
               const hrs = r.hours_total != null ? parseFloat(r.hours_total) : (r.checkin_at && r.checkout_at
                 ? (new Date(r.checkout_at) - new Date(r.checkin_at)) / 3600000 : null);
-              const dateStr = r.date ? new Date(r.date + 'T12:00:00').toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '—';
+              const dateStr = r.date ? new Date(String(r.date).slice(0,10) + 'T12:00:00').toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '—';
               return `<tr style="border-bottom:1px solid #f1f5f9;">
                 <td style="padding:8px 6px;font-weight:600;color:#0f172a;">${dateStr}</td>
                 <td style="padding:8px 6px;text-align:center;color:${r.checkin_auto ? '#94a3b8' : '#16a34a'};font-weight:600;">${fmt(r.checkin_at)}${r.checkin_auto ? '*' : ''}</td>
