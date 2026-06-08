@@ -28,30 +28,23 @@ function callVision(imageBase64, mediaType) {
           {
             type: 'text',
             text: `Analisa esta guia/etiqueta de entrega de vidro automóvel de um transportador português (ex: A Sua Pressa, Garland, etc.).
+A etiqueta pode estar rodada na imagem — tenta ler em todas as orientações.
 
 Extrai APENAS estes dois campos:
 
-1. Número de encomenda do CLIENTE (ExpressGlass) — é o número interno da ExpressGlass, NÃO o número de entrega do transportador.
-   Procura NESTA ORDEM DE PRIORIDADE:
-   a) "Encomendas Cliente nº XXXXX" ou "Enc. Cliente nº XXXXX" — este é o número CORRECTO
-   b) "OBS: ... nº XXXXX" — normalmente contém o número de cliente no campo de observações
-   c) "N.º Enc", "Enc." — referência de encomenda
-   ⚠️ NÃO uses "PEDIDO:XXXXX" nem "COD AT:XXXXX" — esses são números INTERNOS do transportador, não são o número da encomenda do cliente.
-   Exemplo correcto: "OBS:Encomendas Cliente nº 48932" → order_ref = "48932"
+1. Número de encomenda — procura nestas fontes POR ESTA ORDEM:
+   a) "CBS Encomendas" ou "Encomendas Cliente" seguido de "Cliente nº XXXXX" → order_ref = "XXXXX"
+   b) "PEDIDO:XXXXX" ou "PEDIDO nº XXXXX" → order_ref = "XXXXX"
+   c) "Enc. Cliente nº XXXXX" ou "N.º Enc: XXXXX"
+   ⚠️ Exclui "COD AT:XXXXX" — esse é um código fiscal, não é o número de encomenda.
+   Exemplos: "CBS Encomendas Cliente nº 68508" → "68508". "PEDIDO:68508" → "68508".
 
-2. Eurocode do vidro — código com formato EXATO: 4 dígitos seguidos IMEDIATAMENTE de 3 ou mais caracteres alfanuméricos maiúsculos (ex: 6577AGACMVZ, 3739ABCDE, 7274AGAM1R).
+2. Eurocode do vidro — formato EXATO: 4 dígitos seguidos IMEDIATAMENTE de 3 ou mais caracteres alfanuméricos maiúsculos (ex: 6577AGACMVZ, 2474AGNMVZ6C).
    Procura em campos como PICK_LABELS, OBS, Observações.
-   REGRA CRÍTICA para PICK_LABELS com formato "NNNN/DDDDLLLLL" (ex: "1605/6577AGACMVZ"):
-   - O número ANTES da barra "/" (ex: 1605) é uma sequência — NÃO é o eurocode
-   - O eurocode é o código COMPLETO APÓS a barra "/" (ex: 6577AGACMVZ)
-   - NUNCA combines dígitos de antes da barra com letras de depois da barra
-
-   ⚠️ ATENÇÃO CRÍTICA — confusão 1 vs I vs O vs 0:
-   Nesta fonte de impressora térmica, o DÍGITO '1' (um) e a LETRA 'I' maiúscula são visualmente muito semelhantes. O mesmo para o DÍGITO '0' (zero) e a LETRA 'O'.
-   Em eurocodes, os sistemas de vidro automóvel NÃO utilizam as letras 'I' nem 'O' no código para evitar exactamente esta confusão. Por isso:
-   - Se vires um caracter que parece 'I' dentro do eurocode → é o DÍGITO '1'
-   - Se vires um caracter que parece 'O' dentro do eurocode → é o DÍGITO '0'
-   Exemplo: "7274AGAM1R" tem um dígito '1' a seguir a 'AGAM', NÃO a letra 'I'.
+   REGRA CRÍTICA para PICK_LABELS com formato "NNNN/DDDDLLLLL" (ex: "4370/2474AGNMVZ6C"):
+   - O número ANTES da barra "/" (ex: 4370) é uma sequência — NÃO é o eurocode
+   - O eurocode é o código COMPLETO APÓS a barra "/" (ex: 2474AGNMVZ6C)
+   ⚠️ Em eurocodes NÃO existem as letras 'I' nem 'O' — se vires 'I' é o dígito '1', se vires 'O' é o dígito '0'.
 
 Responde EXCLUSIVAMENTE em JSON válido, sem texto adicional:
 {"order_ref": "...", "eurocode": "...", "raw_text": "..."}
@@ -84,11 +77,23 @@ Se não encontrares algum campo coloca null.`
           const m = text.match(/\{[\s\S]*\}/);
           const result = m ? JSON.parse(m[0]) : { order_ref: null, eurocode: null, raw_text: text };
 
-          // Always prefer "Encomendas Cliente nº XXXXX" over whatever the AI extracted.
-          // This is the ExpressGlass internal order number matching PHC's numeros_encomendas.
+          // Extract order_ref with cascading fallbacks from raw_text
           if (result.raw_text) {
-            const encMatch = String(result.raw_text).match(/Encomendas?\s+Cliente\s+n[ºo°]?\s*\.?\s*(\d+)/i);
-            if (encMatch) result.order_ref = encMatch[1];
+            const rt = String(result.raw_text);
+            // Priority 1: "CBS Encomendas ... Cliente nº XXXXX" or "Encomendas Cliente nº XXXXX"
+            const encMatch = rt.match(/Encomendas?\s+Cliente\s+n[ºo°]?\s*\.?\s*(\d+)/i)
+                          || rt.match(/CBS\s+Encomendas?[\s\S]{0,40}Cliente\s+n[ºo°]?\s*\.?\s*(\d+)/i);
+            if (encMatch) { result.order_ref = encMatch[1]; }
+            // Priority 2: standalone "Cliente nº XXXXX" (any context)
+            else {
+              const clienteMatch = rt.match(/Cliente\s+n[ºo°]?\s*\.?\s*(\d{4,})/i);
+              if (clienteMatch) result.order_ref = clienteMatch[1];
+            }
+            // Priority 3: PEDIDO:XXXXX (carrier order number, useful for returns/damaged reports)
+            if (!result.order_ref) {
+              const pedidoMatch = rt.match(/PEDIDO\s*:?\s*(\d{3,})/i);
+              if (pedidoMatch) result.order_ref = pedidoMatch[1];
+            }
           }
 
           // Always extract eurocode from raw_text via regex — more reliable than AI parsing.
