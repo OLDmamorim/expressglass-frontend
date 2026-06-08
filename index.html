@@ -2892,43 +2892,25 @@
     const autoIn  = rec?.checkin_auto;
     const autoOut = rec?.checkout_auto;
 
-    if (!hasIn && !hasOut) {
-      bar.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <span style="font-size:12px;color:#64748b;flex:1;">⏱️ Registo do dia</span>
-          <button onclick="window.teamCheckin.doCheckin()"
-            style="background:#16a34a;color:#fff;font-weight:700;font-size:12px;padding:7px 16px;border-radius:8px;border:none;cursor:pointer;">
-            🚀 Iniciar dia
-          </button>
-          <button onclick="window.teamCheckin.openAnalytics()" style="background:none;border:none;cursor:pointer;font-size:18px;" title="Ver histórico">📊</button>
-        </div>`;
-      return;
-    }
+    const hrs = (hasIn && hasOut) ? (rec.hours_total != null
+      ? parseFloat(rec.hours_total)
+      : (new Date(rec.checkout_at) - new Date(rec.checkin_at)) / 3600000) : null;
+    const netHrs = hrs != null ? Math.max(0, hrs - 1) : null;
 
-    if (hasIn && !hasOut) {
-      bar.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <span style="font-size:12px;color:#16a34a;font-weight:700;">🚀 ${fmt(rec.checkin_at)}${autoIn ? ' <span style="color:#94a3b8;font-weight:400;">(auto)</span>' : ''}</span>
-          <span style="font-size:12px;color:#94a3b8;">→</span>
-          <button onclick="window.teamCheckin.doCheckout()"
-            style="background:#0f172a;color:#fff;font-weight:700;font-size:12px;padding:7px 16px;border-radius:8px;border:none;cursor:pointer;">
-            🏁 Terminar dia
-          </button>
-          <button onclick="window.teamCheckin.openAnalytics()" style="background:none;border:none;cursor:pointer;font-size:18px;" title="Ver histórico">📊</button>
-        </div>`;
-      return;
-    }
-
-    // Both done
-    const hrs = rec.hours_total != null ? rec.hours_total : (rec.checkin_at && rec.checkout_at
-      ? (new Date(rec.checkout_at) - new Date(rec.checkin_at)) / 3600000 : null);
     bar.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-        <span style="font-size:12px;color:#16a34a;font-weight:700;">🚀 ${fmt(rec.checkin_at)}${autoIn ? ' <span style="color:#94a3b8;font-weight:400;">(auto)</span>' : ''}</span>
-        <span style="font-size:12px;color:#94a3b8;">→</span>
-        <span style="font-size:12px;color:#1d4ed8;font-weight:700;">🏁 ${fmt(rec.checkout_at)}${autoOut ? ' <span style="color:#94a3b8;font-weight:400;">(auto)</span>' : ''}</span>
-        ${hrs != null ? `<span style="font-size:12px;color:#7c3aed;font-weight:700;background:#f5f3ff;padding:2px 8px;border-radius:6px;">${fmtHours(hrs)}</span>` : ''}
-        <button onclick="window.teamCheckin.openAnalytics()" style="background:none;border:none;cursor:pointer;font-size:18px;margin-left:auto;" title="Ver histórico">📊</button>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${hasIn
+          ? `<span style="font-size:12px;color:#16a34a;font-weight:700;white-space:nowrap;">🚀 ${fmt(rec.checkin_at)}${autoIn ? ' <span style="color:#94a3b8;font-weight:400;">(auto)</span>' : ''}</span>`
+          : `<button onclick="window.teamCheckin.doCheckin()" style="background:#16a34a;color:#fff;font-weight:700;font-size:12px;padding:7px 14px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;">🚀 Check-in</button>`
+        }
+        <div style="flex:1;text-align:center;">
+          ${netHrs != null ? `<span style="font-size:12px;color:#7c3aed;font-weight:700;background:#f5f3ff;padding:2px 8px;border-radius:6px;">${fmtHours(netHrs)} líq.</span>` : ''}
+        </div>
+        ${hasOut
+          ? `<span style="font-size:12px;color:#1d4ed8;font-weight:700;white-space:nowrap;">🏁 ${fmt(rec.checkout_at)}${autoOut ? ' <span style="color:#94a3b8;font-weight:400;">(auto)</span>' : ''}</span>`
+          : `<button onclick="window.teamCheckin.doCheckout()" style="background:#0f172a;color:#fff;font-weight:700;font-size:12px;padding:7px 14px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;">🏁 Check-out</button>`
+        }
+        <button onclick="window.teamCheckin.openAnalytics()" style="background:none;border:none;cursor:pointer;font-size:18px;flex-shrink:0;" title="Ver histórico">📊</button>
       </div>`;
   }
 
@@ -2995,8 +2977,10 @@
       const body = document.getElementById('tcAnalyticsBody');
       if (!rows.length) { body.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px;">Sem registos.</p>'; return; }
 
+      const completeDays = rows.filter(r => r.hours_total).length;
       const totalHours = rows.filter(r => r.hours_total).reduce((s, r) => s + parseFloat(r.hours_total), 0);
-      const avgHours = totalHours / rows.filter(r => r.hours_total).length;
+      const totalNet = Math.max(0, totalHours - completeDays);
+      const avgHours = completeDays ? totalNet / completeDays : 0;
 
       body.innerHTML = `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
@@ -3006,7 +2990,7 @@
           </div>
           <div style="background:#f5f3ff;border-radius:10px;padding:12px;text-align:center;">
             <div style="font-size:11px;color:#64748b;font-weight:700;">MÉDIA DIÁRIA</div>
-            <div style="font-size:24px;font-weight:900;color:#7c3aed;">${fmtHours(avgHours)}</div>
+            <div style="font-size:24px;font-weight:900;color:#7c3aed;">${fmtHours(avgHours)} líq.</div>
           </div>
         </div>
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -3018,8 +3002,9 @@
           </tr></thead>
           <tbody>
             ${rows.map(r => {
-              const hrs = r.hours_total != null ? parseFloat(r.hours_total) : (r.checkin_at && r.checkout_at
+              const hrsRaw = r.hours_total != null ? parseFloat(r.hours_total) : (r.checkin_at && r.checkout_at
                 ? (new Date(r.checkout_at) - new Date(r.checkin_at)) / 3600000 : null);
+              const hrs = hrsRaw != null ? Math.max(0, hrsRaw - 1) : null;
               const dateStr = r.date ? new Date(String(r.date).slice(0,10) + 'T12:00:00').toLocaleDateString('pt-PT', { weekday: 'short', day: '2-digit', month: '2-digit' }) : '—';
               return `<tr style="border-bottom:1px solid #f1f5f9;">
                 <td style="padding:8px 6px;font-weight:600;color:#0f172a;">${dateStr}</td>
