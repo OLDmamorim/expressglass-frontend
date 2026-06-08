@@ -2179,11 +2179,25 @@
     const photos = _parsePhotos(r.damage_photos);
     const eurocode = (r.eurocode || 'eurocode').toUpperCase();
     const order    = r.order_ref     || '(nº encomenda)';
-    const carrier  = r.carrier_guide || '(nº guia transportador)';
+    const carrier  = r.carrier_guide || null;
 
-    // Open pre-filled email
-    const body = `Bom dia,\r\n\r\n\r\nRecebemos o vidro ${eurocode} com a Guia Transportador ${carrier} relacionado a encomenda ${order} partido.\r\nDevolução feita em PHC.`;
-    window.open(`mailto:?subject=${encodeURIComponent('Devolução - ')}&body=${encodeURIComponent(body)}`, '_blank');
+    // Unicode bold for emphasis in plain-text email (works in all modern email clients)
+    const toBold = s => String(s).split('').map(c => {
+      const n = c.charCodeAt(0);
+      if (n >= 48 && n <= 57) return String.fromCodePoint(0x1D7CE + n - 48);
+      if (n >= 65 && n <= 90) return String.fromCodePoint(0x1D400 + n - 65);
+      if (n >= 97 && n <= 122) return String.fromCodePoint(0x1D41A + n - 97);
+      return c;
+    }).join('');
+
+    const guidaPart = carrier ? `, com a Guia Transportador ${carrier}` : '';
+    const bodyLines = [
+      'Bom dia,',
+      '',
+      `Recebemos o vidro ${toBold(eurocode)} partido${guidaPart}, relacionado a encomenda ${toBold(order)}.`,
+      'Devolução feita em PHC.'
+    ];
+    window.open(`mailto:?subject=${encodeURIComponent('Devolução - ')}&body=${encodeURIComponent(bodyLines.join('\r\n'))}`, '_blank');
 
     // Download damage photos so coordinator can attach them
     photos.forEach((b64, i) => {
