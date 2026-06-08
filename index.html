@@ -2885,7 +2885,7 @@
     if (!bar) return;
 
     const type = window.portalConfig?.portalType || '';
-    if (!['sm', 'pesados'].includes(type)) { bar.style.display = 'none'; return; }
+    if (type !== 'sm') { bar.style.display = 'none'; return; }
     bar.style.display = 'block';
 
     const hasIn  = !!(rec?.checkin_at);
@@ -3040,7 +3040,7 @@
   // Init: load today's record when the page is ready (and only for SM/pesados)
   function init() {
     const type = window.portalConfig?.portalType || '';
-    if (!['sm', 'pesados'].includes(type)) return;
+    if (type !== 'sm') return;
     load();
   }
 
