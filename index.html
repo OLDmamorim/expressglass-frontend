@@ -2394,8 +2394,9 @@
         </div>
         <button onclick="window.glassReception._loadHistory()" style="background:#0f172a;color:#fff;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;width:100%;">🔍 Filtrar</button>
       </div>
-      <div id="grHResults"><p style="text-align:center;color:#94a3b8;font-size:13px;padding:12px;">Aplica os filtros para ver o histórico.</p></div>
+      <div id="grHResults"><p style="text-align:center;color:#94a3b8;font-size:13px;padding:12px;">A carregar…</p></div>
     `;
+    await _loadHistory();
   }
 
   async function _loadHistory() {
@@ -2456,6 +2457,7 @@
           <thead>
             <tr style="background:#0f172a;color:#fff;">
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Data</th>
+              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Tipo</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Matrícula</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Carro</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Loja</th>
@@ -2467,12 +2469,15 @@
           </thead>
           <tbody>
             ${rows.map((r, i) => {
-              const returnBadge = r.is_return ? `<span style="font-size:10px;background:#fef2f2;color:#dc2626;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:4px;">↩️</span>` : '';
-              const plate = r.is_return ? (r.apt_plate || '—') : (r.apt_plate || '—');
+              const reasonMap = { errado:'❌ Errado', desistencia:'🚫 Desistência', outro:'❓ Outro', partido:'💔 Danificado', errado_cancelado:'❌ Errado/Cancel.' };
+              const tipoHtml = r.is_return
+                ? `<span style="background:#fef2f2;color:#dc2626;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;">${reasonMap[r.return_reason] || '↩️ Devolução'}</span>`
+                : `<span style="background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;">📦 Receção</span>`;
               return `
               <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${fmtDate(r.created_at)}</td>
-                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">${plate.toUpperCase()}${returnBadge}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${tipoHtml}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">${(r.apt_plate || '—').toUpperCase()}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${r.apt_car || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${r.portal_label || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;">${r.eurocode || '—'}</td>
@@ -2490,10 +2495,13 @@
   function _exportCSV() {
     const data = window._grHistoryData || [];
     if (!data.length) return;
-    const hdr = ['Data','Matrícula','Carro','Loja','Eurocode','Encomenda','Técnico','Estado'];
-    const statusTxt = s => s === 'received' ? 'Recebido' : s === 'confirmed' ? 'Confirmado' : 'Pendente';
+    const hdr = ['Data','Tipo','Matrícula','Carro','Loja','Eurocode','Encomenda','Técnico','Estado'];
+    const reasonMap = { errado:'Errado', desistencia:'Desistência', outro:'Outro', partido:'Danificado', errado_cancelado:'Errado/Cancelado' };
+    const statusTxt = s => s === 'received' ? 'Recebido' : s === 'confirmed' ? 'Confirmado' : s === 'devolvido' ? 'Devolvido' : s === 'reported' ? 'Reportado' : s === 'return' ? 'Devolução' : 'Pendente';
     const rows = data.map(r => [
-      fmtDate(r.created_at), (r.apt_plate || '').toUpperCase(),
+      fmtDate(r.created_at),
+      r.is_return ? (reasonMap[r.return_reason] || 'Devolução') : 'Receção',
+      (r.apt_plate || '').toUpperCase(),
       r.apt_car || '', r.portal_label || '',
       r.eurocode || '', r.order_ref || '',
       r.technician_name || '', statusTxt(r.status)

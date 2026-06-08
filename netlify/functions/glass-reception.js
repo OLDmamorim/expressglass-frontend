@@ -97,7 +97,7 @@ exports.handler = async (event) => {
           if (ids.length) { hq += ` AND gr.portal_id = ANY($${hIdx++})`; hVals.push(ids); }
         }
 
-        if (p.portal_id) { hq += ` AND gr.portal_id = $${hIdx++}`; hVals.push(parseInt(p.portal_id)); }
+        if (p.portal_id) { hq += ` AND (gr.portal_id = $${hIdx++} OR (gr.is_return = true AND gr.portal_id IS NULL))`; hVals.push(parseInt(p.portal_id)); }
         if (p.from_date) { hq += ` AND gr.created_at >= $${hIdx++}`; hVals.push(p.from_date); }
         if (p.to_date)   { hq += ` AND gr.created_at < ($${hIdx++}::date + INTERVAL '1 day')`; hVals.push(p.to_date); }
         if (p.search) {
