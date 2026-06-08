@@ -121,12 +121,17 @@ exports.handler = async (event) => {
       }
 
       if (action === 'checkout') {
+        const autoCheckinTime = `${date}T09:00:00`;
         await pool.query(`
-          INSERT INTO team_checkins (portal_id, user_id, user_name, date, checkout_at, checkout_auto)
-          VALUES ($1,$2,$3,$4,$5,false)
-          ON CONFLICT (portal_id, date) DO UPDATE
-            SET checkout_at=$5, checkout_auto=false, updated_at=NOW()
-        `, [portalId, userId, userName, date, now]);
+          INSERT INTO team_checkins (portal_id, user_id, user_name, date, checkin_at, checkin_auto, checkout_at, checkout_auto)
+          VALUES ($1,$2,$3,$4,$5,true,$6,false)
+          ON CONFLICT (portal_id, date) DO UPDATE SET
+            checkin_at   = COALESCE(team_checkins.checkin_at, $5),
+            checkin_auto = CASE WHEN team_checkins.checkin_at IS NULL THEN true ELSE team_checkins.checkin_auto END,
+            checkout_at  = $6,
+            checkout_auto = false,
+            updated_at   = NOW()
+        `, [portalId, userId, userName, date, autoCheckinTime, now]);
         return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
       }
 
