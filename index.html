@@ -2404,6 +2404,16 @@
       }
     } catch (_) {}
 
+    // Prioritise current portal so a Braga user sees Braga appointments first
+    const currentPortalId = window.portalConfig?.id;
+    if (currentPortalId) {
+      results.sort((a, b) => {
+        const aLocal = a.portal_id === currentPortalId ? 0 : 1;
+        const bLocal = b.portal_id === currentPortalId ? 0 : 1;
+        return aLocal - bLocal;
+      });
+    }
+
     if (!results.length) {
       if (card) card.innerHTML = `<p style="font-size:12px;color:#94a3b8;text-align:center;padding:8px;">Nenhum processo encontrado — preenche os dados manualmente.</p>`;
       return;
