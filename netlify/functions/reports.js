@@ -193,6 +193,28 @@ exports.handler = async (event) => {
       ORDER BY total DESC
     `, [portalId, dateFrom, dateTo]);
 
+    // 12. Equipa — check-in/check-out com serviços por dia
+    let teamStats = [];
+    try {
+      const { rows } = await pool.query(`
+        SELECT
+          tc.date::text AS date,
+          tc.checkin_at,
+          tc.checkout_at,
+          tc.checkin_auto,
+          tc.checkout_auto,
+          EXTRACT(EPOCH FROM (tc.checkout_at - tc.checkin_at)) / 3600.0 AS hours_raw,
+          COUNT(a.id) FILTER (WHERE a.executed = true) AS services_done,
+          COALESCE(SUM(a.km) FILTER (WHERE a.executed = true), 0) AS km_day
+        FROM team_checkins tc
+        LEFT JOIN appointments a ON a.portal_id = tc.portal_id AND a.date = tc.date::text
+        WHERE tc.portal_id = $1 AND tc.date BETWEEN $2::date AND $3::date
+        GROUP BY tc.date, tc.checkin_at, tc.checkout_at, tc.checkin_auto, tc.checkout_auto
+        ORDER BY tc.date ASC
+      `, [portalId, dateFrom, dateTo]);
+      teamStats = rows;
+    } catch(_) {}
+
     return {
       statusCode: 200,
       headers,
@@ -211,7 +233,8 @@ exports.handler = async (event) => {
         byService,
         byComercial,
         byMotivo,
-        byServiceTime
+        byServiceTime,
+        teamStats
       })
     };
   } catch(e) {

@@ -1843,6 +1843,85 @@ async function generateReport() {
   }
 }
 
+function _renderTeamSection(teamStats) {
+  const sec = document.getElementById('reportTeamSection');
+  if (!sec) return;
+  if (!teamStats || !teamStats.length) { sec.style.display = 'none'; return; }
+
+  const fmtT = iso => iso ? new Date(iso).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : '—';
+  const fmtD = d => d ? new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit',month:'2-digit'}) : '—';
+  const fmtH = h => (h==null||isNaN(h)) ? '—' : `${Math.floor(h)}h${String(Math.round((h-Math.floor(h))*60)).padStart(2,'0')}`;
+
+  const daysWithBoth = teamStats.filter(r => r.checkin_at && r.checkout_at);
+  const totalNetHrs = daysWithBoth.reduce((s,r) => s + Math.max(0, parseFloat(r.hours_raw||0) - 1), 0);
+  const avgNetHrs = daysWithBoth.length ? totalNetHrs / daysWithBoth.length : 0;
+  const totalServices = teamStats.reduce((s,r) => s + parseInt(r.services_done||0), 0);
+  const avgServices = teamStats.length ? totalServices / teamStats.length : 0;
+  const totalKm = teamStats.reduce((s,r) => s + parseFloat(r.km_day||0), 0);
+  const servicesPerHour = totalNetHrs > 0 ? totalServices / totalNetHrs : 0;
+
+  sec.innerHTML = `
+    <div style="border-top:2px solid #7c3aed;padding-top:24px;margin-top:32px;">
+      <h3 style="font-size:16px;font-weight:700;color:#7c3aed;margin-bottom:16px;">⏱️ Equipa — Tempos e Rentabilidade</h3>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
+        <div style="background:#f5f3ff;border-radius:10px;padding:14px;text-align:center;">
+          <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:4px;">DIAS REGISTADOS</div>
+          <div style="font-size:26px;font-weight:900;color:#7c3aed;">${teamStats.length}</div>
+        </div>
+        <div style="background:#f0fdf4;border-radius:10px;padding:14px;text-align:center;">
+          <div style="font-size:11px;font-weight:700;color:#16a34a;margin-bottom:4px;">MÉDIA HORAS/DIA</div>
+          <div style="font-size:26px;font-weight:900;color:#16a34a;">${fmtH(avgNetHrs)}</div>
+        </div>
+        <div style="background:#eff6ff;border-radius:10px;padding:14px;text-align:center;">
+          <div style="font-size:11px;font-weight:700;color:#1d4ed8;margin-bottom:4px;">MÉDIA SERV./DIA</div>
+          <div style="font-size:26px;font-weight:900;color:#1d4ed8;">${avgServices.toFixed(1)}</div>
+        </div>
+        <div style="background:#fff7ed;border-radius:10px;padding:14px;text-align:center;">
+          <div style="font-size:11px;font-weight:700;color:#ea580c;margin-bottom:4px;">SERV./HORA</div>
+          <div style="font-size:26px;font-weight:900;color:#ea580c;">${servicesPerHour.toFixed(2)}</div>
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:#f5f3ff;">
+          <th style="padding:9px 10px;text-align:left;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">Data</th>
+          <th style="padding:9px 10px;text-align:center;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">Entrada</th>
+          <th style="padding:9px 10px;text-align:center;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">Saída</th>
+          <th style="padding:9px 10px;text-align:center;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">Horas líq.</th>
+          <th style="padding:9px 10px;text-align:center;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">Serviços</th>
+          <th style="padding:9px 10px;text-align:center;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">KM</th>
+          <th style="padding:9px 10px;text-align:center;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">Serv./hora</th>
+        </tr></thead>
+        <tbody>
+          ${teamStats.map((r,i) => {
+            const hrsRaw = r.checkin_at && r.checkout_at ? parseFloat(r.hours_raw||0) : null;
+            const net = hrsRaw != null ? Math.max(0, hrsRaw - 1) : null;
+            const svcs = parseInt(r.services_done||0);
+            const sph = net > 0 ? (svcs / net).toFixed(2) : '—';
+            return `<tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
+              <td style="padding:8px 10px;font-weight:600;">${fmtD(r.date)}</td>
+              <td style="padding:8px 10px;text-align:center;color:${r.checkin_auto?'#94a3b8':'#16a34a'};font-weight:600;">${fmtT(r.checkin_at)}${r.checkin_auto?' *':''}</td>
+              <td style="padding:8px 10px;text-align:center;color:${r.checkout_auto?'#94a3b8':'#1d4ed8'};font-weight:600;">${fmtT(r.checkout_at)}${r.checkout_auto?' *':''}</td>
+              <td style="padding:8px 10px;text-align:center;font-weight:700;color:#7c3aed;">${fmtH(net)}</td>
+              <td style="padding:8px 10px;text-align:center;font-weight:700;">${svcs}</td>
+              <td style="padding:8px 10px;text-align:center;">${parseFloat(r.km_day||0).toFixed(0)} km</td>
+              <td style="padding:8px 10px;text-align:center;font-weight:700;color:#ea580c;">${sph}</td>
+            </tr>`;
+          }).join('')}
+          <tr style="background:#f5f3ff;font-weight:700;border-top:2px solid #e2e8f0;">
+            <td style="padding:8px 10px;">TOTAL</td>
+            <td colspan="2" style="padding:8px 10px;text-align:center;color:#64748b;font-size:12px;">${daysWithBoth.length} dias completos</td>
+            <td style="padding:8px 10px;text-align:center;color:#7c3aed;">${fmtH(totalNetHrs)}</td>
+            <td style="padding:8px 10px;text-align:center;">${totalServices}</td>
+            <td style="padding:8px 10px;text-align:center;">${totalKm.toFixed(0)} km</td>
+            <td style="padding:8px 10px;text-align:center;color:#ea580c;">${servicesPerHour.toFixed(2)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:11px;color:#94a3b8;margin-top:8px;">* preenchido automaticamente · Horas líquidas = horas brutas − 1h almoço</p>
+    </div>`;
+  sec.style.display = 'block';
+}
+
 function renderReport(data) {
   const { portal, period, totals, byLocality, byWeekday, byWeek, byService, byComercial, byMotivo } = data;
 
@@ -2171,6 +2250,8 @@ function renderReport(data) {
       motivosSection.style.display = 'none';
     }
   }
+
+  _renderTeamSection(data.teamStats);
 
   document.getElementById('reportContent').style.display = 'block';
   document.getElementById('btnDownloadPDF').style.display = 'inline-block';
