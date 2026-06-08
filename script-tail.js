@@ -53,10 +53,10 @@ const telBtn = phone ? `
     <div style="position:absolute;top:${_semTop}px;right:10px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;z-index:5;">
       <div style="display:flex;flex-direction:column;align-items:center;gap:3px;background:rgba(0,0,0,0.35);border-radius:16px;padding:6px 5px 4px;">
         ${_lights.map(l => `<div style="width:14px;height:14px;border-radius:50%;background:${_st===l.s ? l.on : 'rgba(255,255,255,0.12)'};${_st===l.s ? `box-shadow:0 0 7px 2px ${l.glow};` : ''}"></div>`).join('')}
-        <span style="font-size:7px;font-weight:900;color:#fff;letter-spacing:0.4px;margin-top:1px;">${_semLabel}</span>
+        <span style="font-size:7px;font-weight:900;color:#fff !important;-webkit-text-fill-color:#fff;letter-spacing:0.4px;margin-top:1px;">${_semLabel}</span>
       </div>
-      ${a.order_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:rgba(255,255,255,0.92);text-shadow:0 1px 2px rgba(0,0,0,.5);">📦 ${a.order_ref}</div>` : ''}
-      ${a.reception_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:rgba(255,255,255,0.92);text-shadow:0 1px 2px rgba(0,0,0,.5);">✅ ${a.reception_ref}</div>` : ''}
+      ${a.order_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:#fff !important;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);">📦 ${a.order_ref}</div>` : ''}
+      ${a.reception_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:#fff !important;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);">✅ ${a.reception_ref}</div>` : ''}
     </div>`;
 
   // Hierarquia visual: matrícula em destaque, carro secundário
