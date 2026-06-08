@@ -1411,7 +1411,173 @@
   // ── SCAN MODAL (técnico) ──────────────────────────────────────────────────
   function openScan() {
     document.getElementById('grScanModal').style.display = 'flex';
-    renderStep1();
+    _renderChoice();
+  }
+
+  function _renderChoice() {
+    document.getElementById('grScanBody').innerHTML = `
+      <p style="color:#64748b;font-size:13px;margin-bottom:18px;">O que pretende fazer?</p>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button onclick="window.glassReception._step1()"
+          style="display:flex;align-items:center;gap:14px;background:#1d4ed8;color:#fff;font-weight:800;font-size:15px;padding:18px 20px;border-radius:14px;border:none;cursor:pointer;text-align:left;width:100%;">
+          <span style="font-size:28px;">📦</span>
+          <div>
+            <div>Rececionar Vidro</div>
+            <div style="font-size:11px;font-weight:400;opacity:.8;margin-top:2px;">Chegou a peça correta</div>
+          </div>
+        </button>
+        <button onclick="window.glassReception._renderReturnChoice()"
+          style="display:flex;align-items:center;gap:14px;background:#dc2626;color:#fff;font-weight:800;font-size:15px;padding:18px 20px;border-radius:14px;border:none;cursor:pointer;text-align:left;width:100%;">
+          <span style="font-size:28px;">↩️</span>
+          <div>
+            <div>Para Devolver</div>
+            <div style="font-size:11px;font-weight:400;opacity:.8;margin-top:2px;">Peça errada, cancelada ou danificada</div>
+          </div>
+        </button>
+      </div>
+    `;
+  }
+
+  function _renderReturnChoice() {
+    document.getElementById('grScanBody').innerHTML = `
+      <p style="color:#64748b;font-size:13px;margin-bottom:18px;">Qual o motivo da devolução?</p>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <button onclick="window.glassReception._renderReturnEurocode('errado_cancelado')"
+          style="display:flex;align-items:center;gap:14px;background:#f59e0b;color:#fff;font-weight:800;font-size:15px;padding:18px 20px;border-radius:14px;border:none;cursor:pointer;text-align:left;width:100%;">
+          <span style="font-size:28px;">❌</span>
+          <div>
+            <div>Errado / Cancelado</div>
+            <div style="font-size:11px;font-weight:400;opacity:.8;margin-top:2px;">Vidro errado ou serviço cancelado</div>
+          </div>
+        </button>
+        <button onclick="window.glassReception._renderReturnEurocode('partido')"
+          style="display:flex;align-items:center;gap:14px;background:#dc2626;color:#fff;font-weight:800;font-size:15px;padding:18px 20px;border-radius:14px;border:none;cursor:pointer;text-align:left;width:100%;">
+          <span style="font-size:28px;">💔</span>
+          <div>
+            <div>Partido</div>
+            <div style="font-size:11px;font-weight:400;opacity:.8;margin-top:2px;">Vidro chegou danificado (mín. 2 fotos)</div>
+          </div>
+        </button>
+      </div>
+      <button onclick="window.glassReception._renderChoice()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;width:100%;margin-top:14px;">← Voltar</button>
+    `;
+  }
+
+  function _renderReturnEurocode(reason) {
+    window._grReturnReason = reason;
+    window._grReturnDamagePhotos = [];
+    window._grReturnLabelPhoto = null;
+    const isPartido = reason === 'partido';
+    document.getElementById('grScanBody').innerHTML = `
+      <div style="background:${isPartido ? '#fef2f2' : '#fffbeb'};border:2px solid ${isPartido ? '#dc2626' : '#f59e0b'};border-radius:10px;padding:10px 14px;margin-bottom:14px;">
+        <p style="font-size:13px;font-weight:700;color:${isPartido ? '#dc2626' : '#92400e'};margin:0;">${isPartido ? '💔 Partido' : '❌ Errado / Cancelado'}</p>
+      </div>
+      <p style="color:#374151;font-size:13px;font-weight:600;margin-bottom:8px;">1. Foto da etiqueta (Eurocode)</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <label style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1d4ed8;color:#fff;font-weight:700;font-size:13px;padding:12px 8px;border-radius:12px;cursor:pointer;text-align:center;">
+          📷 Foto<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="window.glassReception._onReturnLabel(this)">
+        </label>
+        <label style="display:flex;align-items:center;justify-content:center;gap:6px;background:#0f172a;color:#fff;font-weight:700;font-size:13px;padding:12px 8px;border-radius:12px;cursor:pointer;text-align:center;">
+          🖼️ Galeria<input type="file" accept="image/*" style="display:none;" onchange="window.glassReception._onReturnLabel(this)">
+        </label>
+      </div>
+      <div id="grReturnLabelPreview" style="margin-bottom:10px;"></div>
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">EUROCODE (manual ou auto)</label>
+        <input id="grReturnEurocode" type="text" placeholder="ex: 6577AGACMVZ" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      ${isPartido ? `
+      <p style="color:#374151;font-size:13px;font-weight:600;margin-bottom:8px;">2. Fotos do dano (mín. 2)</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <label style="display:flex;align-items:center;justify-content:center;gap:6px;background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:12px 8px;border-radius:12px;cursor:pointer;text-align:center;">
+          📷 Foto Dano<input type="file" accept="image/*" capture="environment" style="display:none;" onchange="window.glassReception._onDamagePhoto(this)">
+        </label>
+        <label style="display:flex;align-items:center;justify-content:center;gap:6px;background:#7f1d1d;color:#fff;font-weight:700;font-size:13px;padding:12px 8px;border-radius:12px;cursor:pointer;text-align:center;">
+          🖼️ Galeria<input type="file" accept="image/*" multiple style="display:none;" onchange="window.glassReception._onDamagePhoto(this)">
+        </label>
+      </div>
+      <div id="grDamagePhotos" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;min-height:56px;background:#f8fafc;border-radius:8px;padding:8px;"></div>
+      <p id="grDamageCount" style="font-size:12px;color:#64748b;margin-bottom:12px;">0 foto(s) adicionada(s)</p>
+      ` : ''}
+      <button id="grReturnSubmitBtn" onclick="window.glassReception._submitReturn()" style="width:100%;background:#0f172a;color:#fff;font-weight:800;font-size:14px;padding:14px;border-radius:12px;border:none;cursor:pointer;">↩️ Registar Devolução</button>
+      <button onclick="window.glassReception._renderReturnChoice()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;width:100%;margin-top:10px;">← Voltar</button>
+    `;
+  }
+
+  async function _onReturnLabel(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const base64 = await fileToBase64(file);
+    window._grReturnLabelPhoto = base64.split(',')[1];
+    const preview = document.getElementById('grReturnLabelPreview');
+    if (preview) preview.innerHTML = `<img src="${base64}" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;border:2px solid #16a34a;">`;
+    try {
+      const res = await fetch(API + '/glass-label-ocr', {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ image_base64: base64.split(',')[1], media_type: file.type })
+      });
+      const json = await res.json();
+      if (json.success && json.data?.eurocode) {
+        const f = document.getElementById('grReturnEurocode');
+        if (f && !f.value) f.value = json.data.eurocode;
+      }
+    } catch (_) {}
+  }
+
+  async function _onDamagePhoto(input) {
+    const files = Array.from(input.files || []);
+    if (!files.length) return;
+    for (const file of files) {
+      const b64 = await fileToBase64(file);
+      (window._grReturnDamagePhotos = window._grReturnDamagePhotos || []).push(b64.split(',')[1]);
+    }
+    _refreshDamagePhotos();
+  }
+
+  function _removeDamagePhoto(index) {
+    window._grReturnDamagePhotos = (window._grReturnDamagePhotos || []).filter((_, i) => i !== index);
+    _refreshDamagePhotos();
+  }
+
+  function _refreshDamagePhotos() {
+    const photos = window._grReturnDamagePhotos || [];
+    const container = document.getElementById('grDamagePhotos');
+    const counter = document.getElementById('grDamageCount');
+    if (container) container.innerHTML = photos.map((b64, i) => `
+      <div style="position:relative;">
+        <img src="data:image/jpeg;base64,${b64}" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:2px solid #dc2626;">
+        <button onclick="window.glassReception._removeDamagePhoto(${i})" style="position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;padding:0;line-height:1;">✕</button>
+      </div>`).join('');
+    if (counter) counter.textContent = `${photos.length} foto(s) adicionada(s)`;
+  }
+
+  async function _submitReturn() {
+    const reason = window._grReturnReason;
+    const eurocode = (document.getElementById('grReturnEurocode')?.value || '').trim();
+    const labelPhoto = window._grReturnLabelPhoto || null;
+    const damagePhotos = window._grReturnDamagePhotos || [];
+    if (!eurocode && !labelPhoto) { alert('Introduz o eurocode ou tira uma foto da etiqueta.'); return; }
+    if (reason === 'partido' && damagePhotos.length < 2) { alert('São obrigatórias no mínimo 2 fotos do dano.'); return; }
+    const btn = document.getElementById('grReturnSubmitBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'A registar…'; }
+    try {
+      const res = await fetch(API + '/glass-reception', {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ is_return: true, return_reason: reason, eurocode: eurocode || null, label_photo: labelPhoto, damage_photos: damagePhotos.length ? damagePhotos : null })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      document.getElementById('grScanBody').innerHTML = `
+        <div style="text-align:center;padding:24px 0;">
+          <div style="font-size:48px;margin-bottom:12px;">${reason === 'partido' ? '💔' : '↩️'}</div>
+          <p style="font-size:16px;font-weight:800;color:#dc2626;margin-bottom:6px;">Devolução registada!</p>
+          <p style="font-size:13px;color:#64748b;margin-bottom:20px;">${reason === 'partido' ? 'Vidro partido registado com fotos do dano.' : 'Vidro errado/cancelado registado para devolução.'}</p>
+          <button onclick="window.glassReception.closeScan()" style="background:#0f172a;color:#fff;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
+        </div>`;
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = '↩️ Registar Devolução'; }
+      alert('Erro: ' + e.message);
+    }
   }
 
   function closeScan() {
@@ -1807,14 +1973,22 @@
   async function openCoordPanel() {
     document.getElementById('grCoordModal').style.display = 'flex';
     document.getElementById('grCoordBody').innerHTML = `
-      <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:0;">
+      <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:0;overflow-x:auto;">
         <button id="grTabPending" onclick="window.glassReception._switchTab('pending')"
-                style="padding:10px 18px;border:none;border-bottom:3px solid #2563eb;margin-bottom:-2px;font-weight:700;cursor:pointer;color:#2563eb;background:transparent;font-size:13px;">
+                style="padding:10px 14px;border:none;border-bottom:3px solid #2563eb;margin-bottom:-2px;font-weight:700;cursor:pointer;color:#2563eb;background:transparent;font-size:12px;white-space:nowrap;">
           📋 Pendentes
         </button>
         <button id="grTabHistory" onclick="window.glassReception._switchTab('history')"
-                style="padding:10px 18px;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:600;cursor:pointer;color:#94a3b8;background:transparent;font-size:13px;">
+                style="padding:10px 14px;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:600;cursor:pointer;color:#94a3b8;background:transparent;font-size:12px;white-space:nowrap;">
           📊 Histórico
+        </button>
+        <button id="grTabReturns" onclick="window.glassReception._switchTab('returns')"
+                style="padding:10px 14px;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:600;cursor:pointer;color:#94a3b8;background:transparent;font-size:12px;white-space:nowrap;">
+          ↩️ Devoluções
+        </button>
+        <button id="grTabDamaged" onclick="window.glassReception._switchTab('damaged')"
+                style="padding:10px 14px;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:600;cursor:pointer;color:#94a3b8;background:transparent;font-size:12px;white-space:nowrap;">
+          💔 Danificados
         </button>
       </div>
       <div id="grTabContent" style="padding-top:12px;"></div>
@@ -1827,7 +2001,7 @@
   }
 
   async function _switchTab(tab) {
-    const tabs = { pending: 'grTabPending', history: 'grTabHistory' };
+    const tabs = { pending: 'grTabPending', history: 'grTabHistory', returns: 'grTabReturns', damaged: 'grTabDamaged' };
     Object.entries(tabs).forEach(([key, id]) => {
       const btn = document.getElementById(id);
       if (!btn) return;
@@ -1841,6 +2015,12 @@
     if (tab === 'pending') {
       content.innerHTML = `<p style="text-align:center;padding:20px;color:#64748b;">A carregar…</p>`;
       await _loadCoordList();
+    } else if (tab === 'returns') {
+      content.innerHTML = `<p style="text-align:center;padding:20px;color:#64748b;">A carregar…</p>`;
+      await _loadReturns('errado_cancelado');
+    } else if (tab === 'damaged') {
+      content.innerHTML = `<p style="text-align:center;padding:20px;color:#64748b;">A carregar…</p>`;
+      await _loadReturns('partido');
     } else {
       await _openHistory();
     }
@@ -1893,6 +2073,79 @@
         </div>
       </div>
     `).join('');
+  }
+
+  // ── RETURNS / DAMAGED ────────────────────────────────────────────────────
+  async function _loadReturns(reason) {
+    try {
+      const res = await fetch(API + '/glass-reception?returns=' + reason, { headers: authHeaders() });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      _renderReturnsList(json.data, reason);
+    } catch (e) {
+      const el = document.getElementById('grTabContent');
+      if (el) el.innerHTML = `<p style="color:#dc2626;text-align:center;padding:20px;">Erro: ${e.message}</p>`;
+    }
+  }
+
+  function _renderReturnsList(items, reason) {
+    const content = document.getElementById('grTabContent');
+    if (!content) return;
+    const isPartido = reason === 'partido';
+    const emptyIcon = isPartido ? '💔' : '↩️';
+    const emptyMsg = isPartido ? 'Sem vidros partidos registados.' : 'Sem devoluções pendentes.';
+
+    if (items.length === 0) {
+      content.innerHTML = `
+        <div style="text-align:center;padding:40px;color:#94a3b8;">
+          <div style="font-size:40px;margin-bottom:12px;">${emptyIcon}</div>
+          <p style="font-size:14px;font-weight:600;">${emptyMsg}</p>
+        </div>`;
+      return;
+    }
+
+    content.innerHTML = `<p style="font-size:12px;color:#64748b;margin-bottom:10px;">${items.length} registo${items.length !== 1 ? 's' : ''}</p>` + items.map(r => {
+      const photos = Array.isArray(r.damage_photos) ? r.damage_photos : (r.damage_photos ? (typeof r.damage_photos === 'string' ? (() => { try { return JSON.parse(r.damage_photos); } catch(_) { return []; } })() : []) : []);
+      const labelThumb = r.label_photo ? `<img src="data:image/jpeg;base64,${r.label_photo}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:2px solid #0f172a;margin-right:8px;">` : '';
+      const damageThumbsHtml = photos.length ? `
+        <div style="margin-top:8px;">
+          <div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:4px;">📸 Fotos do dano (${photos.length}):</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">${photos.map(b64 => `<img src="data:image/jpeg;base64,${b64}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:2px solid #dc2626;cursor:pointer;" onclick="window.open('data:image/jpeg;base64,${b64}','_blank')">`).join('')}</div>
+        </div>` : '';
+      return `
+      <div id="grRow${r.id}" style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;background:#fff;">
+        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+          ${labelThumb}
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+              <span style="font-family:monospace;font-weight:800;font-size:14px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${(r.eurocode || '—').toUpperCase()}</span>
+              <span style="background:${isPartido ? '#fef2f2' : '#fffbeb'};color:${isPartido ? '#dc2626' : '#92400e'};font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${isPartido ? '💔 Partido' : '❌ Errado/Cancelado'}</span>
+              <span style="font-size:11px;color:#64748b;margin-left:auto;">${fmtDate(r.created_at)}</span>
+            </div>
+            <div style="display:flex;gap:12px;font-size:12px;color:#64748b;flex-wrap:wrap;">
+              <span>🏪 ${r.portal_label || r.portal_name || '—'}</span>
+              <span>👤 ${r.technician_name || '—'}</span>
+            </div>
+          </div>
+        </div>
+        ${damageThumbsHtml}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          <button onclick="window.glassReception._deleteReturn(${r.id})" style="background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">🗑️ Eliminar</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  async function _deleteReturn(id) {
+    if (!confirm('Eliminar este registo de devolução?')) return;
+    try {
+      const res = await fetch(API + '/glass-reception', {
+        method: 'DELETE', headers: authHeaders(), body: JSON.stringify({ id })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      document.getElementById('grRow' + id)?.remove();
+    } catch (e) { alert('Erro: ' + e.message); }
   }
 
   // ── HISTORY ───────────────────────────────────────────────────────────────
@@ -2171,7 +2424,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
