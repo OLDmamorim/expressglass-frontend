@@ -247,6 +247,11 @@
     const role = window.authClient?.getUser?.()?.role;
     if (role === 'coordenador' || role === 'admin') {
       buildBotWidget();
+      // Hide glass reception FAB on pesados portals — doesn't apply there
+      if (window.portalConfig?.portalType === 'pesados') {
+        const btn = document.getElementById('recBotBtn');
+        if (btn) btn.style.display = 'none';
+      }
     }
   }
 
