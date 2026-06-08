@@ -1487,6 +1487,16 @@
         <input id="grReturnEurocode" type="text" placeholder="ex: 6577AGACMVZ" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
       </div>
       ${isPartido ? `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Nº ENCOMENDA AXIAL</label>
+          <input id="grReturnOrderRef" type="text" placeholder="ex: 49380" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;">
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">Nº GUIA TRANSPORTE</label>
+          <input id="grReturnCarrierGuide" type="text" placeholder="ex: GLS-123456" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;">
+        </div>
+      </div>
       <p style="color:#374151;font-size:13px;font-weight:600;margin-bottom:8px;">2. Fotos do dano (mín. 2)</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
         <label style="display:flex;align-items:center;justify-content:center;gap:6px;background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:12px 8px;border-radius:12px;cursor:pointer;text-align:center;">
@@ -1558,6 +1568,8 @@
     const eurocode = (document.getElementById('grReturnEurocode')?.value || '').trim();
     const labelPhoto = window._grReturnLabelPhoto || null;
     const damagePhotos = window._grReturnDamagePhotos || [];
+    const orderRef = reason === 'partido' ? (document.getElementById('grReturnOrderRef')?.value || '').trim() || null : null;
+    const carrierGuide = reason === 'partido' ? (document.getElementById('grReturnCarrierGuide')?.value || '').trim() || null : null;
     if (!eurocode && !labelPhoto) { alert('Introduz o eurocode ou tira uma foto da etiqueta.'); return; }
     if (reason === 'partido' && damagePhotos.length < 2) { alert('São obrigatórias no mínimo 2 fotos do dano.'); return; }
     const btn = document.getElementById('grReturnSubmitBtn');
@@ -1565,7 +1577,7 @@
     try {
       const res = await fetch(API + '/glass-reception', {
         method: 'POST', headers: authHeaders(),
-        body: JSON.stringify({ is_return: true, return_reason: reason, eurocode: eurocode || null, label_photo: labelPhoto, damage_photos: damagePhotos.length ? damagePhotos : null })
+        body: JSON.stringify({ is_return: true, return_reason: reason, eurocode: eurocode || null, label_photo: labelPhoto, damage_photos: damagePhotos.length ? damagePhotos : null, order_ref: orderRef, carrier_guide: carrierGuide })
       });
       const text = await res.text();
       let json;
@@ -2092,6 +2104,13 @@
     }
   }
 
+  function _parsePhotos(raw) {
+    if (Array.isArray(raw)) return raw;
+    if (!raw) return [];
+    if (typeof raw === 'string') { try { return JSON.parse(raw); } catch(_) { return []; } }
+    return [];
+  }
+
   function _renderReturnsList(items, reason) {
     const content = document.getElementById('grTabContent');
     if (!content) return;
@@ -2108,19 +2127,31 @@
       return;
     }
 
+    window._grReturnItemsMap = {};
+    items.forEach(r => { window._grReturnItemsMap[r.id] = r; });
+
     content.innerHTML = `<p style="font-size:12px;color:#64748b;margin-bottom:10px;">${items.length} registo${items.length !== 1 ? 's' : ''}</p>` + items.map(r => {
-      const photos = Array.isArray(r.damage_photos) ? r.damage_photos : (r.damage_photos ? (typeof r.damage_photos === 'string' ? (() => { try { return JSON.parse(r.damage_photos); } catch(_) { return []; } })() : []) : []);
-      const labelThumb = r.label_photo ? `<img src="data:image/jpeg;base64,${r.label_photo}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:2px solid #0f172a;margin-right:8px;">` : '';
+      const photos = _parsePhotos(r.damage_photos);
+      const labelThumb = r.label_photo ? `<img src="data:image/jpeg;base64,${r.label_photo}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:2px solid #0f172a;flex-shrink:0;">` : '';
       const damageThumbsHtml = photos.length ? `
         <div style="margin-top:8px;">
           <div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:4px;">📸 Fotos do dano (${photos.length}):</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px;">${photos.map(b64 => `<img src="data:image/jpeg;base64,${b64}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:2px solid #dc2626;cursor:pointer;" onclick="window.open('data:image/jpeg;base64,${b64}','_blank')">`).join('')}</div>
         </div>` : '';
+      const orderInfo = (r.order_ref || r.carrier_guide) ? `
+        <div style="display:flex;gap:12px;font-size:12px;flex-wrap:wrap;margin-top:4px;">
+          ${r.order_ref    ? `<span style="color:#1d4ed8;font-weight:700;">📦 Enc: ${r.order_ref}</span>` : ''}
+          ${r.carrier_guide ? `<span style="color:#374151;font-weight:700;">🚚 Guia: ${r.carrier_guide}</span>` : ''}
+        </div>` : '';
+      const isReported = r.status === 'reported';
+      const reportBtn = isPartido ? `<button id="grReportBtn${r.id}" onclick="window.glassReception._reportAxial(${r.id})" ${isReported ? 'disabled' : ''}
+        style="background:${isReported ? '#16a34a' : '#2563eb'};color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:${isReported ? 'default' : 'pointer'};">
+        ${isReported ? '✅ Reportado' : '📧 Report Axial'}</button>` : '';
       return `
       <div id="grRow${r.id}" style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;background:#fff;">
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
           ${labelThumb}
-          <div style="flex:1;">
+          <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
               <span style="font-family:monospace;font-weight:800;font-size:14px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${(r.eurocode || '—').toUpperCase()}</span>
               <span style="background:${isPartido ? '#fef2f2' : '#fffbeb'};color:${isPartido ? '#dc2626' : '#92400e'};font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${isPartido ? '💔 Partido' : '❌ Errado/Cancelado'}</span>
@@ -2130,14 +2161,53 @@
               <span>🏪 ${r.portal_label || r.portal_name || '—'}</span>
               <span>👤 ${r.technician_name || '—'}</span>
             </div>
+            ${orderInfo}
           </div>
         </div>
         ${damageThumbsHtml}
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+          ${reportBtn}
           <button onclick="window.glassReception._deleteReturn(${r.id})" style="background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">🗑️ Eliminar</button>
         </div>
       </div>`;
     }).join('');
+  }
+
+  async function _reportAxial(id) {
+    const r = window._grReturnItemsMap?.[id];
+    if (!r) return;
+    const photos = _parsePhotos(r.damage_photos);
+    const eurocode = (r.eurocode || 'eurocode').toUpperCase();
+    const order    = r.order_ref     || '(nº encomenda)';
+    const carrier  = r.carrier_guide || '(nº guia transportador)';
+
+    // Open pre-filled email
+    const body = `Bom dia,\r\n\r\n\r\nRecebemos o vidro ${eurocode} com a Guia Transportador ${carrier} relacionado a encomenda ${order} partido.\r\nDevolução feita em PHC.`;
+    window.open(`mailto:?subject=${encodeURIComponent('Devolução - ')}&body=${encodeURIComponent(body)}`, '_blank');
+
+    // Download damage photos so coordinator can attach them
+    photos.forEach((b64, i) => {
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = `data:image/jpeg;base64,${b64}`;
+        a.download = `dano-${eurocode}-${i + 1}.jpg`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      }, i * 400);
+    });
+
+    // Mark as reported
+    try {
+      const res = await fetch(API + '/glass-reception', {
+        method: 'PUT', headers: authHeaders(),
+        body: JSON.stringify({ id, status: 'reported' })
+      });
+      const json = await res.json();
+      if (json.success) {
+        const btn = document.getElementById('grReportBtn' + id);
+        if (btn) { btn.disabled = true; btn.textContent = '✅ Reportado'; btn.style.background = '#16a34a'; btn.style.cursor = 'default'; }
+        if (window._grReturnItemsMap?.[id]) window._grReturnItemsMap[id].status = 'reported';
+      }
+    } catch (_) {}
   }
 
   async function _deleteReturn(id) {
@@ -2447,7 +2517,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
