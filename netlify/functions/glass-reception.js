@@ -127,15 +127,18 @@ exports.handler = async (event) => {
 
       // ── Returns query (is_return=true, filtered by reason) ───────────────────
       if (p.returns) {
+        const isErradoGroup = p.returns === 'errado_cancelado';
         let rq = `
           SELECT gr.*, po.name AS portal_label
           FROM glass_receptions gr
           LEFT JOIN portals po ON po.id = gr.portal_id
           WHERE gr.is_return = true
-          AND gr.return_reason = $1
+          AND ${isErradoGroup
+            ? `gr.return_reason IN ('errado_cancelado','errado','desistencia','outro')`
+            : `gr.return_reason = $1`}
         `;
-        const rVals = [p.returns];
-        let rIdx = 2;
+        const rVals = isErradoGroup ? [] : [p.returns];
+        let rIdx = isErradoGroup ? 1 : 2;
         if (user.role === 'user') {
           rq += ` AND gr.portal_id = $${rIdx++}`; rVals.push(user.portalId);
         } else if (user.role !== 'admin') {

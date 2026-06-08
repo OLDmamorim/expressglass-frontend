@@ -2181,8 +2181,8 @@
           ${r.carrier_guide ? `<span style="color:#374151;font-weight:700;">🚚 Guia: ${r.carrier_guide}</span>` : ''}
         </div>` : '';
       const isReported = r.status === 'reported';
-      const reportBtn = isPartido ? `<button id="grReportBtn${r.id}" onclick="window.glassReception._reportAxial(${r.id})" ${isReported ? 'disabled' : ''}
-        style="background:${isReported ? '#16a34a' : '#2563eb'};color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:${isReported ? 'default' : 'pointer'};">
+      const reportBtn = isPartido ? `<button id="grReportBtn${r.id}" onclick="window.glassReception._reportAxial(${r.id})"
+        style="background:${isReported ? '#16a34a' : '#2563eb'};color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">
         ${isReported ? '✅ Reportado' : '📧 Report Axial'}</button>` : '';
       return `
       <div id="grRow${r.id}" style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;background:#fff;">
@@ -2191,7 +2191,7 @@
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
               <span style="font-family:monospace;font-weight:800;font-size:14px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${(r.eurocode || '—').toUpperCase()}</span>
-              <span style="background:${isPartido ? '#fef2f2' : '#fffbeb'};color:${isPartido ? '#dc2626' : '#92400e'};font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${isPartido ? '💔 Partido' : '❌ Errado/Cancelado'}</span>
+              <span style="background:${isPartido ? '#fef2f2' : '#fffbeb'};color:${isPartido ? '#dc2626' : '#92400e'};font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">${isPartido ? '💔 Partido' : r.return_reason === 'desistencia' ? '🚫 Desistência' : r.return_reason === 'outro' ? '❓ Outro' : '❌ Errado'}</span>
               <span style="font-size:11px;color:#64748b;margin-left:auto;">${fmtDate(r.created_at)}</span>
             </div>
             <div style="display:flex;gap:12px;font-size:12px;color:#64748b;flex-wrap:wrap;">
@@ -2255,7 +2255,7 @@
       const json = await res.json();
       if (json.success) {
         const btn = document.getElementById('grReportBtn' + id);
-        if (btn) { btn.disabled = true; btn.textContent = '✅ Reportado'; btn.style.background = '#16a34a'; btn.style.cursor = 'default'; }
+        if (btn) { btn.textContent = '✅ Reportado'; btn.style.background = '#16a34a'; }
         if (window._grReturnItemsMap?.[id]) window._grReturnItemsMap[id].status = 'reported';
       }
     } catch (_) {}
