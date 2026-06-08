@@ -1874,7 +1874,7 @@
       return;
     }
 
-    const safeRawForCard = (rawText||'').substring(0,200).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const safeRawForCard = (rawText||'').substring(0,200).replace(/[\n\r\t]/g,' ').replace(/'/g,"\\'").replace(/"/g,'\\"');
 
     // Store appts globally for filter re-render
     const storeNames = [...new Set(appts.map(a => a.portal_name || window.portalConfig?.name || '—'))];
@@ -1920,7 +1920,7 @@
           ${a.glass_eurocode ? `<div style="font-size:11px;color:#64748b;font-family:monospace;margin-top:3px;">🔢 ${a.glass_eurocode}</div>` : ''}
           ${a.notes && a.notes !== a.glass_eurocode ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📝 ${a.notes}</div>` : ''}
           ${recBadge}
-          <div style="margin-top:6px;font-size:11px;font-weight:700;color:#2563eb;">Selecionar →</div>
+          <div style="margin-top:10px;text-align:center;"><button style="background:#2563eb;color:#fff;font-weight:800;font-size:16px;padding:12px 0;border-radius:10px;border:none;cursor:pointer;width:100%;letter-spacing:.3px;">Selecionar →</button></div>
         </div>`;
       }).join('');
     }
@@ -1974,7 +1974,7 @@
       : window._grAllAppts;
     const list = document.getElementById('grCardsList');
     if (!list) return;
-    const safeRawForCard = (window._grRawText||'').substring(0,200).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const safeRawForCard = (window._grRawText||'').substring(0,200).replace(/[\n\r\t]/g,' ').replace(/'/g,"\\'").replace(/"/g,'\\"');
     const orderRef = window._grOrderRef || '';
     const eurocode = window._grEurocode || '';
     const recepMap = window._grRecepMap || {};
@@ -2010,7 +2010,7 @@
         ${a.glass_eurocode ? `<div style="font-size:11px;color:#64748b;font-family:monospace;margin-top:3px;">🔢 ${a.glass_eurocode}</div>` : ''}
         ${a.notes && a.notes !== a.glass_eurocode ? `<div style="font-size:11px;color:#94a3b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📝 ${a.notes}</div>` : ''}
         ${recBadge}
-        <div style="margin-top:6px;font-size:11px;font-weight:700;color:#2563eb;">Selecionar →</div>
+        <div style="margin-top:10px;text-align:center;"><button style="background:#2563eb;color:#fff;font-weight:800;font-size:16px;padding:12px 0;border-radius:10px;border:none;cursor:pointer;width:100%;letter-spacing:.3px;">Selecionar →</button></div>
       </div>`;
     }).join('');
   }
