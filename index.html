@@ -1468,6 +1468,7 @@
     window._grReturnSubReason = null;
     window._grReturnDamagePhotos = [];
     window._grReturnLabelPhoto = null;
+    window._grReturnAppointmentId = null;
     const isPartido = reason === 'partido';
     document.getElementById('grScanBody').innerHTML = `
       <div style="background:${isPartido ? '#fef2f2' : '#fffbeb'};border:2px solid ${isPartido ? '#dc2626' : '#f59e0b'};border-radius:10px;padding:10px 14px;margin-bottom:14px;">
@@ -1483,6 +1484,7 @@
         </label>
       </div>
       <div id="grReturnLabelPreview" style="margin-bottom:10px;"></div>
+      <div id="grReturnMatchCard" style="margin-bottom:10px;"></div>
       <div style="margin-bottom:12px;">
         <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">EUROCODE (manual ou auto)</label>
         <input id="grReturnEurocode" type="text" placeholder="ex: 6577AGACMVZ" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:monospace;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
@@ -1575,6 +1577,8 @@
         if (json.data.order_ref) {
           if (orField && !orField.value) orField.value = json.data.order_ref;
         }
+        // Search appointments for plate/car confirmation
+        _doReturnSearch(json.data.eurocode, json.data.order_ref);
       }
     } catch (_) {}
     // Remove spinner
@@ -1629,7 +1633,7 @@
     try {
       const res = await fetch(API + '/glass-reception', {
         method: 'POST', headers: authHeaders(),
-        body: JSON.stringify({ is_return: true, return_reason: effectiveReason, eurocode: eurocode || null, label_photo: labelPhoto, damage_photos: damagePhotos.length ? damagePhotos : null, order_ref: orderRef, carrier_guide: carrierGuide })
+        body: JSON.stringify({ is_return: true, return_reason: effectiveReason, eurocode: eurocode || null, label_photo: labelPhoto, damage_photos: damagePhotos.length ? damagePhotos : null, order_ref: orderRef, carrier_guide: carrierGuide, appointment_id: window._grReturnAppointmentId || null })
       });
       const text = await res.text();
       let json;
@@ -2318,6 +2322,80 @@
     w.document.close();
   }
 
+  async function _doReturnSearch(eurocode, orderRef) {
+    if (!eurocode && !orderRef) return;
+    const card = document.getElementById('grReturnMatchCard');
+    if (!card) return;
+    const normEc = s => (s || '').toLowerCase().replace(/i/g, '1').replace(/o/g, '0');
+    const ecNorm = eurocode ? normEc(eurocode.trim()) : null;
+
+    // Local search first
+    let results = (window.appointments || []).filter(a => {
+      if (a.executed === true) return false;
+      const matchOrder = orderRef && a.order_ref && a.order_ref.trim().toLowerCase() === orderRef.trim().toLowerCase();
+      const matchEuro  = ecNorm && a.glass_eurocode && normEc(a.glass_eurocode) === ecNorm;
+      return matchOrder || matchEuro;
+    });
+
+    // API search
+    try {
+      const qp = new URLSearchParams();
+      if (eurocode) qp.set('search_eurocode', eurocode.trim());
+      if (orderRef) qp.set('search_order_ref', orderRef.trim());
+      const res = await fetch(API + '/appointments?' + qp.toString(), { headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) {
+        const seen = new Set(results.map(a => a.id));
+        results = [...results, ...(json.data || []).filter(a => !seen.has(a.id))];
+      }
+    } catch (_) {}
+
+    if (!results.length) return; // no match — silent, user can fill manually
+    const best = results[0];
+    const plateStr = (best.plate || '').toUpperCase();
+    const carStr   = best.car || '—';
+    const storeStr = best.portal_name || best.store || '—';
+    card.innerHTML = `
+      <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:10px;padding:12px 14px;">
+        <p style="font-size:12px;font-weight:800;color:#15803d;margin:0 0 8px 0;">🔍 Processo encontrado — é este?</p>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+          <span style="font-family:monospace;font-weight:900;font-size:16px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${plateStr || '—'}</span>
+          <span style="font-size:13px;font-weight:700;color:#1e293b;">${carStr}</span>
+          <span style="font-size:12px;color:#64748b;">🏪 ${storeStr}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <button onclick="window.glassReception._confirmReturnMatch(${best.id},'${plateStr.replace(/'/g,"\\'")}','${carStr.replace(/'/g,"\\'")}')"
+            style="background:#16a34a;color:#fff;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;">
+            ✅ Sim, é este
+          </button>
+          <button onclick="window.glassReception._rejectReturnMatch()"
+            style="background:#e2e8f0;color:#374151;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;">
+            ❓ Não tenho a certeza
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function _confirmReturnMatch(aptId, plate, car) {
+    window._grReturnAppointmentId = aptId;
+    const card = document.getElementById('grReturnMatchCard');
+    if (card) card.innerHTML = `
+      <div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">✅</span>
+        <div>
+          <span style="font-family:monospace;font-weight:900;font-size:15px;color:#0f172a;">${plate}</span>
+          <span style="font-size:12px;color:#374151;margin-left:8px;">${car}</span>
+        </div>
+        <button onclick="window.glassReception._rejectReturnMatch()" style="margin-left:auto;background:none;border:none;font-size:18px;cursor:pointer;color:#64748b;">✕</button>
+      </div>`;
+  }
+
+  function _rejectReturnMatch() {
+    window._grReturnAppointmentId = null;
+    const card = document.getElementById('grReturnMatchCard');
+    if (card) card.innerHTML = '';
+  }
+
   async function _devolvido(id) {
     const btn = document.getElementById('grDevolvidoBtn' + id);
     if (btn) { btn.disabled = true; btn.textContent = 'A registar…'; }
@@ -2664,7 +2742,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _printReturn, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _printReturn, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
