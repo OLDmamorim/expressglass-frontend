@@ -1474,6 +1474,7 @@
       <div style="background:${isPartido ? '#fef2f2' : '#fffbeb'};border:2px solid ${isPartido ? '#dc2626' : '#f59e0b'};border-radius:10px;padding:10px 14px;margin-bottom:14px;">
         <p style="font-size:13px;font-weight:700;color:${isPartido ? '#dc2626' : '#92400e'};margin:0;">${isPartido ? '💔 Partido' : '❌ Errado / Cancelado'}</p>
       </div>
+      ${_glassTypeSelectorHtml()}
       <p style="color:#374151;font-size:13px;font-weight:600;margin-bottom:8px;">1. Foto da etiqueta (Eurocode)</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
         <label style="display:flex;align-items:center;justify-content:center;gap:6px;background:#1d4ed8;color:#fff;font-weight:700;font-size:13px;padding:12px 8px;border-radius:12px;cursor:pointer;text-align:center;">
@@ -1572,7 +1573,7 @@
       const json = await res.json();
       if (json.success && json.data) {
         if (json.data.eurocode) {
-          if (ecField) ecField.value = json.data.eurocode;
+          if (ecField) ecField.value = _prefixedEurocode(json.data.eurocode);
         }
         if (json.data.order_ref) {
           if (orField && !orField.value) orField.value = json.data.order_ref;
@@ -1618,7 +1619,7 @@
 
   async function _submitReturn() {
     const reason = window._grReturnReason;
-    const eurocode = (document.getElementById('grReturnEurocode')?.value || '').trim();
+    const eurocode = _prefixedEurocode((document.getElementById('grReturnEurocode')?.value || '').trim());
     const labelPhoto = window._grReturnLabelPhoto || null;
     const damagePhotos = window._grReturnDamagePhotos || [];
     const orderRef = (document.getElementById('grReturnOrderRef')?.value || '').trim() || null;
@@ -1656,8 +1657,51 @@
     document.getElementById('grScanModal').style.display = 'none';
   }
 
+  function _glassTypeSelectorHtml() {
+    const t = window._grGlassType || 'rede';
+    const btn = (key, label) => {
+      const active = key === t;
+      const colors = { rede: '#0f172a', complementar: '#f59e0b', oem: '#7c3aed' };
+      const bg = active ? colors[key] : '#fff';
+      const color = active ? '#fff' : '#374151';
+      const border = active ? colors[key] : '#e2e8f0';
+      return `<button id="grType_${key}" onclick="window.glassReception._selectGlassType('${key}')"
+        style="padding:9px 4px;border-radius:8px;border:2px solid ${border};background:${bg};color:${color};font-size:11px;font-weight:700;cursor:pointer;">${label}</button>`;
+    };
+    return `
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">TIPO DE VIDRO</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+          ${btn('rede',         '🔵 Rede')}
+          ${btn('complementar', '# Complementar')}
+          ${btn('oem',          '✳ OEM')}
+        </div>
+      </div>`;
+  }
+
+  function _selectGlassType(type) {
+    window._grGlassType = type;
+    const colors = { rede: '#0f172a', complementar: '#f59e0b', oem: '#7c3aed' };
+    ['rede', 'complementar', 'oem'].forEach(k => {
+      const btn = document.getElementById('grType_' + k);
+      if (!btn) return;
+      const active = k === type;
+      btn.style.background = active ? colors[k] : '#fff';
+      btn.style.color = active ? '#fff' : '#374151';
+      btn.style.borderColor = active ? colors[k] : '#e2e8f0';
+    });
+  }
+
+  function _prefixedEurocode(ec) {
+    if (!ec) return ec;
+    const clean = String(ec).replace(/^[#*]/, '');
+    const t = window._grGlassType || 'rede';
+    return (t === 'complementar' ? '#' : t === 'oem' ? '*' : '') + clean;
+  }
+
   function renderStep1() {
     document.getElementById('grScanBody').innerHTML = `
+      ${_glassTypeSelectorHtml()}
       <p style="color:#64748b;font-size:13px;margin-bottom:16px;">Tira uma foto à etiqueta do vidro ou escolhe uma imagem da galeria.</p>
       <div style="display:flex;flex-direction:column;gap:12px;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -1777,6 +1821,7 @@
   function renderMatches(appts, orderRef, eurocode, rawText, photoBase64, plate, recepMap) {
     recepMap = recepMap || {};
     const body = document.getElementById('grScanBody');
+    const prefEuro = _prefixedEurocode(eurocode);
 
     const infoHtml = `
       <div style="background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12px;color:#64748b;">
@@ -1991,7 +2036,7 @@
         ${orderRef ? `<div style="margin-top:8px;font-size:11px;color:#94a3b8;">📦 Encomenda: ${orderRef}</div>` : ''}
         ${eurocode ? `<div style="font-size:11px;color:#94a3b8;font-family:monospace;">🔢 ${eurocode}</div>` : ''}
       </div>
-      <button onclick="window.glassReception._confirmReception('${appointmentId}','${(plate||'').replace(/'/g,"\\'")}','${(orderRef||'').replace(/'/g,"\\'")}','${(eurocode||'').replace(/'/g,"\\'")}','${(rawText||'').replace(/'/g,"\\'")}')"
+      <button onclick="window.glassReception._confirmReception('${appointmentId}','${(plate||'').replace(/'/g,"\\'")}','${(orderRef||'').replace(/'/g,"\\'")}','${(prefEuro||'').replace(/'/g,"\\'")}','${(rawText||'').replace(/'/g,"\\'")}')"
         style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px;">
         ✅ Confirmar receção
       </button>
@@ -2742,7 +2787,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _printReturn, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _printReturn, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
