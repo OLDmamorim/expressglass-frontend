@@ -37,6 +37,13 @@ async function ensureTable() {
   `);
 }
 
+// Portugal: UTC+1 Apr–Oct (WEST/summer), UTC+0 Nov–Mar (WET/winter)
+function lisbonTs(dateStr, h, m) {
+  const month = new Date(dateStr + 'T12:00:00Z').getUTCMonth();
+  const offset = (month >= 3 && month <= 9) ? '+01:00' : '+00:00';
+  return `${dateStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00${offset}`;
+}
+
 function parsePeriodMinutes(period) {
   if (!period) return null;
   const m = String(period).match(/^(\d{1,2}):(\d{2})/);
@@ -65,7 +72,7 @@ async function calcAutoCheckout(portalId, dateStr) {
 
   const h = Math.floor(cur / 60) % 24;
   const m = cur % 60;
-  return `${dateStr}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`;
+  return lisbonTs(dateStr, h, m);
 }
 
 exports.handler = async (event) => {
@@ -121,7 +128,7 @@ exports.handler = async (event) => {
       }
 
       if (action === 'checkout') {
-        const autoCheckinTime = `${date}T09:00:00`;
+        const autoCheckinTime = lisbonTs(date, 9, 0);
         await pool.query(`
           INSERT INTO team_checkins (portal_id, user_id, user_name, date, checkin_at, checkin_auto, checkout_at, checkout_auto)
           VALUES ($1,$2,$3,$4,$5,true,$6,false)
@@ -136,7 +143,7 @@ exports.handler = async (event) => {
       }
 
       if (action === 'autofill') {
-        const checkinDefault = `${date}T09:00:00`;
+        const checkinDefault = lisbonTs(date, 9, 0);
         const checkoutDefault = await calcAutoCheckout(portalId, date);
         await pool.query(`
           INSERT INTO team_checkins (portal_id, user_id, user_name, date, checkin_at, checkin_auto, checkout_at, checkout_auto)
