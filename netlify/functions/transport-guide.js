@@ -119,10 +119,13 @@ exports.handler = async (event) => {
          FROM transport_guides
          WHERE portal_id = $1 AND guide_date = $2
            AND guide_date >= CURRENT_DATE - INTERVAL '1 day'
-         ORDER BY uploaded_at DESC LIMIT 1`,
+         ORDER BY uploaded_at DESC`,
         [portalId, date]
       );
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, guide: res.rows[0] || null }) };
+      if (!res.rows.length) return { statusCode: 200, headers, body: JSON.stringify({ success: true, guide: null }) };
+      const mergedEc = [...new Set(res.rows.flatMap(r => r.eurocodes || []))];
+      const latest = res.rows[0];
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, guide: { ...latest, eurocodes: mergedEc }, guide_count: res.rows.length }) };
     }
 
     if (event.httpMethod === 'POST') {
@@ -172,10 +175,10 @@ exports.handler = async (event) => {
       const eurocodes = [...new Set(autoEurocodes)];
       const storedFileType = file_type || 'application/pdf';
 
-      // Delete existing guide for same date + cleanup guides older than 2 days
+      // Only cleanup guides older than 1 day — never delete same-date guides
       await client.query(
-        "DELETE FROM transport_guides WHERE portal_id = $1 AND (guide_date = $2 OR guide_date < CURRENT_DATE - INTERVAL '1 day')",
-        [portalId, guideDate]
+        "DELETE FROM transport_guides WHERE portal_id = $1 AND guide_date < CURRENT_DATE - INTERVAL '1 day'",
+        [portalId]
       );
       const res = await client.query(
         `INSERT INTO transport_guides (portal_id, guide_date, pdf_data, eurocodes, uploaded_by, file_type)
@@ -183,9 +186,15 @@ exports.handler = async (event) => {
          RETURNING id, guide_date, eurocodes, uploaded_at, file_type`,
         [portalId, guideDate, pdf_data, eurocodes, user.userId, storedFileType]
       );
+      // Merge eurocodes from all guides for this date
+      const allRows = await client.query(
+        `SELECT eurocodes FROM transport_guides WHERE portal_id = $1 AND guide_date = $2`,
+        [portalId, guideDate]
+      );
+      const allEurocodes = [...new Set(allRows.rows.flatMap(r => r.eurocodes || []))];
       return {
         statusCode: 200, headers,
-        body: JSON.stringify({ success: true, guide: { ...res.rows[0], pdf_data }, eurocodes_found: eurocodes })
+        body: JSON.stringify({ success: true, guide: { ...res.rows[0], pdf_data, eurocodes: allEurocodes }, eurocodes_found: eurocodes, all_eurocodes: allEurocodes, guide_count: allRows.rows.length })
       };
     }
 

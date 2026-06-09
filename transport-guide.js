@@ -280,13 +280,19 @@
       const res = await authFetch(API, { method: 'POST', body: JSON.stringify(payload) });
       const data = await res.json();
       if (data.success) {
-        guides[uploadDate === 'tomorrow' ? 'tomorrow' : 'today'] = data.guide;
+        const key = uploadDate === 'tomorrow' ? 'tomorrow' : 'today';
+        guides[key] = data.guide;
+        guides[key === 'tomorrow' ? 'tomorrowCount' : 'todayCount'] = data.guide_count || 1;
         todayGuide = guides.today || guides.tomorrow;
         injectBadges();
         updateUploadBtn();
         const n = data.eurocodes_found.length;
+        const total = (data.all_eurocodes || data.eurocodes_found || []).length;
+        const count = data.guide_count || 1;
         if (n === 0) {
           showToast('⚠️ Guia carregada mas 0 Eurocodes encontrados — introduz os códigos manualmente no campo ao lado.', 'error');
+        } else if (count > 1) {
+          showToast(`✅ Guia ${count} carregada — ${n} novo(s) Eurocode(s). Total acumulado: ${total} código(s).`, 'success');
         } else {
           showToast(`✅ Guia AT carregada — ${n} Eurocode(s): ${data.eurocodes_found.join(', ')}`, 'success');
         }
@@ -321,9 +327,13 @@
     const hasToday = !!guides.today;
     const hasTomorrow = !!guides.tomorrow;
     const loaded = hasToday || hasTomorrow;
-    const label = hasToday && hasTomorrow ? 'Guia AT ✓✓'
-                : hasToday ? 'Guia AT ✓'
-                : hasTomorrow ? 'Guia AT +1 ✓'
+    const todayCount = guides.todayCount || (hasToday ? 1 : 0);
+    const tomorrowCount = guides.tomorrowCount || (hasTomorrow ? 1 : 0);
+    const todayLabel = todayCount > 1 ? `✓×${todayCount}` : (hasToday ? '✓' : '');
+    const tomorrowLabel = tomorrowCount > 1 ? `+1×${tomorrowCount}` : (hasTomorrow ? '+1✓' : '');
+    const label = hasToday && hasTomorrow ? `Guia AT ${todayLabel} ${tomorrowLabel}`.trim()
+                : hasToday ? `Guia AT ${todayLabel}`
+                : hasTomorrow ? `Guia AT ${tomorrowLabel}`
                 : 'Guia AT';
     const icon = loaded
       ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
@@ -353,8 +363,8 @@
       authFetch(`${API}?date=${tomorrowIso}${portalParam}`)
     ]);
     const [dToday, dTomorrow] = await Promise.all([resToday.json(), resTomorrow.json()]);
-    if (dToday.success && dToday.guide) guides.today = dToday.guide; else guides.today = null;
-    if (dTomorrow.success && dTomorrow.guide) guides.tomorrow = dTomorrow.guide; else guides.tomorrow = null;
+    if (dToday.success && dToday.guide) { guides.today = dToday.guide; guides.todayCount = dToday.guide_count || 1; } else { guides.today = null; guides.todayCount = 0; }
+    if (dTomorrow.success && dTomorrow.guide) { guides.tomorrow = dTomorrow.guide; guides.tomorrowCount = dTomorrow.guide_count || 1; } else { guides.tomorrow = null; guides.tomorrowCount = 0; }
     todayGuide = guides.today || guides.tomorrow;
     updateUploadBtn();
     if (guides.today || guides.tomorrow) scheduleInject();
