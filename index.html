@@ -1663,7 +1663,7 @@
   }
 
   function _glassTypeSelectorHtml() {
-    const t = window._grGlassType || 'rede';
+    const t = window._grGlassType || null;
     const btn = (key, label) => {
       const active = key === t;
       const colors = { rede: '#0f172a', complementar: '#f59e0b', oem: '#7c3aed' };
@@ -1675,12 +1675,13 @@
     };
     return `
       <div style="margin-bottom:14px;">
-        <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">TIPO DE VIDRO</label>
+        <label style="font-size:11px;font-weight:700;color:#64748b;display:block;margin-bottom:6px;">TIPO DE VIDRO <span style="color:#dc2626;">*</span></label>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
           ${btn('rede',         '🔵 Rede')}
           ${btn('complementar', '# Complementar')}
           ${btn('oem',          '✳ OEM')}
         </div>
+        <p id="grTypeError" style="display:none;color:#dc2626;font-size:11px;margin-top:5px;font-weight:600;">⚠️ Seleciona o tipo de vidro antes de continuar.</p>
       </div>`;
   }
 
@@ -1695,16 +1696,30 @@
       btn.style.color = active ? '#fff' : '#374151';
       btn.style.borderColor = active ? colors[k] : '#e2e8f0';
     });
+    const err = document.getElementById('grTypeError');
+    if (err) err.style.display = 'none';
   }
 
   function _prefixedEurocode(ec) {
     if (!ec) return ec;
     const clean = String(ec).replace(/^[#*]/, '');
-    const t = window._grGlassType || 'rede';
+    const t = window._grGlassType;
     return (t === 'complementar' ? '#' : t === 'oem' ? '*' : '') + clean;
   }
 
+  function _requireGlassType() {
+    if (window._grGlassType) return true;
+    const err = document.getElementById('grTypeError');
+    if (err) { err.style.display = 'block'; }
+    ['rede','complementar','oem'].forEach(k => {
+      const b = document.getElementById('grType_' + k);
+      if (b) b.style.borderColor = '#dc2626';
+    });
+    return false;
+  }
+
   function renderStep1() {
+    window._grGlassType = null;
     document.getElementById('grScanBody').innerHTML = `
       ${_glassTypeSelectorHtml()}
       <p style="color:#64748b;font-size:13px;margin-bottom:16px;">Tira uma foto à etiqueta do vidro ou escolhe uma imagem da galeria.</p>
@@ -1731,6 +1746,7 @@
   async function _onPhoto(input) {
     const file = input.files[0];
     if (!file) return;
+    if (!_requireGlassType()) return;
     document.getElementById('grScanBody').innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">🔍 A analisar etiqueta com IA…</p>`;
 
     try {
@@ -1752,6 +1768,7 @@
   }
 
   function _manualSearch() {
+    if (!_requireGlassType()) return;
     const plate = (document.getElementById('grManualPlate')?.value || '').trim();
     const order = (document.getElementById('grManualOrder')?.value || '').trim();
     const euro  = (document.getElementById('grManualEurocode')?.value || '').trim();
