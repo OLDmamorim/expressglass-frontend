@@ -396,7 +396,12 @@ function _rwRenderReport(data) {
         </div>`;
       teamSec.style.display = 'block';
     } else {
-      teamSec.style.display = 'none';
+      teamSec.innerHTML = `
+        <div style="border-top:2px solid #7c3aed;padding-top:24px;margin-top:32px;">
+          <h3 style="font-size:16px;font-weight:700;color:#7c3aed;margin-bottom:12px;">⏱️ Equipa — Tempos e Rentabilidade</h3>
+          <p style="color:#94a3b8;font-size:13px;">Sem registos de check-in/check-out para o período selecionado.</p>
+        </div>`;
+      teamSec.style.display = 'block';
     }
   }
 
