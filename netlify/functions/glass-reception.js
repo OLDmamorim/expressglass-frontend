@@ -188,17 +188,19 @@ exports.handler = async (event) => {
       const d = JSON.parse(event.body || '{}');
       const status = d.is_return ? 'return' : (d.appointment_id ? 'confirmed' : 'pending');
 
-      // When admin (no portalId) links to an appointment, resolve portal from the appointment
+      // When linked to an appointment, always derive portal from the appointment
+      // (the user's JWT portal may differ from the appointment's portal — e.g. bragaadmin
+      // belongs to "Braga" loja but receives glass for "Braga SM" appointments)
       let resolvedPortalId = user.portalId || null;
       let resolvedPortalName = d.portal_name || null;
-      if (d.appointment_id && !resolvedPortalId) {
+      if (d.appointment_id) {
         const aptRow = await client.query(
           `SELECT a.portal_id, p.name AS portal_name FROM appointments a LEFT JOIN portals p ON p.id = a.portal_id WHERE a.id = $1`,
           [d.appointment_id]
         );
         if (aptRow.rows.length) {
           resolvedPortalId = aptRow.rows[0].portal_id || resolvedPortalId;
-          resolvedPortalName = resolvedPortalName || aptRow.rows[0].portal_name;
+          resolvedPortalName = aptRow.rows[0].portal_name || resolvedPortalName;
         }
       }
 
