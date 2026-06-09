@@ -9,6 +9,15 @@ const pool = new Pool({
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
+function normalizeOrderRef(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (s.toLowerCase().startsWith('enc.axial')) return s;
+  if (/^\d+$/.test(s)) return `Enc.Axial ${s}`;
+  return s;
+}
+
 function getUserFromToken(event) {
   const authHeader = event.headers.authorization || event.headers.Authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Não autenticado');
@@ -250,7 +259,7 @@ exports.handler = async (event) => {
         data.foreign_plate === true,
         data.extra_services ? JSON.stringify(data.extra_services) : null,
         data.n_obra || null,
-        data.order_ref || null,
+        normalizeOrderRef(data.order_ref),
         data.glass_eurocode || data.eurocode || null,
         portalId, createdAt, new Date().toISOString(),
         data.comp_sales_desc || null,
@@ -344,7 +353,7 @@ exports.handler = async (event) => {
         data.comp_sales_nif !== undefined ? (data.comp_sales_nif || null) : null,
         data.comp_sales_name !== undefined ? (data.comp_sales_name || null) : null,
         data.comp_sales_faturado !== undefined ? (!!data.comp_sales_faturado) : false,
-        data.order_ref !== undefined ? (data.order_ref || null) : null,
+        data.order_ref !== undefined ? normalizeOrderRef(data.order_ref) : null,
         data.glass_eurocode !== undefined ? (data.glass_eurocode || null) : null
       ];
       const { rows } = await pool.query(q, v);

@@ -5,6 +5,15 @@ const jwt = require('jsonwebtoken');
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
+function normalizeOrderRef(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (s.toLowerCase().startsWith('enc.axial')) return s;
+  if (/^\d+$/.test(s)) return `Enc.Axial ${s}`;
+  return s;
+}
+
 function verifyToken(event) {
   const h = event.headers.authorization || event.headers.Authorization || '';
   if (!h.startsWith('Bearer ')) throw new Error('Não autenticado');
@@ -212,7 +221,7 @@ exports.handler = async (event) => {
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
         RETURNING *
       `, [
-        d.order_ref || null, d.eurocode || null, d.raw_label_text || null,
+        normalizeOrderRef(d.order_ref), d.eurocode || null, d.raw_label_text || null,
         d.appointment_id || null,
         user.userId || user.id, user.username,
         resolvedPortalId, resolvedPortalName,
@@ -233,7 +242,7 @@ exports.handler = async (event) => {
         if (d.order_ref) {
           await client.query(
             `UPDATE appointments SET order_ref = $1 WHERE id = $2 AND (order_ref IS NULL OR order_ref = '')`,
-            [d.order_ref, d.appointment_id]
+            [normalizeOrderRef(d.order_ref), d.appointment_id]
           );
         }
         if (d.eurocode) {
