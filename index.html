@@ -2921,14 +2921,14 @@
           ? `<span style="font-size:12px;color:#16a34a;font-weight:700;white-space:nowrap;">🚀 ${fmt(rec.checkin_at)}${autoIn ? ' <span style="color:#94a3b8;font-weight:400;">(auto)</span>' : ''}</span>`
           : `<button onclick="window.teamCheckin.doCheckin()" style="background:#16a34a;color:#fff;font-weight:700;font-size:12px;padding:7px 14px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;animation:tcPulse 1.4s infinite;">🚀 Check-in</button>`
         }
-        <div style="flex:1;text-align:center;">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;">
           ${netHrs != null ? `<span style="font-size:12px;color:#7c3aed;font-weight:700;background:#f5f3ff;padding:2px 8px;border-radius:6px;">${fmtHours(netHrs)} líq.</span>` : ''}
+          <button onclick="window.teamCheckin.openAnalytics()" style="background:none;border:none;cursor:pointer;font-size:18px;flex-shrink:0;" title="Ver histórico">📊</button>
         </div>
         ${hasOut
           ? `<span style="font-size:12px;color:#1d4ed8;font-weight:700;white-space:nowrap;">🏁 ${fmt(rec.checkout_at)}${autoOut ? ' <span style="color:#94a3b8;font-weight:400;">(auto)</span>' : ''}</span>`
           : `<button onclick="window.teamCheckin.doCheckout()" style="background:#0f172a;color:#fff;font-weight:700;font-size:12px;padding:7px 14px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;${hasIn ? 'animation:tcPulse 1.4s infinite;' : ''}">🏁 Check-out</button>`
         }
-        <button onclick="window.teamCheckin.openAnalytics()" style="background:none;border:none;cursor:pointer;font-size:18px;flex-shrink:0;" title="Ver histórico">📊</button>
       </div>`;
   }
 
