@@ -26,9 +26,12 @@
     localStorage.setItem(todayKey(), '1');
   }
 
-  function apiUrl() {
+  function apiUrl(forToday) {
     const portalId = window.activePortalId;
-    return API + (portalId ? `?portal_id=${portalId}` : '');
+    const parts = [];
+    if (portalId) parts.push(`portal_id=${portalId}`);
+    if (forToday) parts.push('date=today');
+    return API + (parts.length ? '?' + parts.join('&') : '');
   }
 
   async function checkAndShow() {
@@ -39,7 +42,7 @@
     try {
       const res = await authFetch(apiUrl());
       const data = await res.json();
-      if (data.success) renderPopup(data.portals, data.date);
+      if (data.success) renderPopup(data.portals, data.date, false);
     } catch (e) {
       console.error('Eurocode reminder:', e);
     }
@@ -50,7 +53,7 @@
     return `${d}/${m}/${y}`;
   }
 
-  function renderPopup(portals, date) {
+  function renderPopup(portals, date, forToday) {
     document.getElementById('ecReminderModal')?.remove();
 
     const empty = !portals.length || portals.every(p => !p.eurocodes.length);
@@ -82,7 +85,7 @@
         <div class="ec-rem-header">
           <span class="ec-rem-title">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            Guia AT — Amanhã ${fmtDate(date)}
+            Guia AT — ${forToday ? 'Hoje' : 'Amanhã'} ${fmtDate(date)}
           </span>
           <button class="ec-rem-close" onclick="document.getElementById('ecReminderModal').remove()">✕</button>
         </div>
@@ -165,13 +168,23 @@
     try {
       const res = await authFetch(apiUrl());
       const data = await res.json();
-      if (data.success) renderPopup(data.portals, data.date);
+      if (data.success) renderPopup(data.portals, data.date, false);
     } catch (e) {
       console.error('Eurocode reminder:', e);
     }
   }
 
-  window.ecReminder = { copy: copyCode, print: printCodes, showNow };
+  async function showToday() {
+    try {
+      const res = await authFetch(apiUrl(true));
+      const data = await res.json();
+      if (data.success) renderPopup(data.portals, data.date, true);
+    } catch (e) {
+      console.error('Eurocode reminder today:', e);
+    }
+  }
+
+  window.ecReminder = { copy: copyCode, print: printCodes, showNow, showToday };
 
   // Start after portal is ready
   let _started = false;
