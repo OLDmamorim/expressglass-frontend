@@ -18,6 +18,15 @@ function normalizeOrderRef(v) {
   return s;
 }
 
+function normalizeReceptionRef(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (s.toLowerCase().startsWith('rec.')) return s;
+  if (/^\d+$/.test(s)) return `Rec.${s}`;
+  return s;
+}
+
 function verifyAdmin(event) {
   const authHeader = event.headers.authorization || event.headers.Authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Não autenticado');
@@ -123,7 +132,7 @@ exports.handler = async (event) => {
           // Actualizar reception_ref se Excel tem valor e BD está vazio
           if (svc.reception_ref && !row.reception_ref) {
             updateFields.push(`reception_ref = $${idx++}`);
-            updateVals.push(svc.reception_ref);
+            updateVals.push(normalizeReceptionRef(svc.reception_ref));
           }
           // Status upgrade baseado em enc/rec
           const newStatusUpgrade = svc.reception_ref && row.status !== 'ST' ? 'ST'
@@ -199,7 +208,7 @@ exports.handler = async (event) => {
               svc.damage_details || null,
               svc.n_obra || null,
               normalizeOrderRef(svc.order_ref),
-              svc.reception_ref || null,
+              normalizeReceptionRef(svc.reception_ref),
               svc.portal_id,
               svc.createdAt || new Date().toISOString(),
               new Date().toISOString()

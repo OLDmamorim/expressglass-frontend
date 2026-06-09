@@ -14,6 +14,15 @@ function normalizeOrderRef(v) {
   return s;
 }
 
+function normalizeReceptionRef(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (s.toLowerCase().startsWith('rec.')) return s;
+  if (/^\d+$/.test(s)) return `Rec.${s}`;
+  return s;
+}
+
 function verifyToken(event) {
   const h = event.headers.authorization || event.headers.Authorization || '';
   if (!h.startsWith('Bearer ')) throw new Error('Não autenticado');
@@ -233,7 +242,7 @@ exports.handler = async (event) => {
         d.carrier_guide || null
       ]);
 
-      // When glass is matched to an appointment: set status ST (received) and propagate order_ref
+      // When glass is matched to an appointment: set status ST (received) and propagate refs
       if (d.appointment_id && !d.is_return) {
         await client.query(
           `UPDATE appointments SET status = 'ST', updated_at = NOW() WHERE id = $1`,

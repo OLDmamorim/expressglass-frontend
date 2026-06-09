@@ -18,6 +18,15 @@ function normalizeOrderRef(v) {
   return s;
 }
 
+function normalizeReceptionRef(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (s.toLowerCase().startsWith('rec.')) return s;
+  if (/^\d+$/.test(s)) return `Rec.${s}`;
+  return s;
+}
+
 function getUserFromToken(event) {
   const authHeader = event.headers.authorization || event.headers.Authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Não autenticado');
@@ -348,7 +357,7 @@ exports.handler = async (event) => {
         data.glass_removed_date !== undefined ? (data.glass_removed_date || null) : (existing.glass_removed_date || null),
         data.n_obra !== undefined ? (data.n_obra || null) : null,
         new Date().toISOString(), id, effectivePortalId, notDoneAtVal,
-        data.reception_ref !== undefined ? (data.reception_ref || null) : null,
+        data.reception_ref !== undefined ? normalizeReceptionRef(data.reception_ref) : null,
         data.comp_sales_desc !== undefined ? (data.comp_sales_desc || null) : null,
         data.comp_sales_nif !== undefined ? (data.comp_sales_nif || null) : null,
         data.comp_sales_name !== undefined ? (data.comp_sales_name || null) : null,
