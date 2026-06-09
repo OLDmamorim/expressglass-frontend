@@ -2695,7 +2695,7 @@
   function _exportCSV() {
     const data = window._grHistoryData || [];
     if (!data.length) return;
-    const hdr = ['Data','Tipo','Matrícula','Carro','Loja','Eurocode','Encomenda','Técnico','Estado'];
+    const hdr = ['Data','Tipo','Matrícula','Carro','Loja','Eurocode','Encomenda','Receção','Técnico','Estado'];
     const reasonMap = { errado:'Errado', desistencia:'Desistência', outro:'Outro', partido:'Danificado', errado_cancelado:'Errado/Cancelado' };
     const statusTxt = s => s === 'received' ? 'Recebido' : s === 'confirmed' ? 'Confirmado' : s === 'devolvido' ? 'Devolvido' : s === 'reported' ? 'Reportado' : s === 'return' ? 'Devolução' : 'Pendente';
     const rows = data.map(r => [
@@ -2703,15 +2703,14 @@
       r.is_return ? (reasonMap[r.return_reason] || 'Devolução') : 'Receção',
       (r.apt_plate || '').toUpperCase(),
       r.apt_car || '', r.portal_label || '',
-      r.eurocode || '', r.order_ref || '',
+      r.eurocode || '', r.order_ref || '', r.reception_ref || '',
       r.technician_name || '', statusTxt(r.status)
     ]);
-    const csv = [hdr, ...rows].map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `rececao-vidros-${new Date().toISOString().slice(0,10)}.csv`;
-    a.click(); URL.revokeObjectURL(url);
+    const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
+    ws['!cols'] = [10,12,12,20,12,18,16,12,16,12].map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Receção de Vidros');
+    XLSX.writeFile(wb, `rececao-vidros-${new Date().toISOString().slice(0,10)}.xlsx`);
   }
 
   function _printHistory() {
