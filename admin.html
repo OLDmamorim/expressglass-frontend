@@ -696,6 +696,15 @@
       return flag ? ' <span style="background:#fef3c7;color:#d97706;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;">auto</span>' : '';
     }
 
+    function netHours(checkin, checkout) {
+      if (!checkin || !checkout) return null;
+      const mins = (new Date(checkout) - new Date(checkin)) / 60000 - 60; // deduct 1h lunch
+      if (mins <= 0) return null;
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return h + 'h' + (m > 0 ? String(m).padStart(2, '0') : '');
+    }
+
     function ciRender(portals) {
       const grid = document.getElementById('ciGrid');
       const sum  = document.getElementById('ciSummary');
@@ -745,6 +754,7 @@
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="color:#6b7280;width:72px;font-size:12px;font-weight:600;flex-shrink:0;">Check-out</span>
               <span>${fmtTime(p.checkout_at)}${autoBadge(p.checkout_auto)}</span>
+              ${(() => { const t = netHours(p.checkin_at, p.checkout_at); return t ? `<span style="margin-left:4px;background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;border:1px solid #bbf7d0;">${t}</span>` : ''; })()}
             </div>
             ${p.notes ? `<div style="font-size:11px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:7px;margin-top:3px;">${p.notes}</div>` : ''}
           </div>
