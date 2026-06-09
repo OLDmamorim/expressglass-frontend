@@ -53,6 +53,10 @@ exports.handler = async (event) => {
     // Prefer active portal from frontend; fall back to JWT portalId
     const portalId = (p.portal_id ? parseInt(p.portal_id) : null) || user.portalId;
 
+    // date param: 'today' uses today, anything else (default) uses tomorrow
+    const useToday = p.date === 'today';
+    const targetDate = useToday ? 'CURRENT_DATE' : '(CURRENT_DATE + INTERVAL \'1 day\')::date';
+
     let rows;
     if (user.role === 'admin' && !portalId) {
       // Admin sem portal específico — mostra todos os SM
@@ -60,7 +64,7 @@ exports.handler = async (event) => {
         SELECT a.portal_id, p.name AS portal_name, a.extra, a.notes, a.plate, a.car
         FROM appointments a
         JOIN portals p ON p.id = a.portal_id
-        WHERE a.date::date = (CURRENT_DATE + INTERVAL '1 day')::date
+        WHERE a.date::date = ${targetDate}
           AND COALESCE(p.portal_type, '') NOT IN ('loja', 'mycar')
           AND (
             (a.extra IS NOT NULL AND a.extra != '')
@@ -75,7 +79,7 @@ exports.handler = async (event) => {
         SELECT a.portal_id, p.name AS portal_name, a.extra, a.notes, a.plate, a.car
         FROM appointments a
         JOIN portals p ON p.id = a.portal_id
-        WHERE a.date::date = (CURRENT_DATE + INTERVAL '1 day')::date
+        WHERE a.date::date = ${targetDate}
           AND a.portal_id = $1
           AND COALESCE(p.portal_type, '') NOT IN ('loja', 'mycar')
           AND (
@@ -97,17 +101,17 @@ exports.handler = async (event) => {
       }
       byPortal[row.portal_id].eurocodes.push(ec);
     }
-    const portals = Object.values(byPortal).map(p => ({
-      ...p,
-      eurocodes: [...new Set(p.eurocodes)]
+    const portals = Object.values(byPortal).map(pp => ({
+      ...pp,
+      eurocodes: [...new Set(pp.eurocodes)]
     }));
 
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const refDate = new Date();
+    if (!useToday) refDate.setDate(refDate.getDate() + 1);
 
     return {
       statusCode: 200, headers,
-      body: JSON.stringify({ success: true, date: tomorrow.toISOString().split('T')[0], portals })
+      body: JSON.stringify({ success: true, date: refDate.toISOString().split('T')[0], portals })
     };
   } catch (err) {
     console.error('tomorrow-eurocodes error:', err);
