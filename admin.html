@@ -698,10 +698,10 @@
 
     function netHours(checkin, checkout) {
       if (!checkin || !checkout) return null;
-      const mins = (new Date(checkout) - new Date(checkin)) / 60000 - 60; // deduct 1h lunch
-      if (mins <= 0) return null;
-      const h = Math.floor(mins / 60);
-      const m = mins % 60;
+      const totalMins = Math.round((new Date(checkout) - new Date(checkin)) / 60000) - 60;
+      if (totalMins <= 0) return null;
+      const h = Math.floor(totalMins / 60);
+      const m = totalMins % 60;
       return h + 'h' + (m > 0 ? String(m).padStart(2, '0') : '');
     }
 
