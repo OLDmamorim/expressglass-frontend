@@ -207,13 +207,15 @@ exports.handler = async (event) => {
           COUNT(a.id) FILTER (WHERE a.executed = true) AS services_done,
           COALESCE(SUM(a.km) FILTER (WHERE a.executed = true), 0) AS km_day
         FROM team_checkins tc
-        LEFT JOIN appointments a ON a.portal_id = tc.portal_id AND a.date = tc.date::text
+        LEFT JOIN appointments a ON a.portal_id = tc.portal_id AND a.date = tc.date
         WHERE tc.portal_id = $1 AND tc.date BETWEEN $2::date AND $3::date
         GROUP BY tc.date, tc.checkin_at, tc.checkout_at, tc.checkin_auto, tc.checkout_auto
         ORDER BY tc.date ASC
       `, [portalId, dateFrom, dateTo]);
       teamStats = rows;
-    } catch(_) {}
+    } catch(e) {
+      console.error('teamStats query error:', e.message);
+    }
 
     return {
       statusCode: 200,
