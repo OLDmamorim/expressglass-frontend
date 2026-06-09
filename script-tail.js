@@ -262,27 +262,34 @@ async function renderMobileDay(){
   var _bmCanToggle = _bmRole === 'admin' || _bmRole === 'coordenador';
   var _bmCanToggleRL = _bmRole === 'admin' || _bmRole === 'coordenador' || _bmRole === 'pesados_coord';
   var _bmBanner = '';
+  var _bmToggleBtn = '';
   if (_bmBlocked) {
     var _desbtn = _bmCanToggle ? '<button onclick="toggleBlockedDay(&quot;' + iso + '&quot;)" style="margin-left:auto;background:#ef4444;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">Desbloquear</button>' : '';
     _bmBanner = '<div style="background:#fee2e2;border:1.5px solid #ef4444;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#dc2626;">🔒 ' + (_bmBlocked.reason || 'Dia bloqueado') + ' ' + _desbtn + '</div>';
   } else if (_bmCanToggle) {
-    _bmBanner = '<div style="text-align:right;margin-bottom:6px;"><button onclick="toggleBlockedDay(&quot;' + iso + '&quot;)" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">🔓 Bloquear este dia</button></div>';
+    _bmToggleBtn = '<button onclick="toggleBlockedDay(&quot;' + iso + '&quot;)" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">🔓 Bloquear este dia</button>';
   }
 
   // Rota bloqueada
   var _rlLocked = typeof isDayRouteLocked === 'function' && isDayRouteLocked(iso);
   var _rlBanner = '';
+  var _rlToggleBtn = '';
   if (_rlLocked) {
     var _rlDesbtn = _bmCanToggleRL
       ? '<button onclick="toggleRouteLock(&quot;' + iso + '&quot;)" style="margin-left:auto;background:#f59e0b;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;">🔓 Desbloquear Rota</button>'
       : '';
     _rlBanner = '<div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#92400e;">🔒 Rota bloqueada ' + _rlDesbtn + '</div>';
   } else if (_bmCanToggleRL) {
-    _rlBanner = '<div style="text-align:right;margin-bottom:6px;"><button onclick="toggleRouteLock(&quot;' + iso + '&quot;)" style="background:#fffbeb;color:#92400e;border:1px solid #f59e0b;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">🔒 Bloquear Rota</button></div>';
+    _rlToggleBtn = '<button onclick="toggleRouteLock(&quot;' + iso + '&quot;)" style="background:#fffbeb;color:#92400e;border:1px solid #f59e0b;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;">🔒 Bloquear Rota</button>';
   }
 
+  // Combine toggle buttons side-by-side in a single flex row
+  var _toggleRow = (_bmToggleBtn || _rlToggleBtn)
+    ? '<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:6px;">' + _bmToggleBtn + _rlToggleBtn + '</div>'
+    : '';
+
   if(items.length === 0){
-    list.innerHTML = _bmBanner + _rlBanner + '<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>';
+    list.innerHTML = _toggleRow + _bmBanner + _rlBanner + '<div class="m-card" style="--c1:#9ca3af;--c2:#6b7280;">Sem serviços para este dia.</div>';
     return;
   }
 
@@ -314,7 +321,7 @@ async function renderMobileDay(){
       🗺️ Ver Rota do Dia
     </button>` : '';
 
-  list.innerHTML = _bmBanner + _rlBanner + (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
+  list.innerHTML = _toggleRow + _bmBanner + _rlBanner + (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
   window.guiaAT?.injectBadges();
 }
