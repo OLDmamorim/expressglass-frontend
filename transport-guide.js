@@ -213,10 +213,13 @@
 
   let _menuBtn = null;
 
-  function toggleMenu(btn) {
+  function toggleMenu(btn, forDate) {
+    if (forDate) setUploadDate(forDate);
     const menu = document.getElementById('guiaATMenu');
     if (!menu) return;
     if (menu.style.display !== 'none') { closeMenu(); return; }
+    const title = document.getElementById('guiaATMenuTitle');
+    if (title) title.textContent = `Guia AT — ${uploadDate === 'tomorrow' ? 'Amanhã' : 'Hoje'}`;
 
     _menuBtn = btn;
     const rect = btn.getBoundingClientRect();
@@ -242,10 +245,12 @@
   }
 
   function triggerFileInput() {
+    const wasBtn = _menuBtn;
     closeMenu();
+    const isDesk = wasBtn?.id?.includes('Desk');
     const deskInput = document.getElementById('guiaATFileInputDesk');
     const mobileInput = document.getElementById('guiaATFileInput');
-    const input = (deskInput && document.getElementById('guiaATUploadAreaDesk')?.style.display !== 'none') ? deskInput : mobileInput;
+    const input = isDesk ? deskInput : (mobileInput || deskInput);
     if (input) input.click();
   }
 
@@ -324,25 +329,27 @@
   }
 
   function updateUploadBtn() {
-    const hasToday = !!guides.today;
-    const hasTomorrow = !!guides.tomorrow;
-    const loaded = hasToday || hasTomorrow;
-    const todayCount = guides.todayCount || (hasToday ? 1 : 0);
-    const tomorrowCount = guides.tomorrowCount || (hasTomorrow ? 1 : 0);
-    const todayLabel = todayCount > 1 ? `✓×${todayCount}` : (hasToday ? '✓' : '');
-    const tomorrowLabel = tomorrowCount > 1 ? `+1×${tomorrowCount}` : (hasTomorrow ? '+1✓' : '');
-    const label = hasToday && hasTomorrow ? `Guia AT ${todayLabel} ${tomorrowLabel}`.trim()
-                : hasToday ? `Guia AT ${todayLabel}`
-                : hasTomorrow ? `Guia AT ${tomorrowLabel}`
-                : 'Guia AT';
-    const icon = loaded
-      ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
-      : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
-    const btns = [document.getElementById('guiaATUploadBtn'), document.getElementById('guiaATUploadBtnDesk')];
-    btns.forEach(btn => {
+    const uploadIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+    const docIcon = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+
+    const todayCount = guides.todayCount || (guides.today ? 1 : 0);
+    const hojeLoaded = !!guides.today;
+    const hojeLabel = todayCount > 1 ? `Hoje ✓×${todayCount}` : hojeLoaded ? 'Hoje ✓' : 'Hoje';
+    ['guiaATUploadBtnHoje', 'guiaATUploadBtnHojeDesk'].forEach(id => {
+      const btn = document.getElementById(id);
       if (!btn) return;
-      btn.innerHTML = `${icon} ${label}`;
-      btn.classList.toggle('guia-at-loaded', loaded);
+      btn.innerHTML = `${hojeLoaded ? docIcon : uploadIcon} ${hojeLabel}`;
+      btn.classList.toggle('guia-at-loaded', hojeLoaded);
+    });
+
+    const tomorrowCount = guides.tomorrowCount || (guides.tomorrow ? 1 : 0);
+    const amanhaLoaded = !!guides.tomorrow;
+    const amanhaLabel = tomorrowCount > 1 ? `Amanhã ✓×${tomorrowCount}` : amanhaLoaded ? 'Amanhã ✓' : 'Amanhã';
+    ['guiaATUploadBtnAmanha', 'guiaATUploadBtnAmanhaDesk'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.innerHTML = `${amanhaLoaded ? docIcon : uploadIcon} ${amanhaLabel}`;
+      btn.classList.toggle('guia-at-loaded', amanhaLoaded);
     });
   }
 
