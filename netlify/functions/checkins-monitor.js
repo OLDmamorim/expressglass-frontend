@@ -54,7 +54,7 @@ exports.handler = async (event) => {
         tc.notes
       FROM portals p
       LEFT JOIN team_checkins tc ON tc.portal_id = p.id AND tc.date = $1
-      WHERE COALESCE(p.portal_type, 'sm') = 'sm'
+      WHERE COALESCE(p.portal_type, 'sm') IN ('sm', 'pesados')
         ${portalFilter}
       ORDER BY
         CASE
