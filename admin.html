@@ -33,6 +33,7 @@
       <button class="nav-tab" data-tab="reports">📊 Relatórios</button>
       <button class="nav-tab" data-tab="audit">🔍 Auditoria</button>
       <button class="nav-tab" data-tab="flashglass">📸 Flash Glass</button>
+      <button class="nav-tab" data-tab="checkins">⏱️ Check-in</button>
     </nav>
 
     <!-- Tab Content: Portais -->
@@ -411,6 +412,22 @@
       </div>
     </div>
 
+    <!-- Tab: Check-in Monitor -->
+    <div id="checkinsTab" class="tab-content">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
+        <h2 style="margin:0;font-size:20px;">⏱️ Monitor Check-in / Check-out</h2>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input type="date" id="ciDate" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;">
+          <button onclick="ciLoad()" style="background:#2563eb;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">🔄 Atualizar</button>
+          <span id="ciCountdown" style="font-size:12px;color:#94a3b8;min-width:130px;"></span>
+        </div>
+      </div>
+      <div id="ciSummary" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;"></div>
+      <div id="ciGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;">
+        <div style="color:#94a3b8;grid-column:1/-1;text-align:center;padding:40px;">Clique em Atualizar para carregar.</div>
+      </div>
+    </div>
+
 </div><!-- fim admin-container -->
 
   <!-- Modal: Portal -->
@@ -664,5 +681,119 @@
   <script src="admin-comercial-patch.js"></script>
   <script src="admin-coord-only.js?v=2026-05-01"></script>
   <script src="flash-glass-admin.js?v=2026-05-18a"></script>
+  <script>
+  // ── Check-in Monitor ──────────────────────────────────────────────────────
+  (function () {
+    let _ciInterval = null;
+    let _ciSec = 0;
+
+    function fmtTime(ts) {
+      if (!ts) return '<span style="color:#94a3b8;">—</span>';
+      return '<strong>' + new Date(ts).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' }) + '</strong>';
+    }
+
+    function autoBadge(flag) {
+      return flag ? ' <span style="background:#fef3c7;color:#d97706;font-size:10px;font-weight:700;padding:1px 5px;border-radius:4px;">auto</span>' : '';
+    }
+
+    function ciRender(portals) {
+      const grid = document.getElementById('ciGrid');
+      const sum  = document.getElementById('ciSummary');
+
+      const total  = portals.length;
+      const withCI = portals.filter(p => p.checkin_at).length;
+      const withCO = portals.filter(p => p.checkout_at).length;
+      const noCI   = portals.filter(p => !p.checkin_at).length;
+
+      sum.innerHTML = [
+        ['🏢', 'Total Portais',  total,  '#1e293b', '#f8fafc', '#e2e8f0'],
+        ['✅', 'Com Check-in',   withCI, '#16a34a', '#f0fdf4', '#bbf7d0'],
+        ['🏁', 'Encerrados',     withCO, '#2563eb', '#eff6ff', '#bfdbfe'],
+        ['⚠️', 'Sem Check-in',   noCI,   '#dc2626', '#fff5f5', '#fca5a5'],
+      ].map(([icon, label, val, col, bg, border]) =>
+        `<div style="background:${bg};border:1px solid ${border};border-radius:10px;padding:10px 16px;display:flex;align-items:center;gap:10px;">
+           <span style="font-size:20px;">${icon}</span>
+           <div><div style="font-size:22px;font-weight:800;color:${col};">${val}</div>
+                <div style="font-size:11px;color:#6b7280;font-weight:600;">${label}</div></div>
+         </div>`
+      ).join('');
+
+      if (!portals.length) {
+        grid.innerHTML = '<div style="color:#94a3b8;grid-column:1/-1;text-align:center;padding:40px;">Sem portais.</div>';
+        return;
+      }
+
+      grid.innerHTML = portals.map(p => {
+        const hasCI = !!p.checkin_at, hasCO = !!p.checkout_at;
+        const [dot, statusLabel, statusCol, cardBg, cardBorder] =
+          hasCO ? ['🔵', 'Encerrado',    '#2563eb', '#eff6ff', '#bfdbfe44'] :
+          hasCI ? ['🟢', 'Em serviço',   '#16a34a', '#f0fdf4', '#bbf7d044'] :
+                  ['🔴', 'Sem check-in', '#dc2626', '#fff5f5', '#fca5a544'];
+
+        return `<div style="background:${cardBg};border:1.5px solid ${cardBorder};border-radius:12px;padding:16px;">
+          <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;">
+            <span style="font-size:15px;line-height:1.4;">${dot}</span>
+            <strong style="font-size:13px;color:#1e293b;flex:1;line-height:1.3;">${p.portal_name}</strong>
+            <span style="background:${statusCol}1a;color:${statusCol};font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;white-space:nowrap;">${statusLabel}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:7px;font-size:13px;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span style="color:#6b7280;width:72px;font-size:12px;font-weight:600;flex-shrink:0;">Check-in</span>
+              <span>${fmtTime(p.checkin_at)}${autoBadge(p.checkin_auto)}</span>
+              ${p.user_name && hasCI ? `<span style="color:#64748b;font-size:12px;">· ${p.user_name}</span>` : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="color:#6b7280;width:72px;font-size:12px;font-weight:600;flex-shrink:0;">Check-out</span>
+              <span>${fmtTime(p.checkout_at)}${autoBadge(p.checkout_auto)}</span>
+            </div>
+            ${p.notes ? `<div style="font-size:11px;color:#64748b;border-top:1px solid #e2e8f0;padding-top:7px;margin-top:3px;">${p.notes}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function ciResetTimer() {
+      if (_ciInterval) clearInterval(_ciInterval);
+      _ciSec = 60;
+      function tick() {
+        const cd = document.getElementById('ciCountdown');
+        if (cd) cd.textContent = _ciSec > 0 ? `Auto-refresh em ${_ciSec}s` : 'A atualizar...';
+        if (_ciSec-- <= 0) {
+          clearInterval(_ciInterval);
+          const tab = document.querySelector('.nav-tab[data-tab="checkins"]');
+          if (tab && tab.classList.contains('active')) window.ciLoad();
+        }
+      }
+      tick();
+      _ciInterval = setInterval(tick, 1000);
+    }
+
+    window.ciLoad = function () {
+      const date = document.getElementById('ciDate')?.value || new Date().toISOString().slice(0, 10);
+      const grid = document.getElementById('ciGrid');
+      grid.innerHTML = '<div style="color:#94a3b8;grid-column:1/-1;text-align:center;padding:40px;">⏳ A carregar...</div>';
+      authClient.authenticatedFetch('/.netlify/functions/checkins-monitor?date=' + date)
+        .then(r => r.json())
+        .then(d => {
+          if (!d.success) throw new Error(d.error || 'Erro');
+          ciRender(d.data);
+          ciResetTimer();
+        })
+        .catch(e => {
+          grid.innerHTML = `<div style="color:#dc2626;grid-column:1/-1;text-align:center;padding:40px;">Erro: ${e.message}</div>`;
+        });
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const el = document.getElementById('ciDate');
+      if (el) el.value = new Date().toISOString().slice(0, 10);
+      document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          if (tab.dataset.tab === 'checkins') window.ciLoad();
+        });
+      });
+    });
+  })();
+  </script>
 </body>
 </html>
