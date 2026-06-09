@@ -93,12 +93,13 @@ exports.handler = async (event) => {
       if (p.history === 'true') {
         let hq = `
           SELECT gr.*,
-                 a.plate    AS apt_plate,
-                 a.car      AS apt_car,
-                 a.locality AS apt_locality,
-                 a.service  AS apt_service,
-                 a.date     AS apt_date,
-                 po.name    AS portal_label
+                 a.plate         AS apt_plate,
+                 a.car           AS apt_car,
+                 a.locality      AS apt_locality,
+                 a.service       AS apt_service,
+                 a.date          AS apt_date,
+                 a.reception_ref AS apt_reception_ref,
+                 po.name         AS portal_label
           FROM glass_receptions gr
           LEFT JOIN appointments a  ON a.id = gr.appointment_id
           LEFT JOIN portals po      ON po.id = gr.portal_id
