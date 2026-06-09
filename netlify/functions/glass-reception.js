@@ -169,8 +169,13 @@ exports.handler = async (event) => {
 
       if (p.status) { q += ` AND gr.status = $${idx++}`; vals.push(p.status); }
 
-      // Técnicos só vêem do seu portal
-      if (user.role === 'user') { q += ` AND gr.portal_id = $${idx++}`; vals.push(user.portalId); }
+      // Portal access control — same logic as history/returns queries
+      if (user.role === 'user') {
+        q += ` AND gr.portal_id = $${idx++}`; vals.push(user.portalId);
+      } else if (user.role !== 'admin') {
+        const ids = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
+        if (ids.length) { q += ` AND gr.portal_id = ANY($${idx++})`; vals.push(ids); }
+      }
 
       q += ` ORDER BY gr.created_at DESC LIMIT 300`;
 
