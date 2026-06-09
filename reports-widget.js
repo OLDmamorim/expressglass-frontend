@@ -23,18 +23,27 @@ async function _rwLoadPortals() {
   if (!sel || sel.options.length > 1) return; // already loaded
   try {
     const user = window.authClient?.getUser();
-    const resp = await window.authClient.authenticatedFetch('/.netlify/functions/portals');
-    const data = await resp.json();
-    if (!data.success) return;
-    let list = data.data || [];
-    if (user?.role !== 'admin') {
-      const ids = user?.portalIds || (user?.portalId ? [user.portalId] : []);
-      list = list.filter(p => ids.includes(p.id));
+    let list = [];
+
+    if (user?.role === 'admin') {
+      // Admin: fetch all portals from API
+      const resp = await window.authClient.authenticatedFetch('/.netlify/functions/portals');
+      const data = await resp.json();
+      if (!data.success) return;
+      list = data.data || [];
+    } else {
+      // Coordinator/other: use portals stored in session at login time
+      list = user?.portals || [];
+      // Include primary portal if missing from list
+      if (user?.portal?.id && !list.find(p => p.id === user.portal.id)) {
+        list = [user.portal, ...list];
+      }
     }
+
     sel.innerHTML = '<option value="">Selecionar portal</option>' +
       list.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
     // Pre-select if only one
-    if (list.length === 1) sel.value = list[0].id;
+    if (list.length === 1) sel.value = String(list[0].id);
   } catch(e) { console.error('reports-widget: loadPortals', e); }
 }
 

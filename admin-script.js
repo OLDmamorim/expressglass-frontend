@@ -75,17 +75,15 @@ navTabs.forEach(tab => {
 // ===== CARREGAR PORTAIS PARA RELATÓRIOS (coordenador) =====
 async function loadPortalsForReports() {
   const user = authClient.getUser();
-  const portalIds = user.portalIds || [];
-  if (!portalIds.length) return;
-  try {
-    const resp = await authClient.authenticatedFetch('/.netlify/functions/portals');
-    const data = await resp.json();
-    if (data.success) {
-      portals = data.data.filter(p => portalIds.includes(p.id));
-      window._adminPortals = portals;
-      populateReportPortalSelect(portals);
-    }
-  } catch(e) { console.error('Erro ao carregar portais:', e); }
+  // Use portals stored in session at login (avoids calling admin-only /portals API)
+  let list = user.portals || [];
+  if (user?.portal?.id && !list.find(p => p.id === user.portal.id)) {
+    list = [user.portal, ...list];
+  }
+  if (!list.length) return;
+  portals = list;
+  window._adminPortals = list;
+  populateReportPortalSelect(list);
 }
 
 function populateReportPortalSelect(portalList) {
