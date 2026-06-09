@@ -9,6 +9,15 @@ const pool = new Pool({
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
+function normalizeOrderRef(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (s.toLowerCase().startsWith('enc.axial')) return s;
+  if (/^\d+$/.test(s)) return `Enc.Axial ${s}`;
+  return s;
+}
+
 function norm(plate) {
   return String(plate || '').replace(/[^A-Z0-9]/gi, '').toUpperCase();
 }
@@ -94,13 +103,13 @@ exports.handler = async (event) => {
             await pool.query(
               `UPDATE appointments SET date=$1, period=$2, car=$3, notes=$4, extra=$5, phone=$6, client_name=$7, n_obra=COALESCE($10,n_obra), auto_imported=true, confirmed=false, updated_at=$8,
                order_ref=COALESCE($11,order_ref), reception_ref=COALESCE($12,reception_ref) WHERE id=$9`,
-              [excelDate, svc.period||null, svc.car||null, svc.notes||null, svc.extra||null, svc.phone||null, svc.client_name||null, now, existing.id, svc.n_obra||null, svc.order_ref||null, svc.reception_ref||null]
+              [excelDate, svc.period||null, svc.car||null, svc.notes||null, svc.extra||null, svc.phone||null, svc.client_name||null, now, existing.id, svc.n_obra||null, normalizeOrderRef(svc.order_ref), svc.reception_ref||null]
             );
           } else {
             await pool.query(
               `UPDATE appointments SET car=$1, notes=$2, extra=$3, phone=$4, client_name=$5, n_obra=COALESCE($7,n_obra), updated_at=$6,
                order_ref=COALESCE($9,order_ref), reception_ref=COALESCE($10,reception_ref) WHERE id=$8`,
-              [svc.car||null, svc.notes||null, svc.extra||null, svc.phone||null, svc.client_name||null, now, svc.n_obra||null, existing.id, svc.order_ref||null, svc.reception_ref||null]
+              [svc.car||null, svc.notes||null, svc.extra||null, svc.phone||null, svc.client_name||null, now, svc.n_obra||null, existing.id, normalizeOrderRef(svc.order_ref), svc.reception_ref||null]
             );
           }
           results.updated++;
@@ -120,7 +129,7 @@ exports.handler = async (event) => {
               svc.client_name||null, svc.n_obra||null,
               !!svc.date, portal_id,
               svc.createdAt||now, now,
-              svc.order_ref||null, svc.reception_ref||null
+              normalizeOrderRef(svc.order_ref), svc.reception_ref||null
             ]
           );
           results.created++;

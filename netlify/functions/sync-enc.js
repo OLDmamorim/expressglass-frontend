@@ -8,6 +8,15 @@ const jwt = require('jsonwebtoken');
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
+function normalizeOrderRef(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (s.toLowerCase().startsWith('enc.axial')) return s;
+  if (/^\d+$/.test(s)) return `Enc.Axial ${s}`;
+  return s;
+}
+
 function verifyToken(event) {
   const h = event.headers.authorization || event.headers.Authorization || '';
   if (!h.startsWith('Bearer ')) throw new Error('Não autenticado');
@@ -67,7 +76,7 @@ exports.handler = async (event) => {
       let idx = 1;
 
       if (enc && !apt.order_ref) {
-        updates.push(`order_ref = $${idx++}`); vals.push(String(enc));
+        updates.push(`order_ref = $${idx++}`); vals.push(normalizeOrderRef(enc));
       }
       if (rec && !apt.reception_ref) {
         updates.push(`reception_ref = $${idx++}`); vals.push(String(rec));

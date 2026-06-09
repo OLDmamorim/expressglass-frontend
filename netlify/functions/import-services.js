@@ -9,6 +9,15 @@ const pool = new Pool({
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
+function normalizeOrderRef(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (s.toLowerCase().startsWith('enc.axial')) return s;
+  if (/^\d+$/.test(s)) return `Enc.Axial ${s}`;
+  return s;
+}
+
 function verifyAdmin(event) {
   const authHeader = event.headers.authorization || event.headers.Authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) throw new Error('Não autenticado');
@@ -109,7 +118,7 @@ exports.handler = async (event) => {
           // Actualizar order_ref se Excel tem valor e BD está vazio
           if (svc.order_ref && !row.order_ref) {
             updateFields.push(`order_ref = $${idx++}`);
-            updateVals.push(svc.order_ref);
+            updateVals.push(normalizeOrderRef(svc.order_ref));
           }
           // Actualizar reception_ref se Excel tem valor e BD está vazio
           if (svc.reception_ref && !row.reception_ref) {
@@ -189,7 +198,7 @@ exports.handler = async (event) => {
               false,          // confirmed
               svc.damage_details || null,
               svc.n_obra || null,
-              svc.order_ref || null,
+              normalizeOrderRef(svc.order_ref),
               svc.reception_ref || null,
               svc.portal_id,
               svc.createdAt || new Date().toISOString(),
