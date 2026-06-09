@@ -804,7 +804,7 @@
 
   <script src="portal-init.js?v=2026-05-15h"></script>
   <script src="api.js?v=2026-04-09"></script>
-  <script src="script.js?v=2026-06-05b"></script>
+  <script src="script.js?v=2026-06-09d"></script>
   <script src="script-tail.js?v=2026-06-09a"></script>
   <script src="portal-consult-patch.js?v=2"></script>
   <script src="transfer-sm-patch.js?v=2"></script>
@@ -1387,15 +1387,15 @@
 </div>
 
 <!-- Modal Coordenador: lista de recepções -->
-<div id="grCoordModal" style="display:none;position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:16px;">
-  <div class="gr-modal-box" style="width:min(96vw,700px);">
+<div id="grCoordModal" style="display:none;position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:12px;">
+  <div class="gr-modal-box" style="width:min(98vw,1200px);">
     <div class="gr-modal-header">
       <span style="font-size:22px;">📦</span>
       <span style="font-size:16px;font-weight:800;">Receção de Vidros</span>
       <span id="grCoordBadge" style="background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:6px;display:none;"></span>
       <button onclick="window.glassReception.closeCoord()" style="margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;">✕</button>
     </div>
-    <div class="gr-modal-body" id="grCoordBody" style="max-height:70vh;overflow-y:auto;">
+    <div class="gr-modal-body" id="grCoordBody" style="max-height:82vh;overflow-y:auto;">
       <p style="color:#94a3b8;text-align:center;padding:20px;">A carregar…</p>
     </div>
   </div>
@@ -2663,6 +2663,7 @@
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Loja</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Eurocode</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Encomenda</th>
+              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Receção</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Técnico</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Estado</th>
             </tr>
@@ -2682,6 +2683,7 @@
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${r.portal_label || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;">${r.eurocode || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${r.order_ref || '—'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;">${r.apt_reception_ref || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${r.technician_name || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${_statusLabel(r.status)}</td>
               </tr>`;
@@ -2703,7 +2705,7 @@
       r.is_return ? (reasonMap[r.return_reason] || 'Devolução') : 'Receção',
       (r.apt_plate || '').toUpperCase(),
       r.apt_car || '', r.portal_label || '',
-      r.eurocode || '', r.order_ref || '', r.reception_ref || '',
+      r.eurocode || '', r.order_ref || '', r.apt_reception_ref || '',
       r.technician_name || '', statusTxt(r.status)
     ]);
     const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
