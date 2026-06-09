@@ -1844,7 +1844,15 @@ async function generateReport() {
 function _renderTeamSection(teamStats) {
   const sec = document.getElementById('reportTeamSection');
   if (!sec) return;
-  if (!teamStats || !teamStats.length) { sec.style.display = 'none'; return; }
+  if (!teamStats || !teamStats.length) {
+    sec.innerHTML = `
+      <div style="border-top:2px solid #7c3aed;padding-top:24px;margin-top:32px;">
+        <h3 style="font-size:16px;font-weight:700;color:#7c3aed;margin-bottom:12px;">⏱️ Equipa — Tempos e Rentabilidade</h3>
+        <p style="color:#94a3b8;font-size:13px;">Sem registos de check-in/check-out para o período selecionado.</p>
+      </div>`;
+    sec.style.display = 'block';
+    return;
+  }
 
   const fmtT = iso => iso ? new Date(iso).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}) : '—';
   const fmtD = d => d ? new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('pt-PT',{weekday:'short',day:'2-digit',month:'2-digit'}) : '—';
