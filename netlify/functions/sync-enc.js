@@ -17,6 +17,15 @@ function normalizeOrderRef(v) {
   return s;
 }
 
+function normalizeReceptionRef(v) {
+  if (!v) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (s.toLowerCase().startsWith('rec.')) return s;
+  if (/^\d+$/.test(s)) return `Rec.${s}`;
+  return s;
+}
+
 function verifyToken(event) {
   const h = event.headers.authorization || event.headers.Authorization || '';
   if (!h.startsWith('Bearer ')) throw new Error('Não autenticado');
@@ -79,7 +88,7 @@ exports.handler = async (event) => {
         updates.push(`order_ref = $${idx++}`); vals.push(normalizeOrderRef(enc));
       }
       if (rec && !apt.reception_ref) {
-        updates.push(`reception_ref = $${idx++}`); vals.push(String(rec));
+        updates.push(`reception_ref = $${idx++}`); vals.push(normalizeReceptionRef(rec));
       }
       if (ref && !apt.glass_eurocode) {
         updates.push(`glass_eurocode = $${idx++}`); vals.push(String(ref));
