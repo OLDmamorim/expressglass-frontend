@@ -278,7 +278,7 @@ const headers = {
         // Se mudou para outro role, limpar portais de consulta
         try {
           await pool.query('DELETE FROM consultable_portals WHERE user_id = $1', [id]);
-        } catch(e) { /* tabela pode não existir ainda */ }
+        } catch(e) { console.warn('consultable_portals cleanup warning:', e.message); }
       }
 
       await auditLog({ user_id: decoded.userId, username: decoded.username, action: 'user_updated',
@@ -291,7 +291,7 @@ const headers = {
     if (event.httpMethod === 'DELETE') {
       const id = (event.path || '').split('/').pop();
       await pool.query('DELETE FROM coordinator_portals WHERE user_id = $1', [id]);
-      try { await pool.query('DELETE FROM consultable_portals WHERE user_id = $1', [id]); } catch(e) {}
+      try { await pool.query('DELETE FROM consultable_portals WHERE user_id = $1', [id]); } catch(e) { console.warn('consultable_portals delete warning:', e.message); }
       const { rows } = await pool.query('DELETE FROM users WHERE id = $1 RETURNING id, username', [id]);
       if (rows.length === 0) {
         return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Utilizador não encontrado' }) };

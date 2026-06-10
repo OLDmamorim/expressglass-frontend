@@ -1,6 +1,7 @@
 [build]
   publish = "."
   functions = "netlify/functions"
+  command = "node cache-bust.js"
 
 [build.environment]
   NODE_VERSION = "20"

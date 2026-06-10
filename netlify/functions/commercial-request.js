@@ -216,7 +216,7 @@ exports.handler = async (event) => {
             try {
               const locs = typeof p.localities === 'string' ? JSON.parse(p.localities) : (p.localities || {});
               servesLocality = Object.keys(locs).some(k => k.toLowerCase() === reqLocality);
-            } catch (e) { /* ignore */ }
+            } catch (e) { console.warn('commercial-request localities parse warning:', e.message); }
           }
           return {
             id: p.id,

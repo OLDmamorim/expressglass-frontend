@@ -158,6 +158,7 @@ exports.handler = async (event) => {
           const parsed = await pdfParse(fileBuffer);
           autoEurocodes = extractEurocodes(parsed.text);
         } catch (e) {
+          console.warn('transport-guide PDF parse warning:', e.message);
           // image-only or corrupt PDF — fall through to manual
         }
       } else if (isImage) {

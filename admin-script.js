@@ -2287,3 +2287,174 @@ function downloadReportPDF() {
   window.print();
 }
 
+
+// ===== PESQUISA GLOBAL =====
+async function runGlobalSearch() {
+  const q = document.getElementById('gsQuery').value.trim();
+  const out = document.getElementById('gsResults');
+  if (q.length < 3) {
+    out.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">Introduza pelo menos 3 caracteres.</p>';
+    return;
+  }
+  out.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:30px;">⏳ A pesquisar...</p>';
+  try {
+    const res = await authClient.authenticatedFetch('/.netlify/functions/global-search?q=' + encodeURIComponent(q));
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    _renderGlobalSearch(json.data);
+  } catch (e) {
+    out.innerHTML = `<p style="color:#dc2626;text-align:center;padding:20px;">Erro: ${e.message}</p>`;
+  }
+}
+
+function _renderGlobalSearch(data) {
+  const out = document.getElementById('gsResults');
+  const { appointments = [], receptions = [], mycar = [] } = data;
+  const total = appointments.length + receptions.length + mycar.length;
+  if (!total) {
+    out.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:30px;">Sem resultados.</p>';
+    return;
+  }
+
+  const fmtD = d => d ? new Date(d).toLocaleDateString('pt-PT') : '—';
+  const statusBadge = s => {
+    const map = { NE: ['#fef2f2', '#dc2626', 'Não encomendado'], VE: ['#fffbeb', '#d97706', 'Encomendado'], ST: ['#f0fdf4', '#16a34a', 'Stock'] };
+    const [bg, col, label] = map[s] || ['#f8fafc', '#64748b', s || '—'];
+    return `<span style="background:${bg};color:${col};font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap;">${label}</span>`;
+  };
+  const th = t => `<th style="padding:8px 10px;text-align:left;white-space:nowrap;">${t}</th>`;
+  const td = (t, extra) => `<td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;${extra || ''}">${t}</td>`;
+  const section = (title, count, inner) => `
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:18px;">
+      <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:12px;">${title} <span style="color:#64748b;font-weight:600;">(${count})</span></div>
+      ${count ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">${inner}</table></div>` : '<p style="color:#94a3b8;font-size:13px;margin:0;">Sem resultados.</p>'}
+    </div>`;
+
+  const aptRows = appointments.map((a, i) => `
+    <tr style="background:${i % 2 ? '#f8fafc' : '#fff'};">
+      ${td(fmtD(a.date))}
+      ${td((a.plate || '—').toUpperCase(), 'font-family:monospace;font-weight:700;white-space:nowrap;')}
+      ${td(a.car || '—')}
+      ${td(a.portal_name || '—', 'white-space:nowrap;')}
+      ${td(a.service || '—')}
+      ${td(statusBadge(a.status))}
+      ${td(a.executed ? '✅' : '—', 'text-align:center;')}
+      ${td(a.order_ref || '—', 'white-space:nowrap;')}
+      ${td(a.reception_ref || '—', 'white-space:nowrap;')}
+    </tr>`).join('');
+
+  const recRows = receptions.map((r, i) => `
+    <tr style="background:${i % 2 ? '#f8fafc' : '#fff'};">
+      ${td(fmtD(r.created_at))}
+      ${td(r.is_return ? '↩️ Devolução' : '📦 Receção', 'white-space:nowrap;')}
+      ${td((r.apt_plate || '—').toUpperCase(), 'font-family:monospace;font-weight:700;white-space:nowrap;')}
+      ${td(r.apt_car || '—')}
+      ${td(r.portal_label || '—', 'white-space:nowrap;')}
+      ${td(r.eurocode || '—', 'font-family:monospace;')}
+      ${td(r.order_ref || '—', 'white-space:nowrap;')}
+      ${td(r.technician_name || '—', 'white-space:nowrap;')}
+    </tr>`).join('');
+
+  const mycarRows = mycar.map((m, i) => `
+    <tr style="background:${i % 2 ? '#f8fafc' : '#fff'};">
+      ${td(fmtD(m.data_servico || m.created_at))}
+      ${td((m.matricula || '—').toUpperCase(), 'font-family:monospace;font-weight:700;white-space:nowrap;')}
+      ${td(m.car || '—')}
+      ${td(m.n_obra || '—', 'white-space:nowrap;')}
+      ${td(m.status || '—')}
+    </tr>`).join('');
+
+  out.innerHTML =
+    section('📅 Agendamentos', appointments.length,
+      `<thead><tr style="background:#0f172a;color:#fff;">${['Data','Matrícula','Carro','Portal','Serviço','Estado','Real.','Encomenda','Receção'].map(th).join('')}</tr></thead><tbody>${aptRows}</tbody>`) +
+    section('🪟 Receções de Vidro', receptions.length,
+      `<thead><tr style="background:#0f172a;color:#fff;">${['Data','Tipo','Matrícula','Carro','Loja','Eurocode','Encomenda','Técnico'].map(th).join('')}</tr></thead><tbody>${recRows}</tbody>`) +
+    section('🚗 Mural MyCar', mycar.length,
+      `<thead><tr style="background:#0f172a;color:#fff;">${['Data','Matrícula','Carro','Nº Obra','Estado'].map(th).join('')}</tr></thead><tbody>${mycarRows}</tbody>`);
+}
+
+// ===== ALERTAS DE VIDROS =====
+let _alertsLoaded = false;
+
+async function loadGlassAlerts(force) {
+  if (_alertsLoaded && !force) return;
+  const out = document.getElementById('alertsContent');
+  if (!out) return;
+  out.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:30px;">⏳ A carregar...</p>';
+  try {
+    const res = await authClient.authenticatedFetch('/.netlify/functions/glass-alerts');
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    _alertsLoaded = true;
+    _renderGlassAlerts(json.data);
+    _updateAlertsBadge(json.data);
+  } catch (e) {
+    out.innerHTML = `<p style="color:#dc2626;text-align:center;padding:20px;">Erro: ${e.message}</p>`;
+  }
+}
+
+function _updateAlertsBadge(data) {
+  const badge = document.getElementById('alertsBadge');
+  if (!badge) return;
+  const total = (data.stalled_stock?.length || 0) + (data.pending_orders?.length || 0);
+  badge.textContent = total;
+  badge.style.display = total ? 'inline' : 'none';
+}
+
+function _renderGlassAlerts(data) {
+  const out = document.getElementById('alertsContent');
+  const { stalled_stock = [], pending_orders = [], stock_days = 5, order_days = 7 } = data;
+
+  const fmtD = d => d ? new Date(d).toLocaleDateString('pt-PT') : '—';
+  const daysBadge = n => {
+    const col = n >= 14 ? '#dc2626' : n >= 7 ? '#d97706' : '#64748b';
+    return `<span style="color:${col};font-weight:800;">${n} dia${n !== 1 ? 's' : ''}</span>`;
+  };
+  const th = t => `<th style="padding:8px 10px;text-align:left;white-space:nowrap;">${t}</th>`;
+  const td = (t, extra) => `<td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;${extra || ''}">${t}</td>`;
+
+  const renderRows = rows => rows.map((a, i) => `
+    <tr style="background:${i % 2 ? '#f8fafc' : '#fff'};">
+      ${td((a.plate || '—').toUpperCase(), 'font-family:monospace;font-weight:700;white-space:nowrap;')}
+      ${td(a.car || '—')}
+      ${td(a.portal_name || '—', 'white-space:nowrap;')}
+      ${td(a.locality || '—', 'white-space:nowrap;')}
+      ${td(a.order_ref || '—', 'white-space:nowrap;')}
+      ${td(a.reception_ref || '—', 'white-space:nowrap;')}
+      ${td(fmtD(a.updated_at), 'white-space:nowrap;')}
+      ${td(daysBadge(a.days_waiting), 'white-space:nowrap;')}
+    </tr>`).join('');
+
+  const section = (icon, title, desc, rows, emptyMsg, accentBg, accentBorder) => `
+    <div style="background:#fff;border:1px solid ${rows.length ? accentBorder : '#e2e8f0'};border-radius:12px;padding:16px;margin-bottom:18px;${rows.length ? 'background:' + accentBg + ';' : ''}">
+      <div style="font-weight:700;font-size:15px;color:#1e293b;margin-bottom:4px;">${icon} ${title} <span style="color:#64748b;font-weight:600;">(${rows.length})</span></div>
+      <p style="color:#64748b;font-size:12px;margin:0 0 12px;">${desc}</p>
+      ${rows.length
+        ? `<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:8px;">
+             <thead><tr style="background:#0f172a;color:#fff;">${['Matrícula','Carro','Portal','Localidade','Encomenda','Receção','Últ. atualização','Em espera'].map(th).join('')}</tr></thead>
+             <tbody>${renderRows(rows)}</tbody></table></div>`
+        : `<p style="color:#16a34a;font-size:13px;font-weight:600;margin:0;">✅ ${emptyMsg}</p>`}
+    </div>`;
+
+  out.innerHTML =
+    section('📦', 'Vidros em stock sem agendamento', `Vidros recebidos (ST) sem data de serviço marcada há mais de ${stock_days} dias.`, stalled_stock, 'Nenhum vidro parado em stock.', '#fffbeb', '#fde68a') +
+    section('⏳', 'Encomendas sem receção', `Vidros encomendados (VE) sem receção registada há mais de ${order_days} dias.`, pending_orders, 'Nenhuma encomenda pendente há demasiado tempo.', '#fff1f2', '#fecdd3');
+}
+
+// Lazy-load das novas tabs + badge de alertas ao arrancar
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    if (tab.dataset.tab === 'alerts') loadGlassAlerts();
+    if (tab.dataset.tab === 'search') setTimeout(() => document.getElementById('gsQuery')?.focus(), 50);
+  });
+});
+
+(async () => {
+  // Aguardar auth estar pronta antes de carregar o badge
+  if (!window.authClient?.isAuthenticated?.()) return;
+  try {
+    const res = await authClient.authenticatedFetch('/.netlify/functions/glass-alerts');
+    const json = await res.json();
+    if (json.success) _updateAlertsBadge(json.data);
+  } catch (e) { /* badge é opcional */ }
+})();
