@@ -96,7 +96,7 @@ exports.handler = async (event) => {
     } else if (user.role === 'coordenador' || user.role === 'coordinator' || user.role === 'comercial') {
       let requestedId = params.portal_id ? parseInt(params.portal_id) : null;
       if (!requestedId && event.body) {
-        try { requestedId = JSON.parse(event.body)._portalId; } catch(e) {}
+        try { requestedId = JSON.parse(event.body)._portalId; } catch(e) { console.warn('appointments _portalId parse warning:', e.message); }
       }
       if (requestedId) {
         const allowed = user.portalIds || (user.portalId ? [user.portalId] : []);

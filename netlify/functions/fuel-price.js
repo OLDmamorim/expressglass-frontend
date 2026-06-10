@@ -137,6 +137,7 @@ exports.handler = async (event) => {
           date: new Date().toISOString()
         };
       } catch (e) {
+        console.warn('fuel-price fallback to default:', e.message);
         result = { price: 1.65, source: 'default', date: new Date().toISOString() };
       }
     }

@@ -102,7 +102,7 @@ async function ensureTable() {
       FROM blocked_days
       GROUP BY date, COALESCE(portal_id::text, '__NULL__')
     )
-  `).catch(() => {});
+  `).catch(e => console.warn('blocked-days dedup warning:', e.message));
 }
 
 async function seedHolidays() {
@@ -122,7 +122,7 @@ async function seedHolidays() {
         WHERE NOT EXISTS (
           SELECT 1 FROM blocked_days WHERE date = $1 AND portal_id IS NULL
         )
-      `, [h.date, h.reason]).catch(() => {});
+      `, [h.date, h.reason]).catch(e => console.warn('blocked-days seed warning:', e.message));
     }
   }
 }
@@ -187,7 +187,7 @@ exports.handler = async (event) => {
         await pool.query(
           `DELETE FROM blocked_days WHERE date = $1 AND portal_id IS NULL`,
           [date]
-        ).catch(() => {});
+        ).catch(e => console.warn('blocked-days delete warning:', e.message));
         const res = await pool.query(
           `INSERT INTO blocked_days (date, portal_id, reason, is_holiday) VALUES ($1, NULL, $2, $3) RETURNING *`,
           [date, reason || 'Dia bloqueado', is_holiday || false]
