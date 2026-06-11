@@ -122,6 +122,32 @@ exports.handler = async (event) => {
         })};
       }
 
+      // ── Today's receptions list (PHC daily reminder) ─────────────────────────
+      if (p.today_list === 'true') {
+        const isAdmin = user.role === 'admin';
+        const portalIds = user.portalIds?.length ? user.portalIds
+          : (user.portalId ? [user.portalId] : []);
+        const portalCond = isAdmin ? '' : `AND gr.portal_id = ANY($1)`;
+        const vals = isAdmin ? [] : [portalIds];
+
+        const { rows } = await client.query(`
+          SELECT gr.id, gr.eurocode, gr.order_ref, gr.status, gr.portal_id,
+                 po.name AS portal_label,
+                 a.plate AS apt_plate, a.car AS apt_car
+          FROM glass_receptions gr
+          LEFT JOIN portals po ON po.id = gr.portal_id
+          LEFT JOIN appointments a ON a.id = gr.appointment_id
+          WHERE gr.is_return = false
+          AND gr.created_at::date = CURRENT_DATE
+          ${portalCond}
+          ORDER BY gr.created_at ASC
+        `, vals);
+
+        return { statusCode: 200, headers, body: JSON.stringify({
+          success: true, data: rows, count: rows.length
+        })};
+      }
+
       // ── History query ─────────────────────────────────────────────────────────
       if (p.history === 'true') {
         let hq = `

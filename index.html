@@ -2852,6 +2852,121 @@
     }
   }
 
+  // ── PHC DAILY RECEPTION REMINDER (17:00) ─────────────────────────────────
+  function _phcReminderKey() {
+    return 'gr_phc_' + new Date().toISOString().slice(0, 10);
+  }
+
+  async function _checkPhcReminder() {
+    if (localStorage.getItem(_phcReminderKey()) === '1') return;
+    const h = new Date().getHours();
+    if (h < 17 || h >= 18) return; // janela 17:00–17:59
+    try {
+      const res = await fetch(API + '/glass-reception?today_list=true', { headers: authHeaders() });
+      const data = await res.json();
+      if (!data.success || !data.count) return;
+      localStorage.setItem(_phcReminderKey(), '1');
+      _showPhcQuestion(data.count);
+    } catch (_) {}
+  }
+
+  function _showPhcQuestion(count) {
+    document.getElementById('grPhcReminderPopup')?.remove();
+    const div = document.createElement('div');
+    div.id = 'grPhcReminderPopup';
+    div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10200;display:flex;align-items:center;justify-content:center;';
+    div.innerHTML = `
+      <div style="background:#fff;border-radius:16px;padding:28px 28px 24px;max-width:380px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+        <div style="font-size:19px;font-weight:800;color:#1e293b;margin-bottom:6px;">🧾 Receção PHC</div>
+        <div style="font-size:14px;color:#1e293b;font-weight:600;margin-bottom:6px;">Já recepcionaste em PHC os vidros de hoje?</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:20px;">${count} vidro${count > 1 ? 's' : ''} recepcionado${count > 1 ? 's' : ''} hoje pelos técnicos.</div>
+        <div style="display:flex;gap:10px;">
+          <button onclick="window.glassReception._listPhcItems()" style="flex:1;padding:11px;background:#2563eb;border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">📋 Listar vidros</button>
+          <button onclick="document.getElementById('grPhcReminderPopup').remove()" style="flex:1;padding:11px;background:#e2e8f0;border:none;border-radius:9px;color:#374151;font-size:14px;font-weight:600;cursor:pointer;">✅ Já tratei</button>
+        </div>
+      </div>`;
+    document.body.appendChild(div);
+  }
+
+  async function _listPhcItems() {
+    document.getElementById('grPhcReminderPopup')?.remove();
+    try {
+      const res = await fetch(API + '/glass-reception?today_list=true', { headers: authHeaders() });
+      const data = await res.json();
+      if (!data.success) return;
+      _showPhcList(data.data || []);
+    } catch (_) {}
+  }
+
+  function _showPhcList(items) {
+    document.getElementById('grPhcListPopup')?.remove();
+    const today = new Date().toLocaleDateString('pt-PT');
+    const rows = items.map(it => {
+      const plate = it.apt_plate || '—';
+      const car   = it.apt_car   || '—';
+      const ec    = it.eurocode  || '—';
+      const statusHtml = it.status === 'received'
+        ? '<span style="color:#16a34a;font-weight:700;">✓ Confirmado</span>'
+        : '<span style="color:#f59e0b;font-weight:700;">⏳ Por confirmar</span>';
+      return `<tr style="border-bottom:1px solid #e2e8f0;">
+        <td style="padding:8px 10px;font-weight:700;color:#1e293b;">${plate}</td>
+        <td style="padding:8px 10px;color:#374151;font-size:13px;">${car}</td>
+        <td style="padding:8px 10px;font-family:monospace;font-size:12px;color:#2563eb;font-weight:700;">${ec}</td>
+        <td style="padding:8px 10px;font-size:12px;">${statusHtml}</td>
+      </tr>`;
+    }).join('');
+    const div = document.createElement('div');
+    div.id = 'grPhcListPopup';
+    div.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10200;display:flex;align-items:center;justify-content:center;padding:16px;';
+    div.innerHTML = `
+      <div style="background:#fff;border-radius:16px;width:min(98vw,580px);max-height:82vh;display:flex;flex-direction:column;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+        <div style="background:#0f172a;color:#fff;padding:16px 20px;border-radius:16px 16px 0 0;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:18px;">🧾</span>
+          <span style="font-size:15px;font-weight:800;">Vidros recepcionados hoje — ${today}</span>
+          <button onclick="document.getElementById('grPhcListPopup').remove()" style="margin-left:auto;background:rgba(255,255,255,.15);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;">✕</button>
+        </div>
+        <div style="overflow-y:auto;flex:1;">
+          <table id="grPhcTable" style="width:100%;border-collapse:collapse;">
+            <thead>
+              <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+                <th style="padding:10px;text-align:left;font-size:12px;color:#64748b;font-weight:700;">MATRÍCULA</th>
+                <th style="padding:10px;text-align:left;font-size:12px;color:#64748b;font-weight:700;">VIATURA</th>
+                <th style="padding:10px;text-align:left;font-size:12px;color:#64748b;font-weight:700;">EUROCODE</th>
+                <th style="padding:10px;text-align:left;font-size:12px;color:#64748b;font-weight:700;">ESTADO</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <div style="padding:14px 20px;border-top:1px solid #e2e8f0;display:flex;gap:10px;justify-content:flex-end;">
+          <button onclick="window.glassReception._printPhcList()" style="padding:10px 18px;background:#0f172a;color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;">🖨️ Imprimir</button>
+          <button onclick="document.getElementById('grPhcListPopup').remove()" style="padding:10px 18px;background:#e2e8f0;color:#374151;border:none;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;">Fechar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(div);
+  }
+
+  function _printPhcList() {
+    const table = document.getElementById('grPhcTable');
+    if (!table) return;
+    const today = new Date().toLocaleDateString('pt-PT');
+    const win = window.open('', '_blank', 'width=700,height=600');
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8">
+      <title>Vidros Recepcionados — ${today}</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:28px;color:#000}
+        h2{font-size:16px;margin:0 0 16px}
+        table{width:100%;border-collapse:collapse}
+        th{background:#f1f5f9;padding:8px 10px;text-align:left;font-size:12px;border-bottom:2px solid #ccc;font-weight:700}
+        td{padding:8px 10px;font-size:13px;border-bottom:1px solid #e2e8f0}
+      </style></head><body>
+      <h2>Vidros Recepcionados — ${today}</h2>
+      ${table.outerHTML}
+      </body></html>`);
+    win.document.close();
+    win.print();
+  }
+
   // ── COORDINATOR GLASS ALERT NOTIFICATIONS ────────────────────────────────
   const _GR_SNOOZE_KEY = 'gr_alert_snooze';
 
@@ -2909,6 +3024,8 @@
       setInterval(_pollPendingBadge, 60000);
       setTimeout(_checkGlassAlerts, 4000);
       setInterval(_checkGlassAlerts, 5 * 60 * 1000);
+      setTimeout(_checkPhcReminder, 6000);
+      setInterval(_checkPhcReminder, 60000);
     }
   }
 
@@ -2949,7 +3066,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
