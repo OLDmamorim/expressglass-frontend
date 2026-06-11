@@ -2,7 +2,8 @@
   'use strict';
 
   const API = '/.netlify/functions/tomorrow-eurocodes';
-  const SHOW_HOUR = 17; // 17:00
+  const SHOW_HOUR = 17;
+  const SHOW_MINUTE = 30; // 17:30
 
   function isCoordinator() {
     const role = window.authClient?.getUser?.()?.role || '';
@@ -36,15 +37,49 @@
 
   async function checkAndShow() {
     if (!isCoordinator() || alreadyShown()) return;
-    const h = new Date().getHours();
-    if (h < SHOW_HOUR || h >= 18) return; // janela 17:00–17:59
+    const now = new Date();
+    const h = now.getHours();
+    const m = now.getMinutes();
+    if (h < SHOW_HOUR || (h === SHOW_HOUR && m < SHOW_MINUTE) || h >= 19) return; // janela 17:30–18:59
     markShown();
+    renderQuestion();
+  }
+
+  function renderQuestion() {
+    document.getElementById('ecReminderModal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'ecReminderModal';
+    modal.className = 'ec-rem-overlay';
+    modal.innerHTML = `
+      <div class="ec-rem-box" style="max-width:360px;">
+        <div class="ec-rem-header">
+          <span class="ec-rem-title">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            Guia AT para amanhã
+          </span>
+          <button class="ec-rem-close" onclick="document.getElementById('ecReminderModal').remove()">✕</button>
+        </div>
+        <div class="ec-rem-body" style="text-align:center;padding:22px 18px 8px;">
+          <p style="color:#e2e8f0;font-size:15px;font-weight:700;margin:0 0 8px;">Já tiraste a guia AT para amanhã?</p>
+          <p style="color:#94a3b8;font-size:13px;margin:0 0 20px;">Certifica-te de que todos os eurocodes estão confirmados.</p>
+          <div style="display:flex;gap:10px;">
+            <button onclick="ecReminder.verify()" style="flex:1;padding:11px;background:#1e40af;border:none;border-radius:9px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">🔎 Verificar</button>
+            <button onclick="document.getElementById('ecReminderModal').remove()" style="flex:1;padding:11px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:9px;color:#cbd5e1;font-size:14px;font-weight:600;cursor:pointer;">✅ Já tratei</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('show'));
+  }
+
+  async function verify() {
+    document.getElementById('ecReminderModal')?.remove();
     try {
       const res = await authFetch(apiUrl());
       const data = await res.json();
       if (data.success) renderPopup(data.portals, data.date, false);
     } catch (e) {
-      console.error('Eurocode reminder:', e);
+      console.error('Eurocode reminder verify:', e);
     }
   }
 
@@ -184,7 +219,7 @@
     }
   }
 
-  window.ecReminder = { copy: copyCode, print: printCodes, showNow, showToday };
+  window.ecReminder = { copy: copyCode, print: printCodes, showNow, showToday, verify };
 
   // Start after portal is ready
   let _started = false;
