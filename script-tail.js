@@ -109,7 +109,7 @@ const telBtn = phone ? `
 
   const motivoBadge = isNaoRealizado && a.not_done_reason ? (() => {
     const _nd = a.not_done_reason;
-    const _ndAt = a.not_done_at || a.notDoneAt;
+    const _ndAt = a.not_done_at || a.notDoneAt || a.updated_at || a.updatedAt;
     const _ndDate = _ndAt ? (() => { const _s = String(_ndAt).slice(0,10); const _d = new Date(_s + 'T12:00:00'); return isNaN(_d) ? _s : _d.toLocaleDateString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric'}); })() : null;
     return `<div style="margin:6px 8px 0;padding:7px 12px;background:rgba(220,38,38,0.15);border-left:3px solid #dc2626;border-radius:6px;font-size:12px;font-weight:700;color:#dc2626;">
       <div style="display:flex;align-items:center;gap:6px;">❌ <span style="color:inherit;">${_nd}</span></div>${_ndDate ? `<div style="font-size:11px;font-weight:400;color:#64748b;margin-top:3px;">📅 ${_ndDate}</div>` : ''}

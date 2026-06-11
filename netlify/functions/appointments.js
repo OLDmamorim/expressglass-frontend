@@ -309,9 +309,10 @@ exports.handler = async (event) => {
       const effectivePortalId = existing.portal_id;
       const executedVal = data.executed !== undefined ? data.executed : existing.executed;
       const notDoneReasonVal = data.not_done_reason !== undefined ? data.not_done_reason : existing.not_done_reason;
-      // Set not_done_at when reason is first set; clear it when reason is cleared; otherwise keep existing
+      // Set not_done_at when reason is first set; clear it when reason is cleared; otherwise keep existing.
+      // If existing record already had a reason but not_done_at is NULL (pre-migration), fill it now.
       const notDoneAtVal = notDoneReasonVal
-        ? (existing.not_done_reason ? existing.not_done_at : new Date().toISOString())
+        ? (existing.not_done_reason ? (existing.not_done_at || new Date().toISOString()) : new Date().toISOString())
         : null;
 
       const q = `
