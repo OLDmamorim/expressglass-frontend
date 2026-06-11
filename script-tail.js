@@ -1781,6 +1781,7 @@ document.addEventListener('DOMContentLoaded', function() {
   let autoFillTimer = null;
   el.addEventListener('input', (e) => {
     clearTimeout(autoFillTimer);
+    if (e.target._foreignMode) return;
     autoFillTimer = setTimeout(() => tryAutoFill(e.target.value), 400);
   });
 
