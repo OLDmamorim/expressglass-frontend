@@ -2318,6 +2318,7 @@
     const eurocode = (r.eurocode || 'eurocode').toUpperCase();
     const order    = r.order_ref     || '(nº encomenda)';
     const carrier  = r.carrier_guide || null;
+    const plate    = r.apt_plate ? r.apt_plate.toUpperCase() : '';
 
     // Unicode bold for emphasis in plain-text email (works in all modern email clients)
     const toBold = s => String(s).split('').map(c => {
@@ -2335,7 +2336,8 @@
       `Recebemos o vidro ${toBold(eurocode)} danificado${guidaPart}, relacionado a encomenda ${toBold(order)}.`,
       'Devolução feita em PHC.'
     ];
-    window.open(`mailto:?subject=${encodeURIComponent('Devolução - ')}&body=${encodeURIComponent(bodyLines.join('\r\n'))}`, '_blank');
+    const subject = plate ? `Devolução - ${plate}` : 'Devolução - ';
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\r\n'))}`, '_blank');
 
     // Download damage photos so coordinator can attach them
     photos.forEach((b64, i) => {
