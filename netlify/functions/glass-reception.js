@@ -148,9 +148,11 @@ exports.handler = async (event) => {
       if (p.returns) {
         const isErradoGroup = p.returns === 'errado_cancelado';
         let rq = `
-          SELECT gr.*, po.name AS portal_label
+          SELECT gr.*, po.name AS portal_label,
+                 a.plate AS apt_plate, a.car AS apt_car
           FROM glass_receptions gr
-          LEFT JOIN portals po ON po.id = gr.portal_id
+          LEFT JOIN portals po      ON po.id = gr.portal_id
+          LEFT JOIN appointments a  ON a.id  = gr.appointment_id
           WHERE gr.is_return = true
           AND ${isErradoGroup
             ? `gr.return_reason IN ('errado_cancelado','errado','desistencia','outro')`
