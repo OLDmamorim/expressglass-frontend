@@ -2275,7 +2275,9 @@
           ${r.carrier_guide ? `<span style="color:#374151;font-weight:700;">🚚 Guia: ${r.carrier_guide}</span>` : ''}
         </div>` : '';
       const isReported = r.status === 'reported';
-      const reportBtn = isPartido ? `<button id="grReportBtn${r.id}" onclick="window.glassReception._reportAxial(${r.id})"
+      const isErrado = !isPartido && (r.return_reason === 'errado' || r.return_reason === 'errado_cancelado');
+      const reportFn = isPartido ? `_reportAxial` : `_reportAxialErrado`;
+      const reportBtn = (isPartido || isErrado) ? `<button id="grReportBtn${r.id}" onclick="window.glassReception.${reportFn}(${r.id})"
         style="background:${isReported ? '#16a34a' : '#2563eb'};color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">
         ${isReported ? '✅ Reportado' : '📧 Report Axial'}</button>` : '';
       return `
@@ -2346,6 +2348,44 @@
     });
 
     // Mark as reported
+    try {
+      const res = await fetch(API + '/glass-reception', {
+        method: 'PUT', headers: authHeaders(),
+        body: JSON.stringify({ id, status: 'reported' })
+      });
+      const json = await res.json();
+      if (json.success) {
+        const btn = document.getElementById('grReportBtn' + id);
+        if (btn) { btn.textContent = '✅ Reportado'; btn.style.background = '#16a34a'; }
+        if (window._grReturnItemsMap?.[id]) window._grReturnItemsMap[id].status = 'reported';
+      }
+    } catch (_) {}
+  }
+
+  async function _reportAxialErrado(id) {
+    const r = window._grReturnItemsMap?.[id];
+    if (!r) return;
+    const eurocode = (r.eurocode || 'eurocode').toUpperCase();
+    const order    = r.order_ref || null;
+    const plate    = r.apt_plate ? r.apt_plate.toUpperCase() : '';
+
+    const toBold = s => String(s).split('').map(c => {
+      const n = c.charCodeAt(0);
+      if (n >= 48 && n <= 57) return String.fromCodePoint(0x1D7CE + n - 48);
+      if (n >= 65 && n <= 90) return String.fromCodePoint(0x1D400 + n - 65);
+      if (n >= 97 && n <= 122) return String.fromCodePoint(0x1D41A + n - 97);
+      return c;
+    }).join('');
+
+    const orderPart = order ? ` relativo a encomenda ${toBold(order)}` : '';
+    const bodyLines = [
+      'Bom dia,',
+      '',
+      `Recebemos o vidro ${toBold(eurocode)}${orderPart} e está errado.`
+    ];
+    const subject = plate ? `Devolução - ${plate}` : 'Devolução - Vidro Errado';
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyLines.join('\r\n'))}`, '_blank');
+
     try {
       const res = await fetch(API + '/glass-reception', {
         method: 'PUT', headers: authHeaders(),
