@@ -3048,6 +3048,70 @@
     }
   }
 
+  // ─── Popup de lembrete de check-in ───────────────────────────────────────
+  // Aparece a partir das 8h, para técnicos (role=user) sem check-in feito.
+  // "Ainda não iniciei" silencia até ao início da hora seguinte.
+  const REMINDER_KEY = 'ci_snooze_' + new Date().toISOString().slice(0, 10);
+
+  function _snoozedThisHour() {
+    const h = new Date().getHours();
+    return parseInt(sessionStorage.getItem(REMINDER_KEY) || '-1', 10) >= h;
+  }
+
+  function _snoozeUntilNextHour() {
+    sessionStorage.setItem(REMINDER_KEY, String(new Date().getHours()));
+    const now = new Date();
+    const msToNextHour = (60 - now.getMinutes()) * 60000 - now.getSeconds() * 1000;
+    setTimeout(_maybeShowReminder, msToNextHour + 2000);
+  }
+
+  function _showReminderPopup() {
+    if (document.getElementById('ciReminderPopup')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'ciReminderPopup';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:19999;background:rgba(15,23,42,.7);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:20px;padding:32px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="font-size:52px;margin-bottom:10px;">⏱️</div>
+        <h2 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px;">Check-in por fazer!</h2>
+        <p style="font-size:14px;color:#64748b;margin:0 0 24px;">Ainda não registaste o início do dia de hoje.</p>
+        <button id="ciReminderDoIt"
+          style="width:100%;background:#16a34a;color:#fff;font-size:16px;font-weight:800;padding:15px;border-radius:12px;border:none;cursor:pointer;margin-bottom:10px;">
+          🚀 Fazer check-in agora
+        </button>
+        <button id="ciReminderSnooze"
+          style="width:100%;background:#f1f5f9;color:#475569;font-size:14px;font-weight:600;padding:13px;border-radius:12px;border:none;cursor:pointer;">
+          Ainda não iniciei
+        </button>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('ciReminderDoIt').onclick = async () => {
+      overlay.remove();
+      await doCheckin();
+    };
+    document.getElementById('ciReminderSnooze').onclick = () => {
+      overlay.remove();
+      _snoozeUntilNextHour();
+    };
+  }
+
+  async function _maybeShowReminder() {
+    const type = window.portalConfig?.portalType || '';
+    if (!['sm', 'pesados'].includes(type)) return;
+    const user = window.authClient?.getUser?.();
+    if (!user || user.role !== 'user') return;
+    if (new Date().getHours() < 8) return;
+    if (_snoozedThisHour()) return;
+    const pid = window.portalConfig?.id;
+    if (!pid) return;
+    try {
+      const r = await fetch(`${API}/team-checkins?portal_id=${pid}&date=${todayISO()}`, { headers: authHeaders() });
+      const j = await r.json();
+      if (j.success && j.data?.checkin_at) return;
+    } catch (_) { return; }
+    _showReminderPopup();
+  }
+
   // Init: retry until portalConfig is available (SM/pesados only)
   function init() {
     const type = window.portalConfig?.portalType || '';
@@ -3059,7 +3123,7 @@
       s.textContent = '@keyframes tcPulse{0%{box-shadow:0 0 0 0 rgba(251,146,60,.8)}70%{box-shadow:0 0 0 11px rgba(251,146,60,0)}100%{box-shadow:0 0 0 0 rgba(251,146,60,0)}}';
       document.head.appendChild(s);
     }
-    load();
+    load().then(() => setTimeout(_maybeShowReminder, 500));
   }
 
   if (document.readyState === 'loading') {
