@@ -1245,6 +1245,10 @@ function buildDaySummary(dayDate, isMobile) {
   const etaH = Math.floor(_etaCursor / 60);
   const etaM = _etaCursor % 60;
   const etaStr = `${String(etaH).padStart(2,'0')}:${String(etaM).padStart(2,'0')}`;
+  if (iso === new Date().toISOString().slice(0, 10) && items.length > 0) {
+    window._routeEtaMinutes = _etaCursor;
+    window.teamCheckin?._scheduleCheckoutReminder?.();
+  }
 
   return `<div class="day-summary">
     <span class="ds-item" title="Serviços agendados">📋 ${totalServiceCount}</span>

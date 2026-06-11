@@ -2972,8 +2972,9 @@
         method: 'POST', headers: authHeaders(),
         body: JSON.stringify({ action: 'checkout', date: todayISO() })
       });
+      if (_coTimer) { clearTimeout(_coTimer); _coTimer = null; }
       await load();
-    } catch (_) {}
+    } catch (e) { console.warn('team-checkins doCheckout warning:', e.message); }
   }
 
   async function openAnalytics() {
@@ -3045,6 +3046,76 @@
         <p style="font-size:11px;color:#94a3b8;margin-top:8px;">* preenchido automaticamente</p>`;
     } catch (_) {
       document.getElementById('tcAnalyticsBody').innerHTML = '<p style="color:#dc2626;">Erro ao carregar.</p>';
+    }
+  }
+
+  // ─── Popup de lembrete de check-out ──────────────────────────────────────
+  // Dispara 10 minutos após a hora estimada de regresso (window._routeEtaMinutes).
+  // "Ainda não terminei" → silencia 1 hora.
+  const CO_SNOOZE_KEY = 'co_snooze_' + new Date().toISOString().slice(0, 10);
+  let _coTimer = null;
+
+  function _coSnoozedThisHour() {
+    return parseInt(sessionStorage.getItem(CO_SNOOZE_KEY) || '-1', 10) >= new Date().getHours();
+  }
+
+  function _coSnoozeOneHour() {
+    sessionStorage.setItem(CO_SNOOZE_KEY, String(new Date().getHours()));
+    setTimeout(_scheduleCheckoutReminder, 3600000);
+  }
+
+  function _showCheckoutPopup() {
+    if (document.getElementById('coReminderPopup')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'coReminderPopup';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:19999;background:rgba(15,23,42,.7);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:20px;padding:32px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="font-size:52px;margin-bottom:10px;">🏁</div>
+        <h2 style="font-size:20px;font-weight:800;color:#0f172a;margin:0 0 8px;">A rota está estimada terminar!</h2>
+        <p style="font-size:14px;color:#64748b;margin:0 0 24px;">Já terminaste o teu dia de trabalho?</p>
+        <button id="coReminderDoIt"
+          style="width:100%;background:#0f172a;color:#fff;font-size:16px;font-weight:800;padding:15px;border-radius:12px;border:none;cursor:pointer;margin-bottom:10px;">
+          🏁 Fazer check-out agora
+        </button>
+        <button id="coReminderSnooze"
+          style="width:100%;background:#f1f5f9;color:#475569;font-size:14px;font-weight:600;padding:13px;border-radius:12px;border:none;cursor:pointer;">
+          Ainda não terminei
+        </button>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.getElementById('coReminderDoIt').onclick = async () => { overlay.remove(); await doCheckout(); };
+    document.getElementById('coReminderSnooze').onclick = () => { overlay.remove(); _coSnoozeOneHour(); };
+  }
+
+  function _scheduleCheckoutReminder() {
+    if (_coTimer) { clearTimeout(_coTimer); _coTimer = null; }
+    const type = window.portalConfig?.portalType || '';
+    if (!['sm', 'pesados'].includes(type)) return;
+    const user = window.authClient?.getUser?.();
+    if (!user || user.role !== 'user') return;
+    if (!_record?.checkin_at || _record?.checkout_at) return;
+    const etaMin = window._routeEtaMinutes;
+    if (!etaMin) return;
+    const now = new Date();
+    const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+    const triggerMs = todayStart.getTime() + (etaMin + 10) * 60000;
+    const msUntil = triggerMs - now.getTime();
+    if (msUntil > 0) {
+      _coTimer = setTimeout(async () => {
+        if (_coSnoozedThisHour()) return;
+        try {
+          const r2 = await fetch(`${API}/team-checkins?portal_id=${window.portalConfig?.id}&date=${todayISO()}`, { headers: authHeaders() });
+          const j2 = await r2.json();
+          if (!j2?.data?.checkout_at) _showCheckoutPopup();
+        } catch (_) {}
+      }, msUntil);
+    } else if (msUntil > -7200000) {
+      // ETA já passou há menos de 2h — mostrar agora se aplicável
+      if (_coSnoozedThisHour()) return;
+      fetch(`${API}/team-checkins?portal_id=${window.portalConfig?.id}&date=${todayISO()}`, { headers: authHeaders() })
+        .then(r => r.json()).then(j => { if (!j?.data?.checkout_at) _showCheckoutPopup(); })
+        .catch(() => {});
     }
   }
 
@@ -3132,7 +3203,7 @@
     setTimeout(init, 500);
   }
 
-  window.teamCheckin = { load, doCheckin, doCheckout, openAnalytics };
+  window.teamCheckin = { load, doCheckin, doCheckout, openAnalytics, _scheduleCheckoutReminder };
 })();
 </script>
 
