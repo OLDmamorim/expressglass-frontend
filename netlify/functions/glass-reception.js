@@ -89,6 +89,39 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: pRows }) };
       }
 
+      // ── Coordinator alerts: counts of items older than 1 hour per category ──────
+      if (p.alerts === 'true') {
+        const isAdmin = user.role === 'admin';
+        const portalIds = user.portalIds?.length ? user.portalIds
+          : (user.portalId ? [user.portalId] : []);
+        const portalCond = isAdmin ? '' : `AND gr.portal_id = ANY($1)`;
+        const vals = isAdmin ? [] : [portalIds];
+
+        const [pendR, damR, retR] = await Promise.all([
+          client.query(`SELECT COUNT(*) AS n FROM glass_receptions gr
+            WHERE gr.status IN ('pending','confirmed')
+            AND gr.created_at < NOW() - INTERVAL '1 hour'
+            AND gr.is_return = false ${portalCond}`, vals),
+          client.query(`SELECT COUNT(*) AS n FROM glass_receptions gr
+            WHERE gr.is_return = true AND gr.return_reason = 'partido'
+            AND gr.status NOT IN ('reported','devolvido','received')
+            AND gr.created_at < NOW() - INTERVAL '1 hour'
+            ${portalCond}`, vals),
+          client.query(`SELECT COUNT(*) AS n FROM glass_receptions gr
+            WHERE gr.is_return = true AND COALESCE(gr.return_reason,'') != 'partido'
+            AND gr.status NOT IN ('devolvido','reported')
+            AND gr.created_at < NOW() - INTERVAL '1 hour'
+            ${portalCond}`, vals),
+        ]);
+
+        return { statusCode: 200, headers, body: JSON.stringify({
+          success: true,
+          pending: parseInt(pendR.rows[0].n, 10) || 0,
+          damaged: parseInt(damR.rows[0].n, 10) || 0,
+          returns: parseInt(retR.rows[0].n, 10) || 0,
+        })};
+      }
+
       // ── History query ─────────────────────────────────────────────────────────
       if (p.history === 'true') {
         let hq = `

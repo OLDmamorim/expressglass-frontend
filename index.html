@@ -1386,6 +1386,16 @@
   </div>
 </div>
 
+<!-- Popup: alerta de vidros pendentes para coordenador (>1h sem tratar) -->
+<div id="grAlertPopup" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10200;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:28px 28px 24px;max-width:400px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.25);">
+    <div style="font-size:20px;font-weight:800;color:#1e293b;margin-bottom:6px;">📦 Vidros por tratar</div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:18px;">Há vidros pendentes há mais de 1 hora.</div>
+    <div id="grAlertItems" style="margin-bottom:16px;"></div>
+    <button onclick="window.glassReception._dismissAlert()" style="width:100%;padding:11px;background:#e2e8f0;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;color:#374151;">✅ Já tratei</button>
+  </div>
+</div>
+
 <!-- Modal Coordenador: lista de recepções -->
 <div id="grCoordModal" style="display:none;position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:12px;">
   <div class="gr-modal-box" style="width:min(98vw,1200px);">
@@ -2117,7 +2127,7 @@
   }
 
   // ── COORDINATOR PANEL ────────────────────────────────────────────────────
-  async function openCoordPanel() {
+  async function openCoordPanel(tab = 'pending') {
     document.getElementById('grCoordModal').style.display = 'flex';
     document.getElementById('grCoordBody').innerHTML = `
       <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:0;overflow-x:auto;">
@@ -2140,7 +2150,7 @@
       </div>
       <div id="grTabContent" style="padding-top:12px;"></div>
     `;
-    await _switchTab('pending');
+    await _switchTab(tab);
   }
 
   function closeCoord() {
@@ -2842,6 +2852,36 @@
     }
   }
 
+  // ── COORDINATOR GLASS ALERT NOTIFICATIONS ────────────────────────────────
+  const _GR_SNOOZE_KEY = 'gr_alert_snooze';
+
+  async function _checkGlassAlerts() {
+    if (Date.now() < (parseInt(sessionStorage.getItem(_GR_SNOOZE_KEY) || '0', 10))) return;
+    try {
+      const res = await fetch(API + '/glass-reception?alerts=true', { headers: authHeaders() });
+      const data = await res.json();
+      if (!data.success) return;
+      const items = [];
+      if ((data.pending || 0) > 0) items.push({ n: data.pending, label: 'por recepcionar', icon: '📦', tab: 'pending' });
+      if ((data.damaged || 0) > 0) items.push({ n: data.damaged, label: `danificado${data.damaged > 1 ? 's' : ''} por tratar`, icon: '💔', tab: 'damaged' });
+      if ((data.returns || 0) > 0) items.push({ n: data.returns, label: `devoluç${data.returns > 1 ? 'ões' : 'ão'} por tratar`, icon: '↩️', tab: 'returns' });
+      if (!items.length) return;
+      document.getElementById('grAlertItems').innerHTML = items.map(it => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 12px;background:#f8fafc;border-radius:10px;margin-bottom:8px;">
+          <span style="font-size:13px;color:#1e293b;font-weight:600;">${it.icon} ${it.n} vidro${it.n > 1 ? 's' : ''} ${it.label}</span>
+          <button onclick="window.glassReception.openCoordPanel('${it.tab}');window.glassReception._dismissAlert();"
+            style="background:#2563eb;color:#fff;padding:7px 13px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:10px;">Tratar →</button>
+        </div>
+      `).join('');
+      document.getElementById('grAlertPopup').style.display = 'flex';
+    } catch (_) {}
+  }
+
+  function _dismissAlert() {
+    document.getElementById('grAlertPopup').style.display = 'none';
+    sessionStorage.setItem(_GR_SNOOZE_KEY, String(Date.now() + 60 * 60 * 1000));
+  }
+
   // ── BADGE POLLING ────────────────────────────────────────────────────────
   async function _pollPendingBadge() {
     try {
@@ -2867,6 +2907,8 @@
       if (btn) btn.style.display = '';
       _pollPendingBadge();
       setInterval(_pollPendingBadge, 60000);
+      setTimeout(_checkGlassAlerts, 4000);
+      setInterval(_checkGlassAlerts, 5 * 60 * 1000);
     }
   }
 
@@ -2907,7 +2949,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
