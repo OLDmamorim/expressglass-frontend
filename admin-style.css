@@ -517,7 +517,10 @@ body {
     -webkit-overflow-scrolling: touch;
     flex-wrap: nowrap;
     gap: 0;
+    scrollbar-width: thin;
   }
+  .admin-nav::-webkit-scrollbar { height: 3px; }
+  .admin-nav::-webkit-scrollbar-thumb { background: #bfdbfe; border-radius: 2px; }
 
   .nav-tab {
     padding: 12px 14px;
