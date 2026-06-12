@@ -110,13 +110,13 @@ exports.handler = async (event) => {
 
           if (shouldUpdateDate) {
             await pool.query(
-              `UPDATE appointments SET date=$1, period=$2, car=$3, notes=$4, extra=$5, phone=$6, client_name=$7, n_obra=COALESCE($10,n_obra), auto_imported=true, confirmed=false, updated_at=$8,
+              `UPDATE appointments SET date=$1, period=$2, car=COALESCE($3,car), notes=COALESCE($4,notes), extra=COALESCE($5,extra), phone=COALESCE($6,phone), client_name=COALESCE($7,client_name), n_obra=COALESCE($10,n_obra), auto_imported=true, confirmed=false, updated_at=$8,
                order_ref=COALESCE($11,order_ref), reception_ref=COALESCE($12,reception_ref) WHERE id=$9`,
               [excelDate, svc.period||null, svc.car||null, svc.notes||null, svc.extra||null, svc.phone||null, svc.client_name||null, now, existing.id, svc.n_obra||null, normalizeOrderRef(svc.order_ref), normalizeReceptionRef(svc.reception_ref)]
             );
           } else {
             await pool.query(
-              `UPDATE appointments SET car=$1, notes=$2, extra=$3, phone=$4, client_name=$5, n_obra=COALESCE($7,n_obra), updated_at=$6,
+              `UPDATE appointments SET car=COALESCE($1,car), notes=COALESCE($2,notes), extra=COALESCE($3,extra), phone=COALESCE($4,phone), client_name=COALESCE($5,client_name), n_obra=COALESCE($7,n_obra), updated_at=$6,
                order_ref=COALESCE($9,order_ref), reception_ref=COALESCE($10,reception_ref) WHERE id=$8`,
               [svc.car||null, svc.notes||null, svc.extra||null, svc.phone||null, svc.client_name||null, now, svc.n_obra||null, existing.id, normalizeOrderRef(svc.order_ref), normalizeReceptionRef(svc.reception_ref)]
             );
