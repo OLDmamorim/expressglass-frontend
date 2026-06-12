@@ -77,11 +77,23 @@ navTabs.forEach(tab => {
 // ===== CARREGAR PORTAIS PARA RELATÓRIOS (coordenador) =====
 async function loadPortalsForReports() {
   const user = authClient.getUser();
-  // Use portals stored in session at login (avoids calling admin-only /portals API)
-  let list = user.portals || [];
-  if (user?.portal?.id && !list.find(p => p.id === user.portal.id)) {
-    list = [user.portal, ...list];
+  // Try cached portals first
+  let list = [];
+  if (user.portals?.length) {
+    list = user.portals;
+  } else if (user.portal?.id) {
+    list = [user.portal];
   }
+
+  // Fallback: fetch from API (always reliable, filters by coordinator's JWT)
+  if (!list.length) {
+    try {
+      const res = await authClient.authenticatedFetch('/.netlify/functions/glass-reception?list_portals=true');
+      const data = await res.json();
+      if (data.success && data.data?.length) list = data.data;
+    } catch (_) {}
+  }
+
   if (!list.length) return;
   portals = list;
   window._adminPortals = list;
