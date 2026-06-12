@@ -2489,6 +2489,30 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
   });
 });
 
+// Pesquisa Global: mesma config das matrículas (maiúsculas + hífens XX-XX-XX),
+// mas sem partir pesquisas de encomenda (só dígitos), eurocode (>6 alfanum.)
+// ou referências com pontuação (Rec.5548).
+(function () {
+  const el = document.getElementById('gsQuery');
+  if (!el) return;
+  el.addEventListener('input', () => {
+    const raw = el.value;
+    const upper = raw.toUpperCase();
+    const clean = upper.replace(/[^A-Z0-9]/g, '');
+    const plateLike = /^[A-Z0-9\s-]*$/.test(upper)
+      && clean.length <= 6
+      && /[A-Z]/.test(clean) && /\d/.test(clean);
+    if (plateLike) {
+      let v = clean;
+      if (v.length > 2) v = v.slice(0, 2) + '-' + v.slice(2);
+      if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
+      el.value = v;
+    } else {
+      el.value = upper;
+    }
+  });
+})();
+
 (async () => {
   // Aguardar auth estar pronta antes de carregar o badge
   if (!window.authClient?.isAuthenticated?.()) return;

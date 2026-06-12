@@ -35,7 +35,10 @@ exports.handler = async (event) => {
   }
 
   const plateNorm = '%' + q.toUpperCase().replace(/[^A-Z0-9]/g, '') + '%';
-  const textLike = '%' + q.toLowerCase() + '%';
+  // Texto (encomenda/eurocode/nº obra): comparação sem pontuação, para que
+  // "51-621" ou "Rec.5548" encontrem "Enc.Axial 51621" / "Rec.5548".
+  const textLike = '%' + q.toLowerCase().replace(/[^a-z0-9]/g, '') + '%';
+  const normCol = col => `LOWER(REGEXP_REPLACE(COALESCE(${col},''), '[^a-zA-Z0-9]', '', 'g'))`;
 
   // Restrição de portais para coordenadores
   const coordIds = user.role === 'admin'
@@ -54,7 +57,7 @@ exports.handler = async (event) => {
       FROM appointments a
       LEFT JOIN portals po ON po.id = a.portal_id
       WHERE (UPPER(REGEXP_REPLACE(a.plate, '[^A-Z0-9]', '', 'g')) LIKE $1
-             OR LOWER(a.order_ref) LIKE $2 OR LOWER(a.n_obra) LIKE $2)
+             OR ${normCol('a.order_ref')} LIKE $2 OR ${normCol('a.n_obra')} LIKE $2)
     `;
     const aVals = [plateNorm, textLike];
     if (coordIds) { aq += ` AND a.portal_id = ANY($3)`; aVals.push(coordIds); }
@@ -70,7 +73,7 @@ exports.handler = async (event) => {
       LEFT JOIN appointments a ON a.id = gr.appointment_id
       LEFT JOIN portals po ON po.id = gr.portal_id
       WHERE (UPPER(REGEXP_REPLACE(COALESCE(a.plate,''), '[^A-Z0-9]', '', 'g')) LIKE $1
-             OR LOWER(gr.eurocode) LIKE $2 OR LOWER(gr.order_ref) LIKE $2)
+             OR ${normCol('gr.eurocode')} LIKE $2 OR ${normCol('gr.order_ref')} LIKE $2)
     `;
     const rVals = [plateNorm, textLike];
     if (coordIds) { rq += ` AND gr.portal_id = ANY($3)`; rVals.push(coordIds); }
@@ -84,7 +87,7 @@ exports.handler = async (event) => {
         SELECT id, matricula, car, data_servico, status, n_obra, created_at
         FROM mycar_services
         WHERE UPPER(REGEXP_REPLACE(matricula, '[^A-Z0-9]', '', 'g')) LIKE $1
-           OR LOWER(n_obra) LIKE $2
+           OR ${normCol('n_obra')} LIKE $2
         ORDER BY created_at DESC LIMIT 50
       `, [plateNorm, textLike]);
       mycar = rows;
