@@ -2489,23 +2489,20 @@ document.querySelectorAll('.nav-tab').forEach(tab => {
   });
 });
 
-// Pesquisa Global: mesma config das matrículas
-// — sempre maiúsculas, sempre sem pontuação (o backend normaliza ambos os lados)
-// — se parece matrícula (≤6 alfanums com letras+dígitos) insere hífens XX-XX-XX
+// Pesquisa Global: formato matrícula (igual aos campos de matrícula)
+// — maiúsculas, sem pontuação, hífens automáticos XX-XX-XX, máx. 8 caracteres
 (function () {
   const el = document.getElementById('gsQuery');
   if (!el) return;
   el.addEventListener('input', () => {
-    const clean = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const plateLike = clean.length <= 6 && /[A-Z]/.test(clean) && /[0-9]/.test(clean);
-    if (plateLike) {
-      let v = clean;
-      if (v.length > 2) v = v.slice(0, 2) + '-' + v.slice(2);
-      if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
-      el.value = v;
-    } else {
-      el.value = clean;
-    }
+    let v = el.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    if (v.length > 2) v = v.slice(0, 2) + '-' + v.slice(2);
+    if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5, 7);
+    el.value = v;
+  });
+  el.addEventListener('keydown', (e) => {
+    const allowed = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter'];
+    if (!allowed.includes(e.key) && !/^[A-Za-z0-9]$/.test(e.key)) e.preventDefault();
   });
 })();
 
