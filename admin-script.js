@@ -77,6 +77,14 @@ navTabs.forEach(tab => {
 // ===== CARREGAR PORTAIS PARA RELATÓRIOS (coordenador) =====
 async function loadPortalsForReports() {
   const user = authClient.getUser();
+
+  // Mês atual por omissão (a tab é ativada programaticamente, initReportFilters não corre)
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const fromEl = document.getElementById('reportFrom');
+  const toEl = document.getElementById('reportTo');
+  if (fromEl && !fromEl.value) fromEl.value = ym;
+  if (toEl && !toEl.value) toEl.value = ym;
   const seen = new Set();
   const list = [];
   const add = (arr) => {
@@ -115,6 +123,8 @@ function populateReportPortalSelect(portalList) {
   if (!sel) return;
   sel.innerHTML = '<option value="">Selecionar portal</option>' +
     portalList.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  // Pré-selecionar quando só existe um portal
+  if (portalList.length === 1) sel.value = String(portalList[0].id);
 }
 
 // ===== GESTÃO DE PORTAIS =====
