@@ -1,6 +1,5 @@
 // admin-coord-only.js
-// Para coordenadores no admin.html: esconder TUDO menos a tab Relatórios + botão Sair.
-// Esconde header (Vista Comercial, Agendas, etc), e todas as tabs menos Relatórios.
+// Para coordenadores no admin.html: esconder tabs de admin puro, manter Relatórios/Check-in/Pesquisa/Alertas.
 
 (function() {
   function aplicar() {
@@ -39,19 +38,21 @@
       }
     }
 
-    // 2) Esconder TODAS as tabs excepto Relatórios
+    // 2) Esconder tabs de admin puro; manter Relatórios, Check-in, Pesquisa, Alertas
+    const coordTabs = ['reports', 'checkins', 'search', 'alerts'];
     document.querySelectorAll('.nav-tab').forEach(tab => {
-      if (tab.dataset.tab !== 'reports') {
+      if (!coordTabs.includes(tab.dataset.tab)) {
         tab.style.display = 'none';
       }
     });
 
-    // 3) Esconder tab content de tudo menos reports
+    // 3) Esconder conteúdo de tabs admin puro
+    const coordContent = ['reportsTab', 'checkinsTab', 'searchTab', 'alertsTab'];
     document.querySelectorAll('.tab-content').forEach(t => {
-      if (t.id !== 'reportsTab') t.style.display = 'none';
+      if (!coordContent.includes(t.id)) t.style.display = 'none';
     });
 
-    console.log('✅ Modo coordenador: só Relatórios visível');
+    console.log('✅ Modo coordenador: Relatórios, Check-in, Pesquisa e Alertas visíveis');
   }
 
   if (document.readyState === 'loading') {
