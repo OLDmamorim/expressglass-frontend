@@ -76,16 +76,23 @@ exports.handler = async (event) => {
 
       // ── List portals accessible to this user (for history dropdown) ──────────
       if (p.list_portals === 'true') {
-        let pq, pVals;
+        let pRows;
         if (user.role === 'admin') {
-          pq = `SELECT id, name FROM portals ORDER BY name`;
-          pVals = [];
+          ({ rows: pRows } = await client.query(`SELECT id, name FROM portals ORDER BY name`));
         } else {
-          const ids = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
-          pq = `SELECT id, name FROM portals WHERE id = ANY($1) ORDER BY name`;
-          pVals = [ids];
+          const uid = user.userId || user.id;
+          ({ rows: pRows } = await client.query(`
+            SELECT DISTINCT p.id, p.name FROM portals p
+            WHERE p.id IN (
+              SELECT portal_id FROM coordinator_portals WHERE user_id = $1
+              UNION
+              SELECT portal_id FROM consultable_portals WHERE user_id = $1
+              UNION
+              SELECT portal_id FROM users WHERE id = $1 AND portal_id IS NOT NULL
+            )
+            ORDER BY p.name
+          `, [uid]));
         }
-        const { rows: pRows } = await client.query(pq, pVals);
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: pRows }) };
       }
 

@@ -77,20 +77,23 @@ navTabs.forEach(tab => {
 // ===== CARREGAR PORTAIS PARA RELATÓRIOS (coordenador) =====
 async function loadPortalsForReports() {
   const user = authClient.getUser();
-  // Try cached portals first
-  let list = [];
-  if (user.portals?.length) {
-    list = user.portals;
-  } else if (user.portal?.id) {
-    list = [user.portal];
-  }
+  const seen = new Set();
+  const list = [];
+  const add = (arr) => {
+    if (!arr?.length) return;
+    arr.forEach(p => { if (p?.id && !seen.has(p.id)) { seen.add(p.id); list.push(p); } });
+  };
 
-  // Fallback: fetch from API (always reliable, filters by coordinator's JWT)
+  add(user.portals);
+  if (user.portal?.id) add([user.portal]);
+  add(user.consultablePortals);
+
+  // Fallback: DB query via API (covers cases where JWT cache is incomplete)
   if (!list.length) {
     try {
       const res = await authClient.authenticatedFetch('/.netlify/functions/glass-reception?list_portals=true');
       const data = await res.json();
-      if (data.success && data.data?.length) list = data.data;
+      if (data.success && data.data?.length) data.data.forEach(p => list.push(p));
     } catch (_) {}
   }
 
