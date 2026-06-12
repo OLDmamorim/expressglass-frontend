@@ -150,6 +150,7 @@
 
   // Adicionar botão de logout no header
   addLogoutButton();
+  if (user.role === 'coordenador') addCoordPanelButton();
 
   // Controlo de visibilidade por role
   const role = user.role;
@@ -394,6 +395,22 @@ function addAdminBackButton() {
     window.location.href = '/admin.html';
   });
   headerActions.insertBefore(backBtn, headerActions.firstChild);
+}
+
+// Botão de painel para coordenadores
+function addCoordPanelButton() {
+  var headerActions = document.querySelector('.header-actions');
+  if (!headerActions) return;
+
+  var btn = document.createElement('button');
+  btn.className = 'header-btn';
+  btn.title = 'Painel de gestão';
+  btn.textContent = '⚙️';
+  btn.style.cssText = 'font-size:18px;';
+  btn.addEventListener('click', function() {
+    window.location.href = '/admin.html';
+  });
+  headerActions.insertBefore(btn, headerActions.firstChild);
 }
 
 // Atualizar dropdown de localidades

@@ -21,21 +21,23 @@
   // Mostrar nome do utilizador
   document.getElementById('userInfo').textContent = user.username;
 
-  // Coordenador: esconder tabs que não se aplicam
+  // Coordenador: esconder todas as tabs admin-only e activar relatórios
   if (user.role === 'coordenador') {
-    ['portals','users','import'].forEach(tab => {
-      const btn = document.querySelector(`.nav-tab[data-tab="${tab}"]`);
-      const content = document.getElementById(`${tab}Tab`);
-      if (btn) btn.style.display = 'none';
+    document.getElementById('userInfo').textContent = user.username + ' (Coord.)';
+    document.querySelectorAll('.admin-only-tab').forEach(btn => {
+      btn.style.display = 'none';
+      const content = document.getElementById(btn.dataset.tab + 'Tab');
       if (content) content.style.display = 'none';
     });
-    // Activar tab relatórios diretamente
     document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
     const rTab = document.querySelector('.nav-tab[data-tab="reports"]');
     const rContent = document.getElementById('reportsTab');
     if (rTab) rTab.classList.add('active');
     if (rContent) rContent.classList.add('active');
+    // Título do painel
+    const h1 = document.querySelector('.admin-header h1');
+    if (h1) h1.textContent = 'Painel de Coordenação';
   }
 
   // Admin: carregar dados iniciais
