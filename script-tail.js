@@ -2496,6 +2496,54 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
+  // Global search bar — plate formatting config
+  const _gSearchBtn = document.getElementById('statsBtn');
+  const _gSearchBar = document.getElementById('searchBar');
+  const _gSearchInput = document.getElementById('searchInput');
+  const _gClearBtn = document.getElementById('clearSearch');
+
+  if (_gSearchBtn && _gSearchBar) {
+    _gSearchBtn.addEventListener('click', () => {
+      _gSearchBar.classList.toggle('hidden');
+      if (!_gSearchBar.classList.contains('hidden')) {
+        _gSearchInput?.focus();
+      } else {
+        if (_gSearchInput) _gSearchInput.value = '';
+        searchQuery = '';
+        if (typeof renderAll === 'function') renderAll();
+      }
+    });
+  }
+
+  if (_gSearchInput) {
+    _gSearchInput.addEventListener('keydown', (e) => {
+      const allowed = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Escape'];
+      if (!allowed.includes(e.key) && !/^[A-Za-z0-9]$/.test(e.key)) {
+        e.preventDefault();
+      }
+      if (e.key === 'Escape') {
+        _gSearchInput.value = '';
+        searchQuery = '';
+        _gSearchBar?.classList.add('hidden');
+        if (typeof renderAll === 'function') renderAll();
+      }
+    });
+    _gSearchInput.addEventListener('input', () => {
+      if (typeof formatPlate === 'function') formatPlate(_gSearchInput);
+      searchQuery = _gSearchInput.value;
+      if (typeof renderAll === 'function') renderAll();
+    });
+  }
+
+  if (_gClearBtn) {
+    _gClearBtn.addEventListener('click', () => {
+      if (_gSearchInput) _gSearchInput.value = '';
+      searchQuery = '';
+      _gSearchBar?.classList.add('hidden');
+      if (typeof renderAll === 'function') renderAll();
+    });
+  }
+
   // Vista em tabela é agora a única vista disponível
 });
 

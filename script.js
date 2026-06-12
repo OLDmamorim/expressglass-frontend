@@ -1733,11 +1733,12 @@ function filterAppointments(list){
   let f=[...list];
   if(searchQuery){
     const q=searchQuery.toLowerCase();
+    const qNorm=q.replace(/[^a-z0-9]/g,'');
     f=f.filter(a=>
-      (a.plate||'').toLowerCase().includes(q) ||
-      (a.car||'').toLowerCase().includes(q) ||
-      (a.locality||'').toLowerCase().includes(q) ||
-      ((a.notes||'').toLowerCase().includes(q))
+      (a.plate||'').replace(/[^a-z0-9]/gi,'').toLowerCase().includes(qNorm) ||
+      (a.car||'').toLowerCase().includes(qNorm) ||
+      (a.locality||'').toLowerCase().includes(qNorm) ||
+      ((a.notes||'').toLowerCase().includes(qNorm))
     );
   }
   if(statusFilter) f=f.filter(a=>a.status===statusFilter);
@@ -1751,8 +1752,9 @@ function filterAppointments(list){
 function highlightSearchResults(){
   document.querySelectorAll('.appointment').forEach(el=>el.classList.remove('highlight'));
   if(!searchQuery) return;
+  const qNorm=searchQuery.replace(/[^a-z0-9]/gi,'').toLowerCase();
   document.querySelectorAll('.appointment').forEach(el=>{
-    if(el.textContent.toLowerCase().includes(searchQuery.toLowerCase())) el.classList.add('highlight');
+    if(el.textContent.replace(/[^a-z0-9]/gi,'').toLowerCase().includes(qNorm)) el.classList.add('highlight');
   });
 }
 
