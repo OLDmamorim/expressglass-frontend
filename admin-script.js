@@ -38,6 +38,12 @@
     // Título do painel
     const h1 = document.querySelector('.admin-header h1');
     if (h1) h1.textContent = 'Painel de Coordenação';
+    // Fazer tabs wrapping para que todos os 4 fiquem visíveis em mobile sem scroll
+    const adminNav = document.querySelector('.admin-nav');
+    if (adminNav) {
+      adminNav.style.flexWrap = 'wrap';
+      adminNav.style.padding = '0 8px';
+    }
   }
 
   // Admin: carregar dados iniciais
