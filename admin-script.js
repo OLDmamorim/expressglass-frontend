@@ -97,7 +97,14 @@ async function loadPortalsForReports() {
     } catch (_) {}
   }
 
-  if (!list.length) return;
+  if (!list.length) {
+    const sel = document.getElementById('reportPortal');
+    if (sel) sel.innerHTML = '<option value="">⚠️ Sem portais atribuídos</option>';
+    console.warn('loadPortalsForReports: nenhum portal encontrado', {
+      portals: user.portals, portal: user.portal, consultable: user.consultablePortals
+    });
+    return;
+  }
   portals = list;
   window._adminPortals = list;
   populateReportPortalSelect(list);
