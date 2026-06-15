@@ -1327,8 +1327,24 @@ function buildLocalityOptions() {
 
   // Ligar evento de pesquisa
   if (search) {
+    let _autoSelectTimer = null;
     search.addEventListener('input', (e) => {
+      clearTimeout(_autoSelectTimer);
       renderLocalityOptions(e.target.value);
+      // Se só houver um resultado, selecionar automaticamente após pausa
+      if (e.target.value.trim().length >= 3) {
+        _autoSelectTimer = setTimeout(() => {
+          const opts = document.querySelectorAll('#localityOptions .loc-opt');
+          if (opts.length === 1) window.selectLocality?.(opts[0].getAttribute('data-value'));
+        }, 400);
+      }
+    });
+    search.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const opts = document.querySelectorAll('#localityOptions .loc-opt');
+        if (opts.length >= 1) window.selectLocality?.(opts[0].getAttribute('data-value'));
+      }
     });
   }
 }
