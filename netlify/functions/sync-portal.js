@@ -52,9 +52,11 @@ exports.handler = async (event) => {
   }
 
   try {
-    // Ensure n_obra column exists (migration guard)
+    // Migration guards — safe to run repeatedly
     try {
       await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
+      await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS order_ref TEXT`);
+      await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reception_ref TEXT`);
       await pool.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS car TEXT`);
       await pool.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
     } catch(e) { console.warn('Migration warning:', e.message); }
@@ -83,7 +85,7 @@ exports.handler = async (event) => {
     );
     const deleted = delResult.rowCount;
 
-    const results = { created: 0, updated: 0, skipped: 0, errors: 0, deleted };
+    const results = { created: 0, updated: 0, skipped: 0, errors: 0, deleted, error_samples: [] };
     const todayISO = new Date().toISOString().slice(0, 10);
     const now = new Date().toISOString();
 
@@ -178,6 +180,7 @@ exports.handler = async (event) => {
       } catch (err) {
         console.error('Erro svc', svc.plate, err.message);
         results.errors++;
+        if (results.error_samples.length < 5) results.error_samples.push(`${svc.plate}: ${err.message}`);
       }
     }
 
