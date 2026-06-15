@@ -344,9 +344,14 @@
   // ── Leaflet map instance ──────────────────────────────────────────────────
   let leafletMap = null;
   let activeOverlays = [];
-  let markerByApptId = {};     // apptId → { marker, color, plate, order }
-  let selectedMarker = null;   // { marker, origColor, origPlate, origOrder }
+  let markerByApptId = {};     // apptId → { marker, color, plate, order, stackOffset }
+  let selectedMarker = null;   // { marker, origColor, origPlate, origOrder, origStackOffset }
   let orderByApptId = {};      // apptId → execution order number
+  let positionGroups = {};     // posKey → count of markers already placed there
+
+  const MARKER_H = 42; // vertical gap between stacked markers
+
+  function posKey(pos) { return pos[0].toFixed(5) + ',' + pos[1].toFixed(5); }
 
   function clearMap() {
     if (leafletMap) {
@@ -356,6 +361,7 @@
     markerByApptId = {};
     selectedMarker = null;
     orderByApptId = {};
+    positionGroups = {};
   }
 
   function makeMarkerSVGSelected(label, color, order) {
@@ -380,31 +386,31 @@
   }
 
   function selectStop(apptId) {
-    // Deselect previous
+    // Deselect previous — restore original icon including stack offset
     if (selectedMarker) {
-      const { marker, origColor, origPlate, origOrder } = selectedMarker;
+      const { marker, origColor, origPlate, origOrder, origStackOffset } = selectedMarker;
       const dw = origOrder != null ? 96 : 80;
       marker.setIcon(L.divIcon({
         html: makeMarkerSVG(origPlate, origColor, origOrder),
-        className: '', iconSize: [dw, 38], iconAnchor: [dw / 2, 38],
+        className: '', iconSize: [dw, 38], iconAnchor: [dw / 2, 38 + origStackOffset],
       }));
       document.querySelectorAll('.rm-stop.rm-selected').forEach(el => el.classList.remove('rm-selected'));
       selectedMarker = null;
     }
     const info = markerByApptId[apptId];
     if (!info) return;
-    // Highlight marker: white fill + color border + pulse ring
+    // Highlight marker: white fill + color border + pulse ring (maintain stack offset)
     const sw = info.order != null ? 100 : 84;
     info.marker.setIcon(L.divIcon({
       html: `<div style="position:relative;width:${sw}px;height:40px;">
         <div style="position:absolute;top:6px;left:2px;right:2px;bottom:12px;border-radius:8px;background:${info.color};animation:rmPulse 1s ease-out infinite;opacity:.35;pointer-events:none;"></div>
         ${makeMarkerSVGSelected(info.plate, info.color, info.order)}
       </div>`,
-      className: '', iconSize: [sw, 40], iconAnchor: [sw / 2, 40],
+      className: '', iconSize: [sw, 40], iconAnchor: [sw / 2, 40 + info.stackOffset],
     }));
     info.marker.openPopup();
     leafletMap?.panTo(info.marker.getLatLng());
-    selectedMarker = { marker: info.marker, origColor: info.color, origPlate: info.plate, origOrder: info.order };
+    selectedMarker = { marker: info.marker, origColor: info.color, origPlate: info.plate, origOrder: info.order, origStackOffset: info.stackOffset };
     // Highlight sidebar item
     const stopEl = document.querySelector(`.rm-stop[data-appt-id="${apptId}"]`);
     if (stopEl) { stopEl.classList.add('rm-selected'); stopEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
@@ -586,13 +592,18 @@
   function addLeafletMarker(map, pos, appt, color) {
     const order = appt.id != null ? orderByApptId[appt.id] : null;
     const w = order != null ? 96 : 80;
+    // Stack markers that share the same lat/lng
+    const pk = posKey(pos);
+    const stackIdx = positionGroups[pk] || 0;
+    positionGroups[pk] = stackIdx + 1;
+    const stackOffset = stackIdx * MARKER_H;
     const icon = L.divIcon({
       html: makeMarkerSVG(appt.plate, color, order),
       className: '',
       iconSize: [w, 38],
-      iconAnchor: [w / 2, 38],
+      iconAnchor: [w / 2, 38 + stackOffset], // shift upward for each duplicate position
     });
-    const m = L.marker(pos, { icon, zIndexOffset: 100 })
+    const m = L.marker(pos, { icon, zIndexOffset: 100 + stackIdx * 10 })
       .bindPopup(`<div style="font-size:13px;min-width:160px;">
         <div style="font-weight:800;font-size:15px;color:${color};margin-bottom:4px;">${order != null ? order + '· ' : ''}${appt.plate || '—'}</div>
         <div style="color:#475569;">${appt.car || ''}</div>
@@ -600,7 +611,7 @@
       </div>`)
       .addTo(map);
     // Register for sidebar click → highlight
-    if (appt.id) markerByApptId[appt.id] = { marker: m, color, plate: appt.plate, order };
+    if (appt.id) markerByApptId[appt.id] = { marker: m, color, plate: appt.plate, order, stackOffset };
     // Clicking the map marker also selects the sidebar item
     m.on('click', () => selectStop(appt.id));
     activeOverlays.push(m);
