@@ -1048,7 +1048,7 @@ async function openVendasComplPanel() {
 
   var rows = '';
   if (appts.length === 0) {
-    rows = '<tr><td colspan="' + (canFaturar ? '5' : '4') + '" style="text-align:center;padding:24px;color:#94a3b8;font-style:italic;">Sem vendas complementares registadas</td></tr>';
+    rows = '<tr><td colspan="' + (canFaturar ? '6' : '5') + '" style="text-align:center;padding:24px;color:#94a3b8;font-style:italic;">Sem vendas complementares registadas</td></tr>';
   } else {
     appts.forEach(function(a) {
       var faturado = !!a.comp_sales_faturado;
@@ -1061,8 +1061,9 @@ async function openVendasComplPanel() {
       }
       rows += '<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">'
         + '<td style="padding:8px 10px;font-weight:700;color:#fbbf24;">' + (a.plate || '—') + '</td>'
-        + '<td style="padding:8px 10px;max-width:200px;word-break:break-word;">' + (a.comp_sales_desc || '—') + '</td>'
+        + '<td style="padding:8px 10px;max-width:160px;word-break:break-word;">' + (a.comp_sales_desc || '—') + '</td>'
         + '<td style="padding:8px 10px;">' + (a.comp_sales_name || '—') + '<br><span style="font-size:11px;color:#94a3b8;">' + (a.comp_sales_nif || '') + '</span></td>'
+        + '<td style="padding:8px 10px;font-size:12px;color:#94a3b8;white-space:nowrap;">' + (a.portal_name || '—') + '</td>'
         + '<td style="padding:8px 10px;">' + badge + '</td>'
         + (canFaturar ? '<td style="padding:8px 10px;">' + actionBtn + '</td>' : '')
         + '</tr>';
@@ -1079,7 +1080,7 @@ async function openVendasComplPanel() {
     + '</div>'
     + '<div style="overflow-y:auto;flex:1;">'
     + '<table style="width:100%;border-collapse:collapse;color:#e2e8f0;font-size:13px;">'
-    + '<thead><tr style="background:rgba(255,255,255,0.05);"><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Matrícula</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Descrição</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Cliente / NIF</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Estado</th>' + (canFaturar ? '<th style="padding:8px 10px;"></th>' : '') + '</tr></thead>'
+    + '<thead><tr style="background:rgba(255,255,255,0.05);"><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Matrícula</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Descrição</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Cliente / NIF</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Serviço</th><th style="padding:8px 10px;text-align:left;font-weight:600;color:#94a3b8;">Estado</th>' + (canFaturar ? '<th style="padding:8px 10px;"></th>' : '') + '</tr></thead>'
     + '<tbody>' + rows + '</tbody>'
     + '</table>'
     + '</div>'
