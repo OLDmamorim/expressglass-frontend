@@ -18,13 +18,21 @@
     return `hsl(${hue}, 65%, 45%)`;
   }
 
-  function makeMarkerSVG(label, color) {
-    const w = 80, h = 38, r = 7;
+  function makeMarkerSVG(label, color, order) {
+    const hasNum = order != null;
+    const w = hasNum ? 96 : 80, h = 38, r = 7;
     const txt = (label || '—').toUpperCase().slice(0, 10);
+    const cy = (h - 12) / 2 + 1;
+    const numBadge = hasNum ? `
+      <circle cx="13" cy="${cy}" r="9" fill="#fff" stroke="${color}" stroke-width="1.5"/>
+      <text x="13" y="${cy + 4}" font-family="'Rajdhani','Roboto Mono',monospace"
+        font-size="12" font-weight="900" fill="${color}" text-anchor="middle">${order}</text>` : '';
+    const tx = hasNum ? (24 + w) / 2 : w / 2;
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
       <rect x="1" y="1" width="${w-2}" height="${h-12}" rx="${r}" fill="${color}" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
       <polygon points="${w/2-7},${h-12} ${w/2+7},${h-12} ${w/2},${h-1}" fill="${color}"/>
-      <text x="${w/2}" y="${(h-12)/2+5}"
+      ${numBadge}
+      <text x="${tx}" y="${(h-12)/2+5}"
         font-family="'Rajdhani','Roboto Mono',monospace"
         font-size="11" font-weight="700"
         fill="white" text-anchor="middle" letter-spacing="1">${txt}</text>
@@ -336,8 +344,9 @@
   // ── Leaflet map instance ──────────────────────────────────────────────────
   let leafletMap = null;
   let activeOverlays = [];
-  let markerByApptId = {};     // apptId → { marker, color, plate }
-  let selectedMarker = null;   // { marker, origColor, origPlate }
+  let markerByApptId = {};     // apptId → { marker, color, plate, order }
+  let selectedMarker = null;   // { marker, origColor, origPlate, origOrder }
+  let orderByApptId = {};      // apptId → execution order number
 
   function clearMap() {
     if (leafletMap) {
@@ -346,15 +355,24 @@
     activeOverlays = [];
     markerByApptId = {};
     selectedMarker = null;
+    orderByApptId = {};
   }
 
-  function makeMarkerSVGSelected(label, color) {
-    const w = 84, h = 40, r = 7;
+  function makeMarkerSVGSelected(label, color, order) {
+    const hasNum = order != null;
+    const w = hasNum ? 100 : 84, h = 40, r = 7;
     const txt = (label || '—').toUpperCase().slice(0, 10);
+    const cy = (h - 12) / 2 + 1;
+    const numBadge = hasNum ? `
+      <circle cx="14" cy="${cy}" r="9.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>
+      <text x="14" y="${cy + 4}" font-family="'Rajdhani','Roboto Mono',monospace"
+        font-size="12" font-weight="900" fill="#fff" text-anchor="middle">${order}</text>` : '';
+    const tx = hasNum ? (26 + w) / 2 : w / 2;
     return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
       <rect x="1" y="1" width="${w-2}" height="${h-12}" rx="${r}" fill="#fff" stroke="${color}" stroke-width="2.5"/>
       <polygon points="${w/2-7},${h-12} ${w/2+7},${h-12} ${w/2},${h-1}" fill="#fff" stroke="${color}" stroke-width="1.5"/>
-      <text x="${w/2}" y="${(h-12)/2+5}"
+      ${numBadge}
+      <text x="${tx}" y="${(h-12)/2+5}"
         font-family="'Rajdhani','Roboto Mono',monospace"
         font-size="12" font-weight="800"
         fill="${color}" text-anchor="middle" letter-spacing="1">${txt}</text>
@@ -364,10 +382,11 @@
   function selectStop(apptId) {
     // Deselect previous
     if (selectedMarker) {
-      const { marker, origColor, origPlate } = selectedMarker;
+      const { marker, origColor, origPlate, origOrder } = selectedMarker;
+      const dw = origOrder != null ? 96 : 80;
       marker.setIcon(L.divIcon({
-        html: makeMarkerSVG(origPlate, origColor),
-        className: '', iconSize: [80, 38], iconAnchor: [40, 38],
+        html: makeMarkerSVG(origPlate, origColor, origOrder),
+        className: '', iconSize: [dw, 38], iconAnchor: [dw / 2, 38],
       }));
       document.querySelectorAll('.rm-stop.rm-selected').forEach(el => el.classList.remove('rm-selected'));
       selectedMarker = null;
@@ -375,16 +394,17 @@
     const info = markerByApptId[apptId];
     if (!info) return;
     // Highlight marker: white fill + color border + pulse ring
+    const sw = info.order != null ? 100 : 84;
     info.marker.setIcon(L.divIcon({
-      html: `<div style="position:relative;width:84px;height:40px;">
+      html: `<div style="position:relative;width:${sw}px;height:40px;">
         <div style="position:absolute;top:6px;left:2px;right:2px;bottom:12px;border-radius:8px;background:${info.color};animation:rmPulse 1s ease-out infinite;opacity:.35;pointer-events:none;"></div>
-        ${makeMarkerSVGSelected(info.plate, info.color)}
+        ${makeMarkerSVGSelected(info.plate, info.color, info.order)}
       </div>`,
-      className: '', iconSize: [84, 40], iconAnchor: [42, 40],
+      className: '', iconSize: [sw, 40], iconAnchor: [sw / 2, 40],
     }));
     info.marker.openPopup();
     leafletMap?.panTo(info.marker.getLatLng());
-    selectedMarker = { marker: info.marker, origColor: info.color, origPlate: info.plate };
+    selectedMarker = { marker: info.marker, origColor: info.color, origPlate: info.plate, origOrder: info.order };
     // Highlight sidebar item
     const stopEl = document.querySelector(`.rm-stop[data-appt-id="${apptId}"]`);
     if (stopEl) { stopEl.classList.add('rm-selected'); stopEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
@@ -469,6 +489,7 @@
         group.innerHTML += '<div class="rm-no-stops">Sem agendamentos neste dia</div>';
       } else {
         appts.forEach((a, i) => {
+          if (a.id != null) orderByApptId[a.id] = i + 1;
           const addr = apptAddress(a);
           const stop = document.createElement('div');
           stop.className = 'rm-stop';
@@ -563,21 +584,23 @@
   }
 
   function addLeafletMarker(map, pos, appt, color) {
+    const order = appt.id != null ? orderByApptId[appt.id] : null;
+    const w = order != null ? 96 : 80;
     const icon = L.divIcon({
-      html: makeMarkerSVG(appt.plate, color),
+      html: makeMarkerSVG(appt.plate, color, order),
       className: '',
-      iconSize: [80, 38],
-      iconAnchor: [40, 38],
+      iconSize: [w, 38],
+      iconAnchor: [w / 2, 38],
     });
     const m = L.marker(pos, { icon, zIndexOffset: 100 })
       .bindPopup(`<div style="font-size:13px;min-width:160px;">
-        <div style="font-weight:800;font-size:15px;color:${color};margin-bottom:4px;">${appt.plate || '—'}</div>
+        <div style="font-weight:800;font-size:15px;color:${color};margin-bottom:4px;">${order != null ? order + '· ' : ''}${appt.plate || '—'}</div>
         <div style="color:#475569;">${appt.car || ''}</div>
         <div style="color:#64748b;font-size:12px;margin-top:4px;">${apptAddress(appt) || ''}</div>
       </div>`)
       .addTo(map);
     // Register for sidebar click → highlight
-    if (appt.id) markerByApptId[appt.id] = { marker: m, color, plate: appt.plate };
+    if (appt.id) markerByApptId[appt.id] = { marker: m, color, plate: appt.plate, order };
     // Clicking the map marker also selects the sidebar item
     m.on('click', () => selectStop(appt.id));
     activeOverlays.push(m);
