@@ -1223,6 +1223,7 @@ async function startSync() {
   document.getElementById('btnSyncImport').disabled = true;
 
   let totalCreated = 0, totalUpdated = 0, totalDeleted = 0, totalSkipped = 0, totalErrors = 0;
+  const allErrorSamples = [];
   let done = 0;
   const total = portalIds.length;
 
@@ -1245,10 +1246,12 @@ async function startSync() {
         totalDeleted += result.data.deleted || 0;
         totalSkipped += result.data.skipped || 0;
         totalErrors  += result.data.errors  || 0;
+        if (result.data.error_samples?.length) allErrorSamples.push(...result.data.error_samples);
       }
     } catch (err) {
       console.error('Erro sync portal', portalId, err);
       totalErrors++;
+      allErrorSamples.push('Erro de rede: ' + err.message);
     }
     done++;
   }
@@ -1256,6 +1259,13 @@ async function startSync() {
   document.getElementById('importProgressBar').style.width = '100%';
   document.getElementById('importProgressText').textContent = 'Sincronização concluída!';
   document.getElementById('btnSyncImport').disabled = false;
+
+  const errorSamplesHtml = (totalErrors > 0 && allErrorSamples.length > 0)
+    ? `<div style="margin-top:12px;padding:12px;background:#fef2f2;border-radius:8px;border:1px solid #fecaca;">
+        <div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:6px;">⚠️ Primeiros erros registados:</div>
+        ${allErrorSamples.slice(0,5).map(e => `<div style="font-size:12px;color:#7f1d1d;font-family:monospace;margin-bottom:2px;">${e}</div>`).join('')}
+       </div>`
+    : '';
 
   document.getElementById('importResultsContent').innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px;">
@@ -1276,6 +1286,7 @@ async function startSync() {
         <div style="font-size:13px;color:#6b7280;">Erros</div>
       </div>
     </div>
+    ${errorSamplesHtml}
   `;
   document.getElementById('importResults').style.display = 'block';
   showToast(`Sync concluído: ${totalCreated} criados, ${totalUpdated} agendados, ${totalDeleted} apagados`, 'success');
