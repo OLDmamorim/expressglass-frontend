@@ -236,6 +236,8 @@
           cursor: pointer; transition: background .12s;
         }
         #rotaMapModal .rm-stop:hover { background: rgba(255,255,255,0.05); }
+        #rotaMapModal .rm-stop.rm-selected { background: rgba(255,255,255,0.09); border-left: 3px solid currentColor; padding-left: 5px; }
+        @keyframes rmPulse { 0% { transform:scale(.8); opacity:.4; } 100% { transform:scale(1.5); opacity:0; } }
         #rotaMapModal .rm-stop-idx {
           width: 22px; height: 22px; border-radius: 50%;
           display: flex; align-items: center; justify-content: center;
@@ -334,12 +336,58 @@
   // ── Leaflet map instance ──────────────────────────────────────────────────
   let leafletMap = null;
   let activeOverlays = [];
+  let markerByApptId = {};     // apptId → { marker, color, plate }
+  let selectedMarker = null;   // { marker, origColor, origPlate }
 
   function clearMap() {
     if (leafletMap) {
       activeOverlays.forEach(o => { try { leafletMap.removeLayer(o); } catch (e) {} });
     }
     activeOverlays = [];
+    markerByApptId = {};
+    selectedMarker = null;
+  }
+
+  function makeMarkerSVGSelected(label, color) {
+    const w = 84, h = 40, r = 7;
+    const txt = (label || '—').toUpperCase().slice(0, 10);
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="${w-2}" height="${h-12}" rx="${r}" fill="#fff" stroke="${color}" stroke-width="2.5"/>
+      <polygon points="${w/2-7},${h-12} ${w/2+7},${h-12} ${w/2},${h-1}" fill="#fff" stroke="${color}" stroke-width="1.5"/>
+      <text x="${w/2}" y="${(h-12)/2+5}"
+        font-family="'Rajdhani','Roboto Mono',monospace"
+        font-size="12" font-weight="800"
+        fill="${color}" text-anchor="middle" letter-spacing="1">${txt}</text>
+    </svg>`;
+  }
+
+  function selectStop(apptId) {
+    // Deselect previous
+    if (selectedMarker) {
+      const { marker, origColor, origPlate } = selectedMarker;
+      marker.setIcon(L.divIcon({
+        html: makeMarkerSVG(origPlate, origColor),
+        className: '', iconSize: [80, 38], iconAnchor: [40, 38],
+      }));
+      document.querySelectorAll('.rm-stop.rm-selected').forEach(el => el.classList.remove('rm-selected'));
+      selectedMarker = null;
+    }
+    const info = markerByApptId[apptId];
+    if (!info) return;
+    // Highlight marker: white fill + color border + pulse ring
+    info.marker.setIcon(L.divIcon({
+      html: `<div style="position:relative;width:84px;height:40px;">
+        <div style="position:absolute;top:6px;left:2px;right:2px;bottom:12px;border-radius:8px;background:${info.color};animation:rmPulse 1s ease-out infinite;opacity:.35;pointer-events:none;"></div>
+        ${makeMarkerSVGSelected(info.plate, info.color)}
+      </div>`,
+      className: '', iconSize: [84, 40], iconAnchor: [42, 40],
+    }));
+    info.marker.openPopup();
+    leafletMap?.panTo(info.marker.getLatLng());
+    selectedMarker = { marker: info.marker, origColor: info.color, origPlate: info.plate };
+    // Highlight sidebar item
+    const stopEl = document.querySelector(`.rm-stop[data-appt-id="${apptId}"]`);
+    if (stopEl) { stopEl.classList.add('rm-selected'); stopEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
   }
 
   function ensureMap() {
@@ -424,6 +472,8 @@
           const addr = apptAddress(a);
           const stop = document.createElement('div');
           stop.className = 'rm-stop';
+          stop.dataset.apptId = a.id;
+          stop.style.color = portal.color;
           stop.innerHTML = `
             <div class="rm-stop-idx" style="background:${portal.color}">${i + 1}</div>
             <div style="flex:1;min-width:0;">
@@ -432,6 +482,7 @@
               ${addr ? `<div class="rm-stop-loc">📍 ${addr.replace(', Portugal', '')}</div>`
                      : '<div class="rm-stop-loc" style="color:#dc2626">⚠ Sem morada</div>'}
             </div>`;
+          stop.addEventListener('click', () => selectStop(a.id));
           group.appendChild(stop);
         });
       }
@@ -525,6 +576,10 @@
         <div style="color:#64748b;font-size:12px;margin-top:4px;">${apptAddress(appt) || ''}</div>
       </div>`)
       .addTo(map);
+    // Register for sidebar click → highlight
+    if (appt.id) markerByApptId[appt.id] = { marker: m, color, plate: appt.plate };
+    // Clicking the map marker also selects the sidebar item
+    m.on('click', () => selectStop(appt.id));
     activeOverlays.push(m);
     return m;
   }
