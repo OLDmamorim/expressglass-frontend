@@ -13,6 +13,7 @@
   function todayKey() { return new Date().toISOString().slice(0, 10); }
 
   function wasDismissed() {
+    if (new URLSearchParams(window.location.search).get('debugRouteOpt') === '1') return false;
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}').date === todayKey(); }
     catch (e) { return false; }
   }
@@ -140,7 +141,12 @@
     document.body.appendChild(el);
   }
 
+  function isDebug() {
+    return new URLSearchParams(window.location.search).get('debugRouteOpt') === '1';
+  }
+
   function schedule() {
+    if (isDebug()) { waitForData(check); return; }
     const now = new Date();
     const target = new Date(now);
     target.setHours(ALERT_HOUR, ALERT_MIN, 0, 0);
