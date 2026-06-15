@@ -89,19 +89,21 @@
       const header = c.portal_name
         ? `📍 ${c.locality} <span style="font-size:11px;color:#94a3b8;font-weight:400;">(${c.portal_name})</span>`
         : `📍 ${c.locality}`;
-      const lines = c.groups.map(g => {
-        const plates = g.appts.map(a =>
-          `<span style="font-weight:700;color:#fbbf24;">${a.plate || '—'}</span>`
-          + (a.car ? `<span style="color:#94a3b8;font-size:11px;"> ${a.car}</span>` : '')
-        ).join(', ');
-        return `<div style="margin:4px 0 4px 12px;font-size:13px;color:#e2e8f0;">
-          <span style="color:#60a5fa;font-weight:600;">${g.label}</span> — ${plates}
+      const dayBlocks = c.groups.map(g => {
+        const cards = g.appts.map(a => `
+          <div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:6px 9px;min-width:88px;">
+            <div style="font-weight:800;font-size:13px;color:#fbbf24;letter-spacing:.5px;">${a.plate || '—'}</div>
+            <div style="font-size:10px;color:#94a3b8;margin-top:2px;line-height:1.2;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${(a.car || '').toUpperCase() || '—'}</div>
+          </div>`).join('');
+        return `<div style="margin-top:8px;">
+          <div style="display:inline-block;background:#1d4ed8;color:#fff;font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px;margin-bottom:5px;">${g.label}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">${cards}</div>
         </div>`;
-      }).join('');
-      return `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(255,255,255,0.05);border-radius:10px;border-left:3px solid #f59e0b;">
-        <div style="font-weight:700;font-size:14px;color:#fff;margin-bottom:6px;">${header}</div>
-        ${lines}
-        <div style="font-size:11px;color:#6b7280;margin-top:8px;">💡 Podem ser agrupados numa só deslocação</div>
+      }).join('<div style="text-align:center;color:#f59e0b;font-size:13px;margin:2px 0;">⇕</div>');
+      return `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(255,255,255,0.04);border-radius:12px;border-left:3px solid #f59e0b;">
+        <div style="font-weight:700;font-size:14px;color:#fff;margin-bottom:4px;">${header}</div>
+        ${dayBlocks}
+        <div style="font-size:11px;color:#6b7280;margin-top:10px;">💡 Podem ser agrupados num só dia</div>
       </div>`;
     }).join('');
 
