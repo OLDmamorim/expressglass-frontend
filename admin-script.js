@@ -1317,8 +1317,10 @@ async function startSyncOrders() {
   const nmdosCol     = importHeaders.findIndex(h => norm(h) === 'nmdos');
   const marcaCol     = importHeaders.findIndex(h => norm(h) === 'marca');
   const modeloCol    = importHeaders.findIndex(h => norm(h) === 'modelo');
+  const dataServicoCol = importHeaders.findIndex(h => String(h||'').toLowerCase().trim().replace(/ç/g,'c').replace(/í/g,'i') === 'dataservico');
+  const dataObraCol    = importHeaders.findIndex(h => norm(h) === 'dataobra');
 
-  console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, refCol, headers: importHeaders });
+  console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, refCol, dataServicoCol, dataObraCol, headers: importHeaders });
 
   if (plateCol < 0) {
     showToast(`❌ Coluna "matricula" não encontrada.\nColunas no Excel: ${importHeaders.map((h,i)=>`[${i}] ${h}`).join(', ')}`, 'error');
@@ -1393,11 +1395,20 @@ async function startSyncOrders() {
     const carJoined = [marca, modelo].filter(Boolean).join(' ');
     const carVal = (isRecalibra && carJoined) ? carJoined : null;
 
-    const existingList = plateMap[plate];
-    if (!existingList || !existingList.length) {
-      // Portais do tipo Recalibra: único caso em que este import cria processos novos,
-      // e entram já confirmados (não ficam a aguardar confirmação no portal).
-      if (isRecalibra) {
+    // Data do serviço a partir da coluna dataservico (para portais Recalibra)
+    const rawSvcDate = dataServicoCol >= 0 && typeof row[dataServicoCol] === 'number'
+      ? (excelDateToISO(row[dataServicoCol]) || '').slice(0, 10) || null : null;
+    const serviceDate = (rawSvcDate && rawSvcDate > '1990-01-01') ? rawSvcDate : null;
+
+    const existingList = plateMap[plate] || [];
+
+    if (isRecalibra && matchedPortalInfo) {
+      // Recalibra: verificar apenas dentro deste portal específico.
+      // Matrículas que existem noutros portais não impedem a criação aqui.
+      const existingInPortal = existingList.filter(a => a._portalId === matchedPortalInfo.id);
+
+      if (!existingInPortal.length) {
+        // Processo novo para este portal Recalibra → criar já confirmado, com data se disponível
         try {
           const resp = await authClient.authenticatedFetch('/.netlify/functions/appointments', {
             method: 'POST',
@@ -1410,6 +1421,7 @@ async function startSyncOrders() {
               reception_ref: recRef || null,
               glass_eurocode: eurocode || null,
               extra: refVal || null,
+              date: serviceDate || null,
               confirmed: true,
               _portalId: matchedPortalInfo.id
             })
@@ -1418,7 +1430,7 @@ async function startSyncOrders() {
           if (json.success) {
             created++;
             createdDetails.push({ plate, car: json.data?.car || carJoined || 'Sem modelo' });
-            console.log(`[SyncOrders] ✅ criado ${plate} (Recalibra)`);
+            console.log(`[SyncOrders] ✅ criado ${plate} (Recalibra, data=${serviceDate||'sem data'})`);
           } else {
             errors++;
             errorDetails.push({ plate, msg: json.error || 'erro desconhecido ao criar' });
@@ -1427,6 +1439,50 @@ async function startSyncOrders() {
         } catch (e) { errors++; errorDetails.push({ plate, msg: e.message }); console.error(`[SyncOrders] ❌ ${plate} exceção ao criar:`, e); }
         continue;
       }
+
+      // Processo já existe neste portal Recalibra → actualizar campos
+      for (const existing of existingInPortal) {
+        const updates = {};
+        if (orderRef) updates.order_ref = 'Enc.Axial ' + orderRef;
+        if (recRef)      updates.reception_ref  = recRef;
+        if (eurocode)    updates.glass_eurocode = eurocode;
+        if (refVal) {
+          const existExtra = existing.extra || '';
+          let extraParsed = null;
+          try { extraParsed = JSON.parse(existExtra); } catch(e) {}
+          updates.extra = (extraParsed && typeof extraParsed === 'object')
+            ? JSON.stringify({ ...extraParsed, eurocode: refVal })
+            : refVal;
+        }
+        if (recRef)    updates.status = 'ST';
+        else if (orderRef && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
+        if (carVal) updates.car = carVal;
+        if (!Object.keys(updates).length) { skipped++; continue; }
+        console.log(`[SyncOrders] PUT ${existing.id} (${plate}):`, updates);
+        try {
+          const resp = await authClient.authenticatedFetch(`/.netlify/functions/appointments/${existing.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...existing, ...updates, _portalId: existing._portalId })
+          });
+          const json = await resp.json();
+          if (json.success || json.data) {
+            updated++;
+            updatedDetails.push({ plate, order_ref: json.data?.order_ref || null, reception_ref: json.data?.reception_ref || null, extra: json.data?.extra || null, status: json.data?.status || null, car: json.data?.car || null });
+            console.log(`[SyncOrders] ✅ ${plate} (${existing.id}) → order_ref=${json.data?.order_ref} status=${json.data?.status}`);
+          } else {
+            errors++;
+            const errMsg = json.error || json.message || resp.status || 'erro desconhecido';
+            errorDetails.push({ plate, msg: errMsg });
+            console.error(`[SyncOrders] ❌ ${plate} error:`, json);
+          }
+        } catch (e) { errors++; errorDetails.push({ plate, msg: e.message }); console.error(`[SyncOrders] ❌ ${plate} exception:`, e); }
+      }
+      continue;
+    }
+
+    // Portais não-Recalibra: apenas actualizar processos já existentes (nunca criar)
+    if (!existingList.length) {
       notFound++; notFoundPlates.push(plate); continue;
     }
 
@@ -1455,7 +1511,6 @@ async function startSyncOrders() {
       if (recRef)    updates.status = 'ST';
       else if (orderRef && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
 
-      // Portais Recalibra: marca/modelo só existem neste Excel de encomendas
       if (carVal) updates.car = carVal;
 
       if (!Object.keys(updates).length) { skipped++; continue; }
@@ -1486,10 +1541,11 @@ async function startSyncOrders() {
   document.getElementById('importProgressText').textContent = 'Importação de encomendas concluída!';
 
   const colInfo = [
-    encCol >= 0  ? `✅ encomendas[${encCol}]`  : '❌ encomendas',
-    recCol >= 0  ? `✅ receção[${recCol}]`      : '❌ receção',
-    refCol >= 0  ? `✅ ref[${refCol}]`          : '❌ ref',
-    euroCol >= 0 ? `✅ eurocode[${euroCol}]`    : '❌ eurocode',
+    encCol >= 0         ? `✅ encomendas[${encCol}]`      : '❌ encomendas',
+    recCol >= 0         ? `✅ receção[${recCol}]`          : '❌ receção',
+    refCol >= 0         ? `✅ ref[${refCol}]`              : '❌ ref',
+    euroCol >= 0        ? `✅ eurocode[${euroCol}]`        : '❌ eurocode',
+    dataServicoCol >= 0 ? `✅ dataservico[${dataServicoCol}]` : '❌ dataservico',
   ].join(' · ');
 
   document.getElementById('importResultsContent').innerHTML = `
