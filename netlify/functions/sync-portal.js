@@ -89,34 +89,41 @@ exports.handler = async (event) => {
     const todayISO = new Date().toISOString().slice(0, 10);
     const now = new Date().toISOString();
 
-    for (const svc of services) {
+    // Lookup em lote dos já agendados (com data) deste portal, de uma só vez,
+    // em vez de 1 SELECT por serviço (evita timeout da function em portais grandes).
+    const { rows: existingRows } = await pool.query(
+      `SELECT id, date, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) AS plate_norm
+       FROM appointments
+       WHERE portal_id = $1 AND date IS NOT NULL
+         AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = ANY($2::text[])`,
+      [portal_id, Array.from(excelNorms)]
+    );
+    const existingByPlate = new Map(existingRows.map(r => [r.plate_norm, r]));
+
+    // Dados existentes nunca são apagados: campos simples só se preenchem
+    // quando vazios; notas/extra acrescentam o que o Excel traz de novo.
+    // Os parâmetros levam cast ::text explícito porque, quando vêm a null,
+    // o Postgres não consegue inferir o tipo só a partir do CASE/POSITION
+    // (erro "could not determine data type of parameter").
+    const mergeText = (col, idx) => `${col}=CASE
+         WHEN ${idx}::text IS NULL OR ${idx}::text='' THEN ${col}
+         WHEN ${col} IS NULL OR ${col}='' THEN ${idx}::text
+         WHEN POSITION(${idx}::text IN ${col}) > 0 THEN ${col}
+         ELSE ${col} || ' | ' || ${idx}::text END`;
+
+    async function processService(svc) {
       const plateNorm = norm(svc.plate);
-      if (!plateNorm) { results.errors++; continue; }
+      if (!plateNorm) { results.errors++; return; }
 
       try {
-        const { rows } = await pool.query(
-          `SELECT id, date FROM appointments
-           WHERE portal_id = $1
-             AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = $2
-             AND date IS NOT NULL
-           LIMIT 1`,
-          [portal_id, plateNorm]
-        );
+        const existing = existingByPlate.get(plateNorm);
 
-        if (rows.length > 0) {
+        if (existing) {
           // Já agendado — atualizar dados e data se necessário
-          const existing = rows[0];
           const existingDate = existing.date ? String(existing.date).slice(0, 10) : null;
           const excelDate = svc.date ? String(svc.date).slice(0, 10) : null;
           const shouldUpdateDate = excelDate && excelDate >= todayISO && (!existingDate || existingDate < todayISO);
 
-          // Dados existentes nunca são apagados: campos simples só se preenchem
-          // quando vazios; notas/extra acrescentam o que o Excel traz de novo.
-          const mergeText = (col, idx) => `${col}=CASE
-               WHEN ${idx} IS NULL OR ${idx}='' THEN ${col}
-               WHEN ${col} IS NULL OR ${col}='' THEN ${idx}
-               WHEN POSITION(${idx} IN ${col}) > 0 THEN ${col}
-               ELSE ${col} || ' | ' || ${idx} END`;
           if (shouldUpdateDate) {
             await pool.query(
               `UPDATE appointments SET date=$1, period=$2,
@@ -182,6 +189,14 @@ exports.handler = async (event) => {
         results.errors++;
         if (results.error_samples.length < 5) results.error_samples.push(`${svc.plate}: ${err.message}`);
       }
+    }
+
+    // Processar com concorrência limitada (em vez de 1 a 1) para caber dentro
+    // do tempo limite da function mesmo em portais com muitos serviços.
+    const CONCURRENCY = 8;
+    for (let i = 0; i < services.length; i += CONCURRENCY) {
+      const chunk = services.slice(i, i + CONCURRENCY);
+      await Promise.all(chunk.map(processService));
     }
 
     console.log(`🔄 Sync portal ${portal_id}: ${results.created} criados, ${results.updated} atualizados, ${results.skipped} ignorados, ${deleted} apagados`);
