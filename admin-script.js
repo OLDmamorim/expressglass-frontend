@@ -1295,7 +1295,7 @@ async function startSync() {
 // ===== IMPORTAR APENAS ENCOMENDAS (nunca cria/apaga) =====
 async function startSyncOrders() {
   if (!importExcelData.length) { showToast('Carrega primeiro um ficheiro Excel', 'error'); return; }
-  if (!confirm('📦 IMPORTAR ENCOMENDAS\n\nO que vai acontecer:\n✅ Actualiza order_ref, eurocode e reception_ref nos processos existentes\n❌ Não cria processos novos\n❌ Não apaga nada\n\nTens a certeza?')) return;
+  if (!confirm('📦 IMPORTAR ENCOMENDAS\n\nO que vai acontecer:\n✅ Actualiza order_ref, eurocode e reception_ref nos processos existentes\n✅ Actualiza marca/modelo para serviços Recalibra Minho (Ficha Servico 60)\n❌ Não cria processos novos\n❌ Não apaga nada\n\nTens a certeza?')) return;
 
   const norm = h => String(h || '').toLowerCase().trim();
   const plateCol     = importHeaders.findIndex(h => norm(h) === 'matricula');
@@ -1303,6 +1303,10 @@ async function startSyncOrders() {
   const recCol       = importHeaders.findIndex(h => norm(h) === 'numeros_rececao_mercadorias');
   const euroCol      = importHeaders.findIndex(h => norm(h) === 'eurocode');
   const refCol       = importHeaders.findIndex(h => norm(h) === 'ref');
+  const nmdosCol     = importHeaders.findIndex(h => norm(h) === 'nmdos');
+  const marcaCol     = importHeaders.findIndex(h => norm(h) === 'marca');
+  const modeloCol    = importHeaders.findIndex(h => norm(h) === 'modelo');
+  const RECALIBRA_MINHO_CODE = 'ficha servico 60';
 
   console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, refCol, headers: importHeaders });
 
@@ -1370,6 +1374,11 @@ async function startSyncOrders() {
     const recRef   = recCol >= 0 && row[recCol]   ? String(row[recCol]).trim().replace(/\.0$/, '')  : null;
     const eurocode = euroCol >= 0 && row[euroCol] ? String(row[euroCol]).trim() : null;
     const refVal   = refCol  >= 0 && row[refCol]  ? String(row[refCol]).trim()  : null;
+    const nmdosVal = nmdosCol >= 0 && row[nmdosCol] ? norm(row[nmdosCol]) : '';
+    const isRecalibraMinho = nmdosVal === RECALIBRA_MINHO_CODE;
+    const marca  = marcaCol  >= 0 && row[marcaCol]  ? String(row[marcaCol]).trim()  : '';
+    const modelo = modeloCol >= 0 && row[modeloCol] ? String(row[modeloCol]).trim() : '';
+    const carVal = (isRecalibraMinho && (marca || modelo)) ? [marca, modelo].filter(Boolean).join(' ') : null;
 
     if (matchedSample.length < 5) matchedSample.push({
       plate,
@@ -1396,6 +1405,9 @@ async function startSyncOrders() {
       if (recRef)    updates.status = 'ST';
       else if (orderRef && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
 
+      // Recalibra Minho (Ficha Servico 60): marca/modelo só existem neste Excel de encomendas
+      if (carVal) updates.car = carVal;
+
       if (!Object.keys(updates).length) { skipped++; continue; }
 
       console.log(`[SyncOrders] PUT ${existing.id} (${plate}):`, updates);
@@ -1408,7 +1420,7 @@ async function startSyncOrders() {
         const json = await resp.json();
         if (json.success || json.data) {
           updated++;
-          updatedDetails.push({ plate, order_ref: json.data?.order_ref || null, reception_ref: json.data?.reception_ref || null, extra: json.data?.extra || null, status: json.data?.status || null });
+          updatedDetails.push({ plate, order_ref: json.data?.order_ref || null, reception_ref: json.data?.reception_ref || null, extra: json.data?.extra || null, status: json.data?.status || null, car: json.data?.car || null });
           console.log(`[SyncOrders] ✅ ${plate} (${existing.id}) → order_ref=${json.data?.order_ref} status=${json.data?.status}`);
         } else {
           errors++;
@@ -1455,7 +1467,7 @@ async function startSyncOrders() {
     ${updatedDetails.length ? `<div style="margin-top:14px;padding:10px 14px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#166534;">
       <strong>Actualizados (${updatedDetails.length}):</strong>
       <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;">
-        ${updatedDetails.map(d => `<span><strong>${d.plate}</strong> → ${[d.order_ref ? '📦 '+d.order_ref : '', d.reception_ref ? '✅ '+d.reception_ref : '', d.status ? '🔵 '+d.status : '', d.extra ? '🔲 '+(d.extra.length>30?d.extra.slice(0,30)+'…':d.extra) : ''].filter(Boolean).join(', ') || '(sem dados)'}</span>`).join('')}
+        ${updatedDetails.map(d => `<span><strong>${d.plate}</strong> → ${[d.order_ref ? '📦 '+d.order_ref : '', d.reception_ref ? '✅ '+d.reception_ref : '', d.status ? '🔵 '+d.status : '', d.car ? '🚗 '+d.car : '', d.extra ? '🔲 '+(d.extra.length>30?d.extra.slice(0,30)+'…':d.extra) : ''].filter(Boolean).join(', ') || '(sem dados)'}</span>`).join('')}
       </div>
     </div>` : ''}
     ${matchedSample.length ? `<div style="margin-top:10px;padding:10px 14px;background:#f5f3ff;border-radius:8px;font-size:11px;color:#5b21b6;font-family:monospace;">
