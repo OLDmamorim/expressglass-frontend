@@ -1244,7 +1244,13 @@ async function startSync() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ portal_id: parseInt(portalId), services })
       });
-      const result = await response.json();
+      const rawText = await response.text();
+      let result;
+      try {
+        result = JSON.parse(rawText);
+      } catch (parseErr) {
+        throw new Error(`resposta inválida do servidor (HTTP ${response.status}): ${rawText.slice(0, 120)}`);
+      }
       if (result.success) {
         totalCreated += result.data.created || 0;
         totalUpdated += result.data.updated || 0;
