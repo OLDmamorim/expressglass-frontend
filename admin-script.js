@@ -174,6 +174,8 @@ function renderPortals() {
       ? '<span style="background:#f0fdf4;color:#16a34a;padding:2px 8px;border-radius:4px;font-size:12px;">Loja</span>'
       : portal.portal_type === 'pesados'
       ? '<span style="background:#fff7ed;color:#c2410c;padding:2px 8px;border-radius:4px;font-size:12px;">Pesados</span>'
+      : portal.portal_type === 'recalibra'
+      ? '<span style="background:#f5f3ff;color:#7c3aed;padding:2px 8px;border-radius:4px;font-size:12px;">Recalibra</span>'
       : '<span style="background:#eff6ff;color:#2563eb;padding:2px 8px;border-radius:4px;font-size:12px;">SM</span>';
     const poweringBadge = portal.powering_loja_id
       ? `<span title="PoweringEG #${portal.powering_loja_id}" style="background:#f5f3ff;color:#7c3aed;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-left:4px;">⚡ EG</span>`
@@ -584,7 +586,7 @@ function populateMultiPortalCheckboxes(selectedIds = []) {
   container.innerHTML = portals.map(p => `
     <label style="display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;text-align:left;">
       <input type="checkbox" class="coord-portal-cb" value="${p.id}" ${selectedIds.includes(p.id) ? 'checked' : ''} style="width:18px;height:18px;min-width:18px;">
-      <span style="flex:1;text-align:left;">${p.name} <span style="color:#9ca3af;font-size:12px;">(${p.portal_type === 'loja' ? 'Loja' : p.portal_type === 'pesados' ? 'Pesados' : 'SM'})</span></span>
+      <span style="flex:1;text-align:left;">${p.name} <span style="color:#9ca3af;font-size:12px;">(${p.portal_type === 'loja' ? 'Loja' : p.portal_type === 'pesados' ? 'Pesados' : p.portal_type === 'recalibra' ? 'Recalibra' : 'SM'})</span></span>
     </label>
   `).join('');
   // Quando muda os coordenados, refrescar consulta para desactivar os que estão coordenados
@@ -604,7 +606,7 @@ function populateConsultablePortalCheckboxes(selectedIds = []) {
   // Normalizar IDs selecionados para inteiros
   const normalizedIds = (selectedIds || []).map(id => parseInt(id)).filter(id => !isNaN(id));
   // Mostrar apenas portais SM e Pesados (faz sentido consultar agendas operacionais)
-  const filtered = portals.filter(p => (p.portal_type || 'sm') !== 'loja');
+  const filtered = portals.filter(p => ['sm', 'pesados'].includes(p.portal_type || 'sm'));
   container.innerHTML = filtered.map(p => {
     const isCoord = coordIds.has(parseInt(p.id));
     const isChecked = normalizedIds.includes(parseInt(p.id)) && !isCoord;
@@ -888,12 +890,12 @@ function analyzeDistribution() {
     if (!portal.nmdos_code) return;
     const count = countByNmdos[portal.nmdos_code] || 0;
     matched += count;
-    const isRecalibraMinho = portal.nmdos_code.toLowerCase().trim() === 'ficha servico 60';
+    const isRecalibra = portal.portal_type === 'recalibra';
     rows.push(`
       <tr>
         <td><strong>${portal.name}</strong></td>
         <td>${portal.nmdos_code}</td>
-        <td>${count}${isRecalibraMinho ? ' <em style="color:#d97706;font-size:11px;">(ignorado — usa Importar Encomendas)</em>' : ''}</td>
+        <td>${count}${isRecalibra ? ' <em style="color:#d97706;font-size:11px;">(ignorado — usa Importar Encomendas)</em>' : ''}</td>
       </tr>
     `);
   });
@@ -989,9 +991,9 @@ async function startImport() {
   const services = [];
   importExcelData.forEach(row => {
     const code = String(row[nmdosCol] || '').trim();
-    if (code.toLowerCase() === 'ficha servico 60') return; // Recalibra Minho: só entra via Importar Encomendas
     const portalInfo = codeToPortal[code];
     if (!portalInfo) return;
+    if (portalInfo.type === 'recalibra') return; // Recalibra: só entra via Importar Encomendas
 
     const plate = normalizePlate(row[plateCol]);
     if (!plate) return;
@@ -1168,9 +1170,9 @@ async function startSync() {
   const byPortal = {};
   importExcelData.forEach(row => {
     const code = String(row[nmdosCol] || '').trim();
-    if (code.toLowerCase() === 'ficha servico 60') return; // Recalibra Minho: só entra via Importar Encomendas
     const portalInfo = codeToPortal[code];
     if (!portalInfo) return;
+    if (portalInfo.type === 'recalibra') return; // Recalibra: só entra via Importar Encomendas
     const plate = normalizePlate(row[plateCol]);
     if (!plate) return;
 
@@ -1295,10 +1297,10 @@ async function startSync() {
   showToast(`Sync concluído: ${totalCreated} criados, ${totalUpdated} agendados, ${totalDeleted} apagados`, 'success');
 }
 
-// ===== IMPORTAR ENCOMENDAS (actualiza existentes; cria novos só para Recalibra Minho) =====
+// ===== IMPORTAR ENCOMENDAS (actualiza existentes; cria novos só para portais Recalibra) =====
 async function startSyncOrders() {
   if (!importExcelData.length) { showToast('Carrega primeiro um ficheiro Excel', 'error'); return; }
-  if (!confirm('📦 IMPORTAR ENCOMENDAS\n\nO que vai acontecer:\n✅ Actualiza order_ref, eurocode e reception_ref nos processos existentes\n✅ Actualiza marca/modelo para serviços Recalibra Minho (Ficha Servico 60)\n✅ Cria processos novos já confirmados para Recalibra Minho (Ficha Servico 60)\n❌ Não cria nem apaga processos dos outros portais\n\nTens a certeza?')) return;
+  if (!confirm('📦 IMPORTAR ENCOMENDAS\n\nO que vai acontecer:\n✅ Actualiza order_ref, eurocode e reception_ref nos processos existentes\n✅ Actualiza marca/modelo para serviços de portais Recalibra\n✅ Cria processos novos já confirmados para portais Recalibra\n❌ Não cria nem apaga processos dos outros portais\n\nTens a certeza?')) return;
 
   const norm = h => String(h || '').toLowerCase().trim();
   const plateCol     = importHeaders.findIndex(h => norm(h) === 'matricula');
@@ -1309,7 +1311,6 @@ async function startSyncOrders() {
   const nmdosCol     = importHeaders.findIndex(h => norm(h) === 'nmdos');
   const marcaCol     = importHeaders.findIndex(h => norm(h) === 'marca');
   const modeloCol    = importHeaders.findIndex(h => norm(h) === 'modelo');
-  const RECALIBRA_MINHO_CODE = 'ficha servico 60';
 
   console.log('[SyncOrders] Colunas detectadas:', { plateCol, encCol, recCol, euroCol, refCol, headers: importHeaders });
 
@@ -1379,23 +1380,18 @@ async function startSyncOrders() {
     const eurocode = euroCol >= 0 && row[euroCol] ? String(row[euroCol]).trim() : null;
     const refVal   = refCol  >= 0 && row[refCol]  ? String(row[refCol]).trim()  : null;
     const nmdosVal = nmdosCol >= 0 && row[nmdosCol] ? norm(row[nmdosCol]) : '';
-    const isRecalibraMinho = nmdosVal === RECALIBRA_MINHO_CODE;
+    const matchedPortalInfo = nmdosVal ? codeToPortalNorm[nmdosVal] : null;
+    const isRecalibra = matchedPortalInfo?.type === 'recalibra';
     const marca  = marcaCol  >= 0 && row[marcaCol]  ? String(row[marcaCol]).trim()  : '';
     const modelo = modeloCol >= 0 && row[modeloCol] ? String(row[modeloCol]).trim() : '';
     const carJoined = [marca, modelo].filter(Boolean).join(' ');
-    const carVal = (isRecalibraMinho && carJoined) ? carJoined : null;
+    const carVal = (isRecalibra && carJoined) ? carJoined : null;
 
     const existingList = plateMap[plate];
     if (!existingList || !existingList.length) {
-      // Recalibra Minho (Ficha Servico 60): único caso em que este import cria processos novos,
+      // Portais do tipo Recalibra: único caso em que este import cria processos novos,
       // e entram já confirmados (não ficam a aguardar confirmação no portal).
-      if (isRecalibraMinho) {
-        const recalibraPortal = codeToPortalNorm[RECALIBRA_MINHO_CODE];
-        if (!recalibraPortal) {
-          errors++;
-          errorDetails.push({ plate, msg: 'Portal Recalibra Minho (Ficha Servico 60) não tem código nmdos configurado' });
-          continue;
-        }
+      if (isRecalibra) {
         try {
           const resp = await authClient.authenticatedFetch('/.netlify/functions/appointments', {
             method: 'POST',
@@ -1409,14 +1405,14 @@ async function startSyncOrders() {
               glass_eurocode: eurocode || null,
               extra: refVal || null,
               confirmed: true,
-              _portalId: recalibraPortal.id
+              _portalId: matchedPortalInfo.id
             })
           });
           const json = await resp.json();
           if (json.success) {
             created++;
             createdDetails.push({ plate, car: json.data?.car || carJoined || 'Sem modelo' });
-            console.log(`[SyncOrders] ✅ criado ${plate} (Recalibra Minho)`);
+            console.log(`[SyncOrders] ✅ criado ${plate} (Recalibra)`);
           } else {
             errors++;
             errorDetails.push({ plate, msg: json.error || 'erro desconhecido ao criar' });
@@ -1453,7 +1449,7 @@ async function startSyncOrders() {
       if (recRef)    updates.status = 'ST';
       else if (orderRef && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
 
-      // Recalibra Minho (Ficha Servico 60): marca/modelo só existem neste Excel de encomendas
+      // Portais Recalibra: marca/modelo só existem neste Excel de encomendas
       if (carVal) updates.car = carVal;
 
       if (!Object.keys(updates).length) { skipped++; continue; }
@@ -1517,7 +1513,7 @@ async function startSyncOrders() {
       </div>
     </div>
     ${createdDetails.length ? `<div style="margin-top:14px;padding:10px 14px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1d4ed8;">
-      <strong>Criados (${createdDetails.length}) — Recalibra Minho:</strong>
+      <strong>Criados (${createdDetails.length}) — Recalibra:</strong>
       <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;">
         ${createdDetails.map(d => `<span><strong>${d.plate}</strong> → 🚗 ${d.car} · ✅ confirmado</span>`).join('')}
       </div>
