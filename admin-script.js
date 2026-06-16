@@ -888,11 +888,12 @@ function analyzeDistribution() {
     if (!portal.nmdos_code) return;
     const count = countByNmdos[portal.nmdos_code] || 0;
     matched += count;
+    const isRecalibraMinho = portal.nmdos_code.toLowerCase().trim() === 'ficha servico 60';
     rows.push(`
       <tr>
         <td><strong>${portal.name}</strong></td>
         <td>${portal.nmdos_code}</td>
-        <td>${count}</td>
+        <td>${count}${isRecalibraMinho ? ' <em style="color:#d97706;font-size:11px;">(ignorado — usa Importar Encomendas)</em>' : ''}</td>
       </tr>
     `);
   });
@@ -988,6 +989,7 @@ async function startImport() {
   const services = [];
   importExcelData.forEach(row => {
     const code = String(row[nmdosCol] || '').trim();
+    if (code.toLowerCase() === 'ficha servico 60') return; // Recalibra Minho: só entra via Importar Encomendas
     const portalInfo = codeToPortal[code];
     if (!portalInfo) return;
 
@@ -1166,6 +1168,7 @@ async function startSync() {
   const byPortal = {};
   importExcelData.forEach(row => {
     const code = String(row[nmdosCol] || '').trim();
+    if (code.toLowerCase() === 'ficha servico 60') return; // Recalibra Minho: só entra via Importar Encomendas
     const portalInfo = codeToPortal[code];
     if (!portalInfo) return;
     const plate = normalizePlate(row[plateCol]);
@@ -1292,10 +1295,10 @@ async function startSync() {
   showToast(`Sync concluído: ${totalCreated} criados, ${totalUpdated} agendados, ${totalDeleted} apagados`, 'success');
 }
 
-// ===== IMPORTAR APENAS ENCOMENDAS (nunca cria/apaga) =====
+// ===== IMPORTAR ENCOMENDAS (actualiza existentes; cria novos só para Recalibra Minho) =====
 async function startSyncOrders() {
   if (!importExcelData.length) { showToast('Carrega primeiro um ficheiro Excel', 'error'); return; }
-  if (!confirm('📦 IMPORTAR ENCOMENDAS\n\nO que vai acontecer:\n✅ Actualiza order_ref, eurocode e reception_ref nos processos existentes\n✅ Actualiza marca/modelo para serviços Recalibra Minho (Ficha Servico 60)\n❌ Não cria processos novos\n❌ Não apaga nada\n\nTens a certeza?')) return;
+  if (!confirm('📦 IMPORTAR ENCOMENDAS\n\nO que vai acontecer:\n✅ Actualiza order_ref, eurocode e reception_ref nos processos existentes\n✅ Actualiza marca/modelo para serviços Recalibra Minho (Ficha Servico 60)\n✅ Cria processos novos já confirmados para Recalibra Minho (Ficha Servico 60)\n❌ Não cria nem apaga processos dos outros portais\n\nTens a certeza?')) return;
 
   const norm = h => String(h || '').toLowerCase().trim();
   const plateCol     = importHeaders.findIndex(h => norm(h) === 'matricula');
@@ -1321,6 +1324,7 @@ async function startSyncOrders() {
   document.getElementById('importProgressBar').style.width = '5%';
 
   let allAppts = [];
+  const codeToPortalNorm = {};
   try {
     const portalList = portals && portals.length ? portals : (window._adminPortals || []);
     if (!portalList.length) {
@@ -1329,6 +1333,7 @@ async function startSyncOrders() {
       const pd = await pr.json();
       if (pd.success) portalList.push(...pd.data);
     }
+    portalList.forEach(p => { if (p.nmdos_code) codeToPortalNorm[norm(p.nmdos_code)] = { id: p.id, type: p.portal_type || 'sm' }; });
     for (let pi = 0; pi < portalList.length; pi++) {
       const pct = Math.round(5 + (pi / Math.max(portalList.length, 1)) * 30);
       document.getElementById('importProgressBar').style.width = pct + '%';
@@ -1353,8 +1358,9 @@ async function startSyncOrders() {
     plateMap[key].push(a);
   });
 
-  let updated = 0, notFound = 0, skipped = 0, errors = 0;
+  let created = 0, updated = 0, notFound = 0, skipped = 0, errors = 0;
   const notFoundPlates = [];
+  const createdDetails = []; // { plate, car }
   const updatedDetails = []; // { plate, order_ref, reception_ref, extra }
   const errorDetails = [];   // { plate, msg }
   const matchedSample = [];  // first 5 matched rows: { plate, encVal, recVal, refVal, euroVal }
@@ -1367,8 +1373,6 @@ async function startSyncOrders() {
 
     const plate = normalizePlate(row[plateCol]);
     if (!plate) continue;
-    const existingList = plateMap[plate];
-    if (!existingList || !existingList.length) { notFound++; notFoundPlates.push(plate); continue; }
 
     const orderRef = encCol >= 0 && row[encCol]  ? String(row[encCol]).trim().replace(/\.0$/, '')  : null;
     const recRef   = recCol >= 0 && row[recCol]   ? String(row[recCol]).trim().replace(/\.0$/, '')  : null;
@@ -1378,7 +1382,51 @@ async function startSyncOrders() {
     const isRecalibraMinho = nmdosVal === RECALIBRA_MINHO_CODE;
     const marca  = marcaCol  >= 0 && row[marcaCol]  ? String(row[marcaCol]).trim()  : '';
     const modelo = modeloCol >= 0 && row[modeloCol] ? String(row[modeloCol]).trim() : '';
-    const carVal = (isRecalibraMinho && (marca || modelo)) ? [marca, modelo].filter(Boolean).join(' ') : null;
+    const carJoined = [marca, modelo].filter(Boolean).join(' ');
+    const carVal = (isRecalibraMinho && carJoined) ? carJoined : null;
+
+    const existingList = plateMap[plate];
+    if (!existingList || !existingList.length) {
+      // Recalibra Minho (Ficha Servico 60): único caso em que este import cria processos novos,
+      // e entram já confirmados (não ficam a aguardar confirmação no portal).
+      if (isRecalibraMinho) {
+        const recalibraPortal = codeToPortalNorm[RECALIBRA_MINHO_CODE];
+        if (!recalibraPortal) {
+          errors++;
+          errorDetails.push({ plate, msg: 'Portal Recalibra Minho (Ficha Servico 60) não tem código nmdos configurado' });
+          continue;
+        }
+        try {
+          const resp = await authClient.authenticatedFetch('/.netlify/functions/appointments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              plate: row[plateCol],
+              car: carJoined || 'Sem modelo',
+              status: recRef ? 'ST' : (orderRef ? 'VE' : 'NE'),
+              order_ref: orderRef ? ('Enc.Axial ' + orderRef) : null,
+              reception_ref: recRef || null,
+              glass_eurocode: eurocode || null,
+              extra: refVal || null,
+              confirmed: true,
+              _portalId: recalibraPortal.id
+            })
+          });
+          const json = await resp.json();
+          if (json.success) {
+            created++;
+            createdDetails.push({ plate, car: json.data?.car || carJoined || 'Sem modelo' });
+            console.log(`[SyncOrders] ✅ criado ${plate} (Recalibra Minho)`);
+          } else {
+            errors++;
+            errorDetails.push({ plate, msg: json.error || 'erro desconhecido ao criar' });
+            console.error(`[SyncOrders] ❌ ${plate} erro ao criar:`, json);
+          }
+        } catch (e) { errors++; errorDetails.push({ plate, msg: e.message }); console.error(`[SyncOrders] ❌ ${plate} exceção ao criar:`, e); }
+        continue;
+      }
+      notFound++; notFoundPlates.push(plate); continue;
+    }
 
     if (matchedSample.length < 5) matchedSample.push({
       plate,
@@ -1446,7 +1494,11 @@ async function startSyncOrders() {
     <div style="margin-top:10px;padding:8px 12px;background:#eff6ff;border-radius:8px;font-size:11px;color:#1d4ed8;font-family:monospace;">
       Colunas: ${colInfo}
     </div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px;">
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:12px;">
+      <div style="text-align:center;padding:16px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">
+        <div style="font-size:28px;font-weight:700;color:#2563eb;">${created}</div>
+        <div style="font-size:13px;color:#6b7280;">Criados</div>
+      </div>
       <div style="text-align:center;padding:16px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
         <div style="font-size:28px;font-weight:700;color:#16a34a;">${updated}</div>
         <div style="font-size:13px;color:#6b7280;">Actualizados</div>
@@ -1464,6 +1516,12 @@ async function startSyncOrders() {
         <div style="font-size:13px;color:#6b7280;">Erros</div>
       </div>
     </div>
+    ${createdDetails.length ? `<div style="margin-top:14px;padding:10px 14px;background:#eff6ff;border-radius:8px;font-size:12px;color:#1d4ed8;">
+      <strong>Criados (${createdDetails.length}) — Recalibra Minho:</strong>
+      <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;">
+        ${createdDetails.map(d => `<span><strong>${d.plate}</strong> → 🚗 ${d.car} · ✅ confirmado</span>`).join('')}
+      </div>
+    </div>` : ''}
     ${updatedDetails.length ? `<div style="margin-top:14px;padding:10px 14px;background:#f0fdf4;border-radius:8px;font-size:12px;color:#166534;">
       <strong>Actualizados (${updatedDetails.length}):</strong>
       <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;max-height:160px;overflow-y:auto;">
@@ -1484,7 +1542,7 @@ async function startSyncOrders() {
     </div>` : ''}
   `;
   document.getElementById('importResults').style.display = 'block';
-  showToast(`Encomendas importadas: ${updated} actualizados, ${notFound} não encontrados`, updated > 0 ? 'success' : 'info');
+  showToast(`Encomendas importadas: ${created} criados, ${updated} actualizados, ${notFound} não encontrados`, (created > 0 || updated > 0) ? 'success' : 'info');
 }
 // Normaliza order_refs existentes que são apenas números (sem prefixo "Enc.Axial")
 async function fixEncAxialPrefix() {
