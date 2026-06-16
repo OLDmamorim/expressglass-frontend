@@ -1457,6 +1457,8 @@ async function startSyncOrders() {
         if (recRef)    updates.status = 'ST';
         else if (orderRef && (!existing.status || existing.status === 'NE')) updates.status = 'VE';
         if (carVal) updates.car = carVal;
+        // Preencher data de serviço se ainda não tem (não sobrescreve data manual já definida)
+        if (serviceDate && !existing.date) updates.date = serviceDate;
         if (!Object.keys(updates).length) { skipped++; continue; }
         console.log(`[SyncOrders] PUT ${existing.id} (${plate}):`, updates);
         try {
