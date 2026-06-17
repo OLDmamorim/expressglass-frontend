@@ -444,6 +444,20 @@
         </div>
         <form id="appointmentForm" class="appointment-form">
 
+          <!-- Toggle Serviço / Calibragem (só portais Recalibra) -->
+          <div id="recalibraServiceToggle" style="display:none;margin-bottom:14px;">
+            <div style="display:flex;background:#f1f5f9;border-radius:10px;padding:3px;gap:3px;">
+              <button type="button" id="btnTipoServico" onclick="window.setRecalibraTipo('servico')"
+                style="flex:1;padding:8px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;background:#fff;color:#1e293b;box-shadow:0 1px 4px rgba(0,0,0,0.12);transition:all .15s;">
+                🔧 Serviço
+              </button>
+              <button type="button" id="btnTipoCalib" onclick="window.setRecalibraTipo('calibragem')"
+                style="flex:1;padding:8px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;background:transparent;color:#64748b;transition:all .15s;">
+                🎯 Calibragem
+              </button>
+            </div>
+          </div>
+
           <!-- Dica de sugestão de data -->
           <div id="localityHint" style="display:flex;align-items:center;gap:8px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:9px 14px;margin-bottom:12px;font-size:12px;color:#166534;">
             <span style="font-size:16px;">💡</span>
@@ -497,7 +511,7 @@
           <div id="crDateSuggestion" style="display:none;"></div>
 
           <!-- LINHA 3: Tipo de Serviço + Status do Vidro -->
-          <div class="form-row">
+          <div class="form-row" id="serviceStatusRow">
             <div class="form-group">
               <label for="appointmentService">Tipo de Serviço *</label>
               <select id="appointmentService" required>
@@ -509,6 +523,7 @@
                 <option value="POL">POL - Polimento</option>
                 <option value="RV">RV - Retirar Vidro</option>
                 <option value="OUT">OUT - Outros</option>
+                <option value="CAL" style="display:none">CAL - Calibragem</option>
               </select>
               <!-- Campo de tempo personalizado para "Outros" -->
               <div id="customServiceTimeGroup" style="display:none;margin-top:8px;">
