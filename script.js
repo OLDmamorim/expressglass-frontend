@@ -2606,6 +2606,7 @@ function buildDesktopCard(a){
   }
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
+  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
   const sub = loja
     ? [clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ')
     : [isRecalibra ? null : a.locality, clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
@@ -2616,7 +2617,6 @@ function buildDesktopCard(a){
     </div>` : '';
   // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const isPreAgendado = a.confirmed === false;
-  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
   const needsLoc = !loja && !isRecalibra && a.date && !a.locality && canSeeUnconfirmed && !isPreAgendado ? ' needs-locality' : '';
   const locWarning = needsLoc ? `
       <div class="needs-loc-msg">
