@@ -962,7 +962,7 @@ function setRecalibraTipo(tipo) {
   if (btnSvc) { btnSvc.style.background = isCalib ? 'transparent' : '#fff'; btnSvc.style.color = isCalib ? '#64748b' : '#1e293b'; btnSvc.style.boxShadow = isCalib ? '' : '0 1px 4px rgba(0,0,0,0.12)'; }
   if (btnCal) { btnCal.style.background = isCalib ? '#fff' : 'transparent'; btnCal.style.color = isCalib ? '#1e293b' : '#64748b'; btnCal.style.boxShadow = isCalib ? '0 1px 4px rgba(0,0,0,0.12)' : ''; }
   const svcRow = document.getElementById('serviceStatusRow');
-  if (svcRow) svcRow.style.display = isCalib ? 'none' : '';
+  if (svcRow) svcRow.classList.toggle('loja-hidden', isCalib);
   const localityGroup = document.getElementById('localityFormGroup');
   if (localityGroup) localityGroup.classList.toggle('loja-hidden', isCalib);
   const localityHint = document.getElementById('localityHint');
