@@ -2775,6 +2775,7 @@ function renderSchedule(){
     // SM: resumo do dia + serviços
     const userRole = window.authClient?.getUser()?.role;
     const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
+    const _isRecalibraPortal = window.portalConfig?.portalType === 'recalibra';
 
     const renderCell = (dayDate) => {
       const iso = localISO(dayDate);
@@ -2788,8 +2789,8 @@ function renderSchedule(){
             return (a.sortIndex||0) - (b.sortIndex||0);
           })
       );
-      // Técnicos: esconder serviços SM sem localidade
-      if (!canSeeUnconfirmed) {
+      // Técnicos: esconder serviços SM sem localidade (não aplica a Recalibra)
+      if (!canSeeUnconfirmed && !_isRecalibraPortal) {
         items = items.filter(a => !!a.locality);
       }
       const blocks = items.map(buildDesktopCard).join('');
