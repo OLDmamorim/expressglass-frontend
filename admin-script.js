@@ -1416,6 +1416,7 @@ async function startSyncOrders() {
             body: JSON.stringify({
               plate: row[plateCol],
               car: carJoined || 'Sem modelo',
+              service: 'CAL',
               status: recRef ? 'ST' : (orderRef ? 'VE' : 'NE'),
               order_ref: orderRef ? ('Enc.Axial ' + orderRef) : null,
               reception_ref: recRef || null,
