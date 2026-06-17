@@ -2242,7 +2242,7 @@ function buildDesktopCard(a){
         <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
         <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
       </div>` : ''}
-      ${isRecalibra && a.locality ? `<div style="display:inline-block;background:#dc2626;color:#ffffff;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin-bottom:4px;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>` : ''}
+      ${isRecalibra && a.locality ? `<div style="display:inline-block;background:#dc2626;color:#ffffff !important;-webkit-text-fill-color:#ffffff;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin-bottom:4px;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>` : ''}
       ${execBadge}
       <div class="card-actions">
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
