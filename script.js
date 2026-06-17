@@ -2715,7 +2715,7 @@ function buildDesktopCard(a){
       ${preAgendadoBadge}
       ${confirmBtn}
       ${locWarning}
-      ${a.service !== 'CAL' ? `<div class="appt-status dc-status">
+      ${(a.service !== 'CAL' && !isRecalibra) ? `<div class="appt-status dc-status">
         <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
         <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
         <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
@@ -2728,7 +2728,7 @@ function buildDesktopCard(a){
         <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
         ${encRecFooter}
       </div>
-    ${glassRemovedBadge}${diasAbertoBadge}${loja ? '' : buildKmRow(a)}${phcFooter}</div>`;
+    ${glassRemovedBadge}${diasAbertoBadge}${(loja || isRecalibra) ? '' : buildKmRow(a)}${phcFooter}</div>`;
 }
 
 function renderSchedule(){
