@@ -2143,7 +2143,10 @@
           <div style="font-size:48px;margin-bottom:12px;">✅</div>
           <p style="font-size:16px;font-weight:800;color:#16a34a;margin-bottom:6px;">Receção registada!</p>
           <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Matrícula <strong>${plate}</strong> — vidro rececionado.</p>
-          <button onclick="window.glassReception.closeScan()" style="background:#0f172a;color:#fff;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button onclick="window.glassReception._step1()" style="background:#2563eb;color:#fff;font-weight:800;font-size:15px;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;letter-spacing:.3px;">📷 Nova Receção</button>
+            <button onclick="window.glassReception.closeScan()" style="background:#e2e8f0;color:#374151;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
+          </div>
         </div>
       `;
       _pollPendingBadge();
