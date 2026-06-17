@@ -2225,6 +2225,7 @@ function buildDesktopCard(a){
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
+      ${isRecalibra && a.locality ? `<div style="display:inline-block;background:#dc2626;color:#fbbf24;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin-top:4px;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>` : ''}
       <div class="dc-meta">
         <span class="dc-badge">${service}</span>
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}

@@ -928,29 +928,41 @@ function isLoja() { return window.portalConfig?.portalType === 'loja'; }
 // — Loja / Recalibra: oculta campos de morada/localidade/km (localização fixa)
 // — SM  : mostra tudo
 function applyLojaModalMode() {
-  const loja = isLoja() || window.portalConfig?.portalType === 'recalibra';
+  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
+  const loja = isLoja() || isRecalibra;
 
   // Hint "seleciona a localidade para sugestão de data"
-  // (tem display:flex inline no HTML — usar classe que force none)
   const hint = document.getElementById('localityHint');
   if (hint) hint.classList.toggle('loja-hidden', loja);
 
-  // Grupo de localidade (LINHA 2, segundo form-group)
-  // (form-group tem display:flex !important no CSS — usar classe)
+  // Grupo de localidade: sempre visível para Recalibra (campo "Loja"), escondido para Loja, normal para SM
   const localityGroup = document.getElementById('localityFormGroup');
-  if (localityGroup) localityGroup.classList.toggle('loja-hidden', loja);
+  if (localityGroup) localityGroup.classList.toggle('loja-hidden', isLoja() && !isRecalibra);
+
+  // Para Recalibra: mostrar input simples "Loja", esconder autocomplete; repor para SM/Loja
+  const localityAutocomplete = document.getElementById('localityAutocomplete');
+  const lojaInput = document.getElementById('lojaInput');
+  const localityLabel = document.getElementById('localityLabel');
+  if (isRecalibra) {
+    if (localityAutocomplete) localityAutocomplete.style.display = 'none';
+    if (lojaInput) lojaInput.style.display = 'block';
+    if (localityLabel) localityLabel.textContent = 'Loja';
+    if (localityGroup) localityGroup.classList.remove('loja-hidden');
+  } else {
+    if (localityAutocomplete) localityAutocomplete.style.display = '';
+    if (lojaInput) lojaInput.style.display = 'none';
+    if (localityLabel) localityLabel.textContent = 'Localidade *';
+  }
 
   // LINHA 7 — Morada + Distância (km)
-  // (form-row tem display:grid !important no CSS — usar classe)
   const addressRow = document.getElementById('addressKmRow');
   if (addressRow) addressRow.classList.toggle('loja-hidden', loja);
 
-  // Remove/repõe required na localidade (campo hidden, evita erro de validação)
+  // Remove/repõe required na localidade
   const localityInput = document.getElementById('appointmentLocality');
   if (localityInput) localityInput.required = !loja;
 
   // Recalibra não tem vendas complementares — esconder secção no modal
-  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
   const compSales = document.getElementById('compSalesSection');
   if (compSales) compSales.style.display = isRecalibra ? 'none' : '';
 }
@@ -963,8 +975,9 @@ function setRecalibraTipo(tipo) {
   if (btnCal) { btnCal.style.background = isCalib ? '#fff' : 'transparent'; btnCal.style.color = isCalib ? '#1e293b' : '#64748b'; btnCal.style.boxShadow = isCalib ? '0 1px 4px rgba(0,0,0,0.12)' : ''; }
   const svcRow = document.getElementById('serviceStatusRow');
   if (svcRow) svcRow.classList.toggle('loja-hidden', isCalib);
+  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
   const localityGroup = document.getElementById('localityFormGroup');
-  if (localityGroup) localityGroup.classList.toggle('loja-hidden', isCalib);
+  if (localityGroup && !isRecalibra) localityGroup.classList.toggle('loja-hidden', isCalib);
   const localityHint = document.getElementById('localityHint');
   if (localityHint) localityHint.classList.toggle('loja-hidden', isCalib);
   const svc = document.getElementById('appointmentService');
@@ -2342,6 +2355,8 @@ function editAppointment(id) {
   if (secondCb) secondCb.checked = !!(appointment.second_of_day);
   setTimeout(function() { if (typeof window.updateSecondOfDayVisibility === 'function') window.updateSecondOfDayVisibility(); }, 50);
   document.getElementById('appointmentLocality').value = appointment.locality || '';
+  const _lojaInput = document.getElementById('lojaInput');
+  if (_lojaInput) _lojaInput.value = appointment.locality || '';
   if (document.getElementById('appointmentPeriod')) {
     document.getElementById('appointmentPeriod').value = appointment.period || 'Manhã';
   }
@@ -2684,6 +2699,7 @@ function buildDesktopCard(a){
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar} ${glassRemovedBorderStyle}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
+      ${isRecalibra && a.locality ? `<div style="display:inline-block;background:#dc2626;color:#fbbf24;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin-top:4px;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>` : ''}
       <div class="dc-meta" data-ms-patched="1">
         ${getAllServices(a).map(s => `<span class="dc-badge">${s.service||''}</span>`).join('')}
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
