@@ -71,6 +71,10 @@ exports.handler = async (event) => {
   } catch(migErr) { console.warn('Migration reception_ref warning:', migErr.message); }
 
   try {
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reception_date DATE`);
+  } catch(migErr) { console.warn('Migration reception_date warning:', migErr.message); }
+
+  try {
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_desc TEXT`);
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_nif VARCHAR(20)`);
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_name VARCHAR(255)`);
@@ -159,7 +163,7 @@ exports.handler = async (event) => {
                  a.calibration, a.first_of_day, a.second_of_day, a.not_done_reason, a.commercial_user_id,
                  a.return_km, a.return_time, a.client_name, a.damage_details, a.glass_removed, a.glass_removed_date,
                  a.custom_service_time, a.foreign_plate, a.extra_services, a.n_obra,
-                 a.order_ref, a.glass_eurocode, a.reception_ref,
+                 a.order_ref, a.glass_eurocode, a.reception_ref, a.reception_date,
                  a.comp_sales_desc, a.comp_sales_nif, a.comp_sales_name, a.comp_sales_faturado,
                  a.created_at, a.updated_at, a.not_done_at, a.portal_id,
                  p.name AS portal_name

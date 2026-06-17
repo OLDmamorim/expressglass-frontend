@@ -58,6 +58,7 @@ const telBtn = phone ? `
       </div>
       ${a.order_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:#fff !important;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);">📦 ${a.order_ref}</div>` : ''}
       ${a.reception_ref ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:#fff !important;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);">✅ ${a.reception_ref}</div>` : ''}
+      ${a.reception_date ? `<div style="white-space:nowrap;font-size:9px;font-weight:800;color:#fff !important;-webkit-text-fill-color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.5);">Rec ${new Date(a.reception_date+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'2-digit'})}</div>` : ''}
     </div>`;
 
   // Hierarquia visual: matrícula em destaque, carro secundário
