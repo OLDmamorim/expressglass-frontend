@@ -139,7 +139,7 @@
       const id = row.dataset.id;
       const appt = appts.find(a => String(a.id) === String(id));
       if (!appt) return;
-      if (appt.service === 'CAL') return;
+      if (appt.service === 'CAL' || window.portalConfig?.portalType === 'recalibra') return;
       const isActive = !!appt.glass_removed;
       const btnRow = document.createElement('div');
       btnRow.style.cssText = 'margin:4px 0 0;';
@@ -161,7 +161,7 @@
       if (!id) return;
       const appt = appts.find(a => String(a.id) === String(id));
       if (!appt) return;
-      if (appt.service === 'CAL') return;
+      if (appt.service === 'CAL' || window.portalConfig?.portalType === 'recalibra') return;
       const isActive = !!appt.glass_removed;
       const btnRow = document.createElement('div');
       btnRow.style.cssText = 'margin:6px 8px 0;';
