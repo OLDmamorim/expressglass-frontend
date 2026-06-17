@@ -2561,7 +2561,8 @@ function buildDesktopCard(a){
     </div>` : '';
   // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const isPreAgendado = a.confirmed === false;
-  const needsLoc = !loja && a.date && !a.locality && canSeeUnconfirmed && !isPreAgendado ? ' needs-locality' : '';
+  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
+  const needsLoc = !loja && !isRecalibra && a.date && !a.locality && canSeeUnconfirmed && !isPreAgendado ? ' needs-locality' : '';
   const locWarning = needsLoc ? `
       <div class="needs-loc-msg">
         <div>⚠️ Falta localidade</div>
