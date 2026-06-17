@@ -950,6 +950,37 @@ function applyLojaModalMode() {
   if (localityInput) localityInput.required = !loja;
 }
 
+function setRecalibraTipo(tipo) {
+  const isCalib = tipo === 'calibragem';
+  const btnSvc = document.getElementById('btnTipoServico');
+  const btnCal = document.getElementById('btnTipoCalib');
+  if (btnSvc) { btnSvc.style.background = isCalib ? 'transparent' : '#fff'; btnSvc.style.color = isCalib ? '#64748b' : '#1e293b'; btnSvc.style.boxShadow = isCalib ? '' : '0 1px 4px rgba(0,0,0,0.12)'; }
+  if (btnCal) { btnCal.style.background = isCalib ? '#fff' : 'transparent'; btnCal.style.color = isCalib ? '#1e293b' : '#64748b'; btnCal.style.boxShadow = isCalib ? '0 1px 4px rgba(0,0,0,0.12)' : ''; }
+  const svcRow = document.getElementById('serviceStatusRow');
+  if (svcRow) svcRow.style.display = isCalib ? 'none' : '';
+  const localityGroup = document.getElementById('localityFormGroup');
+  if (localityGroup) localityGroup.classList.toggle('loja-hidden', isCalib);
+  const localityHint = document.getElementById('localityHint');
+  if (localityHint) localityHint.classList.toggle('loja-hidden', isCalib);
+  const svc = document.getElementById('appointmentService');
+  if (svc) { if (isCalib) { svc.value = 'CAL'; svc.required = false; } else { if (svc.value === 'CAL') svc.value = ''; svc.required = true; } }
+  const statusEl = document.getElementById('appointmentStatus');
+  if (statusEl) statusEl.required = !isCalib;
+  const localityInput = document.getElementById('appointmentLocality');
+  if (localityInput) localityInput.required = !isCalib && !isLoja();
+}
+window.setRecalibraTipo = setRecalibraTipo;
+
+function applyRecalibraModalMode(serviceValue) {
+  const toggle = document.getElementById('recalibraServiceToggle');
+  if (!toggle) return;
+  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
+  toggle.style.display = isRecalibra ? 'block' : 'none';
+  if (isRecalibra) setRecalibraTipo(serviceValue === 'CAL' ? 'calibragem' : 'servico');
+}
+window.applyRecalibraModalMode = applyRecalibraModalMode;
+
+
 // Cores dos cards para Loja (baseadas no status do vidro)
 const glassCardColors = {
   NE: '#EF4444', // Vermelho - Não encomendado
@@ -2413,6 +2444,7 @@ function editAppointment(id) {
   if (statusEl) statusEl.value = appointment.status || 'NE';
 
   applyLojaModalMode();
+  applyRecalibraModalMode(appointment.service);
   document.getElementById('appointmentModal').classList.add('show');
 }
 

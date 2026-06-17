@@ -1112,7 +1112,7 @@ async function vendasComplMarkFaturado(id) {
 function _injectLocalityFirstOverlay() {
   var existing = document.getElementById('localityFirstOverlay');
   if (existing) existing.remove();
-  if (isLoja() || editingId) return;
+  if (isLoja() || editingId || window.portalConfig?.portalType === 'recalibra') return;
   var localityVal = document.getElementById('appointmentLocality')?.value;
   if (localityVal) return;
   var form = document.getElementById('appointmentForm');
@@ -1466,6 +1466,7 @@ cancelEdit?.();
       selectedDot.style.backgroundColor = '';
     }
     applyLojaModalMode();
+    applyRecalibraModalMode(null);
     toggleCompSales(false);
     _syncCompSalesFaturadoVisibility();
     document.getElementById('appointmentModal').classList.add('show');
@@ -1493,6 +1494,7 @@ cancelEdit?.();
       selectedDot.style.backgroundColor = '';
     }
     applyLojaModalMode();
+    applyRecalibraModalMode(null);
     document.getElementById('appointmentModal').classList.add('show');
     if (!isLoja()) {
       setTimeout(() => _injectLocalityFirstOverlay(), 50);
