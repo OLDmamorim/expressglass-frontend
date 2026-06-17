@@ -925,10 +925,10 @@ const statusBarColors = { NE:'#EF4444', VE:'#F59E0B', ST:'#10B981' };
 function isLoja() { return window.portalConfig?.portalType === 'loja'; }
 
 // Adapta o modal de agendamento ao tipo de portal
-// — Loja: oculta campos de morada/localidade/km (irrelevantes)
+// — Loja / Recalibra: oculta campos de morada/localidade/km (localização fixa)
 // — SM  : mostra tudo
 function applyLojaModalMode() {
-  const loja = isLoja();
+  const loja = isLoja() || window.portalConfig?.portalType === 'recalibra';
 
   // Hint "seleciona a localidade para sugestão de data"
   // (tem display:flex inline no HTML — usar classe que force none)
