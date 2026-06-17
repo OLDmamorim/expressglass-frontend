@@ -1416,6 +1416,7 @@ async function startSyncOrders() {
             body: JSON.stringify({
               plate: row[plateCol],
               car: carJoined || 'Sem modelo',
+              service: 'CAL',
               status: recRef ? 'ST' : (orderRef ? 'VE' : 'NE'),
               order_ref: orderRef ? ('Enc.Axial ' + orderRef) : null,
               reception_ref: recRef || null,
@@ -1459,6 +1460,8 @@ async function startSyncOrders() {
         if (carVal) updates.car = carVal;
         // Preencher data de serviço se ainda não tem (não sobrescreve data manual já definida)
         if (serviceDate && !existing.date) updates.date = serviceDate;
+        // Garantir que agendamentos Recalibra ficam com service=CAL
+        if (existing.service !== 'CAL') updates.service = 'CAL';
         if (!Object.keys(updates).length) { skipped++; continue; }
         console.log(`[SyncOrders] PUT ${existing.id} (${plate}):`, updates);
         try {

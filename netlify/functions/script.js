@@ -921,6 +921,9 @@ function getCardBaseColor(a) {
   if (isLoja()) {
     return glassCardColors[a.status] || '#9CA3AF';
   }
+  if (window.portalConfig?.portalType === 'recalibra') {
+    return a.executed === true ? '#10B981' : '#F59E0B';
+  }
   return getLocColor(a.locality);
 }
 
@@ -2234,11 +2237,11 @@ function buildDesktopCard(a){
       ${preAgendadoBadge}
       ${confirmBtn}
       ${locWarning}
-      <div class="appt-status dc-status">
+      ${a.service !== 'CAL' ? `<div class="appt-status dc-status">
         <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
         <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
         <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
-      </div>
+      </div>` : ''}
       ${execBadge}
       <div class="card-actions">
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
