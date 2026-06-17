@@ -76,7 +76,7 @@ const telBtn = phone ? `
     return [...primary, ...extraNames];
   })();
   const lojaBadge = isRecalibra && a.locality
-    ? `<div style="display:inline-block;background:#dc2626;color:#fbbf24;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin:4px 0;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>`
+    ? `<div style="display:inline-block;background:#dc2626;color:#ffffff;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin:4px 0;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>`
     : '';
   const chips = [
     a.period ? `<span class="m-chip">${a.period}</span>` : '',

@@ -2159,14 +2159,14 @@ function buildDesktopCard(a){
   const service = a.service || 'PB';
   const car = (a.car || '').toUpperCase();
   const clientNameStr = a.client_name ? a.client_name : '';
+  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
   const sub = loja
     ? [clientNameStr, a.extra, a.notes].filter(Boolean).join(' | ')
-    : [a.locality, clientNameStr, a.extra, a.notes].filter(Boolean).join(' | ');
+    : [isRecalibra ? null : a.locality, clientNameStr, a.extra, a.notes].filter(Boolean).join(' | ');
   // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
   const isPreAgendado = a.confirmed === false;
-  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
   const needsLoc = !loja && !isRecalibra && a.date && !a.locality && canSeeUnconfirmed && !isPreAgendado ? ' needs-locality' : '';
   const locWarning = needsLoc ? `
       <div class="needs-loc-msg">
@@ -2225,7 +2225,6 @@ function buildDesktopCard(a){
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
-      ${isRecalibra && a.locality ? `<div style="display:inline-block;background:#dc2626;color:#fbbf24;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin-top:4px;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>` : ''}
       <div class="dc-meta">
         <span class="dc-badge">${service}</span>
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
@@ -2243,6 +2242,7 @@ function buildDesktopCard(a){
         <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
         <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
       </div>` : ''}
+      ${isRecalibra && a.locality ? `<div style="display:inline-block;background:#dc2626;color:#ffffff;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin-bottom:4px;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>` : ''}
       ${execBadge}
       <div class="card-actions">
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>

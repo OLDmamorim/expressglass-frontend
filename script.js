@@ -2608,7 +2608,7 @@ function buildDesktopCard(a){
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
   const sub = loja
     ? [clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ')
-    : [a.locality, clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
+    : [isRecalibra ? null : a.locality, clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
   const encRecFooter = (a.order_ref || a.reception_ref) ? `
     <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);">
       ${a.order_ref ? `<span>📦 ${a.order_ref}</span>` : ''}
@@ -2699,7 +2699,6 @@ function buildDesktopCard(a){
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar} ${glassRemovedBorderStyle}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
-      ${isRecalibra && a.locality ? `<div style="display:inline-block;background:#dc2626;color:#fbbf24;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin-top:4px;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>` : ''}
       <div class="dc-meta" data-ms-patched="1">
         ${getAllServices(a).map(s => `<span class="dc-badge">${s.service||''}</span>`).join('')}
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
@@ -2721,6 +2720,7 @@ function buildDesktopCard(a){
         <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
         <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
       </div>` : ''}
+      ${isRecalibra && a.locality ? `<div style="display:inline-block;background:#dc2626;color:#ffffff;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin-bottom:4px;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>` : ''}
       ${execBadge}
       <div class="card-actions">
         ${a.photo_url ? `<a href="${a.photo_url}" target="_blank" rel="noopener" class="icon" title="Ver foto" style="text-decoration:none;">📷</a>` : ''}
