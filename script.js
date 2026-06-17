@@ -2610,10 +2610,12 @@ function buildDesktopCard(a){
   const sub = loja
     ? [clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ')
     : [isRecalibra ? null : a.locality, clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
-  const encRecFooter = (a.order_ref || a.reception_ref) ? `
+  const _recDateFmt = a.reception_date ? new Date(String(a.reception_date).slice(0,10)+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
+  const encRecFooter = (a.order_ref || a.reception_ref || a.reception_date) ? `
     <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);">
       ${a.order_ref ? `<span>📦 ${a.order_ref}</span>` : ''}
       ${a.reception_ref ? `<span>✅ ${a.reception_ref}</span>` : ''}
+      ${_recDateFmt ? `<span>Rec ${_recDateFmt}</span>` : ''}
     </div>` : '';
   // SM com data mas sem localidade → piscar (só coord/admin) — mas não para pré-agendamentos (têm o seu próprio sistema)
   const isPreAgendado = a.confirmed === false;

@@ -330,7 +330,7 @@ exports.handler = async (event) => {
       // When glass is matched to an appointment: set status ST (received) and propagate refs
       if (d.appointment_id && !d.is_return) {
         await client.query(
-          `UPDATE appointments SET status = 'ST', updated_at = NOW() WHERE id = $1`,
+          `UPDATE appointments SET status = 'ST', reception_date = CURRENT_DATE, updated_at = NOW() WHERE id = $1`,
           [d.appointment_id]
         );
         if (d.order_ref) {
