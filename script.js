@@ -948,6 +948,11 @@ function applyLojaModalMode() {
   // Remove/repõe required na localidade (campo hidden, evita erro de validação)
   const localityInput = document.getElementById('appointmentLocality');
   if (localityInput) localityInput.required = !loja;
+
+  // Recalibra não tem vendas complementares — esconder secção no modal
+  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
+  const compSales = document.getElementById('compSalesSection');
+  if (compSales) compSales.style.display = isRecalibra ? 'none' : '';
 }
 
 function setRecalibraTipo(tipo) {
