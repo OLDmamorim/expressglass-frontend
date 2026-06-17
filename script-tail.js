@@ -7,6 +7,7 @@ function extractPhoneFromText(txt){
 
 // ---------- Render MOBILE (lista do dia) ----------
 function buildMobileCard(a){
+  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
   // Ícones oficiais (fallback para emoji se falhar)
   const mapsBtn = a.address ? `
     <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a.address)}"
@@ -74,10 +75,13 @@ const telBtn = phone ? `
     const extraNames = extra.map(function(s) { return s && s.service ? s.service : ''; }).filter(Boolean);
     return [...primary, ...extraNames];
   })();
+  const lojaBadge = isRecalibra && a.locality
+    ? `<div style="display:inline-block;background:#dc2626;color:#fbbf24;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin:4px 0;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>`
+    : '';
   const chips = [
     a.period ? `<span class="m-chip">${a.period}</span>` : '',
     ..._allSvcs.map(function(s) { return `<span class="m-chip">${s}</span>`; }),
-    !isLoja() && a.locality ? `<span class="m-chip">${a.locality}</span>` : '',
+    !isLoja() && !isRecalibra && a.locality ? `<span class="m-chip">${a.locality}</span>` : '',
     a.calibration ? `<span class="m-chip m-chip-calib">⊕ CALIB</span>` : '',
     a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : '',
     a.second_of_day ? `<span class="m-chip" style="background:#f97316;color:#fff;font-weight:700;">⭐ 2.º</span>` : ''
@@ -185,10 +189,11 @@ const telBtn = phone ? `
         <div class="m-title"><span class="m-title-text">${plate}</span></div>
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips" data-ms-patched="1">${chips}</div>` : ''}
+        ${lojaBadge}
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${damageRow}
-        ${compSalesBadge}
+        ${isRecalibra ? '' : compSalesBadge}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
         ${preAgendadoM
           ? `<div class="m-pending-confirm">⏳ Aguarda confirmação do coordenador</div>`
