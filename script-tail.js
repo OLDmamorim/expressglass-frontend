@@ -295,7 +295,8 @@ async function renderMobileDay(){
 
   // Mobile SM: mostrar serviços com localidade OU pré-agendamentos importados (sem localidade mas com data)
   // Esconder apenas os que não têm nem data nem localidade (pendentes normais sem atribuição)
-  if (!isLoja()) {
+  // Recalibra: mostrar todos (localização fixa, sem campo localidade)
+  if (!isLoja() && window.portalConfig?.portalType !== 'recalibra') {
     items = items.filter(a => !!a.locality || (!!a.date && a.confirmed === false));
   }
 
