@@ -2163,7 +2163,8 @@ function buildDesktopCard(a){
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
   const isPreAgendado = a.confirmed === false;
-  const needsLoc = !loja && a.date && !a.locality && canSeeUnconfirmed && !isPreAgendado ? ' needs-locality' : '';
+  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
+  const needsLoc = !loja && !isRecalibra && a.date && !a.locality && canSeeUnconfirmed && !isPreAgendado ? ' needs-locality' : '';
   const locWarning = needsLoc ? `
       <div class="needs-loc-msg">
         <div>⚠️ Falta localidade</div>
