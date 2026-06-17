@@ -1483,8 +1483,38 @@ async function startSyncOrders() {
       continue;
     }
 
-    // Portais não-Recalibra: apenas actualizar processos já existentes (nunca criar)
+    // Portais não-Recalibra: criar se não existe no portal matched, ou actualizar os existentes
     if (!existingList.length) {
+      if (matchedPortalInfo) {
+        // Matrícula não existe → criar no portal correspondente
+        try {
+          const resp = await authClient.authenticatedFetch('/.netlify/functions/appointments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              plate: row[plateCol],
+              car: carJoined || 'Sem modelo',
+              status: recRef ? 'ST' : (orderRef ? 'VE' : 'NE'),
+              order_ref: orderRef ? ('Enc.Axial ' + orderRef) : null,
+              reception_ref: recRef || null,
+              glass_eurocode: eurocode || null,
+              extra: refVal || null,
+              confirmed: false,
+              _portalId: matchedPortalInfo.id
+            })
+          });
+          const json = await resp.json();
+          if (json.success) {
+            created++;
+            createdDetails.push({ plate, car: json.data?.car || carJoined || 'Sem modelo' });
+            console.log(`[SyncOrders] ✅ criado ${plate} (portal ${matchedPortalInfo.id})`);
+          } else {
+            errors++;
+            errorDetails.push({ plate, msg: json.error || 'erro ao criar' });
+          }
+        } catch (e) { errors++; errorDetails.push({ plate, msg: e.message }); }
+        continue;
+      }
       notFound++; notFoundPlates.push(plate); continue;
     }
 
