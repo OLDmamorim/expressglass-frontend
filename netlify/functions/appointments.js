@@ -80,7 +80,7 @@ exports.handler = async (event) => {
   // Migração: actualizar constraint de service para incluir RV e OUT
   try {
     await pool.query(`ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_service_check`);
-    await pool.query(`ALTER TABLE appointments ADD CONSTRAINT appointments_service_check CHECK (service IS NULL OR service IN ('PB', 'LT', 'OC', 'REP', 'POL', 'RV', 'OUT'))`);
+    await pool.query(`ALTER TABLE appointments ADD CONSTRAINT appointments_service_check CHECK (service IS NULL OR service IN ('PB', 'LT', 'OC', 'REP', 'POL', 'RV', 'OUT', 'CAL'))`);
   } catch(migErr) { console.warn('Migration service_check warning:', migErr.message); }
 
   try {
