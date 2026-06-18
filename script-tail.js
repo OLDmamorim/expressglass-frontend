@@ -1293,6 +1293,7 @@ function bootApp() {
         return JSON.stringify({ eurocode: eurocode, photo_url: photo_url, history: newHistory });
       })(),
       status: (document.getElementById('appointmentStatus')?.value || 'NE'),
+      glass_eurocode: (get('appointmentExtra') || null),
       vehicleType: (document.getElementById('appointmentVehicleType')?.value || localStorage.getItem('eg_last_vehicleType') || 'L'),
       calibration: document.getElementById('appointmentCalibration')?.checked || false,
       first_of_day: document.getElementById('appointmentFirstOfDay')?.checked || false,
