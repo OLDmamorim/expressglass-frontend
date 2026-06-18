@@ -2728,6 +2728,17 @@
       return;
     }
 
+    // Build per-eurocode stock map: received (not return) rows where appointment not yet executed
+    const _normEc = ec => (ec || '').toLowerCase().replace(/i/g,'1').replace(/o/g,'0').trim();
+    const stockMap = {};
+    rows.forEach(r => {
+      if (r.is_return) return;
+      const k = _normEc(r.eurocode);
+      if (!k) return;
+      if (!stockMap[k]) stockMap[k] = 0;
+      if (!r.apt_executed) stockMap[k]++;
+    });
+
     content.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="font-size:12px;color:#64748b;">${rows.length} registo${rows.length !== 1 ? 's' : ''}</span>
@@ -2747,7 +2758,7 @@
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Loja</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Eurocode</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Encomenda</th>
-              <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Receção</th>
+              <th style="padding:8px 10px;text-align:center;white-space:nowrap;">Stock</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Técnico</th>
               <th style="padding:8px 10px;text-align:left;white-space:nowrap;">Estado</th>
             </tr>
@@ -2758,6 +2769,11 @@
               const tipoHtml = r.is_return
                 ? `<span style="background:#fef2f2;color:#dc2626;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;">${reasonMap[r.return_reason] || '↩️ Devolução'}</span>`
                 : `<span style="background:#f0fdf4;color:#16a34a;font-size:11px;font-weight:700;padding:2px 6px;border-radius:6px;white-space:nowrap;">📦 Receção</span>`;
+              const stockVal = r.is_return ? null : (stockMap[_normEc(r.eurocode)] || 0);
+              const stockCell = r.is_return ? `<span style="color:#94a3b8;">—</span>`
+                : stockVal > 0
+                  ? `<span style="background:#dcfce7;color:#16a34a;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;white-space:nowrap;">✅ ${stockVal}</span>`
+                  : `<span style="background:#fee2e2;color:#dc2626;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;white-space:nowrap;">0</span>`;
               return `
               <tr style="background:${i % 2 === 0 ? '#fff' : '#f8fafc'};">
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${fmtDate(r.created_at)}</td>
@@ -2767,7 +2783,7 @@
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${r.portal_label || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;">${r.eurocode || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${r.order_ref || '—'}</td>
-                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;">${r.apt_reception_ref || '—'}</td>
+                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:center;">${stockCell}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${r.technician_name || '—'}</td>
                 <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;">${_statusLabel(r.status)}</td>
               </tr>`;
@@ -2781,7 +2797,10 @@
   function _exportCSV() {
     const data = window._grHistoryData || [];
     if (!data.length) return;
-    const hdr = ['Data','Tipo','Matrícula','Carro','Loja','Eurocode','Encomenda','Receção','Técnico','Estado'];
+    const _normEcExp = ec => (ec || '').toLowerCase().replace(/i/g,'1').replace(/o/g,'0').trim();
+    const stockMapExp = {};
+    data.forEach(r => { if (r.is_return) return; const k = _normEcExp(r.eurocode); if (!k) return; if (!stockMapExp[k]) stockMapExp[k] = 0; if (!r.apt_executed) stockMapExp[k]++; });
+    const hdr = ['Data','Tipo','Matrícula','Carro','Loja','Eurocode','Encomenda','Stock','Técnico','Estado'];
     const reasonMap = { errado:'Errado', desistencia:'Desistência', outro:'Outro', partido:'Danificado', errado_cancelado:'Errado/Cancelado' };
     const statusTxt = s => s === 'received' ? 'Recebido' : s === 'confirmed' ? 'Confirmado' : s === 'devolvido' ? 'Devolvido' : s === 'reported' ? 'Reportado' : s === 'return' ? 'Devolução' : 'Pendente';
     const rows = data.map(r => [
@@ -2789,7 +2808,8 @@
       r.is_return ? (reasonMap[r.return_reason] || 'Devolução') : 'Receção',
       (r.apt_plate || '').toUpperCase(),
       r.apt_car || '', r.portal_label || '',
-      r.eurocode || '', r.order_ref || '', r.apt_reception_ref || '',
+      r.eurocode || '', r.order_ref || '',
+      r.is_return ? '—' : String(stockMapExp[_normEcExp(r.eurocode)] || 0),
       r.technician_name || '', statusTxt(r.status)
     ]);
     const ws = XLSX.utils.aoa_to_sheet([hdr, ...rows]);
@@ -2818,15 +2838,21 @@
       <h2>Histórico — Receção de Vidros</h2>
       <p class="meta">Impresso em ${new Date().toLocaleDateString('pt-PT')} — ${data.length} registo${data.length !== 1 ? 's' : ''}</p>
       <table>
-        <thead><tr><th>Data</th><th>Matrícula</th><th>Carro</th><th>Loja</th><th>Eurocode</th><th>Encomenda</th><th>Técnico</th><th>Estado</th></tr></thead>
-        <tbody>${data.map(r => `<tr>
-          <td>${fmtDate(r.created_at)}</td>
-          <td style="font-family:monospace;font-weight:bold;">${(r.apt_plate||'—').toUpperCase()}</td>
-          <td>${r.apt_car||'—'}</td><td>${r.portal_label||'—'}</td>
-          <td style="font-family:monospace;">${r.eurocode||'—'}</td>
-          <td>${r.order_ref||'—'}</td><td>${r.technician_name||'—'}</td>
-          <td>${statusTxt(r.status)}</td>
-        </tr>`).join('')}</tbody>
+        <thead><tr><th>Data</th><th>Matrícula</th><th>Carro</th><th>Loja</th><th>Eurocode</th><th>Encomenda</th><th>Stock</th><th>Técnico</th><th>Estado</th></tr></thead>
+        <tbody>${(() => {
+          const _n = ec => (ec||'').toLowerCase().replace(/i/g,'1').replace(/o/g,'0').trim();
+          const sm = {}; data.forEach(r => { if (r.is_return) return; const k=_n(r.eurocode); if(!k) return; if(!sm[k]) sm[k]=0; if(!r.apt_executed) sm[k]++; });
+          return data.map(r => `<tr>
+            <td>${fmtDate(r.created_at)}</td>
+            <td style="font-family:monospace;font-weight:bold;">${(r.apt_plate||'—').toUpperCase()}</td>
+            <td>${r.apt_car||'—'}</td><td>${r.portal_label||'—'}</td>
+            <td style="font-family:monospace;">${r.eurocode||'—'}</td>
+            <td>${r.order_ref||'—'}</td>
+            <td style="text-align:center;font-weight:bold;">${r.is_return ? '—' : (sm[_n(r.eurocode)]||0)}</td>
+            <td>${r.technician_name||'—'}</td>
+            <td>${statusTxt(r.status)}</td>
+          </tr>`).join('');
+        })()}</tbody>
       </table>
     </body></html>`);
     w.document.close(); w.print();
