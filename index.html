@@ -190,7 +190,7 @@
         <button id="btnTimelineDesk" class="nav-button" style="background:#7c3aed;color:#fbbf24;" title="Timeline do dia">⏱️ Timeline</button>
         <button id="btnVidrosRetirados" class="nav-button" style="background:#f59e0b;color:#fff;font-weight:700;" title="Ver vidros retirados">🪟 Vidros Retirados</button>
 
-        <button id="btnRececaoVidros" class="nav-button" style="display:none;background:#0f172a;color:#94a3b8;border:1px solid rgba(255,255,255,0.15);font-weight:700;position:relative;" title="Receção de Vidros" onclick="window.glassReception?.openCoordPanel()">📦 Receção Vidros<span id="rececaoBadge" style="display:none;position:absolute;top:-4px;right:-4px;width:10px;height:10px;background:#ef4444;border-radius:50%;animation:recPulse 1.2s infinite;"></span></button>
+        <button id="btnRececaoVidros" class="nav-button" style="display:none;background:#0f172a;color:#94a3b8;border:1px solid rgba(255,255,255,0.15);font-weight:700;position:relative;" title="Receção de Vidros" onclick="window.glassReception?.openCoordPanel()">📦 Receção Vidros</button>
         <button id="btnRelatoriosDesk" class="nav-button" style="display:none;background:#1e40af;color:#fff;font-weight:700;" title="Relatórios" onclick="openReportsPanel()">📊 Relatórios</button>
         <button id="printPage" class="nav-button" style="color:#fbbf24;">🖨 Imprimir</button>
         <!-- Guia AT upload (coordinator/admin only, desktop) -->
@@ -1387,6 +1387,7 @@
 <!-- ===== RECEÇÃO DE VIDROS ===== -->
 <style>
 @keyframes recPulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+@keyframes recBtnPulse { 0%,100%{background:#d97706;color:#fff;box-shadow:0 0 0 0 rgba(251,191,36,0.7);} 50%{background:#fbbf24;color:#0f172a;box-shadow:0 0 0 8px rgba(251,191,36,0);} }
 #grScanModal,#grCoordModal { display:none;position:fixed;inset:0;z-index:10100;background:rgba(0,0,0,0.6);align-items:center;justify-content:center;padding:16px; }
 .gr-modal-box { background:#fff;border-radius:16px;width:min(96vw,520px);box-shadow:0 24px 60px rgba(0,0,0,0.25);overflow:hidden; }
 .gr-modal-header { background:#0f172a;color:#fff;padding:16px 20px;display:flex;align-items:center;gap:10px; }
@@ -3177,10 +3178,23 @@
       const json = await res.json();
       if (!json.success) return;
       const n = (json.data || []).length;
-      const deskBadge = document.getElementById('rececaoBadge');
-      const botBadge  = document.getElementById('recBotBadge');
-      if (deskBadge) deskBadge.style.display = n > 0 ? '' : 'none';
-      if (botBadge)  botBadge.style.display  = n > 0 ? '' : 'none';
+      const btn = document.getElementById('btnRececaoVidros');
+      if (btn) {
+        if (n > 0) {
+          btn.style.animation = 'recBtnPulse 1.2s infinite';
+          btn.style.border = '2px solid #fbbf24';
+          btn.textContent = `📦 Receção Vidros (${n})`;
+        } else {
+          btn.style.animation = '';
+          btn.style.background = '#0f172a';
+          btn.style.color = '#94a3b8';
+          btn.style.border = '1px solid rgba(255,255,255,0.15)';
+          btn.style.boxShadow = '';
+          btn.textContent = '📦 Receção Vidros';
+        }
+      }
+      const botBadge = document.getElementById('recBotBadge');
+      if (botBadge) botBadge.style.display = n > 0 ? '' : 'none';
     } catch (_) {}
   }
 
