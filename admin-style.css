@@ -493,26 +493,50 @@ body {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
+  /* ── Header ── */
   .admin-header {
-    padding: 10px 16px;
+    padding: 10px 12px;
+    flex-direction: column;
     gap: 8px;
-  }
-
-  .admin-header h1 {
-    font-size: 18px;
-  }
-
-  .header-logo img {
-    height: 32px;
+    align-items: stretch;
   }
 
   .header-left {
-    flex-direction: column;
-    gap: 12px;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
   }
 
+  .header-logo {
+    height: 28px;
+    padding: 4px 8px;
+  }
+
+  .admin-header h1 {
+    font-size: 16px;
+    white-space: nowrap;
+  }
+
+  .header-right {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .user-info {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+
+  .btn-logout {
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+
+  /* ── Navigation tabs ── */
   .admin-nav {
-    padding: 0 8px;
+    padding: 0 6px;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     flex-wrap: nowrap;
@@ -523,12 +547,13 @@ body {
   .admin-nav::-webkit-scrollbar-thumb { background: #bfdbfe; border-radius: 2px; }
 
   .nav-tab {
-    padding: 12px 14px;
-    font-size: 13px;
+    padding: 10px 11px;
+    font-size: 12px;
     white-space: nowrap;
     flex-shrink: 0;
   }
 
+  /* ── Tab content ── */
   .tab-content {
     padding: 12px;
   }
@@ -536,23 +561,120 @@ body {
   .content-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
+    gap: 12px;
   }
 
+  .content-header h2 {
+    font-size: 20px;
+  }
+
+  /* ── Tables ── */
   .table-container {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .data-table {
-    min-width: 600px;
+    min-width: 540px;
   }
 
+  .data-table th,
+  .data-table td {
+    padding: 10px 10px;
+    font-size: 13px;
+  }
+
+  /* ── Modals ── */
   .modal-content {
-    width: 95%;
+    width: 96%;
+    margin: 8px;
+    max-height: 94vh;
+  }
+
+  .modal-header {
+    padding: 14px 16px;
+  }
+
+  .modal-header h3 {
+    font-size: 18px;
   }
 
   .modal form {
-    padding: 24px;
+    padding: 14px 16px;
+  }
+
+  .form-group {
+    margin-bottom: 16px;
+  }
+
+  .form-actions {
+    margin-top: 20px;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-actions button {
+    width: 100%;
+  }
+
+  /* ── Reports: KPI grid 3→2 col on mobile ── */
+  .report-kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* ── Reports: chart grids 2→1 col on mobile ── */
+  .report-chart-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Report header: hide decorative emoji on mobile ── */
+  #reportHeader {
+    flex-direction: column !important;
+    gap: 6px !important;
+    padding: 16px !important;
+  }
+
+  #reportHeader > div:last-child {
+    display: none !important;
+  }
+
+  #reportTitle {
+    font-size: 18px !important;
+  }
+
+  /* ── Settings grid ── */
+  .settings-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* ── Check-in summary ── */
+  #ciSummary {
+    gap: 6px;
+  }
+
+  /* ── Toast position ── */
+  .toast {
+    bottom: 16px;
+    right: 12px;
+    left: 12px;
+    font-size: 14px;
+    padding: 12px 16px;
+  }
+}
+
+/* Extra small: single column KPI grid */
+@media (max-width: 420px) {
+  .report-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-header h1 {
+    font-size: 14px;
+  }
+
+  .nav-tab {
+    padding: 8px 9px;
+    font-size: 11px;
   }
 }
 
