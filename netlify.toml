@@ -19,3 +19,6 @@
 [functions."mycar-poller-cron"]
   node_bundler = "zisi"
   schedule = "*/15 * * * *"
+
+[functions."auto-checkout-cron"]
+  schedule = "0 19,20 * * *"
