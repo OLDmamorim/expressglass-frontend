@@ -75,6 +75,18 @@ exports.handler = async (event) => {
   } catch(migErr) { console.warn('Migration reception_date warning:', migErr.message); }
 
   try {
+    await pool.query(`
+      UPDATE appointments a
+      SET reception_date = gr.created_at::date
+      FROM glass_receptions gr
+      WHERE gr.appointment_id = a.id
+        AND a.reception_date IS NULL
+        AND gr.is_return = false
+        AND gr.status != 'return'
+    `);
+  } catch(migErr) { console.warn('Migration reception_date backfill warning:', migErr.message); }
+
+  try {
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_desc TEXT`);
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_nif VARCHAR(20)`);
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_name VARCHAR(255)`);
