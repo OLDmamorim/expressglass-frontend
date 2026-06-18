@@ -147,11 +147,12 @@ exports.handler = async (event) => {
         let idx = 2;
 
         if (params.search_eurocode) {
-          // Normalize I↔1 and O↔0 to handle OCR character confusion
+          // Normalize I↔1 and O↔0 to handle OCR character confusion.
+          // Use word-boundary regex (^|space) so #3750... does NOT match a search for 3750...
           conditions.push(`(
             REPLACE(REPLACE(LOWER(glass_eurocode), 'i', '1'), 'o', '0') = REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0')
-            OR REPLACE(REPLACE(LOWER(notes), 'i', '1'), 'o', '0') LIKE '%' || REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0') || '%'
-            OR REPLACE(REPLACE(LOWER(extra::text), 'i', '1'), 'o', '0') LIKE '%' || REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0') || '%'
+            OR REPLACE(REPLACE(LOWER(notes), 'i', '1'), 'o', '0') ~ ('(^|[[:space:]])' || REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0'))
+            OR REPLACE(REPLACE(LOWER(extra::text), 'i', '1'), 'o', '0') ~ ('(^|[[:space:]"])' || REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0'))
           )`);
           vals.push(params.search_eurocode.trim());
           idx++;

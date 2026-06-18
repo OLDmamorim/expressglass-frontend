@@ -1845,7 +1845,12 @@
       const matchEuro  = ecNorm && a.glass_eurocode && normEc(a.glass_eurocode) === ecNorm;
       let extraEuro = '';
       if (a.extra) { try { extraEuro = (JSON.parse(a.extra).eurocode || ''); } catch(e) { extraEuro = (a.extra || ''); } }
-      const matchEuroNotes = ecNorm && normEc((a.notes || '') + ' ' + (a.n_obra || '') + ' ' + extraEuro).includes(ecNorm);
+      // Use negative lookbehind so '#3750...' never matches a search for '3750...' (different glass)
+      const matchEuroNotes = ecNorm && (() => {
+        const txt = normEc((a.notes || '') + ' ' + (a.n_obra || '') + ' ' + extraEuro);
+        const re = new RegExp('(?<!#)' + ecNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        return re.test(txt);
+      })();
       const matchPlate = pNorm && plateNorm(a.plate) === pNorm;
       return matchOrder || matchOrderNotes || matchEuro || matchEuroNotes || matchPlate;
     });
