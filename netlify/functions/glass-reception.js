@@ -166,6 +166,8 @@ exports.handler = async (event) => {
                  a.date          AS apt_date,
                  a.reception_ref AS apt_reception_ref,
                  a.executed      AS apt_executed,
+                 a.glass_eurocode AS apt_eurocode,
+                 a.order_ref     AS apt_order_ref,
                  po.name         AS portal_label
           FROM glass_receptions gr
           LEFT JOIN appointments a  ON a.id = gr.appointment_id
