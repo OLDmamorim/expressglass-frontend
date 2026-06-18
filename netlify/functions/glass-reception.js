@@ -354,6 +354,33 @@ exports.handler = async (event) => {
     // ── PUT ────────────────────────────────────────────────────────────────────
     if (event.httpMethod === 'PUT') {
       const d = JSON.parse(event.body || '{}');
+
+      // Bulk sync: mark glasses consumed when linked appointment is Realizado
+      if (d.action === 'sync_stock') {
+        let allowedIds;
+        if (user.role === 'admin') {
+          const { rows: allP } = await client.query('SELECT id FROM portals');
+          allowedIds = allP.map(r => r.id);
+        } else {
+          allowedIds = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
+        }
+        if (!allowedIds.length) return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: [] }) };
+
+        const { rows: consumed } = await client.query(`
+          UPDATE glass_receptions gr
+          SET status = 'consumed', updated_at = NOW()
+          FROM appointments a
+          WHERE gr.appointment_id = a.id
+            AND a.executed = true
+            AND gr.is_return = false
+            AND gr.status NOT IN ('return', 'consumed')
+            AND gr.portal_id = ANY($1)
+          RETURNING gr.id, gr.eurocode, gr.order_ref, a.plate AS apt_plate, a.car AS apt_car
+        `, [allowedIds]);
+
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: consumed }) };
+      }
+
       const id = d.id || (event.path || '').split('/').filter(Boolean).pop();
 
       const updates = ['updated_at = NOW()'];
