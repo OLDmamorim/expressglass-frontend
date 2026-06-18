@@ -218,7 +218,7 @@ exports.handler = async (event) => {
                calibration, first_of_day, second_of_day, not_done_reason, commercial_user_id,
                return_km, return_time, client_name, damage_details, glass_removed, glass_removed_date,
                custom_service_time, foreign_plate, extra_services, n_obra,
-               order_ref, glass_eurocode, reception_ref,
+               order_ref, glass_eurocode, reception_ref, reception_date,
                comp_sales_desc, comp_sales_nif, comp_sales_name, comp_sales_faturado,
                created_at, updated_at, not_done_at
         FROM appointments
