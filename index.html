@@ -2677,6 +2677,7 @@
           </div>
         </div>
         <button onclick="window.glassReception._loadHistory()" style="background:#0f172a;color:#fff;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;width:100%;">🔍 Filtrar</button>
+        <button onclick="window.glassReception._checkPhcStock()" style="background:#7c3aed;color:#fff;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;width:100%;margin-top:6px;">🔄 Verificar Stock PHC</button>
       </div>
       <div id="grHResults"><p style="text-align:center;color:#94a3b8;font-size:13px;padding:12px;">A carregar…</p></div>
     `;
@@ -2704,6 +2705,110 @@
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       _renderHistoryTable(json.data);
+    } catch (e) {
+      if (content) content.innerHTML = `<p style="color:#dc2626;text-align:center;padding:12px;">Erro: ${e.message}</p>`;
+    }
+  }
+
+  async function _checkPhcStock() {
+    const content = document.getElementById('grHResults');
+    if (!content) return;
+    content.innerHTML = `<p style="text-align:center;padding:20px;color:#64748b;">🔄 A verificar stock com PHC…</p>`;
+
+    const portalId = document.getElementById('grHPortal')?.value || '';
+    const qp = new URLSearchParams({ history: 'true' });
+    if (portalId) qp.set('portal_id', portalId);
+    // No date filter — fetch ALL receptions for accurate stock
+
+    try {
+      const res = await fetch(API + '/glass-reception?' + qp.toString(), { headers: authHeaders() });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      const rows = json.data;
+
+      const _normEc = ec => (ec || '').toLowerCase().replace(/i/g,'1').replace(/o/g,'0').trim();
+
+      // Separate receptions into in-stock vs consumed by Realizado
+      const inStock = [], consumed = [];
+      rows.forEach(r => {
+        if (r.is_return) return;
+        if (r.apt_executed) consumed.push(r);
+        else inStock.push(r);
+      });
+
+      // Build per-eurocode totals for in-stock
+      const stockTotals = {};
+      inStock.forEach(r => {
+        const k = _normEc(r.eurocode);
+        if (!k) return;
+        if (!stockTotals[k]) stockTotals[k] = { eurocode: r.eurocode, order_ref: r.order_ref, count: 0, plates: [] };
+        stockTotals[k].count++;
+        if (r.apt_plate) stockTotals[k].plates.push((r.apt_plate).toUpperCase());
+      });
+
+      const stockList = Object.values(stockTotals).sort((a,b) => b.count - a.count);
+
+      content.innerHTML = `
+        <div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;">
+          <div style="background:#dcfce7;border:1.5px solid #86efac;border-radius:10px;padding:12px 18px;flex:1;min-width:120px;">
+            <div style="font-size:22px;font-weight:900;color:#16a34a;">${inStock.length}</div>
+            <div style="font-size:11px;font-weight:700;color:#166534;text-transform:uppercase;letter-spacing:0.5px;">Em Stock</div>
+          </div>
+          <div style="background:#fee2e2;border:1.5px solid #fca5a5;border-radius:10px;padding:12px 18px;flex:1;min-width:120px;">
+            <div style="font-size:22px;font-weight:900;color:#dc2626;">${consumed.length}</div>
+            <div style="font-size:11px;font-weight:700;color:#991b1b;text-transform:uppercase;letter-spacing:0.5px;">Baixados (Realizado)</div>
+          </div>
+        </div>
+        ${stockList.length ? `
+        <div style="font-size:11px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Vidros em stock</div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:#0f172a;color:#fff;">
+                <th style="padding:7px 10px;text-align:left;">Eurocode</th>
+                <th style="padding:7px 10px;text-align:left;">Encomenda</th>
+                <th style="padding:7px 10px;text-align:center;">Qtd</th>
+                <th style="padding:7px 10px;text-align:left;">Matrículas</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${stockList.map((s, i) => `
+              <tr style="background:${i%2===0?'#fff':'#f8fafc'};">
+                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;">${s.eurocode || '—'}</td>
+                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${s.order_ref || '—'}</td>
+                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;text-align:center;"><span style="background:#dcfce7;color:#16a34a;font-weight:800;padding:2px 8px;border-radius:6px;">✅ ${s.count}</span></td>
+                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-size:11px;">${s.plates.join(', ') || '—'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>` : `<p style="text-align:center;color:#94a3b8;padding:12px;">Sem vidros em stock.</p>`}
+        ${consumed.length ? `
+        <div style="font-size:11px;font-weight:800;color:#0f172a;text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 6px;">Baixados por Realizado</div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;">
+            <thead>
+              <tr style="background:#64748b;color:#fff;">
+                <th style="padding:7px 10px;text-align:left;">Data Rec.</th>
+                <th style="padding:7px 10px;text-align:left;">Matrícula</th>
+                <th style="padding:7px 10px;text-align:left;">Eurocode</th>
+                <th style="padding:7px 10px;text-align:left;">Encomenda</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${consumed.map((r, i) => `
+              <tr style="background:${i%2===0?'#fff':'#f8fafc'};">
+                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;white-space:nowrap;">${fmtDate(r.created_at)}</td>
+                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;font-weight:700;">${(r.apt_plate||'—').toUpperCase()}</td>
+                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;font-family:monospace;">${r.eurocode||'—'}</td>
+                <td style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">${r.order_ref||'—'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>` : ''}
+        <div style="margin-top:12px;text-align:right;">
+          <button onclick="window.glassReception._loadHistory()" style="background:#e2e8f0;color:#374151;font-weight:700;font-size:12px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;">← Voltar ao histórico</button>
+        </div>
+      `;
     } catch (e) {
       if (content) content.innerHTML = `<p style="color:#dc2626;text-align:center;padding:12px;">Erro: ${e.message}</p>`;
     }
