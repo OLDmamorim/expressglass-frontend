@@ -57,7 +57,8 @@ exports.handler = async (event) => {
       FROM appointments a
       LEFT JOIN portals po ON po.id = a.portal_id
       WHERE (UPPER(REGEXP_REPLACE(a.plate, '[^A-Z0-9]', '', 'g')) LIKE $1
-             OR ${normCol('a.order_ref')} LIKE $2 OR ${normCol('a.n_obra')} LIKE $2)
+             OR ${normCol('a.order_ref')} LIKE $2 OR ${normCol('a.n_obra')} LIKE $2
+             OR ${normCol('a.extra::text')} LIKE $2 OR ${normCol('a.notes')} LIKE $2)
     `;
     const aVals = [plateNorm, textLike];
     if (coordIds) { aq += ` AND a.portal_id = ANY($3)`; aVals.push(coordIds); }
