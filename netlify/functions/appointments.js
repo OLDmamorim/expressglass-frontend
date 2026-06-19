@@ -307,7 +307,7 @@ exports.handler = async (event) => {
       const isAdmin = user.role === 'admin';
       const isCoord = user.role === 'coordinator' || user.role === 'coordenador';
       const checkResult = await pool.query(
-        'SELECT id, portal_id, executed, not_done_reason, not_done_at, glass_removed, glass_removed_date FROM appointments WHERE id = $1',
+        'SELECT id, portal_id, executed, not_done_reason, not_done_at, glass_removed, glass_removed_date, date FROM appointments WHERE id = $1',
         [id]
       );
       if (checkResult.rows.length === 0) {
@@ -325,12 +325,19 @@ exports.handler = async (event) => {
       }
       const effectivePortalId = existing.portal_id;
       const executedVal = data.executed !== undefined ? data.executed : existing.executed;
-      const notDoneReasonVal = data.not_done_reason !== undefined ? data.not_done_reason : existing.not_done_reason;
-      // Set not_done_at when reason is first set; clear it when reason is cleared; otherwise keep existing.
+      // Auto-clear not_done_reason when date changes (rescheduling exits "não realizado" status).
+      // If caller explicitly sends not_done_reason, honour it; otherwise auto-clear on date change.
+      const existingDate = existing.date ? String(existing.date).slice(0, 10) : null;
+      const newDate = data.date ? String(data.date).slice(0, 10) : null;
+      const dateChanged = newDate && existingDate !== newDate;
+      const notDoneReasonVal = data.not_done_reason !== undefined
+        ? data.not_done_reason
+        : (dateChanged && existing.not_done_reason ? null : existing.not_done_reason);
+      // Set not_done_at when reason is first set; keep it as historical record even when reason is cleared.
       // If existing record already had a reason but not_done_at is NULL (pre-migration), fill it now.
       const notDoneAtVal = notDoneReasonVal
         ? (existing.not_done_reason ? (existing.not_done_at || new Date().toISOString()) : new Date().toISOString())
-        : null;
+        : (existing.not_done_at || null);
 
       const q = `
         UPDATE appointments SET
