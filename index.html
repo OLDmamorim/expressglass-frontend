@@ -2145,8 +2145,9 @@
       if (!json.success) throw new Error(json.error);
 
       // Update in-memory appointment so card turns green immediately
+      let apt = null;
       if (appointmentId && window.appointments) {
-        const apt = window.appointments.find(a => a.id === appointmentId || String(a.id) === String(appointmentId));
+        apt = window.appointments.find(a => a.id === appointmentId || String(a.id) === String(appointmentId));
         if (apt) {
           apt.status = 'ST';
           if (eurocode) apt.glass_eurocode = eurocode;
@@ -2156,24 +2157,103 @@
         window.guiaAT?.injectBadges();
       }
 
-      document.getElementById('grScanBody').innerHTML = `
-        <div style="text-align:center;padding:24px 0;">
-          <div style="font-size:48px;margin-bottom:12px;">✅</div>
-          <p style="font-size:16px;font-weight:800;color:#16a34a;margin-bottom:6px;">Receção registada!</p>
-          <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Matrícula <strong>${plate}</strong> — vidro rececionado.</p>
-          <div style="display:flex;flex-direction:column;gap:10px;">
-            <button onclick="window.glassReception._step1()" style="background:#2563eb;color:#fff;font-weight:800;font-size:15px;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;letter-spacing:.3px;">📷 Nova Receção</button>
-            <button onclick="window.glassReception.closeScan()" style="background:#e2e8f0;color:#374151;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
-          </div>
-        </div>
-      `;
       _pollPendingBadge();
+
+      // Check if this appointment has additional eurocodes that need receiving
+      if (apt && eurocode) {
+        const allEuros = _extractAllEurocodes(apt);
+        const normEc = s => (s || '').toLowerCase().replace(/i/g, '1').replace(/o/g, '0');
+        const receivedNorm = normEc(eurocode);
+        const remaining = allEuros.filter(e => normEc(e) !== receivedNorm);
+        if (remaining.length > 0) {
+          _askExtraEurocode(remaining, 0, appointmentId, plate, orderRef, []);
+          return;
+        }
+      }
+
+      _showReceptionSuccess(plate, []);
     } catch (e) {
       document.getElementById('grScanBody').innerHTML = `
         <p style="color:#dc2626;text-align:center;margin-bottom:12px;">Erro: ${e.message}</p>
         <button onclick="window.glassReception._step1()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;">← Tentar novamente</button>
       `;
     }
+  }
+
+  function _extractAllEurocodes(appt) {
+    const normUp = s => (s || '').trim().toUpperCase();
+    const seen = new Set();
+    if (appt.glass_eurocode) seen.add(normUp(appt.glass_eurocode));
+    if (appt.extra) {
+      let extraText = '';
+      try { extraText = JSON.parse(appt.extra).eurocode || appt.extra; } catch(e) { extraText = appt.extra; }
+      String(extraText).split(/[;,]/).forEach(part => {
+        const t = part.trim().toUpperCase();
+        if (t && /^[A-Z0-9]{5,}$/.test(t)) seen.add(t);
+      });
+    }
+    return [...seen].filter(Boolean);
+  }
+
+  function _askExtraEurocode(remaining, idx, appointmentId, plate, orderRef, missed) {
+    if (idx >= remaining.length) {
+      _showReceptionSuccess(plate, missed);
+      return;
+    }
+    const eurocode = remaining[idx];
+    const body = document.getElementById('grScanBody');
+    body.innerHTML = `
+      <div style="text-align:center;padding:20px 0 12px;">
+        <div style="font-size:36px;margin-bottom:8px;">📦</div>
+        <p style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:6px;">Também chegou este vidro?</p>
+        <div style="font-family:monospace;font-size:18px;font-weight:800;color:#2563eb;background:#eff6ff;border-radius:8px;padding:10px 16px;margin:12px 0;">${eurocode}</div>
+        <p style="font-size:12px;color:#64748b;margin-bottom:18px;">Matrícula <strong>${plate}</strong></p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button id="grExtraYes" style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;">✅ Sim, chegou</button>
+        <button id="grExtraNo" style="width:100%;background:#dc2626;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;">❌ Não chegou</button>
+      </div>
+    `;
+    document.getElementById('grExtraYes').onclick = async function() {
+      body.innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A registar…</p>`;
+      try {
+        const r = await fetch(API + '/glass-reception', {
+          method: 'POST', headers: authHeaders(),
+          body: JSON.stringify({ appointment_id: appointmentId, order_ref: orderRef, eurocode })
+        });
+        const j = await r.json();
+        if (!j.success) throw new Error(j.error);
+      } catch(e) { /* non-critical, continue */ }
+      _askExtraEurocode(remaining, idx + 1, appointmentId, plate, orderRef, missed);
+    };
+    document.getElementById('grExtraNo').onclick = async function() {
+      body.innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A registar alerta…</p>`;
+      try {
+        await fetch(API + '/glass-reception', {
+          method: 'POST', headers: authHeaders(),
+          body: JSON.stringify({ appointment_id: appointmentId, order_ref: orderRef, eurocode, status: 'missing' })
+        });
+      } catch(e) { /* non-critical */ }
+      _askExtraEurocode(remaining, idx + 1, appointmentId, plate, orderRef, [...missed, eurocode]);
+    };
+  }
+
+  function _showReceptionSuccess(plate, missed) {
+    const missingNote = missed && missed.length > 0
+      ? `<div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:8px;padding:10px 14px;margin-top:10px;text-align:left;font-size:12px;color:#92400e;">⚠️ Receção incompleta — não chegou: <strong>${missed.join(', ')}</strong><br>Coordenador notificado.</div>`
+      : '';
+    document.getElementById('grScanBody').innerHTML = `
+      <div style="text-align:center;padding:24px 0;">
+        <div style="font-size:48px;margin-bottom:12px;">✅</div>
+        <p style="font-size:16px;font-weight:800;color:#16a34a;margin-bottom:6px;">Receção registada!</p>
+        <p style="font-size:13px;color:#64748b;margin-bottom:4px;">Matrícula <strong>${plate}</strong> — vidro rececionado.</p>
+        ${missingNote}
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px;">
+          <button onclick="window.glassReception._step1()" style="background:#2563eb;color:#fff;font-weight:800;font-size:15px;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;letter-spacing:.3px;">📷 Nova Receção</button>
+          <button onclick="window.glassReception.closeScan()" style="background:#e2e8f0;color:#374151;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
+        </div>
+      </div>
+    `;
   }
 
   async function _showOrphanConfirm() {
@@ -2299,7 +2379,7 @@
     });
     const content = document.getElementById('grTabContent');
     if (!content) return;
-    if (tab === 'pending') {
+    if (tab === 'pending' || tab === 'missing') {
       content.innerHTML = `<p style="text-align:center;padding:20px;color:#64748b;">A carregar…</p>`;
       await _loadCoordList();
     } else if (tab === 'returns') {
@@ -2315,24 +2395,31 @@
 
   async function _loadCoordList() {
     try {
-      const res = await fetch(API + '/glass-reception?status=confirmed', { headers: authHeaders() });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error);
-      _renderCoordList(json.data);
+      const [resConf, resMiss] = await Promise.all([
+        fetch(API + '/glass-reception?status=confirmed', { headers: authHeaders() }),
+        fetch(API + '/glass-reception?status=missing', { headers: authHeaders() })
+      ]);
+      const [jsonConf, jsonMiss] = await Promise.all([resConf.json(), resMiss.json()]);
+      if (!jsonConf.success) throw new Error(jsonConf.error);
+      const confirmed = jsonConf.data || [];
+      const missing = jsonMiss.success ? (jsonMiss.data || []) : [];
+      _renderCoordList(confirmed, missing);
     } catch (e) {
       const el = document.getElementById('grTabContent');
       if (el) el.innerHTML = `<p style="color:#dc2626;text-align:center;padding:20px;">Erro: ${e.message}</p>`;
     }
   }
 
-  function _renderCoordList(items) {
+  function _renderCoordList(items, missing) {
+    missing = missing || [];
+    const total = items.length + missing.length;
     const badge = document.getElementById('grCoordBadge');
-    if (badge) { badge.textContent = items.length + ' pendente' + (items.length !== 1 ? 's' : ''); badge.style.display = items.length ? '' : 'none'; }
+    if (badge) { badge.textContent = total + ' pendente' + (total !== 1 ? 's' : ''); badge.style.display = total ? '' : 'none'; }
 
     const content = document.getElementById('grTabContent');
     if (!content) return;
 
-    if (items.length === 0) {
+    if (total === 0) {
       content.innerHTML = `
         <div style="text-align:center;padding:40px;color:#94a3b8;">
           <div style="font-size:40px;margin-bottom:12px;">✅</div>
@@ -2341,7 +2428,7 @@
       return;
     }
 
-    content.innerHTML = items.map(r => `
+    const confirmedHtml = items.map(r => `
       <div id="grRow${r.id}" style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;background:#fff;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
           <span style="font-family:monospace;font-weight:800;font-size:14px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${(r.apt_plate || r.order_ref || '—').toUpperCase()}</span>
@@ -2360,6 +2447,30 @@
         </div>
       </div>
     `).join('');
+
+    const missingHtml = missing.length === 0 ? '' : `
+      <div style="margin-top:14px;margin-bottom:6px;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.5px;">⚠️ Receções incompletas</div>
+      ${missing.map(r => `
+        <div id="grRow${r.id}" style="border:2px solid #f59e0b;border-radius:12px;padding:14px;margin-bottom:10px;background:#fffbeb;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span style="font-family:monospace;font-weight:800;font-size:14px;background:#92400e;color:#fff;padding:3px 10px;border-radius:6px;">${(r.apt_plate || r.order_ref || '—').toUpperCase()}</span>
+            <span style="font-size:13px;font-weight:600;color:#374151;">${r.apt_car || '—'}</span>
+            <span style="font-size:11px;color:#92400e;margin-left:auto;">${fmtDate(r.created_at)}</span>
+          </div>
+          <div style="display:flex;gap:14px;font-size:12px;color:#92400e;flex-wrap:wrap;margin-bottom:10px;">
+            <span>🏪 ${r.portal_label || r.portal_name || '—'}</span>
+            <span>👤 ${r.technician_name || '—'}</span>
+            ${r.eurocode ? `<span>🔢 Não chegou: <strong>${r.eurocode}</strong></span>` : ''}
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="window.glassReception._markReceived(${r.id})" style="background:#16a34a;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">✅ Chegou agora</button>
+            <button onclick="window.glassReception._deleteReception('${r.id}',this)" style="background:#6b7280;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">🗑️ Dispensar</button>
+          </div>
+        </div>
+      `).join('')}
+    `;
+
+    content.innerHTML = confirmedHtml + missingHtml;
   }
 
   // ── RETURNS / DAMAGED ────────────────────────────────────────────────────
@@ -3251,6 +3362,7 @@
       if ((data.pending || 0) > 0) items.push({ n: data.pending, label: 'por recepcionar', icon: '📦', tab: 'pending' });
       if ((data.damaged || 0) > 0) items.push({ n: data.damaged, label: `danificado${data.damaged > 1 ? 's' : ''} por tratar`, icon: '💔', tab: 'damaged' });
       if ((data.returns || 0) > 0) items.push({ n: data.returns, label: `devoluç${data.returns > 1 ? 'ões' : 'ão'} por tratar`, icon: '↩️', tab: 'returns' });
+      if ((data.missing || 0) > 0) items.push({ n: data.missing, label: `receç${data.missing > 1 ? 'ões' : 'ão'} incompleta${data.missing > 1 ? 's' : ''}`, icon: '⚠️', tab: 'missing' });
       if (!items.length) return;
       document.getElementById('grAlertItems').innerHTML = items.map(it => `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 12px;background:#f8fafc;border-radius:10px;margin-bottom:8px;">
@@ -3271,15 +3383,19 @@
   // ── BADGE POLLING ────────────────────────────────────────────────────────
   async function _pollPendingBadge() {
     try {
-      const res = await fetch(API + '/glass-reception?status=confirmed', { headers: authHeaders() });
-      const json = await res.json();
-      if (!json.success) return;
-      const n = (json.data || []).length;
+      const [resConf, resMiss] = await Promise.all([
+        fetch(API + '/glass-reception?status=confirmed', { headers: authHeaders() }),
+        fetch(API + '/glass-reception?status=missing', { headers: authHeaders() })
+      ]);
+      const [jsonConf, jsonMiss] = await Promise.all([resConf.json(), resMiss.json()]);
+      const nConf = jsonConf.success ? (jsonConf.data || []).length : 0;
+      const nMiss = jsonMiss.success ? (jsonMiss.data || []).length : 0;
+      const n = nConf + nMiss;
       const btn = document.getElementById('btnRececaoVidros');
       if (btn) {
         if (n > 0) {
           btn.style.animation = 'recBtnPulse 1.2s infinite';
-          btn.style.border = '2px solid #fbbf24';
+          btn.style.border = nMiss > 0 ? '2px solid #f59e0b' : '2px solid #fbbf24';
           btn.textContent = `📦 Receção Vidros (${n})`;
         } else {
           btn.style.animation = '';

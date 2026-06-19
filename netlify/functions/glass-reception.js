@@ -104,7 +104,7 @@ exports.handler = async (event) => {
         const portalCond = isAdmin ? '' : `AND gr.portal_id = ANY($1)`;
         const vals = isAdmin ? [] : [portalIds];
 
-        const [pendR, damR, retR] = await Promise.all([
+        const [pendR, damR, retR, missR] = await Promise.all([
           client.query(`SELECT COUNT(*) AS n FROM glass_receptions gr
             WHERE gr.status IN ('pending','confirmed')
             AND gr.created_at < NOW() - INTERVAL '1 hour'
@@ -119,6 +119,8 @@ exports.handler = async (event) => {
             AND gr.status NOT IN ('devolvido','reported')
             AND gr.created_at < NOW() - INTERVAL '1 hour'
             ${portalCond}`, vals),
+          client.query(`SELECT COUNT(*) AS n FROM glass_receptions gr
+            WHERE gr.status = 'missing' ${portalCond}`, vals),
         ]);
 
         return { statusCode: 200, headers, body: JSON.stringify({
@@ -126,6 +128,7 @@ exports.handler = async (event) => {
           pending: parseInt(pendR.rows[0].n, 10) || 0,
           damaged: parseInt(damR.rows[0].n, 10) || 0,
           returns: parseInt(retR.rows[0].n, 10) || 0,
+          missing: parseInt(missR.rows[0].n, 10) || 0,
         })};
       }
 
@@ -278,7 +281,7 @@ exports.handler = async (event) => {
     // ── POST ───────────────────────────────────────────────────────────────────
     if (event.httpMethod === 'POST') {
       const d = JSON.parse(event.body || '{}');
-      const status = d.is_return ? 'return' : (d.appointment_id ? 'confirmed' : 'pending');
+      const status = d.status === 'missing' ? 'missing' : (d.is_return ? 'return' : (d.appointment_id ? 'confirmed' : 'pending'));
 
       // When linked to an appointment, always derive portal from the appointment
       // (the user's JWT portal may differ from the appointment's portal — e.g. bragaadmin
