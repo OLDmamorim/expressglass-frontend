@@ -2176,16 +2176,37 @@
     }
   }
 
-  function _showOrphanConfirm() {
+  async function _showOrphanConfirm() {
     const orderRef = window._grOrphanOrderRef;
     const eurocode = window._grOrphanEurocode;
     const body = document.getElementById('grScanBody');
+    body.innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A carregar armazéns…</p>`;
+
+    let portals = [];
+    try {
+      const res = await fetch(API + '/glass-reception?list_portals=true', { headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) portals = json.data;
+    } catch(_) {}
+
+    const currentPortalId = window.portalConfig?.id;
+    const portalOpts = portals.map(p =>
+      `<option value="${p.id}" data-name="${(p.name||'').replace(/"/g,'&quot;')}" ${p.id === currentPortalId ? 'selected' : ''}>${p.name}</option>`
+    ).join('');
+
     body.innerHTML = `
       <p style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:14px;">Rececionar vidro sem processo</p>
-      <div style="background:#fff7ed;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:18px;">
-        <p style="color:#92400e;font-size:13px;margin:0 0 12px 0;">⚠️ Nenhum agendamento encontrado. O vidro ficará rececionado sem associação a um processo.</p>
+      <div style="background:#fff7ed;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:16px;">
+        <p style="color:#92400e;font-size:13px;margin:0 0 12px 0;">⚠️ Nenhum agendamento encontrado. Seleciona o armazém para associar esta receção.</p>
         ${orderRef ? `<div style="font-size:13px;color:#374151;margin-bottom:4px;">📦 Encomenda: <strong>${orderRef}</strong></div>` : ''}
         ${eurocode ? `<div style="font-size:13px;color:#374151;font-family:monospace;">🔢 Eurocode: <strong>${eurocode}</strong></div>` : ''}
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">🏪 Armazém</label>
+        <select id="grOrphanPortal" style="width:100%;padding:11px 12px;border:2px solid #f59e0b;border-radius:8px;font-size:14px;font-weight:600;background:#fff;">
+          <option value="">— Seleciona um armazém —</option>
+          ${portalOpts}
+        </select>
       </div>
       <button onclick="window.glassReception._confirmOrphanReception()" style="width:100%;background:#f59e0b;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px;">
         📦 Confirmar receção
@@ -2199,12 +2220,19 @@
   async function _confirmOrphanReception() {
     const orderRef = window._grOrphanOrderRef;
     const eurocode = window._grOrphanEurocode;
+    const sel = document.getElementById('grOrphanPortal');
+    const portalId = sel ? parseInt(sel.value) || null : null;
+    const portalName = sel ? (sel.selectedOptions[0]?.dataset?.name || null) : null;
+    if (!portalId) {
+      sel && (sel.style.borderColor = '#dc2626');
+      return;
+    }
     document.getElementById('grScanBody').innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A registar receção…</p>`;
     try {
       const res = await fetch(API + '/glass-reception', {
         method: 'POST',
         headers: authHeaders(),
-        body: JSON.stringify({ appointment_id: null, order_ref: orderRef || null, eurocode: eurocode || null, raw_label_text: window._grRawText || null })
+        body: JSON.stringify({ appointment_id: null, order_ref: orderRef || null, eurocode: eurocode || null, raw_label_text: window._grRawText || null, portal_id: portalId, portal_name: portalName })
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -2212,7 +2240,7 @@
         <div style="text-align:center;padding:24px 0;">
           <div style="font-size:48px;margin-bottom:12px;">📦</div>
           <p style="font-size:16px;font-weight:800;color:#f59e0b;margin-bottom:6px;">Vidro rececionado!</p>
-          <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Sem associação a processo.</p>
+          <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Armazém: <strong>${portalName || '—'}</strong> · Sem processo associado.</p>
           <div style="display:flex;flex-direction:column;gap:10px;">
             <button onclick="window.glassReception._step1()" style="background:#2563eb;color:#fff;font-weight:800;font-size:15px;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;">📷 Nova Receção</button>
             <button onclick="window.glassReception.closeScan()" style="background:#e2e8f0;color:#374151;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
