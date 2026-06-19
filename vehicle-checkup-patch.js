@@ -264,7 +264,14 @@
       const wrap = document.createElement('div');
       wrap.style.cssText = 'margin:6px 8px 0;';
       wrap.appendChild(btn);
-      row.insertAdjacentElement('afterend', wrap);
+      // Insert after any already-injected button rows (e.g. Retirar Vidro) so check-up stays last
+      let insertAfter = row;
+      let next = row.nextElementSibling;
+      while (next && next.querySelector && next.querySelector('.m-status-btn')) {
+        insertAfter = next;
+        next = next.nextElementSibling;
+      }
+      insertAfter.insertAdjacentElement('afterend', wrap);
     });
   }
 
