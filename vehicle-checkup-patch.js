@@ -225,17 +225,18 @@
     }
   };
 
-  // ── Inject "Check-up" button after dc-exec-row ────────────────────────────
+  // ── Inject "Check-up" button after dc-exec-row (desktop) and m-status-row (mobile) ───
   function injectCheckupButtons() {
     if (!isBraga()) return;
     const appts = window.appointments || [];
+
+    // Desktop
     document.querySelectorAll('.dc-exec-row').forEach(row => {
       if (row.dataset.vcInjected) return;
       row.dataset.vcInjected = '1';
       const id = row.dataset.id;
       const appt = appts.find(a => String(a.id) === String(id));
       if (!appt) return;
-      const plate = (appt.plate || '').replace(/'/g, "\\'");
       const btn = document.createElement('button');
       btn.className = 'dc-exec-btn';
       btn.style.cssText = 'width:100%;margin-top:4px;';
@@ -245,6 +246,32 @@
       wrap.style.cssText = 'margin:4px 0 0;';
       wrap.appendChild(btn);
       row.insertAdjacentElement('afterend', wrap);
+    });
+
+    // Mobile
+    document.querySelectorAll('.m-status-row').forEach(row => {
+      if (row.dataset.vcInjected) return;
+      row.dataset.vcInjected = '1';
+      const id = row.querySelector('[data-exec]')?.dataset?.id;
+      if (!id) return;
+      const appt = appts.find(a => String(a.id) === String(id));
+      if (!appt) return;
+      const btn = document.createElement('button');
+      btn.className = 'm-status-btn';
+      btn.style.cssText = 'width:100%;justify-content:center;';
+      btn.innerHTML = '<span class="m-status-dot" style="background:#2563eb;"></span>Check-up Viatura';
+      btn.onclick = function (e) { e.stopPropagation(); window._openVehicleCheckup(id, appt.plate || ''); };
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'margin:6px 8px 0;';
+      wrap.appendChild(btn);
+      // Insert after any already-injected button rows (e.g. Retirar Vidro) so check-up stays last
+      let insertAfter = row;
+      let next = row.nextElementSibling;
+      while (next && next.querySelector && next.querySelector('.m-status-btn')) {
+        insertAfter = next;
+        next = next.nextElementSibling;
+      }
+      insertAfter.insertAdjacentElement('afterend', wrap);
     });
   }
 
