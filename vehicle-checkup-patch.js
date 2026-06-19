@@ -200,10 +200,11 @@
 
     try {
       const tok = localStorage.getItem('eg_auth_token');
-      const res = await fetch('/.netlify/functions/appointments', {
+      const portalId = window.portalConfig?.id || appt?.portal_id || null;
+      const res = await fetch('/.netlify/functions/appointments/' + _apptId, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) },
-        body: JSON.stringify({ id: _apptId, notes: newNotes, damage_details: newDamageDetails })
+        body: JSON.stringify({ notes: newNotes, damage_details: newDamageDetails, _portalId: portalId })
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Erro ao guardar');
