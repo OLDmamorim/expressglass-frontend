@@ -260,6 +260,7 @@ function confirmCalculateRoutes() {
 
 // ===== OTIMIZAÇÃO DE ROTAS - TODOS OS DIAS A PARTIR DE HOJE =====
 async function calculateAllRoutesFromToday() {
+  window._pausePolling = true;
   try {
     showProgressModal();
     updateProgress(0, 'Iniciando otimização...', 'A verificar dias com serviços...');
@@ -327,11 +328,14 @@ async function calculateAllRoutesFromToday() {
     console.error('Erro ao calcular rotas:', error);
     hideProgressModal();
     showToast('❌ Erro: ' + error.message, 'error');
+  } finally {
+    window._pausePolling = false;
   }
 }
 
 // ===== OTIMIZAÇÃO DE ROTAS - DIA ESPECÍFICO =====
 async function calculateOptimalRoutesForDay(selectedDateISO) {
+  window._pausePolling = true;
   try {
     // Mostrar modal de progresso
     showProgressModal();
@@ -389,6 +393,8 @@ async function calculateOptimalRoutesForDay(selectedDateISO) {
     console.error('Erro ao calcular rotas:', error);
     hideProgressModal();
     showToast('❌ Erro ao calcular rotas: ' + error.message, 'error');
+  } finally {
+    window._pausePolling = false;
   }
 }
 

@@ -1324,6 +1324,7 @@ function bootApp() {
 
   async function onSubmit(e) {
     e?.preventDefault?.();
+    window._pausePolling = true;
 
     const payload = await collectFormData();
 
@@ -1386,40 +1387,28 @@ function bootApp() {
           }
         }
        
-       // Refaça o array e redesenha já
-appointments = await window.apiClient.getAppointments();
-
-// 🔧 NORMALIZAÇÃO (igual ao load)
-appointments = appointments.map(a => ({
-  ...a,
-  date: a.date ? String(a.date).slice(0, 10) : null,
-  address: a.address || a.morada || a.addr || null,
-  sortIndex: a.sortIndex || 1,
-  id: a.id ?? (Date.now() + Math.random())
-}));
-
-renderAll();
-
-// (opcional) fechar modal
-cancelEdit?.();
-
-// ⛔️ APAGAR/COMENTAR tudo o que estava aqui:
-// // 👉 Mete já no array em memória e força re-render
-// const id = created?.id ?? (Date.now() + Math.random());
-// const newItem = { ...payload, id, ...normalização... };
-// appointments = [newItem]; // ou qualquer atribuição que substitua a lista
-// renderAll();
-
-        const item = { id: created?.id || (Date.now()+Math.random()), sortIndex: 1, ...payload, ...created };
-        appointments.push(item);
+        // Re-fetch completo e redesenha
+        appointments = await window.apiClient.getAppointments();
+        appointments = appointments.map(a => ({
+          ...a,
+          date: a.date ? String(a.date).slice(0, 10) : null,
+          address: a.address || a.morada || a.addr || null,
+          sortIndex: a.sortIndex || 1,
+          id: a.id ?? (Date.now() + Math.random())
+        }));
+        // Fallback: se o novo serviço ainda não chegou na re-fetch, adicionar manualmente
+        const createdId = created?.id;
+        if (createdId && !appointments.find(a => String(a.id) === String(createdId))) {
+          appointments.push({ sortIndex: 1, ...payload, ...created, id: createdId });
+        }
+        cancelEdit?.();
         showToast('Agendamento criado', 'success');
-        if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(item.id, payload.date);
-        if (payload.second_of_day && payload.date) await enforceSingleSecondOfDay(item.id, payload.date);
+        if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(createdId, payload.date);
+        if (payload.second_of_day && payload.date) await enforceSingleSecondOfDay(createdId, payload.date);
         // Notificar comercial ao criar (sempre que tem comercial e data)
         if (payload.commercial_user_id && payload.date) {
-          const apptId = created?.id || item.id;
           const nType = payload.confirmed ? 'scheduled' : 'pre-agendado';
-          try { await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ appointment_id: apptId, type: nType }) }); } catch(ne) {}
+          try { await authClient.authenticatedFetch('/.netlify/functions/notify-commercial', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ appointment_id: createdId, type: nType }) }); } catch(ne) {}
         }
       }
 
@@ -1448,6 +1437,8 @@ cancelEdit?.();
       } catch (e2) {
         showToast('Falha ao guardar: ' + e2.message, 'error');
       }
+    } finally {
+      window._pausePolling = false;
     }
   }
 
