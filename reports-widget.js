@@ -488,8 +488,9 @@ function _rwRenderComparison(dataA, dataB) {
 
   const nameA = dataA.portal.name || 'Portal A';
   const nameB = dataB.portal.name || 'Portal B';
+  const BLUE = '#2563eb', PURPLE = '#7c3aed';
   const fmtDate = d => new Date(d + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' });
-  const fmtH = h => (h == null || isNaN(h) || h === 0) ? '—' : `${Math.floor(h)}h${String(Math.round((h - Math.floor(h)) * 60)).padStart(2, '0')}`;
+  const fmtH = h => (!h || isNaN(h) || h === 0) ? '—' : `${Math.floor(h)}h${String(Math.round((h - Math.floor(h)) * 60)).padStart(2, '0')}`;
 
   function calcKpis(data) {
     const { totals } = data;
@@ -522,207 +523,210 @@ function _rwRenderComparison(dataA, dataB) {
   const tB = calcTeam(dataB.teamStats);
 
   const metrics = [
-    { icon: '📋', label: 'Agendados',       vA: kA.total,              vB: kB.total,              fmt: v => v,                                           better: true  },
-    { icon: '✅', label: 'Realizados',      vA: kA.realiz,             vB: kB.realiz,             fmt: v => v,                                           better: true  },
-    { icon: '❌', label: 'Não realizados',  vA: kA.nReal,              vB: kB.nReal,              fmt: v => v,                                           better: false },
-    { icon: '🎯', label: 'Taxa realização', vA: kA.taxa,               vB: kB.taxa,               fmt: v => v + '%',                                     better: true  },
-    { icon: '🚗', label: 'Total km',        vA: kA.km,                 vB: kB.km,                 fmt: v => v + ' km',                                   better: null  },
-    { icon: '⏳', label: 'Pendentes',       vA: kA.pend,               vB: kB.pend,               fmt: v => v,                                           better: false },
-    { icon: '⏱️', label: 'Tempo estrada',   vA: kA.tMin,               vB: kB.tMin,               fmt: v => { const m=parseInt(v); return m>0?fmtH(m/60):'—'; }, better: null },
-    { icon: '⛽', label: 'Custo gasóleo',   vA: parseFloat(kA.custo),  vB: parseFloat(kB.custo),  fmt: v => v + '€',                                     better: false },
+    { icon: '📋', label: 'Agendados',       vA: kA.total,             vB: kB.total,             fmt: v => v,               better: true  },
+    { icon: '✅', label: 'Realizados',      vA: kA.realiz,            vB: kB.realiz,            fmt: v => v,               better: true  },
+    { icon: '❌', label: 'Não realizados',  vA: kA.nReal,             vB: kB.nReal,             fmt: v => v,               better: false },
+    { icon: '🎯', label: 'Taxa realização', vA: kA.taxa,              vB: kB.taxa,              fmt: v => v + '%',         better: true  },
+    { icon: '🚗', label: 'Total km',        vA: kA.km,                vB: kB.km,                fmt: v => v + ' km',       better: null  },
+    { icon: '⏳', label: 'Pendentes',       vA: kA.pend,              vB: kB.pend,              fmt: v => v,               better: false },
+    { icon: '⏱️', label: 'Tempo estrada',   vA: kA.tMin,              vB: kB.tMin,              fmt: v => { const m=parseInt(v); return m>0?fmtH(m/60):'—'; }, better: null },
+    { icon: '⛽', label: 'Custo gasóleo',   vA: parseFloat(kA.custo), vB: parseFloat(kB.custo), fmt: v => v + '€',         better: false },
   ];
 
-  const teamMetrics = [
-    { icon: '📅', label: 'Dias registados',  vA: tA?.days || 0,        vB: tB?.days || 0,        fmt: v => v,                    better: true  },
-    { icon: '⏱️', label: 'Horas líq. total', vA: tA?.totalNetHrs || 0, vB: tB?.totalNetHrs || 0, fmt: v => fmtH(v),              better: true  },
-    { icon: '🕐', label: 'Média horas/dia',  vA: tA?.avgNetHrs || 0,   vB: tB?.avgNetHrs || 0,   fmt: v => fmtH(v),              better: true  },
-    { icon: '📦', label: 'Serviços total',   vA: tA?.totalSvcs || 0,   vB: tB?.totalSvcs || 0,   fmt: v => v,                    better: true  },
-    { icon: '📈', label: 'Média serv./dia',  vA: tA?.avgSvcs || 0,     vB: tB?.avgSvcs || 0,     fmt: v => v.toFixed(1),         better: true  },
-    { icon: '⚡', label: 'Serv./hora',       vA: tA?.sph || 0,         vB: tB?.sph || 0,         fmt: v => v.toFixed(2),         better: true  },
-    { icon: '🗺️', label: 'Km percorridos',   vA: tA?.totalKm || 0,    vB: tB?.totalKm || 0,     fmt: v => Math.round(v)+' km',  better: null  },
-  ];
+  const teamMetrics = (tA || tB) ? [
+    { icon: '📅', label: 'Dias registados',  vA: tA?.days||0,        vB: tB?.days||0,        fmt: v => v,                   better: true  },
+    { icon: '⏱️', label: 'Horas líq. total', vA: tA?.totalNetHrs||0, vB: tB?.totalNetHrs||0, fmt: v => fmtH(v),             better: true  },
+    { icon: '🕐', label: 'Média horas/dia',  vA: tA?.avgNetHrs||0,   vB: tB?.avgNetHrs||0,   fmt: v => fmtH(v),             better: true  },
+    { icon: '📦', label: 'Serviços total',   vA: tA?.totalSvcs||0,   vB: tB?.totalSvcs||0,   fmt: v => v,                   better: true  },
+    { icon: '📈', label: 'Média serv./dia',  vA: tA?.avgSvcs||0,     vB: tB?.avgSvcs||0,     fmt: v => v.toFixed(1),        better: true  },
+    { icon: '⚡', label: 'Serv./hora',       vA: tA?.sph||0,         vB: tB?.sph||0,         fmt: v => v.toFixed(2),        better: true  },
+    { icon: '🗺️', label: 'Km percorridos',   vA: tA?.totalKm||0,    vB: tB?.totalKm||0,     fmt: v => Math.round(v)+' km', better: null  },
+  ] : [];
 
   let winsA = 0, winsB = 0;
-  metrics.forEach(m => {
+  [...metrics, ...teamMetrics].forEach(m => {
     if (m.better === null || m.vA === m.vB) return;
     (m.better ? m.vA > m.vB : m.vA < m.vB) ? winsA++ : winsB++;
   });
 
-  const badge = '<span style="font-size:10px;font-weight:800;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:10px;white-space:nowrap;letter-spacing:.02em;">↑ Melhor</span>';
+  const winBadge = `<span style="font-size:9px;font-weight:800;color:#16a34a;background:#dcfce7;padding:1px 7px;border-radius:8px;letter-spacing:.02em;flex-shrink:0;">↑</span>`;
 
-  function metricRow(m, nameA_, nameB_, hasA = true, hasB = true) {
-    const aWins = m.better !== null && m.vA !== m.vB && (m.better ? m.vA > m.vB : m.vA < m.vB);
-    const bWins = m.better !== null && m.vA !== m.vB && (m.better ? m.vB > m.vA : m.vB < m.vA);
-    const sum = m.vA + m.vB;
-    const pctA = sum > 0 ? Math.round((m.vA / sum) * 100) : 50;
-    return `
-      <div style="display:grid;grid-template-columns:1fr 150px 1fr;align-items:center;padding:13px 16px;border-bottom:1px solid #f1f5f9;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:26px;font-weight:900;color:#2563eb;">${hasA ? m.fmt(m.vA) : '—'}</span>
-          ${aWins && hasA ? badge : ''}
-        </div>
-        <div style="text-align:center;padding:0 6px;">
-          <div style="font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;">${m.icon} ${m.label}</div>
-          <div style="display:flex;height:4px;border-radius:2px;overflow:hidden;background:#f1f5f9;">
-            <div style="width:${pctA}%;background:#3b82f6;"></div>
-            <div style="width:${100 - pctA}%;background:#8b5cf6;"></div>
+  // 4-column table: [Metric] [Distribution bar] [Value A] [Value B]
+  function compTable(rows, sectionTitle, hasA = true, hasB = true) {
+    const rowsHtml = rows.map((r, i) => {
+      const aWins = r.better !== null && r.vA !== r.vB && (r.better ? r.vA > r.vB : r.vA < r.vB);
+      const bWins = r.better !== null && r.vA !== r.vB && (r.better ? r.vB > r.vA : r.vB < r.vA);
+      const sum = r.vA + r.vB;
+      const pctA = sum > 0 ? Math.round((r.vA / sum) * 100) : 50;
+      return `
+        <div style="display:grid;grid-template-columns:190px 1fr 130px 130px;align-items:center;border-bottom:1px solid #f1f5f9;${i%2===1?'background:#fafbfc;':''}">
+          <div style="padding:11px 14px;display:flex;align-items:center;gap:7px;border-right:1px solid #f1f5f9;">
+            <span style="font-size:13px;">${r.icon}</span>
+            <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">${r.label}</span>
           </div>
+          <div style="padding:11px 14px;border-right:1px solid #f1f5f9;">
+            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:#f1f5f9;">
+              <div style="width:${pctA}%;background:#3b82f6;"></div>
+              <div style="width:${100-pctA}%;background:#8b5cf6;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-top:3px;">
+              <span style="font-size:9px;color:#94a3b8;font-weight:600;">${pctA}%</span>
+              <span style="font-size:9px;color:#94a3b8;font-weight:600;">${100-pctA}%</span>
+            </div>
+          </div>
+          <div style="padding:11px 14px;text-align:right;background:#eff6ff22;border-right:1px solid #f1f5f9;">
+            <div style="display:inline-flex;align-items:center;justify-content:flex-end;gap:5px;">
+              ${aWins && hasA ? winBadge : ''}
+              <span style="font-size:19px;font-weight:900;color:${BLUE};">${hasA ? r.fmt(r.vA) : '—'}</span>
+            </div>
+          </div>
+          <div style="padding:11px 14px;text-align:right;background:#f5f3ff22;">
+            <div style="display:inline-flex;align-items:center;justify-content:flex-end;gap:5px;">
+              ${bWins && hasB ? winBadge : ''}
+              <span style="font-size:19px;font-weight:900;color:${PURPLE};">${hasB ? r.fmt(r.vB) : '—'}</span>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+
+    return `
+      <div style="background:#fff;border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.07);">
+        ${sectionTitle ? `<div style="padding:13px 16px;border-bottom:1px solid #f1f5f9;font-size:11px;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.07em;">${sectionTitle}</div>` : ''}
+        <div style="display:grid;grid-template-columns:190px 1fr 130px 130px;background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+          <div style="padding:8px 14px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;border-right:1px solid #e2e8f0;">Métrica</div>
+          <div style="padding:8px 14px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;text-align:center;border-right:1px solid #e2e8f0;">Distribuição</div>
+          <div style="padding:8px 14px;font-size:11px;font-weight:800;color:${BLUE};text-align:right;background:#eff6ff;border-right:1px solid #bfdbfe;">${nameA}</div>
+          <div style="padding:8px 14px;font-size:11px;font-weight:800;color:${PURPLE};text-align:right;background:#f5f3ff;">${nameB}</div>
         </div>
-        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;">
-          ${bWins && hasB ? badge : ''}
-          <span style="font-size:26px;font-weight:900;color:#7c3aed;">${hasB ? m.fmt(m.vB) : '—'}</span>
-        </div>
+        ${rowsHtml}
       </div>`;
   }
 
   const svcMap = { PB: 'Para-brisas', LT: 'Lateral', OC: 'Óculo', REP: 'Reparação', POL: 'Polimento', MO: 'Montante' };
 
-  function localityTable(rows) {
-    if (!rows || !rows.length) return '<p style="color:#94a3b8;font-size:13px;padding:10px;">Sem dados</p>';
-    return `<table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-        <th style="text-align:left;padding:7px 10px;font-weight:700;">Localidade</th>
-        <th style="text-align:center;padding:7px;font-weight:700;">Total</th>
-        <th style="text-align:center;padding:7px;font-weight:700;color:#16a34a;">Real.</th>
-        <th style="text-align:center;padding:7px;font-weight:700;">Taxa</th>
-      </tr></thead>
+  function localityTable(rows, color) {
+    if (!rows || !rows.length) return '<p style="color:#94a3b8;font-size:13px;padding:12px;">Sem dados</p>';
+    const maxT = Math.max(...rows.map(r => parseInt(r.total)));
+    return `<table style="width:100%;border-collapse:collapse;font-size:12px;">
       <tbody>${rows.map((r, i) => {
         const t = parseInt(r.total), rl = parseInt(r.realizados);
         const tx = t > 0 ? Math.round((rl / t) * 100) : 0;
+        const barPct = maxT > 0 ? Math.round((t / maxT) * 100) : 0;
         const txC = tx >= 80 ? '#16a34a' : tx >= 50 ? '#d97706' : '#dc2626';
-        return `<tr style="border-bottom:1px solid #f1f5f9;${i % 2 === 0 ? 'background:#fafafa' : ''}">
-          <td style="padding:7px 10px;font-weight:600;font-size:12px;">${r.locality}</td>
-          <td style="text-align:center;padding:7px;font-weight:700;">${t}</td>
-          <td style="text-align:center;padding:7px;color:#16a34a;font-weight:700;">${rl}</td>
-          <td style="text-align:center;padding:7px;"><span style="background:${txC}18;color:${txC};font-weight:700;padding:1px 7px;border-radius:10px;font-size:11px;">${tx}%</span></td>
+        return `<tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
+          <td style="padding:7px 10px;font-weight:700;color:#374151;white-space:nowrap;">${r.locality}</td>
+          <td style="padding:7px 8px;min-width:80px;">
+            <div style="display:flex;align-items:center;gap:5px;">
+              <div style="flex:1;height:5px;border-radius:3px;background:#f1f5f9;overflow:hidden;">
+                <div style="width:${barPct}%;height:100%;background:${color};border-radius:3px;opacity:.65;"></div>
+              </div>
+              <span style="font-size:11px;font-weight:800;color:#374151;min-width:22px;text-align:right;">${t}</span>
+            </div>
+          </td>
+          <td style="padding:7px 8px;text-align:right;white-space:nowrap;"><span style="background:${txC}18;color:${txC};font-weight:800;padding:1px 7px;border-radius:8px;font-size:11px;">${tx}%</span></td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
   }
 
-  function serviceTable(rows) {
-    if (!rows || !rows.length) return '<p style="color:#94a3b8;font-size:13px;padding:10px;">Sem dados</p>';
-    const tot = rows.reduce((s, r) => s + parseInt(r.total), 0);
-    return `<table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
-        <th style="text-align:left;padding:7px 10px;font-weight:700;">Serviço</th>
-        <th style="text-align:center;padding:7px;font-weight:700;">Total</th>
-        <th style="text-align:left;padding:7px 10px;font-weight:700;">Dist.</th>
-      </tr></thead>
+  function serviceTable(rows, color) {
+    if (!rows || !rows.length) return '<p style="color:#94a3b8;font-size:13px;padding:12px;">Sem dados</p>';
+    const maxT = Math.max(...rows.map(r => parseInt(r.total)));
+    const tot  = rows.reduce((s, r) => s + parseInt(r.total), 0);
+    return `<table style="width:100%;border-collapse:collapse;font-size:12px;">
       <tbody>${rows.map((r, i) => {
         const t = parseInt(r.total);
         const pct = tot > 0 ? Math.round((t / tot) * 100) : 0;
-        return `<tr style="border-bottom:1px solid #f1f5f9;${i % 2 === 0 ? 'background:#fafafa' : ''}">
-          <td style="padding:7px 10px;font-weight:600;font-size:12px;">${svcMap[r.service] || r.service}</td>
-          <td style="text-align:center;padding:7px;font-weight:800;">${t}</td>
-          <td style="padding:7px 10px;">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <div style="flex:1;height:6px;border-radius:3px;background:#e2e8f0;overflow:hidden;">
-                <div style="width:${pct}%;height:100%;background:#3b82f6;border-radius:3px;"></div>
+        const barPct = maxT > 0 ? Math.round((t / maxT) * 100) : 0;
+        return `<tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
+          <td style="padding:7px 10px;font-weight:700;color:#374151;">${svcMap[r.service] || r.service}</td>
+          <td style="padding:7px 8px;min-width:80px;">
+            <div style="display:flex;align-items:center;gap:5px;">
+              <div style="flex:1;height:5px;border-radius:3px;background:#f1f5f9;overflow:hidden;">
+                <div style="width:${barPct}%;height:100%;background:${color};border-radius:3px;opacity:.65;"></div>
               </div>
-              <span style="font-size:11px;font-weight:700;color:#2563eb;min-width:28px;">${pct}%</span>
+              <span style="font-size:11px;font-weight:800;color:#374151;min-width:22px;text-align:right;">${t}</span>
             </div>
           </td>
+          <td style="padding:7px 8px;text-align:right;"><span style="background:#eff6ff;color:#2563eb;font-weight:800;padding:1px 7px;border-radius:8px;font-size:11px;">${pct}%</span></td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
   }
 
   function motivoTable(rows) {
-    if (!rows || !rows.length) return '<p style="color:#94a3b8;font-size:13px;padding:10px;">Sem dados</p>';
+    if (!rows || !rows.length) return '<p style="color:#94a3b8;font-size:13px;padding:12px;">Sem dados</p>';
     const tot = rows.reduce((s, r) => s + parseInt(r.total), 0);
-    return `<table style="width:100%;border-collapse:collapse;font-size:13px;">
-      <thead><tr style="background:#fef2f2;border-bottom:1px solid #fecdd3;">
-        <th style="text-align:left;padding:7px 10px;font-weight:700;color:#dc2626;">Motivo</th>
-        <th style="text-align:center;padding:7px;font-weight:700;">N.º</th>
-        <th style="padding:7px 10px;font-weight:700;">%</th>
-      </tr></thead>
+    const maxT = Math.max(...rows.map(r => parseInt(r.total)));
+    return `<table style="width:100%;border-collapse:collapse;font-size:12px;">
       <tbody>${rows.map((r, i) => {
         const t = parseInt(r.total), pct = tot > 0 ? Math.round((t / tot) * 100) : 0;
-        return `<tr style="border-bottom:1px solid #f1f5f9;${i % 2 === 0 ? 'background:#fafafa' : ''}">
-          <td style="padding:7px 10px;color:#374151;font-size:12px;">${r.motivo}</td>
-          <td style="text-align:center;padding:7px;"><span style="background:#fef2f2;color:#dc2626;font-weight:800;padding:1px 8px;border-radius:10px;font-size:11px;">${t}×</span></td>
-          <td style="padding:7px 10px;">
+        const barPct = maxT > 0 ? Math.round((t / maxT) * 100) : 0;
+        return `<tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
+          <td style="padding:7px 10px;color:#374151;">${r.motivo}</td>
+          <td style="padding:7px 8px;min-width:80px;">
             <div style="display:flex;align-items:center;gap:5px;">
               <div style="flex:1;height:5px;border-radius:3px;background:#fecdd3;overflow:hidden;">
-                <div style="width:${pct}%;height:100%;background:#ef4444;border-radius:3px;"></div>
+                <div style="width:${barPct}%;height:100%;background:#ef4444;border-radius:3px;opacity:.7;"></div>
               </div>
-              <span style="font-size:10px;color:#dc2626;font-weight:700;min-width:26px;">${pct}%</span>
+              <span style="font-size:11px;font-weight:800;color:#dc2626;min-width:22px;text-align:right;">${t}×</span>
             </div>
           </td>
+          <td style="padding:7px 8px;text-align:right;"><span style="background:#fef2f2;color:#dc2626;font-weight:800;padding:1px 7px;border-radius:8px;font-size:11px;">${pct}%</span></td>
         </tr>`;
       }).join('')}</tbody>
     </table>`;
   }
 
-  const sectionCard = (borderColor, bgColor, title, content) =>
-    `<div style="background:#fff;border:1px solid ${borderColor};border-radius:12px;overflow:hidden;">
-      <div style="padding:11px 16px;background:${bgColor};font-weight:700;font-size:13px;color:${borderColor === '#bfdbfe' ? '#2563eb' : borderColor === '#ddd6fe' ? '#7c3aed' : '#6b7280'};border-bottom:1px solid ${borderColor};">${title}</div>
-      <div style="padding:0 6px 8px;">${content}</div>
-    </div>`;
+  function sidePair(iconA, titleA, contentA, iconB, titleB, contentB) {
+    const card = (hdrBg, hdrBorder, hdrColor, icon, title, content) =>
+      `<div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.07);">
+        <div style="padding:11px 14px;background:${hdrBg};border-bottom:1px solid ${hdrBorder};display:flex;align-items:center;gap:7px;">
+          <span>${icon}</span>
+          <span style="font-size:11px;font-weight:800;color:${hdrColor};text-transform:uppercase;letter-spacing:.05em;">${title}</span>
+        </div>
+        <div style="padding:0 4px 6px;">${content}</div>
+      </div>`;
+    return `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+        ${card('#eff6ff','#bfdbfe',BLUE,iconA,titleA,contentA)}
+        ${card('#f5f3ff','#ddd6fe',PURPLE,iconB,titleB,contentB)}
+      </div>`;
+  }
 
   const periodStr = `${fmtDate(dataA.period.from)} → ${fmtDate(dataA.period.to)}`;
-  const hasTeam = tA || tB;
 
   document.getElementById('reportCompareContent').innerHTML = `
-    <div style="margin-bottom:18px;padding:20px 26px;background:linear-gradient(130deg,#1e3a5f 0%,#312e81 60%,#4c1d95 100%);border-radius:14px;color:#fff;display:flex;justify-content:space-between;align-items:center;">
+    <div style="margin-bottom:16px;padding:20px 24px;background:linear-gradient(130deg,#1e3a5f,#312e81 55%,#4c1d95);border-radius:14px;color:#fff;display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <div style="font-size:10px;font-weight:700;opacity:0.6;text-transform:uppercase;letter-spacing:2px;margin-bottom:8px;">ExpressGlass — Comparação de Portais</div>
-        <div style="font-size:22px;font-weight:800;line-height:1.2;"><span style="color:#93c5fd;">${nameA}</span><span style="opacity:0.4;margin:0 10px;font-size:18px;">vs</span><span style="color:#c4b5fd;">${nameB}</span></div>
-        <div style="font-size:12px;opacity:0.6;margin-top:6px;">${periodStr}</div>
-      </div>
-      <div style="font-size:44px;opacity:0.25;">⚖️</div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;margin-bottom:18px;align-items:stretch;">
-      <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:12px;padding:16px 20px;color:#fff;display:flex;align-items:center;gap:14px;box-shadow:0 4px 14px rgba(37,99,235,.25);">
-        <div style="font-size:44px;font-weight:900;line-height:1;">${winsA}</div>
-        <div><div style="font-size:10px;opacity:0.75;text-transform:uppercase;letter-spacing:.08em;">métricas ganhas</div><div style="font-size:14px;font-weight:700;margin-top:3px;">${nameA}</div></div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:center;padding:0 4px;">
-        <span style="font-size:18px;font-weight:800;color:#cbd5e1;">vs</span>
-      </div>
-      <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:12px;padding:16px 20px;color:#fff;display:flex;align-items:center;justify-content:flex-end;gap:14px;box-shadow:0 4px 14px rgba(124,58,237,.25);">
-        <div style="text-align:right;"><div style="font-size:10px;opacity:0.75;text-transform:uppercase;letter-spacing:.08em;">métricas ganhas</div><div style="font-size:14px;font-weight:700;margin-top:3px;">${nameB}</div></div>
-        <div style="font-size:44px;font-weight:900;line-height:1;">${winsB}</div>
-      </div>
-    </div>
-
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-bottom:18px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
-      <div style="display:grid;grid-template-columns:1fr 150px 1fr;background:linear-gradient(90deg,#eff6ff 0%,#f8fafc 50%,#f5f3ff 100%);border-bottom:2px solid #e2e8f0;">
-        <div style="padding:13px 16px;font-size:13px;font-weight:800;color:#2563eb;">${nameA}</div>
-        <div style="padding:13px 6px;font-size:10px;font-weight:700;color:#94a3b8;text-align:center;text-transform:uppercase;letter-spacing:.07em;">Métrica</div>
-        <div style="padding:13px 16px;font-size:13px;font-weight:800;color:#7c3aed;text-align:right;">${nameB}</div>
-      </div>
-      ${metrics.map(m => metricRow(m)).join('')}
-    </div>
-
-    ${hasTeam ? `
-    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;margin-bottom:18px;box-shadow:0 1px 4px rgba(0,0,0,.06);">
-      <div style="padding:13px 16px;background:linear-gradient(90deg,#f5f3ff,#faf5ff);border-bottom:2px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:13px;font-weight:800;color:#7c3aed;">⏱️ Equipa — Tempos e Rentabilidade</span>
-        <div style="display:flex;gap:16px;font-size:11px;font-weight:700;">
-          <span style="color:#2563eb;">${nameA}</span>
-          <span style="color:#7c3aed;">${nameB}</span>
+        <div style="font-size:9px;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:2.5px;margin-bottom:8px;">ExpressGlass — Comparação de Portais</div>
+        <div style="font-size:20px;font-weight:800;line-height:1.2;">
+          <span style="color:#93c5fd;">${nameA}</span>
+          <span style="opacity:.3;margin:0 10px;font-size:15px;">vs</span>
+          <span style="color:#c4b5fd;">${nameB}</span>
         </div>
+        <div style="font-size:11px;opacity:.5;margin-top:6px;">${periodStr}</div>
       </div>
-      ${teamMetrics.map(m => metricRow(m, nameA, nameB, !!tA, !!tB)).join('')}
-    </div>` : ''}
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-      ${sectionCard('#bfdbfe','#eff6ff',`📍 ${nameA} — Por Localidade`, localityTable(dataA.byLocality))}
-      ${sectionCard('#ddd6fe','#f5f3ff',`📍 ${nameB} — Por Localidade`, localityTable(dataB.byLocality))}
+      <div style="font-size:38px;opacity:.18;">⚖️</div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-      ${sectionCard('#bfdbfe','#eff6ff',`🔧 ${nameA} — Tipo de Serviço`, serviceTable(dataA.byService))}
-      ${sectionCard('#ddd6fe','#f5f3ff',`🔧 ${nameB} — Tipo de Serviço`, serviceTable(dataB.byService))}
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-bottom:14px;">
+      <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:12px;padding:14px 18px;color:#fff;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(37,99,235,.2);">
+        <div style="font-size:40px;font-weight:900;line-height:1;">${winsA}</div>
+        <div><div style="font-size:9px;opacity:.7;text-transform:uppercase;letter-spacing:.1em;">métricas ganhas</div><div style="font-size:13px;font-weight:700;margin-top:2px;">${nameA}</div></div>
+      </div>
+      <div style="display:flex;align-items:center;padding:0 4px;"><span style="font-size:13px;font-weight:800;color:#cbd5e1;">vs</span></div>
+      <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:12px;padding:14px 18px;color:#fff;display:flex;align-items:center;justify-content:flex-end;gap:12px;box-shadow:0 4px 14px rgba(124,58,237,.2);">
+        <div style="text-align:right;"><div style="font-size:9px;opacity:.7;text-transform:uppercase;letter-spacing:.1em;">métricas ganhas</div><div style="font-size:13px;font-weight:700;margin-top:2px;">${nameB}</div></div>
+        <div style="font-size:40px;font-weight:900;line-height:1;">${winsB}</div>
+      </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
-      ${sectionCard('#bfdbfe','#eff6ff',`❌ ${nameA} — Motivos Não Realização`, motivoTable(dataA.byMotivo))}
-      ${sectionCard('#ddd6fe','#f5f3ff',`❌ ${nameB} — Motivos Não Realização`, motivoTable(dataB.byMotivo))}
-    </div>
+    ${compTable(metrics, '📊  Indicadores Chave')}
+    ${teamMetrics.length ? compTable(teamMetrics, '⏱️  Equipa — Tempos e Rentabilidade', !!tA, !!tB) : ''}
+    ${sidePair('📍', `${nameA} — Por Localidade`, localityTable(dataA.byLocality, BLUE), '📍', `${nameB} — Por Localidade`, localityTable(dataB.byLocality, PURPLE))}
+    ${sidePair('🔧', `${nameA} — Tipo de Serviço`, serviceTable(dataA.byService, BLUE), '🔧', `${nameB} — Tipo de Serviço`, serviceTable(dataB.byService, PURPLE))}
+    ${sidePair('❌', `${nameA} — Motivos`, motivoTable(dataA.byMotivo), '❌', `${nameB} — Motivos`, motivoTable(dataB.byMotivo))}
   `;
 
   document.getElementById('reportCompareContent').style.display = 'block';
