@@ -32,6 +32,7 @@
       <button class="nav-tab admin-only-tab" data-tab="settings">⚙️ Configurações</button>
       <button class="nav-tab" data-tab="reports">📊 Relatórios</button>
       <button class="nav-tab admin-only-tab" data-tab="audit">🔍 Auditoria</button>
+      <button class="nav-tab admin-only-tab" data-tab="campaigns">📣 Campanhas</button>
       <button class="nav-tab" data-tab="checkins">⏱️ Check-in</button>
       <button class="nav-tab" data-tab="search">🔎 Pesquisa</button>
       <button class="nav-tab" data-tab="alerts">🚨 Alertas <span id="alertsBadge" style="display:none;background:#dc2626;color:#fff;font-size:11px;font-weight:800;padding:1px 7px;border-radius:10px;margin-left:4px;vertical-align:middle;"></span></button>
@@ -402,6 +403,50 @@
       </div>
       <p style="color:#64748b;font-size:13px;margin-bottom:16px;">Vidros em stock sem serviço agendado e encomendas sem receção há demasiado tempo.</p>
       <div id="alertsContent"><p style="color:#94a3b8;text-align:center;padding:30px;">A carregar...</p></div>
+    </div>
+
+    <!-- Tab: Campanhas -->
+    <div id="campaignsTab" class="tab-content">
+      <div class="content-header" style="margin-bottom:20px;">
+        <h2 style="margin:0;">📣 Campanhas</h2>
+        <button onclick="campAdmin.openForm()" class="btn-primary">+ Nova Campanha</button>
+      </div>
+
+      <!-- Form -->
+      <div id="campForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:24px;">
+        <h3 style="margin:0 0 16px;font-size:16px;">Campanha</h3>
+        <input type="hidden" id="campId">
+        <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;margin-bottom:12px;align-items:end;">
+          <div>
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Início *</label>
+            <input type="date" id="campStart" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Fim *</label>
+            <input type="date" id="campEnd" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Título (opcional)</label>
+            <input type="text" id="campTitle" maxlength="100" placeholder="Ex: Campanha de Verão" style="width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;">
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Imagem do pop-up *</label>
+          <input type="file" id="campImageFile" accept="image/*" onchange="campAdmin.onImagePick(this)" style="font-size:13px;">
+          <div id="campImagePreview" style="margin-top:10px;"></div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+            <input type="checkbox" id="campActive" checked> Ativa
+          </label>
+          <button onclick="campAdmin.save()" style="background:#2563eb;color:#fff;border:none;padding:9px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">Guardar</button>
+          <button onclick="campAdmin.closeForm()" style="background:#fff;border:1px solid #d1d5db;padding:9px 16px;border-radius:8px;font-size:14px;cursor:pointer;">Cancelar</button>
+          <span id="campSaveMsg" style="font-size:13px;color:#16a34a;"></span>
+        </div>
+      </div>
+
+      <!-- List -->
+      <div id="campList"><p style="color:#94a3b8;text-align:center;padding:30px;">A carregar...</p></div>
     </div>
 
 </div><!-- fim admin-container -->
@@ -776,6 +821,187 @@
       document.querySelectorAll('.nav-tab').forEach(tab => {
         tab.addEventListener('click', () => {
           if (tab.dataset.tab === 'checkins') window.ciLoad();
+        });
+      });
+    });
+  })();
+  </script>
+
+  <script>
+  (function () {
+    var _imageData = null;
+    var _AUTH = window.authClient;
+
+    function _fmtDate(d) {
+      if (!d) return '—';
+      return d.slice(0, 10).split('-').reverse().join('/');
+    }
+
+    function _load() {
+      var el = document.getElementById('campList');
+      if (!el) return;
+      el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:30px;">A carregar...</p>';
+      _AUTH.authenticatedFetch('/.netlify/functions/campaign?all=1')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.success) throw new Error(d.error || 'Erro');
+          var camps = d.campaigns || [];
+          if (!camps.length) {
+            el.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:30px;">Sem campanhas criadas.</p>';
+            return;
+          }
+          el.innerHTML = '<table class="data-table"><thead><tr><th>Título</th><th>Início</th><th>Fim</th><th>Estado</th><th>Ações</th></tr></thead><tbody>' +
+            camps.map(function (c) {
+              var today = new Date().toISOString().slice(0, 10);
+              var isActive = c.active && c.start_date <= today && c.end_date >= today;
+              var badge = isActive
+                ? '<span style="background:#dcfce7;color:#16a34a;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;">Em curso</span>'
+                : (c.active
+                  ? '<span style="background:#fef9c3;color:#854d0e;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;">Agendada</span>'
+                  : '<span style="background:#f1f5f9;color:#94a3b8;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;">Inativa</span>');
+              return '<tr><td>' + (c.title || '—') + '</td><td>' + _fmtDate(c.start_date) + '</td><td>' + _fmtDate(c.end_date) + '</td><td>' + badge + '</td>' +
+                '<td style="white-space:nowrap;"><button onclick="campAdmin.edit(' + c.id + ')" style="background:#1e40af;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px;">Editar</button>' +
+                '<button onclick="campAdmin.del(' + c.id + ')" style="background:#dc2626;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Eliminar</button></td></tr>';
+            }).join('') +
+          '</tbody></table>';
+        })
+        .catch(function (e) {
+          el.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">Erro: ' + e.message + '</p>';
+        });
+    }
+
+    window.campAdmin = {
+      openForm: function () {
+        document.getElementById('campId').value = '';
+        document.getElementById('campTitle').value = '';
+        document.getElementById('campStart').value = '';
+        document.getElementById('campEnd').value = '';
+        document.getElementById('campActive').checked = true;
+        document.getElementById('campImagePreview').innerHTML = '';
+        document.getElementById('campImageFile').value = '';
+        document.getElementById('campSaveMsg').textContent = '';
+        _imageData = null;
+        document.getElementById('campForm').style.display = 'block';
+      },
+
+      closeForm: function () {
+        document.getElementById('campForm').style.display = 'none';
+        _imageData = null;
+      },
+
+      onImagePick: function (input) {
+        var file = input.files[0];
+        if (!file) return;
+        var preview = document.getElementById('campImagePreview');
+        preview.innerHTML = '<span style="font-size:13px;color:#94a3b8;">A processar imagem...</span>';
+        var reader = new FileReader();
+        reader.onload = function (e) {
+          var src = e.target.result;
+          // Resize to max 1600px wide before storing
+          var img = new Image();
+          img.onload = function () {
+            var canvas = document.createElement('canvas');
+            var maxW = 1600, maxH = 1600;
+            var w = img.width, h = img.height;
+            if (w > maxW || h > maxH) {
+              var ratio = Math.min(maxW / w, maxH / h);
+              w = Math.round(w * ratio);
+              h = Math.round(h * ratio);
+            }
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            _imageData = canvas.toDataURL('image/jpeg', 0.88);
+            preview.innerHTML = '<img src="' + _imageData + '" style="max-width:320px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;margin-top:4px;">';
+          };
+          img.src = src;
+        };
+        reader.readAsDataURL(file);
+      },
+
+      save: function () {
+        var id = document.getElementById('campId').value;
+        var body = {
+          title: document.getElementById('campTitle').value.trim(),
+          start_date: document.getElementById('campStart').value,
+          end_date: document.getElementById('campEnd').value,
+          active: document.getElementById('campActive').checked
+        };
+        if (!body.start_date || !body.end_date) {
+          alert('Preenche as datas de início e fim.');
+          return;
+        }
+        if (!id && !_imageData) {
+          alert('Escolhe uma imagem para o pop-up.');
+          return;
+        }
+        if (_imageData) body.image_data = _imageData;
+
+        var url = id ? '/.netlify/functions/campaign?id=' + id : '/.netlify/functions/campaign';
+        var method = id ? 'PUT' : 'POST';
+        var msg = document.getElementById('campSaveMsg');
+        msg.textContent = 'A guardar...';
+        msg.style.color = '#94a3b8';
+
+        _AUTH.authenticatedFetch(url, {
+          method: method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.success) throw new Error(d.error || 'Erro');
+            msg.textContent = 'Guardado!';
+            msg.style.color = '#16a34a';
+            setTimeout(function () { campAdmin.closeForm(); _load(); }, 800);
+          })
+          .catch(function (e) {
+            msg.textContent = 'Erro: ' + e.message;
+            msg.style.color = '#dc2626';
+          });
+      },
+
+      edit: function (id) {
+        _AUTH.authenticatedFetch('/.netlify/functions/campaign?id=' + id)
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.success || !d.campaign) throw new Error('Não encontrado');
+            var c = d.campaign;
+            document.getElementById('campId').value = c.id;
+            document.getElementById('campTitle').value = c.title || '';
+            document.getElementById('campStart').value = (c.start_date || '').slice(0, 10);
+            document.getElementById('campEnd').value = (c.end_date || '').slice(0, 10);
+            document.getElementById('campActive').checked = !!c.active;
+            document.getElementById('campSaveMsg').textContent = '';
+            document.getElementById('campImageFile').value = '';
+            _imageData = null;
+            var preview = document.getElementById('campImagePreview');
+            if (c.image_data) {
+              preview.innerHTML = '<img src="' + c.image_data + '" style="max-width:320px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;margin-top:4px;"><p style="font-size:12px;color:#64748b;margin:4px 0 0;">Carrega um novo ficheiro para substituir a imagem atual.</p>';
+            } else {
+              preview.innerHTML = '';
+            }
+            document.getElementById('campForm').style.display = 'block';
+          })
+          .catch(function (e) { alert('Erro: ' + e.message); });
+      },
+
+      del: function (id) {
+        if (!confirm('Eliminar esta campanha?')) return;
+        _AUTH.authenticatedFetch('/.netlify/functions/campaign?id=' + id, { method: 'DELETE' })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.success) throw new Error(d.error || 'Erro');
+            _load();
+          })
+          .catch(function (e) { alert('Erro: ' + e.message); });
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.nav-tab').forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          if (tab.dataset.tab === 'campaigns') _load();
         });
       });
     });
