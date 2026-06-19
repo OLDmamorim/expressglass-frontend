@@ -81,6 +81,11 @@
         if (!d.success || !d.campaign) return;
         _campaign = d.campaign;
         SLOTS.forEach(_scheduleSlot);
+        // Disparo imediato pontual (2026-06-19)
+        if (_todayKey() === '2026-06-19' && !_wasShown('special_immediate')) {
+          _markShown('special_immediate');
+          setTimeout(_showModal, 800);
+        }
       })
       .catch(function () {});
   }
