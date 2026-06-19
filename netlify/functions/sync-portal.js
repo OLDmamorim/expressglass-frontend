@@ -89,22 +89,20 @@ exports.handler = async (event) => {
     const todayISO = new Date().toISOString().slice(0, 10);
     const now = new Date().toISOString();
 
-    // Lookup em lote dos já agendados (com data) deste portal, de uma só vez,
-    // em vez de 1 SELECT por serviço (evita timeout da function em portais grandes).
-    // Excluir executed=true: se um serviço anterior foi concluído, não deve bloquear
-    // a criação de um novo pendente para a mesma matrícula.
+    // Lookup em lote de TODOS os registos deste portal (incluindo realizados).
+    // Regra: mesma matrícula = mesmo registo, nunca duplicar — apenas atualizar.
+    // Ordenar executados por último para que o Map fique com o não-realizado quando existe um de cada.
     const { rows: existingRows } = await pool.query(
       `SELECT id, date, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) AS plate_norm
        FROM appointments
-       WHERE portal_id = $1 AND date IS NOT NULL
-         AND (executed IS NOT TRUE)
-         AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = ANY($2::text[])`,
+       WHERE portal_id = $1
+         AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = ANY($2::text[])
+       ORDER BY (executed IS TRUE) ASC`,
       [portal_id, Array.from(excelNorms)]
     );
     const existingByPlate = new Map(existingRows.map(r => [r.plate_norm, r]));
 
-    // Lookup por n_obra (número de obra) para identificar corretamente serviços
-    // diferentes com a mesma matrícula (ex: 42-EU-43 com obras 147 e 179).
+    // Lookup por n_obra para todos os estados (incluindo realizados).
     const excelNObras = services.map(s => s.n_obra).filter(Boolean);
     let existingByNObra = new Map();
     if (excelNObras.length > 0) {
@@ -112,7 +110,7 @@ exports.handler = async (event) => {
         `SELECT id, date, n_obra, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) AS plate_norm
          FROM appointments
          WHERE portal_id = $1 AND n_obra = ANY($2::text[])
-           AND (executed IS NOT TRUE)`,
+         ORDER BY (executed IS TRUE) ASC`,
         [portal_id, excelNObras]
       );
       existingByNObra = new Map(nObraRows.map(r => [r.n_obra, r]));
