@@ -283,7 +283,7 @@ exports.handler = async (event) => {
       // When linked to an appointment, always derive portal from the appointment
       // (the user's JWT portal may differ from the appointment's portal — e.g. bragaadmin
       // belongs to "Braga" loja but receives glass for "Braga SM" appointments)
-      let resolvedPortalId = user.portalId || null;
+      let resolvedPortalId = d.portal_id || user.portalId || null;
       let resolvedPortalName = d.portal_name || null;
       if (d.appointment_id) {
         const aptRow = await client.query(
