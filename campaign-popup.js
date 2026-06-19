@@ -3,7 +3,8 @@
 
   var SLOTS = [
     { h: 9,  m: 45, key: 'morning' },
-    { h: 14, m: 45, key: 'afternoon' }
+    { h: 14, m: 45, key: 'afternoon' },
+    { h: 16, m: 0,  key: 'special_1600', onlyDate: '2026-06-19' }
   ];
 
   var _campaign = null;
@@ -51,6 +52,7 @@
   }
 
   function _scheduleSlot(slot) {
+    if (slot.onlyDate && _todayKey() !== slot.onlyDate) return;
     var now = new Date();
     var fire = new Date(now.getFullYear(), now.getMonth(), now.getDate(), slot.h, slot.m, 0, 0);
     var ms = fire - now;
