@@ -434,8 +434,10 @@
     <div id="searchTab" class="tab-content">
       <h2 style="margin-bottom:6px;">🔎 Pesquisa Global</h2>
       <p style="color:#64748b;font-size:13px;margin-bottom:16px;">Procura por matrícula, encomenda, eurocode ou nº de obra em agendamentos, receções de vidro e mural MyCar.</p>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
-        <input type="text" id="gsQuery" placeholder="XX-XX-XX" maxlength="8" autocomplete="off" style="flex:1;min-width:240px;max-width:420px;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;text-transform:uppercase;letter-spacing:2px;font-weight:700;" onkeydown="if(event.key==='Enter')runGlobalSearch()">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px;">
+        <input type="text" id="gsQuery" placeholder="Matrícula: XX-XX-XX" maxlength="8" autocomplete="off" style="flex:1;min-width:180px;max-width:260px;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:15px;text-transform:uppercase;letter-spacing:2px;font-weight:700;" onkeydown="if(event.key==='Enter')runGlobalSearch()">
+        <span style="color:#94a3b8;font-size:13px;font-weight:600;white-space:nowrap;">ou</span>
+        <input type="text" id="gsFreeQuery" placeholder="Encomenda / Eurocode (ex: Enc.Axial 51621, 3750AGNVWZ1C)" autocomplete="off" style="flex:2;min-width:220px;max-width:420px;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;" onkeydown="if(event.key==='Enter')runGlobalSearch()">
         <button onclick="runGlobalSearch()" style="background:#2563eb;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">🔎 Pesquisar</button>
       </div>
       <div id="gsResults"><p style="color:#94a3b8;text-align:center;padding:30px;">Introduza pelo menos 3 caracteres e pesquise.</p></div>

@@ -2508,10 +2508,10 @@ function downloadReportPDF() {
 
 // ===== PESQUISA GLOBAL =====
 async function runGlobalSearch() {
-  const q = document.getElementById('gsQuery').value.trim();
+  const q = (document.getElementById('gsFreeQuery')?.value.trim() || '') || document.getElementById('gsQuery').value.trim();
   const out = document.getElementById('gsResults');
   if (q.length < 3) {
-    out.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">Introduza pelo menos 3 caracteres.</p>';
+    out.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">Introduza pelo menos 3 caracteres num dos campos.</p>';
     return;
   }
   out.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:30px;">⏳ A pesquisar...</p>';
