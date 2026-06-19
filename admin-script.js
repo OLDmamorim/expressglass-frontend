@@ -1162,6 +1162,8 @@ async function startSync() {
 
   const encColSync = importHeaders.findIndex(h => h.toLowerCase() === 'numeros_encomendas');
   const recColSync = importHeaders.findIndex(h => h.toLowerCase() === 'numeros_rececao_mercadorias');
+  const statusColSync = importHeaders.findIndex(h => h.toLowerCase() === 'status');
+  const inactivePhcStatuses = new Set(['RECUSADO', 'ANULADO', 'SEM EFEITO', 'Consulta / Orçamento', 'ORÇAMENTO', 'ORÇAMENTO - ENVIADO', 'Serviço Realizado']);
 
   const codeToPortal = {};
   portals.forEach(p => { if (p.nmdos_code) codeToPortal[p.nmdos_code] = { id: p.id, type: p.portal_type || 'sm' }; });
@@ -1175,6 +1177,8 @@ async function startSync() {
     if (portalInfo.type === 'recalibra') return; // Recalibra: só entra via Importar Encomendas
     const plate = normalizePlate(row[plateCol]);
     if (!plate) return;
+    const phcStatus = statusColSync >= 0 ? String(row[statusColSync] || '').trim() : '';
+    if (phcStatus && inactivePhcStatuses.has(phcStatus)) return;
 
     const marca = row[marcaCol] ? String(row[marcaCol]).trim() : '';
     const modelo = row[modeloCol] ? String(row[modeloCol]).trim() : '';
@@ -2504,10 +2508,10 @@ function downloadReportPDF() {
 
 // ===== PESQUISA GLOBAL =====
 async function runGlobalSearch() {
-  const q = document.getElementById('gsQuery').value.trim();
+  const q = (document.getElementById('gsFreeQuery')?.value.trim() || '') || document.getElementById('gsQuery').value.trim();
   const out = document.getElementById('gsResults');
   if (q.length < 3) {
-    out.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">Introduza pelo menos 3 caracteres.</p>';
+    out.innerHTML = '<p style="color:#dc2626;text-align:center;padding:20px;">Introduza pelo menos 3 caracteres num dos campos.</p>';
     return;
   }
   out.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:30px;">⏳ A pesquisar...</p>';

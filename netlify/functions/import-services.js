@@ -73,15 +73,40 @@ exports.handler = async (event) => {
           continue;
         }
 
-        // Verificar se já existe
-        const existing = await pool.query(
-          `SELECT id, date, period, car, phone, extra, notes, auto_imported, confirmed, status, order_ref, reception_ref
-           FROM appointments
-           WHERE portal_id = $1
-           AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
-           LIMIT 1`,
-          [svc.portal_id, String(svc.plate).trim()]
-        );
+        // Verificar se já existe — preferir match por n_obra; fallback por matrícula.
+        // Excluir executed=true para não actualizar serviços já concluídos.
+        let existing;
+        if (svc.n_obra) {
+          existing = await pool.query(
+            `SELECT id, date, period, car, phone, extra, notes, auto_imported, confirmed, status, order_ref, reception_ref
+             FROM appointments
+             WHERE portal_id = $1 AND n_obra = $2
+               AND (executed IS NOT TRUE)
+             LIMIT 1`,
+            [svc.portal_id, String(svc.n_obra)]
+          );
+          if (!existing.rows.length) {
+            existing = await pool.query(
+              `SELECT id, date, period, car, phone, extra, notes, auto_imported, confirmed, status, order_ref, reception_ref
+               FROM appointments
+               WHERE portal_id = $1
+               AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
+               AND (executed IS NOT TRUE)
+               LIMIT 1`,
+              [svc.portal_id, String(svc.plate).trim()]
+            );
+          }
+        } else {
+          existing = await pool.query(
+            `SELECT id, date, period, car, phone, extra, notes, auto_imported, confirmed, status, order_ref, reception_ref
+             FROM appointments
+             WHERE portal_id = $1
+             AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
+             AND (executed IS NOT TRUE)
+             LIMIT 1`,
+            [svc.portal_id, String(svc.plate).trim()]
+          );
+        }
 
         if (existing.rows.length > 0) {
           // ── SERVIÇO JÁ EXISTE ──

@@ -91,14 +91,32 @@ exports.handler = async (event) => {
 
     // Lookup em lote dos já agendados (com data) deste portal, de uma só vez,
     // em vez de 1 SELECT por serviço (evita timeout da function em portais grandes).
+    // Excluir executed=true: se um serviço anterior foi concluído, não deve bloquear
+    // a criação de um novo pendente para a mesma matrícula.
     const { rows: existingRows } = await pool.query(
       `SELECT id, date, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) AS plate_norm
        FROM appointments
        WHERE portal_id = $1 AND date IS NOT NULL
+         AND (executed IS NOT TRUE)
          AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = ANY($2::text[])`,
       [portal_id, Array.from(excelNorms)]
     );
     const existingByPlate = new Map(existingRows.map(r => [r.plate_norm, r]));
+
+    // Lookup por n_obra (número de obra) para identificar corretamente serviços
+    // diferentes com a mesma matrícula (ex: 42-EU-43 com obras 147 e 179).
+    const excelNObras = services.map(s => s.n_obra).filter(Boolean);
+    let existingByNObra = new Map();
+    if (excelNObras.length > 0) {
+      const { rows: nObraRows } = await pool.query(
+        `SELECT id, date, n_obra, UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) AS plate_norm
+         FROM appointments
+         WHERE portal_id = $1 AND n_obra = ANY($2::text[])
+           AND (executed IS NOT TRUE)`,
+        [portal_id, excelNObras]
+      );
+      existingByNObra = new Map(nObraRows.map(r => [r.n_obra, r]));
+    }
 
     // Dados existentes nunca são apagados: campos simples só se preenchem
     // quando vazios; notas/extra acrescentam o que o Excel traz de novo.
@@ -116,7 +134,8 @@ exports.handler = async (event) => {
       if (!plateNorm) { results.errors++; return; }
 
       try {
-        const existing = existingByPlate.get(plateNorm);
+        // Priorizar match por n_obra; fallback para plate
+        const existing = (svc.n_obra && existingByNObra.get(String(svc.n_obra))) || existingByPlate.get(plateNorm);
 
         if (existing) {
           // Já agendado — atualizar dados e data se necessário
