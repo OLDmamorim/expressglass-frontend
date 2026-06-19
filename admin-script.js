@@ -1163,7 +1163,7 @@ async function startSync() {
   const encColSync = importHeaders.findIndex(h => h.toLowerCase() === 'numeros_encomendas');
   const recColSync = importHeaders.findIndex(h => h.toLowerCase() === 'numeros_rececao_mercadorias');
   const statusColSync = importHeaders.findIndex(h => h.toLowerCase() === 'status');
-  const inactivePhcStatuses = new Set(['RECUSADO', 'ANULADO', 'SEM EFEITO']);
+  const inactivePhcStatuses = new Set(['ANULADO', 'SEM EFEITO']);
 
   const codeToPortal = {};
   portals.forEach(p => { if (p.nmdos_code) codeToPortal[p.nmdos_code] = { id: p.id, type: p.portal_type || 'sm' }; });
