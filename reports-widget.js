@@ -563,17 +563,17 @@ function _rwRenderComparison(dataA, dataB) {
         ? 'border-left:3px solid #16a34a;background:linear-gradient(to right,#f0fdf420,transparent);'
         : aWins ? 'border-left:3px solid transparent;' : '';
       return `
-        <div style="display:grid;grid-template-columns:200px 1fr 1fr;align-items:stretch;border-bottom:1px solid #f1f5f9;${i%2===1?'background:#fafbfc;':''}">
-          <div style="padding:14px 16px;display:flex;align-items:center;gap:8px;border-right:1px solid #f1f5f9;">
-            <span style="font-size:15px;">${r.icon}</span>
-            <span style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">${r.label}</span>
+        <div style="display:grid;grid-template-columns:180px 1fr 1fr;align-items:stretch;border-bottom:1px solid #f1f5f9;${i%2===1?'background:#fafbfc;':''}">
+          <div style="padding:16px 18px;display:flex;align-items:center;gap:9px;border-right:1px solid #f1f5f9;">
+            <span style="font-size:16px;">${r.icon}</span>
+            <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;">${r.label}</span>
           </div>
-          <div style="padding:12px 20px;border-right:1px solid #f1f5f9;${cellStyleA}">
-            <div style="font-size:28px;font-weight:900;color:${BLUE};line-height:1.1;${bWins&&!aWins?'opacity:.45;':''}">${hasA ? r.fmt(r.vA) : '—'}</div>
+          <div style="padding:16px 24px;border-right:1px solid #f1f5f9;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;${cellStyleA}">
+            <div style="font-size:36px;font-weight:900;color:${BLUE};line-height:1;letter-spacing:-.01em;${bWins&&!aWins?'opacity:.35;':''}">${hasA ? r.fmt(r.vA) : '—'}</div>
             ${aWins && hasA ? melhorBadge : ''}
           </div>
-          <div style="padding:12px 20px;${cellStyleB}">
-            <div style="font-size:28px;font-weight:900;color:${PURPLE};line-height:1.1;${aWins&&!bWins?'opacity:.45;':''}">${hasB ? r.fmt(r.vB) : '—'}</div>
+          <div style="padding:16px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;${cellStyleB}">
+            <div style="font-size:36px;font-weight:900;color:${PURPLE};line-height:1;letter-spacing:-.01em;${aWins&&!bWins?'opacity:.35;':''}">${hasB ? r.fmt(r.vB) : '—'}</div>
             ${bWins && hasB ? melhorBadge : ''}
           </div>
         </div>`;
@@ -582,10 +582,10 @@ function _rwRenderComparison(dataA, dataB) {
     return `
       <div style="background:#fff;border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,.08);">
         ${sectionTitle ? `<div style="padding:13px 18px;border-bottom:2px solid #f1f5f9;font-size:11px;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.08em;">${sectionTitle}</div>` : ''}
-        <div style="display:grid;grid-template-columns:200px 1fr 1fr;background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-          <div style="padding:9px 16px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;border-right:1px solid #e2e8f0;">Métrica</div>
-          <div style="padding:9px 20px;font-size:12px;font-weight:800;color:${BLUE};background:#eff6ff;border-right:1px solid #bfdbfe;">${nameA}</div>
-          <div style="padding:9px 20px;font-size:12px;font-weight:800;color:${PURPLE};background:#f5f3ff;">${nameB}</div>
+        <div style="display:grid;grid-template-columns:180px 1fr 1fr;background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+          <div style="padding:10px 18px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;border-right:1px solid #e2e8f0;">Métrica</div>
+          <div style="padding:10px 24px;font-size:14px;font-weight:900;color:${BLUE};background:#eff6ff;border-right:1px solid #bfdbfe;text-align:center;letter-spacing:-.01em;">${nameA}</div>
+          <div style="padding:10px 24px;font-size:14px;font-weight:900;color:${PURPLE};background:#f5f3ff;text-align:center;letter-spacing:-.01em;">${nameB}</div>
         </div>
         ${rowsHtml}
       </div>`;
