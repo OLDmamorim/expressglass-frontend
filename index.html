@@ -1906,6 +1906,9 @@
     if (appts.length === 0) {
       const safeOrderRef = (orderRef||'').replace(/'/g,"\\'");
       const safeRaw = (rawText||'').substring(0,200).replace(/'/g,"\\'");
+      const safeEuro = (eurocode||'').replace(/'/g,"\\'");
+      window._grOrphanOrderRef = orderRef || null;
+      window._grOrphanEurocode = eurocode || null;
       body.innerHTML = infoHtml + `
         <p style="color:#ef4444;font-weight:600;text-align:center;margin:16px 0;">Nenhum processo encontrado com estes dados.</p>
         <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:10px;padding:14px;margin-bottom:12px;">
@@ -1939,7 +1942,12 @@
             </div>
           </div>
         </div>
-        <button onclick="window.glassReception._step1()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;width:100%;">← Tentar novamente</button>
+        <button onclick="window.glassReception._step1()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;width:100%;margin-bottom:10px;">← Tentar novamente</button>
+        <div style="border-top:1px solid #e2e8f0;padding-top:10px;">
+          <button onclick="window.glassReception._showOrphanConfirm()" style="width:100%;background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:11px 16px;font-size:13px;font-weight:700;cursor:pointer;">
+            📦 Rececionar sem processo associado
+          </button>
+        </div>
       `;
       setTimeout(() => document.getElementById('grFallbackEuro')?.focus(), 50);
       return;
@@ -2155,6 +2163,58 @@
           <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Matrícula <strong>${plate}</strong> — vidro rececionado.</p>
           <div style="display:flex;flex-direction:column;gap:10px;">
             <button onclick="window.glassReception._step1()" style="background:#2563eb;color:#fff;font-weight:800;font-size:15px;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;letter-spacing:.3px;">📷 Nova Receção</button>
+            <button onclick="window.glassReception.closeScan()" style="background:#e2e8f0;color:#374151;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
+          </div>
+        </div>
+      `;
+      _pollPendingBadge();
+    } catch (e) {
+      document.getElementById('grScanBody').innerHTML = `
+        <p style="color:#dc2626;text-align:center;margin-bottom:12px;">Erro: ${e.message}</p>
+        <button onclick="window.glassReception._step1()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;">← Tentar novamente</button>
+      `;
+    }
+  }
+
+  function _showOrphanConfirm() {
+    const orderRef = window._grOrphanOrderRef;
+    const eurocode = window._grOrphanEurocode;
+    const body = document.getElementById('grScanBody');
+    body.innerHTML = `
+      <p style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:14px;">Rececionar vidro sem processo</p>
+      <div style="background:#fff7ed;border:2px solid #f59e0b;border-radius:12px;padding:16px;margin-bottom:18px;">
+        <p style="color:#92400e;font-size:13px;margin:0 0 12px 0;">⚠️ Nenhum agendamento encontrado. O vidro ficará rececionado sem associação a um processo.</p>
+        ${orderRef ? `<div style="font-size:13px;color:#374151;margin-bottom:4px;">📦 Encomenda: <strong>${orderRef}</strong></div>` : ''}
+        ${eurocode ? `<div style="font-size:13px;color:#374151;font-family:monospace;">🔢 Eurocode: <strong>${eurocode}</strong></div>` : ''}
+      </div>
+      <button onclick="window.glassReception._confirmOrphanReception()" style="width:100%;background:#f59e0b;color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:10px;">
+        📦 Confirmar receção
+      </button>
+      <button onclick="window.glassReception._step1()" style="width:100%;background:#e2e8f0;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;">
+        ← Voltar
+      </button>
+    `;
+  }
+
+  async function _confirmOrphanReception() {
+    const orderRef = window._grOrphanOrderRef;
+    const eurocode = window._grOrphanEurocode;
+    document.getElementById('grScanBody').innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A registar receção…</p>`;
+    try {
+      const res = await fetch(API + '/glass-reception', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ appointment_id: null, order_ref: orderRef || null, eurocode: eurocode || null, raw_label_text: window._grRawText || null })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      document.getElementById('grScanBody').innerHTML = `
+        <div style="text-align:center;padding:24px 0;">
+          <div style="font-size:48px;margin-bottom:12px;">📦</div>
+          <p style="font-size:16px;font-weight:800;color:#f59e0b;margin-bottom:6px;">Vidro rececionado!</p>
+          <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Sem associação a processo.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button onclick="window.glassReception._step1()" style="background:#2563eb;color:#fff;font-weight:800;font-size:15px;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;">📷 Nova Receção</button>
             <button onclick="window.glassReception.closeScan()" style="background:#e2e8f0;color:#374151;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
           </div>
         </div>
@@ -3267,7 +3327,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
