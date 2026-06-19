@@ -2053,7 +2053,7 @@ async function _doSaveExecuted(id, executed, reason) {
     appointments[i].glass_removed_date = null;
   }
   renderAll();
-  if (executed) fireRealizadoEmojis(); else fireNaoRealizadoEmojis();
+  if (executed === true) fireRealizadoEmojis(); else if (executed === false) fireNaoRealizadoEmojis();
   try {
     await window.apiClient.updateAppointment(id, { ...appointments[i], executed, not_done_reason: reason || null });
 
@@ -2078,6 +2078,16 @@ async function _doSaveExecuted(id, executed, reason) {
 }
 
 async function persistExecuted(id, executed) {
+  const cur = appointments.find(a => String(a.id) === String(id));
+  // Toggle: clicar no botão já activo desfaz o estado
+  if (executed === true && cur?.executed === true) {
+    await _doSaveExecuted(id, null, null);
+    return;
+  }
+  if (executed === false && cur?.executed === false && cur?.not_done_reason) {
+    await _doSaveExecuted(id, null, null);
+    return;
+  }
   if (!executed) {
     openNotDoneModal(id);
     return;

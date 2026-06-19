@@ -21,7 +21,31 @@
 
   let _grTargetId = null;
 
+  async function _grClearGlassRemoved(id) {
+    const appts = window.appointments || [];
+    const i = appts.findIndex(a => String(a.id) === String(id));
+    if (i < 0) return;
+    const prev = { glass_removed: appts[i].glass_removed, glass_removed_date: appts[i].glass_removed_date };
+    appts[i].glass_removed = false;
+    appts[i].glass_removed_date = null;
+    try {
+      await window.apiClient.updateAppointment(id, { ...appts[i] });
+      if (typeof renderAll === 'function') renderAll(); else window.reloadAppointments?.();
+      if (typeof window.showToast === 'function') window.showToast('Vidro retirado removido', 'success');
+    } catch(e) {
+      Object.assign(appts[i], prev);
+      if (typeof window.showToast === 'function') window.showToast('Erro ao guardar', 'error');
+    }
+  }
+
   window._openGlassRemovedModal = function(id) {
+    const appts = window.appointments || [];
+    const appt = appts.find(a => String(a.id) === String(id));
+    // Toggle: se já está activo, clicar de novo limpa o estado
+    if (appt && appt.glass_removed) {
+      _grClearGlassRemoved(id);
+      return;
+    }
     _grTargetId = id;
     document.getElementById('grDateInput').value = '';
     document.getElementById('grDateInput').min = new Date().toISOString().slice(0,10);
