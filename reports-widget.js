@@ -549,49 +549,52 @@ function _rwRenderComparison(dataA, dataB) {
     (m.better ? m.vA > m.vB : m.vA < m.vB) ? winsA++ : winsB++;
   });
 
-  const melhorBadge = `<span style="display:inline-block;font-size:10px;font-weight:800;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:8px;margin-top:5px;">↑ Melhor</span>`;
-
-  // Flex row: metric label expands left, two fixed-width value cards sit side by side on the right
+  // 5-column: [icon+label | value A | split bar | value B | Melhor/Neutro]
   function compTable(rows, sectionTitle, hasA = true, hasB = true) {
     const rowsHtml = rows.map((r, i) => {
       const aWins = r.better !== null && r.vA !== r.vB && (r.better ? r.vA > r.vB : r.vA < r.vB);
       const bWins = r.better !== null && r.vA !== r.vB && (r.better ? r.vB > r.vA : r.vB < r.vA);
-      const cardA = `
-        <div style="width:175px;text-align:center;padding:14px 10px;border-radius:12px;
-                    background:${aWins?'#dbeafe':'#f0f9ff'};
-                    ${aWins?'box-shadow:0 0 0 2px #2563eb55;outline:2px solid #2563eb22;':''}">
-          <div style="font-size:34px;font-weight:900;color:${BLUE};line-height:1;letter-spacing:-.02em;${bWins&&!aWins?'opacity:.3;':''}">${hasA ? r.fmt(r.vA) : '—'}</div>
-          ${aWins && hasA ? melhorBadge : ''}
-        </div>`;
-      const cardB = `
-        <div style="width:175px;text-align:center;padding:14px 10px;border-radius:12px;
-                    background:${bWins?'#ede9fe':'#faf5ff'};
-                    ${bWins?'box-shadow:0 0 0 2px #7c3aed55;outline:2px solid #7c3aed22;':''}">
-          <div style="font-size:34px;font-weight:900;color:${PURPLE};line-height:1;letter-spacing:-.02em;${aWins&&!bWins?'opacity:.3;':''}">${hasB ? r.fmt(r.vB) : '—'}</div>
-          ${bWins && hasB ? melhorBadge : ''}
-        </div>`;
+      const sum = r.vA + r.vB;
+      const pctA = sum > 0 ? Math.round((r.vA / sum) * 100) : 50;
+      const pctB = 100 - pctA;
+      const neutral = r.better === null || r.vA === r.vB;
+      const badge = neutral
+        ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#94a3b8;background:#f1f5f9;padding:4px 11px;border-radius:20px;">⊝ Neutro</span>`
+        : `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#16a34a;background:#dcfce7;padding:4px 11px;border-radius:20px;">🏆 Melhor</span>`;
       return `
-        <div style="display:flex;align-items:center;padding:10px 18px;border-bottom:1px solid #f1f5f9;gap:16px;${i%2===1?'background:#fafbfc;':''}">
-          <div style="flex:1;display:flex;align-items:center;gap:9px;min-width:0;">
-            <span style="font-size:16px;flex-shrink:0;">${r.icon}</span>
-            <span style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">${r.label}</span>
+        <div style="display:grid;grid-template-columns:200px 120px 1fr 120px 110px;align-items:center;border-bottom:1px solid #f1f5f9;${i%2===1?'background:#fafbfc;':''}">
+          <div style="padding:14px 16px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:18px;">${r.icon}</span>
+            <span style="font-size:13px;font-weight:600;color:#374151;">${r.label}</span>
           </div>
-          <div style="display:flex;gap:10px;flex-shrink:0;">
-            ${cardA}
-            ${cardB}
+          <div style="padding:14px 12px;text-align:right;">
+            <span style="font-size:${aWins?'20':'17'}px;font-weight:${aWins?'800':'600'};color:${BLUE};${bWins&&!aWins?'opacity:.5;':''}">${hasA ? r.fmt(r.vA) : '—'}</span>
           </div>
+          <div style="padding:14px 20px;">
+            <div style="display:flex;height:7px;border-radius:4px;overflow:hidden;background:#f1f5f9;">
+              <div style="width:${pctA}%;background:#3b82f6;transition:width .3s;"></div>
+              <div style="width:${pctB}%;background:#a78bfa;transition:width .3s;"></div>
+            </div>
+          </div>
+          <div style="padding:14px 12px;">
+            <span style="font-size:${bWins?'20':'17'}px;font-weight:${bWins?'800':'600'};color:${PURPLE};${aWins&&!bWins?'opacity:.5;':''}">${hasB ? r.fmt(r.vB) : '—'}</span>
+          </div>
+          <div style="padding:14px 10px;text-align:center;">${badge}</div>
         </div>`;
     }).join('');
 
     return `
       <div style="background:#fff;border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,.08);">
-        ${sectionTitle ? `<div style="padding:13px 18px;border-bottom:2px solid #f1f5f9;font-size:11px;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.08em;">${sectionTitle}</div>` : ''}
-        <div style="display:flex;align-items:center;padding:10px 18px;background:#f8fafc;border-bottom:2px solid #e2e8f0;gap:16px;">
-          <div style="flex:1;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;">Métrica</div>
-          <div style="display:flex;gap:10px;">
-            <div style="width:175px;text-align:center;padding:7px 10px;border-radius:9px;background:#dbeafe;font-size:13px;font-weight:900;color:${BLUE};">${nameA}</div>
-            <div style="width:175px;text-align:center;padding:7px 10px;border-radius:9px;background:#ede9fe;font-size:13px;font-weight:900;color:${PURPLE};">${nameB}</div>
-          </div>
+        ${sectionTitle ? `<div style="padding:13px 18px;border-bottom:2px solid #f1f5f9;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:15px;">${sectionTitle.match(/^\S+/)[0]}</span>
+          <span style="font-size:11px;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.08em;">${sectionTitle.replace(/^\S+\s*/, '')}</span>
+        </div>` : ''}
+        <div style="display:grid;grid-template-columns:200px 120px 1fr 120px 110px;background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+          <div style="padding:9px 16px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;"></div>
+          <div style="padding:9px 12px;font-size:12px;font-weight:800;color:${BLUE};text-align:right;">${nameA}</div>
+          <div style="padding:9px 20px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;text-align:center;">Comparação</div>
+          <div style="padding:9px 12px;font-size:12px;font-weight:800;color:${PURPLE};">${nameB}</div>
+          <div style="padding:9px 10px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;text-align:center;">Melhor</div>
         </div>
         ${rowsHtml}
       </div>`;
@@ -692,28 +695,38 @@ function _rwRenderComparison(dataA, dataB) {
   const periodStr = `${fmtDate(dataA.period.from)} → ${fmtDate(dataA.period.to)}`;
 
   document.getElementById('reportCompareContent').innerHTML = `
-    <div style="margin-bottom:16px;padding:20px 24px;background:linear-gradient(130deg,#1e3a5f,#312e81 55%,#4c1d95);border-radius:14px;color:#fff;display:flex;justify-content:space-between;align-items:center;">
+    <div style="margin-bottom:16px;padding:24px 28px;background:linear-gradient(130deg,#0f172a 0%,#1e1b4b 50%,#2e1065 100%);border-radius:16px;color:#fff;display:flex;justify-content:space-between;align-items:center;">
       <div>
-        <div style="font-size:9px;font-weight:700;opacity:.5;text-transform:uppercase;letter-spacing:2.5px;margin-bottom:8px;">ExpressGlass — Comparação de Portais</div>
-        <div style="font-size:20px;font-weight:800;line-height:1.2;">
-          <span style="color:#93c5fd;">${nameA}</span>
-          <span style="opacity:.3;margin:0 10px;font-size:15px;">vs</span>
-          <span style="color:#c4b5fd;">${nameB}</span>
+        <div style="font-size:9px;font-weight:700;opacity:.45;text-transform:uppercase;letter-spacing:3px;margin-bottom:12px;">ExpressGlass — Comparação de Portais</div>
+        <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
+          <span style="font-size:32px;font-weight:900;color:#93c5fd;letter-spacing:-.02em;line-height:1;">${nameA}</span>
+          <span style="font-size:14px;font-weight:600;opacity:.35;letter-spacing:.05em;">vs</span>
+          <span style="font-size:32px;font-weight:900;color:#c4b5fd;letter-spacing:-.02em;line-height:1;">${nameB}</span>
         </div>
-        <div style="font-size:11px;opacity:.5;margin-top:6px;">${periodStr}</div>
+        <div style="font-size:12px;opacity:.5;margin-top:10px;display:flex;align-items:center;gap:6px;">📅 ${periodStr}</div>
       </div>
-      <div style="font-size:38px;opacity:.18;">⚖️</div>
+      <div style="font-size:56px;opacity:.1;line-height:1;">⚖️</div>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-bottom:14px;">
-      <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);border-radius:12px;padding:14px 18px;color:#fff;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(37,99,235,.2);">
-        <div style="font-size:40px;font-weight:900;line-height:1;">${winsA}</div>
-        <div><div style="font-size:9px;opacity:.7;text-transform:uppercase;letter-spacing:.1em;">métricas ganhas</div><div style="font-size:13px;font-weight:700;margin-top:2px;">${nameA}</div></div>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:10px;margin-bottom:16px;">
+      <div style="background:#fff;border-radius:14px;padding:18px 22px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 12px rgba(0,0,0,.08);border:1px solid #e2e8f0;">
+        <div style="width:48px;height:48px;border-radius:50%;background:${BLUE};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🏆</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;">Métricas Ganhas</div>
+          <div style="font-size:15px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nameA}</div>
+        </div>
+        <div style="font-size:44px;font-weight:900;color:${BLUE};line-height:1;flex-shrink:0;">${winsA}</div>
       </div>
-      <div style="display:flex;align-items:center;padding:0 4px;"><span style="font-size:13px;font-weight:800;color:#cbd5e1;">vs</span></div>
-      <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:12px;padding:14px 18px;color:#fff;display:flex;align-items:center;justify-content:flex-end;gap:12px;box-shadow:0 4px 14px rgba(124,58,237,.2);">
-        <div style="text-align:right;"><div style="font-size:9px;opacity:.7;text-transform:uppercase;letter-spacing:.1em;">métricas ganhas</div><div style="font-size:13px;font-weight:700;margin-top:2px;">${nameB}</div></div>
-        <div style="font-size:40px;font-weight:900;line-height:1;">${winsB}</div>
+      <div style="display:flex;align-items:center;padding:0 6px;">
+        <span style="font-size:12px;font-weight:800;color:#94a3b8;background:#f1f5f9;padding:6px 12px;border-radius:20px;">VS</span>
+      </div>
+      <div style="background:#fff;border-radius:14px;padding:18px 22px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 12px rgba(0,0,0,.08);border:1px solid #e2e8f0;">
+        <div style="width:48px;height:48px;border-radius:50%;background:${PURPLE};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">🏆</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:3px;">Métricas Ganhas</div>
+          <div style="font-size:15px;font-weight:800;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${nameB}</div>
+        </div>
+        <div style="font-size:44px;font-weight:900;color:${PURPLE};line-height:1;flex-shrink:0;">${winsB}</div>
       </div>
     </div>
 
