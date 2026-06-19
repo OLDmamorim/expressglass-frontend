@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel Administrativo - Expressglass</title>
   <link rel="stylesheet" href="admin-style.css">
-  <link rel="stylesheet" href="flash-glass.css?v=2026-05-18a">
+
 </head>
 <body>
   <div class="admin-container">
@@ -32,7 +32,6 @@
       <button class="nav-tab admin-only-tab" data-tab="settings">⚙️ Configurações</button>
       <button class="nav-tab" data-tab="reports">📊 Relatórios</button>
       <button class="nav-tab admin-only-tab" data-tab="audit">🔍 Auditoria</button>
-      <button class="nav-tab admin-only-tab" data-tab="flashglass">📸 Flash Glass</button>
       <button class="nav-tab" data-tab="checkins">⏱️ Check-in</button>
       <button class="nav-tab" data-tab="search">🔎 Pesquisa</button>
       <button class="nav-tab" data-tab="alerts">🚨 Alertas <span id="alertsBadge" style="display:none;background:#dc2626;color:#fff;font-size:11px;font-weight:800;padding:1px 7px;border-radius:10px;margin-left:4px;vertical-align:middle;"></span></button>
@@ -366,54 +365,6 @@
     <div id="auditPagination" style="display:flex;gap:8px;justify-content:center;margin-top:16px;"></div>
   </div>
 
-    <!-- Tab: Flash Glass -->
-    <div id="flashglassTab" class="tab-content">
-      <div class="content-header">
-        <h2>📸 Flash Glass — Concurso Semanal</h2>
-        <button onclick="fgAdmin.openCreateForm()" class="btn-primary">+ Novo Concurso</button>
-      </div>
-
-      <!-- Create/Edit Form -->
-      <div id="fgCreateForm" class="fg-admin-create-form" style="display:none;">
-        <h3>📅 Criar Concurso Semanal</h3>
-        <div class="fg-form-row">
-          <div class="fg-form-group" style="flex:0 0 170px;">
-            <label>Semana (2ª feira)</label>
-            <input type="date" id="fgWeekStart" />
-          </div>
-          <div class="fg-form-group" style="flex:2;">
-            <label>Tema *</label>
-            <input type="text" id="fgThemeInput" placeholder="Ex: A Melhor Refeição" maxlength="100" />
-          </div>
-          <div class="fg-form-group" style="flex:3;">
-            <label>Descrição (opcional)</label>
-            <input type="text" id="fgDescInput" placeholder="Ex: Mostrem o vosso talento!" maxlength="200" />
-          </div>
-          <button class="fg-btn-primary" onclick="fgAdmin.saveContest()">Guardar</button>
-          <button onclick="fgAdmin.closeCreateForm()" style="padding:9px 16px;background:#fff;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;font-size:14px;">Cancelar</button>
-        </div>
-      </div>
-
-      <!-- Contests List -->
-      <div id="fgContestsList" class="fg-contests-list">
-        <div style="color:#94a3b8;text-align:center;padding:32px;">A carregar...</div>
-      </div>
-
-      <!-- Submissions Panel -->
-      <div id="fgAdminSubmissionsPanel" style="display:none;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
-          <h4 id="fgSubmissionsPanelTitle" style="margin:0;">Submissões</h4>
-          <div style="display:flex;gap:8px;">
-            <button id="fgPublishBtn" class="fg-btn-publish" onclick="fgAdmin.publishMural()">🚀 Publicar Mural</button>
-            <button onclick="fgAdmin.closeSubmissions()" style="padding:7px 14px;background:#fff;border:1px solid #d1d5db;border-radius:8px;cursor:pointer;font-size:13px;">✕ Fechar</button>
-          </div>
-        </div>
-        <div id="fgAdminSubsGrid" class="fg-submissions-grid">
-          <div style="color:#94a3b8;padding:20px;">A carregar submissões...</div>
-        </div>
-      </div>
-    </div>
-
     <!-- Tab: Check-in Monitor -->
     <div id="checkinsTab" class="tab-content">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px;">
@@ -706,7 +657,6 @@
   </script>
   <script src="admin-comercial-patch.js"></script>
   <script src="admin-coord-only.js?v=2026-05-01"></script>
-  <script src="flash-glass-admin.js?v=2026-05-18a"></script>
   <script>
   // ── Check-in Monitor ──────────────────────────────────────────────────────
   (function () {

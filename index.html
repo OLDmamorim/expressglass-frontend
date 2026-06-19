@@ -9,8 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Figtree:wght@400;500;600;700;800&family=Roboto:wght@400;500&family=Rajdhani:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=2026-05-15b"/>
-  <link rel="stylesheet" href="flash-glass.css?v=2026-05-18d"/>
-  <link rel="stylesheet" href="transport-guide.css?v=2026-05-19h"/>
+<link rel="stylesheet" href="transport-guide.css?v=2026-05-19h"/>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
@@ -147,34 +146,6 @@
       <button id="clearSearch" class="search-clear">✕</button>
     </div>
 
-    <!-- ══ FLASH GLASS CONTEST BANNER (desktop) ══ -->
-    <div id="fgContestBanner" class="fg-contest-banner" style="display:none;" onclick="flashGlass.openMainModal()">
-      <div class="fg-banner-glow"></div>
-      <div class="fg-banner-inner">
-        <!-- Logo -->
-        <div class="fg-banner-logo">
-          <img src="fg-logo.png?v=2026-05-18c" class="fg-banner-logo-img" alt="Flash Glass">
-        </div>
-
-        <div class="fg-banner-sep"></div>
-
-        <!-- Theme -->
-        <div class="fg-banner-theme">
-          <div class="fg-banner-theme-label">TEMA DA SEMANA</div>
-          <div class="fg-banner-theme-name" id="fgBannerTheme">—</div>
-        </div>
-
-        <!-- CTA -->
-        <div class="fg-banner-cta">
-          <button id="fgBannerBtn" class="fg-banner-participate-btn" onclick="event.stopPropagation();flashGlass.openMainModal()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-            PARTICIPAR
-          </button>
-          <div id="fgBannerStatus" class="fg-banner-status-text"></div>
-        </div>
-      </div>
-    </div>
-
     <div class="nav-bar">
       <div class="nav-left">
         <button id="prevWeek" class="nav-button">&lt; Anterior</button>
@@ -253,15 +224,6 @@
     </section>
 
     <section id="mobileDayView" class="mobile-day-container">
-      <!-- ══ FLASH GLASS MOBILE BANNER ══ -->
-      <div id="fgContestBannerMobile" class="fg-banner-mobile" style="display:none;" onclick="flashGlass.openMainModal()">
-        <div class="fg-bm-left">
-          <img src="fg-logo.png?v=2026-05-18c" class="fg-bm-logo-img" alt="Flash Glass">
-          <div class="fg-bm-theme" id="fgBannerThemeMobile">—</div>
-        </div>
-        <button class="fg-bm-btn" id="fgBannerBtnMobile" onclick="event.stopPropagation();flashGlass.openMainModal()">PARTICIPAR</button>
-      </div>
-
       <div class="mobile-day-header">
         <div class="m-nav-row">
           <button id="prevDay" class="m-nav-arrow" aria-label="Dia anterior">
@@ -851,7 +813,6 @@
   <script src="rota-do-dia-map.js?v=2026-06-15c"></script>
   <script src="timeline-rota.js?v=2026-05-14g"></script>
   <script src="commercial-requests-poll.js?v=2026-04-17"></script>
-  <script src="flash-glass.js?v=2026-05-18d"></script>
   <script src="weekly-reminder.js?v=2026-06-12a"></script>
   <script src="route-optimization-alert.js?v=2026-06-15c"></script>
 
@@ -866,121 +827,6 @@
       setTimeout(()=>window.print(), 20);
     });
   </script>
-
-  <!-- ══════════════════════════════════════════════
-       FLASH GLASS MODALS
-       ══════════════════════════════════════════════ -->
-
-  <!-- Modal Principal Flash Glass -->
-  <div id="flashGlassModal" class="modal">
-    <div class="modal-content" style="max-width:420px;padding:0;background:#0f172a;border-radius:20px;overflow:hidden;">
-      <div class="fg-modal-header">
-        <div class="fg-modal-title">
-          <img src="fg-logo.png?v=2026-05-18c" class="fg-modal-logo-img" alt="Flash Glass">
-        </div>
-        <button class="fg-close-btn" onclick="flashGlass.closeMainModal()">✕</button>
-      </div>
-      <div class="fg-theme-banner">
-        <div class="fg-theme-label">Tema da Semana</div>
-        <div class="fg-theme-text" id="fgTheme">—</div>
-        <div class="fg-theme-desc" id="fgDescription"></div>
-      </div>
-      <div class="fg-modal-body">
-        <div class="fg-intro-text">
-          <p>Todas as semanas, um novo tema.</p>
-          <p>Cada dupla entra em jogo com uma fotografia tirada em serviço.</p>
-          <p>Criatividade, espírito de equipa e boa disposição contam pontos.</p>
-          <p>No final da semana, a melhor foto vence. 🏆</p>
-        </div>
-        <div id="fgStatus" style="text-align:center;margin-bottom:14px;"></div>
-        <button class="fg-action-btn primary" onclick="flashGlass.openCamera()">
-          <span class="fg-btn-icon">📷</span>
-          Tirar Foto &amp; Participar
-        </button>
-        <div class="fg-action-btns-row" style="margin-top:10px;">
-          <button id="fgMuralBtn" class="fg-action-btn mural" onclick="flashGlass.openMural()" style="display:none;">
-            <span class="fg-btn-icon">🖼️</span>
-            Ver Mural
-          </button>
-          <button class="fg-action-btn ranking" onclick="flashGlass.openRanking()">
-            <span class="fg-btn-icon">🏆</span>
-            Ranking
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Câmara -->
-  <div id="flashCameraModal" class="modal">
-    <div class="modal-content" style="max-width:500px;padding:0;background:#000;border-radius:20px;overflow:hidden;">
-      <div class="fg-camera-header">
-        <h3>📸 Flash Glass</h3>
-        <button class="fg-close-btn" onclick="flashGlass.closeCameraModal()">✕</button>
-      </div>
-      <!-- Camera step -->
-      <div id="fgCameraStep" style="flex-direction:column;align-items:center;display:flex;">
-        <video id="fgCameraVideo" autoplay playsinline muted
-          style="width:100%;max-height:65vh;object-fit:cover;display:block;background:#111;"></video>
-        <div class="fg-capture-bar">
-          <button class="fg-capture-btn" onclick="flashGlass.capturePhoto()" title="Tirar foto">📷</button>
-        </div>
-      </div>
-      <!-- Preview step -->
-      <div id="fgPreviewStep" style="flex-direction:column;align-items:center;display:none;">
-        <img id="fgPreviewImg" src="" alt="Preview"
-          style="width:100%;max-height:65vh;object-fit:contain;display:block;background:#000;">
-        <div class="fg-preview-bar">
-          <button class="fg-preview-action retake" onclick="flashGlass.retakePhoto()">
-            <div class="fg-paction-icon">↩</div>
-            Repetir
-          </button>
-          <button id="fgConfirmBtn" class="fg-preview-action confirm" onclick="flashGlass.confirmPhoto()">
-            <div class="fg-paction-icon">✓</div>
-            Enviar
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Mural -->
-  <div id="flashMuralModal" class="modal">
-    <div class="modal-content" style="max-width:700px;max-height:90vh;padding:0;background:#0f172a;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;">
-      <div class="fg-mural-modal-header">
-        <h3>🖼️ Mural Flash Glass</h3>
-        <button class="fg-close-btn" onclick="flashGlass.closeMuralModal()">✕</button>
-      </div>
-      <div class="fg-mural-scroll" id="fgMuralContainer">
-        <div class="fg-loading">A carregar...</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal Ranking -->
-  <div id="flashRankingModal" class="modal">
-    <div class="modal-content" style="max-width:500px;max-height:85vh;padding:0;background:#0f172a;border-radius:20px;overflow:hidden;display:flex;flex-direction:column;">
-      <div class="fg-ranking-header">
-        <h3>🏆 Ranking Flash Glass</h3>
-        <button class="fg-close-btn" onclick="flashGlass.closeRankingModal()">✕</button>
-      </div>
-      <div class="fg-ranking-scroll" id="fgRankingContainer">
-        <div class="fg-loading">A carregar...</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Flash Glass Welcome Popup -->
-  <div id="fgWelcomeModal" class="modal">
-    <div class="fg-welcome-content">
-      <img src="fg-logo.png?v=2026-05-18c" class="fg-welcome-logo" alt="Flash Glass">
-      <div class="fg-welcome-theme-box">
-        <div class="fg-welcome-theme-label">TEMA DA SEMANA</div>
-        <div class="fg-welcome-theme-name" id="fgWelcomeTheme">—</div>
-      </div>
-      <button class="fg-welcome-ok" onclick="flashGlass.closeWelcome()">OK</button>
-    </div>
-  </div>
 
   <!-- Modal Não Realizado -->
   <div id="notDoneModal" class="modal" style="display:none;">
