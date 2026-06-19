@@ -230,25 +230,7 @@
     if (!isBraga()) return;
     const appts = window.appointments || [];
 
-    // Desktop
-    document.querySelectorAll('.dc-exec-row').forEach(row => {
-      if (row.dataset.vcInjected) return;
-      row.dataset.vcInjected = '1';
-      const id = row.dataset.id;
-      const appt = appts.find(a => String(a.id) === String(id));
-      if (!appt) return;
-      const btn = document.createElement('button');
-      btn.className = 'dc-exec-btn';
-      btn.style.cssText = 'width:100%;margin-top:4px;';
-      btn.innerHTML = '🔍 Check-up';
-      btn.onclick = function (e) { e.stopPropagation(); window._openVehicleCheckup(id, appt.plate || ''); };
-      const wrap = document.createElement('div');
-      wrap.style.cssText = 'margin:4px 0 0;';
-      wrap.appendChild(btn);
-      row.insertAdjacentElement('afterend', wrap);
-    });
-
-    // Mobile
+    // Mobile only
     document.querySelectorAll('.m-status-row').forEach(row => {
       if (row.dataset.vcInjected) return;
       row.dataset.vcInjected = '1';
