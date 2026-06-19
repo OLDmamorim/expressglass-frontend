@@ -3,6 +3,7 @@
 
 let _rwCharts = {};
 let _rwCurrentParams = null;
+let _rwCompareMode = false;
 
 function openReportsPanel() {
   const panel = document.getElementById('reportsPanel');
@@ -40,11 +41,41 @@ async function _rwLoadPortals() {
       }
     }
 
-    sel.innerHTML = '<option value="">Selecionar portal</option>' +
+    const opts = '<option value="">Selecionar portal</option>' +
       list.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    sel.innerHTML = opts;
     // Pre-select if only one
     if (list.length === 1) sel.value = String(list[0].id);
+    // Populate second portal selector for compare mode
+    const sel2 = document.getElementById('reportPortal2');
+    if (sel2) sel2.innerHTML = opts;
   } catch(e) { console.error('reports-widget: loadPortals', e); }
+}
+
+function toggleCompareMode() {
+  _rwCompareMode = !_rwCompareMode;
+  const wrap = document.getElementById('reportPortal2Wrap');
+  const btn  = document.getElementById('btnCompareToggle');
+  if (_rwCompareMode) {
+    wrap.style.display = 'block';
+    btn.style.background = '#7c3aed';
+    btn.style.color = '#fff';
+    btn.style.border = 'none';
+    // Sync options if portal2 is empty
+    const sel2 = document.getElementById('reportPortal2');
+    if (sel2 && sel2.options.length <= 1) {
+      const sel = document.getElementById('reportPortal');
+      if (sel) sel2.innerHTML = sel.innerHTML;
+    }
+  } else {
+    wrap.style.display = 'none';
+    btn.style.background = '#f5f3ff';
+    btn.style.color = '#7c3aed';
+    btn.style.border = '1px solid #ddd6fe';
+    // Reset compare view
+    document.getElementById('reportCompareContent').style.display = 'none';
+    document.getElementById('btnDownloadPDF').style.display = 'none';
+  }
 }
 
 async function generateReport() {
@@ -56,12 +87,27 @@ async function generateReport() {
     return;
   }
 
+  if (_rwCompareMode) {
+    const portalId2 = document.getElementById('reportPortal2').value;
+    if (!portalId2) {
+      if (typeof showToast === 'function') showToast('Seleciona o segundo portal para comparar', 'error');
+      return;
+    }
+    if (portalId === portalId2) {
+      if (typeof showToast === 'function') showToast('Seleciona portais diferentes para comparar', 'error');
+      return;
+    }
+    await _generateComparisonReport(portalId, portalId2, fromMonth, toMonth);
+    return;
+  }
+
   const dateFrom = fromMonth + '-01';
   const dateTo   = toMonth + '-' + new Date(toMonth.split('-')[0], toMonth.split('-')[1], 0).getDate();
   _rwCurrentParams = { portalId, dateFrom, dateTo };
 
   document.getElementById('reportLoading').style.display = 'block';
   document.getElementById('reportContent').style.display = 'none';
+  document.getElementById('reportCompareContent').style.display = 'none';
   document.getElementById('btnDownloadPDF').style.display = 'none';
 
   try {
@@ -406,6 +452,206 @@ function _rwRenderReport(data) {
   }
 
   document.getElementById('reportContent').style.display = 'block';
+  document.getElementById('btnDownloadPDF').style.display = 'inline-block';
+}
+
+async function _generateComparisonReport(portalId1, portalId2, fromMonth, toMonth) {
+  const dateFrom = fromMonth + '-01';
+  const dateTo   = toMonth + '-' + new Date(toMonth.split('-')[0], toMonth.split('-')[1], 0).getDate();
+
+  document.getElementById('reportLoading').style.display = 'block';
+  document.getElementById('reportContent').style.display = 'none';
+  document.getElementById('reportCompareContent').style.display = 'none';
+  document.getElementById('btnDownloadPDF').style.display = 'none';
+
+  try {
+    const token = window.authClient.getToken();
+    const hdrs = { 'Authorization': `Bearer ${token}` };
+    const [r1, r2] = await Promise.all([
+      fetch(`/.netlify/functions/reports?portal_id=${portalId1}&date_from=${dateFrom}&date_to=${dateTo}`, { headers: hdrs }),
+      fetch(`/.netlify/functions/reports?portal_id=${portalId2}&date_from=${dateFrom}&date_to=${dateTo}`, { headers: hdrs })
+    ]);
+    const [dataA, dataB] = await Promise.all([r1.json(), r2.json()]);
+    if (!dataA.success) throw new Error(dataA.error);
+    if (!dataB.success) throw new Error(dataB.error);
+    _rwRenderComparison(dataA, dataB);
+  } catch(e) {
+    if (typeof showToast === 'function') showToast('Erro: ' + e.message, 'error');
+  } finally {
+    document.getElementById('reportLoading').style.display = 'none';
+  }
+}
+
+function _rwRenderComparison(dataA, dataB) {
+  Object.values(_rwCharts).forEach(c => c?.destroy());
+  _rwCharts = {};
+
+  const nameA = dataA.portal.name || 'Portal A';
+  const nameB = dataB.portal.name || 'Portal B';
+  const fmtDate = d => new Date(d + 'T12:00:00').toLocaleDateString('pt-PT', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  function calcKpis(data) {
+    const { totals } = data;
+    const total  = parseInt(totals.total_agendados) || 0;
+    const realiz = parseInt(totals.total_realizados) || 0;
+    const nReal  = parseInt(totals.total_nao_realizados) || 0;
+    const taxa   = total > 0 ? Math.round((realiz / total) * 100) : 0;
+    const km     = parseInt(totals.total_km) || 0;
+    const pend   = parseInt(totals.total_pendentes) || 0;
+    const tMin   = parseInt(totals.total_travel_min) || 0;
+    const travel = tMin > 0 ? `${Math.floor(tMin / 60)}h${String(tMin % 60).padStart(2, '0')}` : '—';
+    const custo  = ((km * 7.5 / 100) * 1.95).toFixed(2);
+    return { total, realiz, nReal, taxa, km, pend, travel, custo };
+  }
+
+  const kA = calcKpis(dataA);
+  const kB = calcKpis(dataB);
+
+  const kpiRows = [
+    { label: 'Agendados',       vA: kA.total,  vB: kB.total,  fmt: v => v,        num: true,  better: true  },
+    { label: 'Realizados',      vA: kA.realiz, vB: kB.realiz, fmt: v => v,        num: true,  better: true  },
+    { label: 'Não realizados',  vA: kA.nReal,  vB: kB.nReal,  fmt: v => v,        num: true,  better: false },
+    { label: 'Taxa realização', vA: kA.taxa,   vB: kB.taxa,   fmt: v => v + '%',  num: true,  better: true  },
+    { label: 'Total km',        vA: kA.km,     vB: kB.km,     fmt: v => v + ' km',num: true,  better: null  },
+    { label: 'Pendentes',       vA: kA.pend,   vB: kB.pend,   fmt: v => v,        num: true,  better: false },
+    { label: 'Custo gasóleo',   vA: parseFloat(kA.custo), vB: parseFloat(kB.custo), fmt: v => v + '€', num: true, better: false },
+  ];
+
+  const svcMap = { PB: 'Para-brisas', LT: 'Lateral', OC: 'Óculo', REP: 'Reparação', POL: 'Polimento', MO: 'Montante' };
+
+  function localityTable(rows) {
+    if (!rows || !rows.length) return '<p style="color:#94a3b8;font-size:13px;padding:10px 0;">Sem dados</p>';
+    return `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+        <th style="text-align:left;padding:7px 10px;font-weight:700;color:#374151;">Localidade</th>
+        <th style="text-align:center;padding:7px;font-weight:700;">Total</th>
+        <th style="text-align:center;padding:7px;font-weight:700;color:#16a34a;">Real.</th>
+        <th style="text-align:center;padding:7px;font-weight:700;">Taxa</th>
+      </tr></thead>
+      <tbody>${rows.map((r, i) => {
+        const t = parseInt(r.total), rl = parseInt(r.realizados);
+        const tx = t > 0 ? Math.round((rl / t) * 100) : 0;
+        const txC = tx >= 80 ? '#16a34a' : tx >= 50 ? '#d97706' : '#dc2626';
+        return `<tr style="border-bottom:1px solid #f1f5f9;${i % 2 === 0 ? 'background:#fafafa' : ''}">
+          <td style="padding:7px 10px;font-weight:600;font-size:12px;">${r.locality}</td>
+          <td style="text-align:center;padding:7px;font-weight:700;">${t}</td>
+          <td style="text-align:center;padding:7px;color:#16a34a;font-weight:700;">${rl}</td>
+          <td style="text-align:center;padding:7px;"><span style="background:${txC}15;color:${txC};font-weight:700;padding:1px 6px;border-radius:10px;font-size:11px;">${tx}%</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  }
+
+  function serviceTable(rows) {
+    if (!rows || !rows.length) return '<p style="color:#94a3b8;font-size:13px;padding:10px 0;">Sem dados</p>';
+    const total = rows.reduce((s, r) => s + parseInt(r.total), 0);
+    return `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;">
+        <th style="text-align:left;padding:7px 10px;font-weight:700;color:#374151;">Serviço</th>
+        <th style="text-align:center;padding:7px;font-weight:700;">Total</th>
+        <th style="text-align:center;padding:7px;font-weight:700;">%</th>
+      </tr></thead>
+      <tbody>${rows.map((r, i) => {
+        const t = parseInt(r.total);
+        const pct = total > 0 ? Math.round((t / total) * 100) : 0;
+        return `<tr style="border-bottom:1px solid #f1f5f9;${i % 2 === 0 ? 'background:#fafafa' : ''}">
+          <td style="padding:7px 10px;font-weight:600;font-size:12px;">${svcMap[r.service] || r.service}</td>
+          <td style="text-align:center;padding:7px;font-weight:700;">${t}</td>
+          <td style="text-align:center;padding:7px;"><span style="background:#eff6ff;color:#2563eb;font-weight:700;padding:1px 6px;border-radius:10px;font-size:11px;">${pct}%</span></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  }
+
+  function motivoTable(rows) {
+    if (!rows || !rows.length) return '<p style="color:#94a3b8;font-size:13px;padding:10px 0;">Sem dados</p>';
+    return `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead><tr style="background:#fef2f2;border-bottom:1px solid #fecdd3;">
+        <th style="text-align:left;padding:7px 10px;font-weight:700;color:#dc2626;">Motivo</th>
+        <th style="text-align:center;padding:7px;font-weight:700;">N.º</th>
+      </tr></thead>
+      <tbody>${rows.map((r, i) => `<tr style="border-bottom:1px solid #f1f5f9;${i % 2 === 0 ? 'background:#fafafa' : ''}">
+        <td style="padding:7px 10px;color:#374151;font-size:12px;">${r.motivo}</td>
+        <td style="text-align:center;padding:7px;"><span style="background:#fef2f2;color:#dc2626;font-weight:700;padding:1px 8px;border-radius:10px;font-size:11px;">${r.total}×</span></td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+
+  const kpiHtml = kpiRows.map(row => {
+    let bgA = '', bgB = '';
+    if (row.better !== null && row.vA !== row.vB) {
+      const aWins = row.better ? row.vA > row.vB : row.vA < row.vB;
+      bgA = aWins ? 'background:#dcfce7;' : 'background:#fff1f2;';
+      bgB = aWins ? 'background:#fff1f2;' : 'background:#dcfce7;';
+    }
+    return `<tr style="border-bottom:1px solid #f1f5f9;">
+      <td style="padding:12px 16px;font-size:22px;font-weight:800;color:#2563eb;${bgA}">${row.fmt(row.vA)}</td>
+      <td style="padding:12px 8px;text-align:center;font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;background:#f8fafc;white-space:nowrap;">${row.label}</td>
+      <td style="padding:12px 16px;font-size:22px;font-weight:800;color:#7c3aed;text-align:right;${bgB}">${row.fmt(row.vB)}</td>
+    </tr>`;
+  }).join('');
+
+  const periodStr = `${fmtDate(dataA.period.from)} → ${fmtDate(dataA.period.to)}`;
+
+  document.getElementById('reportCompareContent').innerHTML = `
+    <div style="margin-bottom:24px;padding:22px 28px;background:linear-gradient(135deg,#1e3a5f 0%,#4c1d95 100%);border-radius:14px;color:#fff;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:11px;opacity:0.7;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;">ExpressGlass — Comparação de Portais</div>
+        <div style="font-size:20px;font-weight:800;"><span style="color:#93c5fd;">${nameA}</span> <span style="opacity:0.6;">vs</span> <span style="color:#c4b5fd;">${nameB}</span></div>
+        <div style="font-size:13px;opacity:0.7;margin-top:4px;">${periodStr}</div>
+      </div>
+      <div style="font-size:52px;opacity:0.35;">⚖️</div>
+    </div>
+
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:20px;">
+      <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:14px;">📊 Indicadores Chave — rubrica a rubrica</div>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead><tr style="border-bottom:2px solid #e2e8f0;">
+          <th style="padding:10px 16px;text-align:left;font-weight:800;color:#2563eb;font-size:15px;">${nameA}</th>
+          <th style="padding:10px 8px;text-align:center;font-weight:700;color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:.05em;background:#f8fafc;">Métrica</th>
+          <th style="padding:10px 16px;text-align:right;font-weight:800;color:#7c3aed;font-size:15px;">${nameB}</th>
+        </tr></thead>
+        <tbody>${kpiHtml}</tbody>
+      </table>
+      <p style="margin-top:10px;font-size:11px;color:#94a3b8;text-align:center;">🟢 fundo verde = melhor resultado · 🔴 fundo vermelho = resultado inferior</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+      <div style="background:#fff;border:1px solid #bfdbfe;border-radius:12px;padding:16px;">
+        <div style="font-weight:700;font-size:13px;color:#2563eb;margin-bottom:10px;">📍 ${nameA} — Por Localidade</div>
+        ${localityTable(dataA.byLocality)}
+      </div>
+      <div style="background:#fff;border:1px solid #ddd6fe;border-radius:12px;padding:16px;">
+        <div style="font-weight:700;font-size:13px;color:#7c3aed;margin-bottom:10px;">📍 ${nameB} — Por Localidade</div>
+        ${localityTable(dataB.byLocality)}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+      <div style="background:#fff;border:1px solid #bfdbfe;border-radius:12px;padding:16px;">
+        <div style="font-weight:700;font-size:13px;color:#2563eb;margin-bottom:10px;">🔧 ${nameA} — Tipo de Serviço</div>
+        ${serviceTable(dataA.byService)}
+      </div>
+      <div style="background:#fff;border:1px solid #ddd6fe;border-radius:12px;padding:16px;">
+        <div style="font-weight:700;font-size:13px;color:#7c3aed;margin-bottom:10px;">🔧 ${nameB} — Tipo de Serviço</div>
+        ${serviceTable(dataB.byService)}
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+      <div style="background:#fff;border:1px solid #bfdbfe;border-radius:12px;padding:16px;">
+        <div style="font-weight:700;font-size:13px;color:#2563eb;margin-bottom:10px;">❌ ${nameA} — Motivos Não Realização</div>
+        ${motivoTable(dataA.byMotivo)}
+      </div>
+      <div style="background:#fff;border:1px solid #ddd6fe;border-radius:12px;padding:16px;">
+        <div style="font-weight:700;font-size:13px;color:#7c3aed;margin-bottom:10px;">❌ ${nameB} — Motivos Não Realização</div>
+        ${motivoTable(dataB.byMotivo)}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('reportCompareContent').style.display = 'block';
+  document.getElementById('reportContent').style.display = 'none';
   document.getElementById('btnDownloadPDF').style.display = 'inline-block';
 }
 

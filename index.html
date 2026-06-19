@@ -296,6 +296,10 @@
             <label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">Portal</label>
             <select id="reportPortal" style="padding:9px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;min-width:200px;"></select>
           </div>
+          <div id="reportPortal2Wrap" style="display:none;">
+            <label style="font-size:13px;font-weight:700;color:#7c3aed;display:block;margin-bottom:6px;">vs. Portal</label>
+            <select id="reportPortal2" style="padding:9px 14px;border-radius:8px;border:1px solid #ddd6fe;font-size:14px;min-width:200px;"></select>
+          </div>
           <div>
             <label style="font-size:13px;font-weight:700;color:#374151;display:block;margin-bottom:6px;">De</label>
             <input type="month" id="reportFrom" style="padding:9px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;">
@@ -305,6 +309,7 @@
             <input type="month" id="reportTo" style="padding:9px 14px;border-radius:8px;border:1px solid #d1d5db;font-size:14px;">
           </div>
           <button onclick="generateReport()" style="background:#2563eb;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;height:40px;">📊 Gerar Relatório</button>
+          <button onclick="toggleCompareMode()" id="btnCompareToggle" style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;height:40px;">⚖️ Comparar</button>
           <button onclick="downloadReportPDF()" id="btnDownloadPDF" style="background:#16a34a;color:#fff;border:none;padding:10px 24px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;height:40px;display:none;">📥 Download PDF</button>
         </div>
 
@@ -356,6 +361,7 @@
           <div id="reportVidrosSection" style="display:none;"></div>
           <div id="reportTeamSection" style="display:none;"></div>
         </div>
+        <div id="reportCompareContent" style="display:none;"></div>
       </div>
     </div>
 
