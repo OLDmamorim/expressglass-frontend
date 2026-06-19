@@ -551,30 +551,34 @@ function _rwRenderComparison(dataA, dataB) {
 
   const melhorBadge = `<span style="display:inline-block;font-size:10px;font-weight:800;color:#16a34a;background:#dcfce7;padding:2px 8px;border-radius:8px;margin-top:5px;">↑ Melhor</span>`;
 
-  // 3-column table: [Metric] [Value A] [Value B] — no distribution bar
+  // Flex row: metric label expands left, two fixed-width value cards sit side by side on the right
   function compTable(rows, sectionTitle, hasA = true, hasB = true) {
     const rowsHtml = rows.map((r, i) => {
       const aWins = r.better !== null && r.vA !== r.vB && (r.better ? r.vA > r.vB : r.vA < r.vB);
       const bWins = r.better !== null && r.vA !== r.vB && (r.better ? r.vB > r.vA : r.vB < r.vA);
-      const cellStyleA = aWins
-        ? 'border-left:3px solid #16a34a;background:linear-gradient(to right,#f0fdf420,transparent);'
-        : bWins ? 'border-left:3px solid transparent;' : '';
-      const cellStyleB = bWins
-        ? 'border-left:3px solid #16a34a;background:linear-gradient(to right,#f0fdf420,transparent);'
-        : aWins ? 'border-left:3px solid transparent;' : '';
+      const cardA = `
+        <div style="width:175px;text-align:center;padding:14px 10px;border-radius:12px;
+                    background:${aWins?'#dbeafe':'#f0f9ff'};
+                    ${aWins?'box-shadow:0 0 0 2px #2563eb55;outline:2px solid #2563eb22;':''}">
+          <div style="font-size:34px;font-weight:900;color:${BLUE};line-height:1;letter-spacing:-.02em;${bWins&&!aWins?'opacity:.3;':''}">${hasA ? r.fmt(r.vA) : '—'}</div>
+          ${aWins && hasA ? melhorBadge : ''}
+        </div>`;
+      const cardB = `
+        <div style="width:175px;text-align:center;padding:14px 10px;border-radius:12px;
+                    background:${bWins?'#ede9fe':'#faf5ff'};
+                    ${bWins?'box-shadow:0 0 0 2px #7c3aed55;outline:2px solid #7c3aed22;':''}">
+          <div style="font-size:34px;font-weight:900;color:${PURPLE};line-height:1;letter-spacing:-.02em;${aWins&&!bWins?'opacity:.3;':''}">${hasB ? r.fmt(r.vB) : '—'}</div>
+          ${bWins && hasB ? melhorBadge : ''}
+        </div>`;
       return `
-        <div style="display:grid;grid-template-columns:180px 1fr 1fr;align-items:stretch;border-bottom:1px solid #f1f5f9;${i%2===1?'background:#fafbfc;':''}">
-          <div style="padding:16px 18px;display:flex;align-items:center;gap:9px;border-right:1px solid #f1f5f9;">
-            <span style="font-size:16px;">${r.icon}</span>
-            <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;">${r.label}</span>
+        <div style="display:flex;align-items:center;padding:10px 18px;border-bottom:1px solid #f1f5f9;gap:16px;${i%2===1?'background:#fafbfc;':''}">
+          <div style="flex:1;display:flex;align-items:center;gap:9px;min-width:0;">
+            <span style="font-size:16px;flex-shrink:0;">${r.icon}</span>
+            <span style="font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;">${r.label}</span>
           </div>
-          <div style="padding:16px 24px;border-right:1px solid #f1f5f9;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;${cellStyleA}">
-            <div style="font-size:36px;font-weight:900;color:${BLUE};line-height:1;letter-spacing:-.01em;${bWins&&!aWins?'opacity:.35;':''}">${hasA ? r.fmt(r.vA) : '—'}</div>
-            ${aWins && hasA ? melhorBadge : ''}
-          </div>
-          <div style="padding:16px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;${cellStyleB}">
-            <div style="font-size:36px;font-weight:900;color:${PURPLE};line-height:1;letter-spacing:-.01em;${aWins&&!bWins?'opacity:.35;':''}">${hasB ? r.fmt(r.vB) : '—'}</div>
-            ${bWins && hasB ? melhorBadge : ''}
+          <div style="display:flex;gap:10px;flex-shrink:0;">
+            ${cardA}
+            ${cardB}
           </div>
         </div>`;
     }).join('');
@@ -582,10 +586,12 @@ function _rwRenderComparison(dataA, dataB) {
     return `
       <div style="background:#fff;border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 2px 12px rgba(0,0,0,.08);">
         ${sectionTitle ? `<div style="padding:13px 18px;border-bottom:2px solid #f1f5f9;font-size:11px;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.08em;">${sectionTitle}</div>` : ''}
-        <div style="display:grid;grid-template-columns:180px 1fr 1fr;background:#f8fafc;border-bottom:2px solid #e2e8f0;">
-          <div style="padding:10px 18px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;border-right:1px solid #e2e8f0;">Métrica</div>
-          <div style="padding:10px 24px;font-size:14px;font-weight:900;color:${BLUE};background:#eff6ff;border-right:1px solid #bfdbfe;text-align:center;letter-spacing:-.01em;">${nameA}</div>
-          <div style="padding:10px 24px;font-size:14px;font-weight:900;color:${PURPLE};background:#f5f3ff;text-align:center;letter-spacing:-.01em;">${nameB}</div>
+        <div style="display:flex;align-items:center;padding:10px 18px;background:#f8fafc;border-bottom:2px solid #e2e8f0;gap:16px;">
+          <div style="flex:1;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;">Métrica</div>
+          <div style="display:flex;gap:10px;">
+            <div style="width:175px;text-align:center;padding:7px 10px;border-radius:9px;background:#dbeafe;font-size:13px;font-weight:900;color:${BLUE};">${nameA}</div>
+            <div style="width:175px;text-align:center;padding:7px 10px;border-radius:9px;background:#ede9fe;font-size:13px;font-weight:900;color:${PURPLE};">${nameB}</div>
+          </div>
         </div>
         ${rowsHtml}
       </div>`;
