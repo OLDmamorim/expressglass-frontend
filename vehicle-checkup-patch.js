@@ -45,7 +45,7 @@
 
   function _renderStep1() {
     document.getElementById('vcBody').innerHTML = `
-      <p style="font-size:13px;color:#64748b;margin-bottom:14px;">Fotografa os ângulos da viatura. O sistema deteta automaticamente danos existentes.</p>
+      <p style="font-size:13px;color:#64748b;margin-bottom:14px;">Fotografa os ângulos que quiseres (mínimo 1). O sistema deteta danos em cada foto tirada.</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;" id="vcZones"></div>
       <button id="vcAnalyzeBtn" onclick="window._vcAnalyze()" disabled
         style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:800;cursor:pointer;opacity:0.4;transition:opacity .2s;">
