@@ -74,14 +74,15 @@ exports.handler = async (event) => {
         }
 
         // Verificar se já existe — preferir match por n_obra; fallback por matrícula.
-        // Excluir executed=true para não actualizar serviços já concluídos.
+        // Pesquisa em TODOS os registos (incluindo realizados): mesma matrícula = mesmo registo, nunca duplicar.
+        // Preferir registos não-realizados (executed IS TRUE ordenado por último).
         let existing;
         if (svc.n_obra) {
           existing = await pool.query(
             `SELECT id, date, period, car, phone, extra, notes, auto_imported, confirmed, status, order_ref, reception_ref
              FROM appointments
              WHERE portal_id = $1 AND n_obra = $2
-               AND (executed IS NOT TRUE)
+             ORDER BY (executed IS TRUE) ASC
              LIMIT 1`,
             [svc.portal_id, String(svc.n_obra)]
           );
@@ -91,7 +92,7 @@ exports.handler = async (event) => {
                FROM appointments
                WHERE portal_id = $1
                AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
-               AND (executed IS NOT TRUE)
+               ORDER BY (executed IS TRUE) ASC
                LIMIT 1`,
               [svc.portal_id, String(svc.plate).trim()]
             );
@@ -102,7 +103,7 @@ exports.handler = async (event) => {
              FROM appointments
              WHERE portal_id = $1
              AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
-             AND (executed IS NOT TRUE)
+             ORDER BY (executed IS TRUE) ASC
              LIMIT 1`,
             [svc.portal_id, String(svc.plate).trim()]
           );
