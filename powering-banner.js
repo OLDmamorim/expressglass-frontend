@@ -338,9 +338,18 @@
 
     try {
       var data = await fetchVendasCompl(portalId);
+      var lista = data.lojas || [];
+      if (lista.length === 0) {
+        // Diagnóstico visível: API respondeu mas sem lojas
+        var elDbg = document.getElementById('peg2Campea');
+        if (elDbg) { elDbg.textContent = 'API OK — 0 lojas (ver debug=1)'; elDbg.style.color = '#fb923c'; elDbg.style.fontSize = '10px'; }
+      }
       fillBanner2(data);
     } catch (e) {
       console.warn('[PoweringEG escovas]', e.message);
+      // Mostrar erro no banner para diagnóstico sem consola
+      var elErr = document.getElementById('peg2Campea');
+      if (elErr) { elErr.textContent = e.message.slice(0, 60); elErr.style.color = '#f87171'; elErr.style.fontSize = '10px'; }
     }
   }
 
