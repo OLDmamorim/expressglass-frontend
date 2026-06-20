@@ -422,6 +422,17 @@
       <div id="campForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;margin-bottom:24px;">
         <h3 style="margin:0 0 16px;font-size:16px;">Campanha</h3>
         <input type="hidden" id="campId">
+        <input type="hidden" id="campType" value="horaria">
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Tipo de campanha</label>
+          <div style="display:inline-flex;border:1.5px solid #d1d5db;border-radius:8px;overflow:hidden;">
+            <button type="button" id="campTypeBtnHoraria" onclick="campAdmin._setType('horaria')"
+              style="padding:7px 18px;border:none;background:#2563eb;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">⏰ Horária</button>
+            <button type="button" id="campTypeBtnInterativa" onclick="campAdmin._setType('interativa')"
+              style="padding:7px 18px;border:none;background:#fff;color:#374151;font-size:13px;font-weight:500;cursor:pointer;">👆 Interativa</button>
+          </div>
+          <p id="campTypeDesc" style="margin:6px 0 0;font-size:12px;color:#64748b;">Aparece automaticamente nas horas definidas.</p>
+        </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;margin-bottom:12px;align-items:end;">
           <div>
             <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px;">Início *</label>
@@ -441,7 +452,7 @@
           <input type="file" id="campImageFile" accept="image/*" onchange="campAdmin.onImagePick(this)" style="font-size:13px;">
           <div id="campImagePreview" style="margin-top:10px;"></div>
         </div>
-        <div style="margin-bottom:14px;">
+        <div id="campHoursSection" style="margin-bottom:14px;">
           <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Horas de exibição <span style="font-weight:400;color:#94a3b8;font-size:12px;">(seleciona uma ou mais; sem seleção usa 9h, 14h e 17h)</span></label>
           <div id="campHoursGrid" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
         </div>
@@ -902,6 +913,17 @@
     }
 
     window.campAdmin = {
+      _setType: function (t) {
+        document.getElementById('campType').value = t;
+        var isH = t === 'horaria';
+        document.getElementById('campTypeBtnHoraria').style.cssText = 'padding:7px 18px;border:none;cursor:pointer;font-size:13px;font-weight:' + (isH?'700':'500') + ';background:' + (isH?'#2563eb':'#fff') + ';color:' + (isH?'#fff':'#374151') + ';';
+        document.getElementById('campTypeBtnInterativa').style.cssText = 'padding:7px 18px;border:none;cursor:pointer;font-size:13px;font-weight:' + (!isH?'700':'500') + ';background:' + (!isH?'#7c3aed':'#fff') + ';color:' + (!isH?'#fff':'#374151') + ';';
+        document.getElementById('campTypeDesc').textContent = isH
+          ? 'Aparece automaticamente nas horas definidas.'
+          : 'Aparece quando um técnico/admin clica em "Serviço Realizado".';
+        document.getElementById('campHoursSection').style.display = isH ? '' : 'none';
+      },
+
       openForm: function () {
         document.getElementById('campId').value = '';
         document.getElementById('campTitle').value = '';
@@ -914,6 +936,7 @@
         _imageData = null;
         _selectedHours = [];
         _renderHourChips();
+        campAdmin._setType('horaria');
         document.getElementById('campForm').style.display = 'block';
       },
 
@@ -961,12 +984,14 @@
 
       save: function () {
         var id = document.getElementById('campId').value;
+        var campType = document.getElementById('campType').value || 'horaria';
         var body = {
           title: document.getElementById('campTitle').value.trim(),
           start_date: document.getElementById('campStart').value,
           end_date: document.getElementById('campEnd').value,
           active: document.getElementById('campActive').checked,
-          display_hours: _selectedHours.length ? _selectedHours.slice().sort().join(',') : null
+          campaign_type: campType,
+          display_hours: campType === 'horaria' && _selectedHours.length ? _selectedHours.slice().sort().join(',') : null
         };
         if (!body.start_date || !body.end_date) {
           alert('Preenche as datas de início e fim.');
@@ -1019,12 +1044,12 @@
             _selectedHours = c.display_hours
               ? String(c.display_hours).split(',').map(function(s) {
                   s = s.trim();
-                  // Convert legacy integer format "9" → "09:00"
                   if (/^\d+$/.test(s)) return (s.length===1?'0':'')+s+':00';
                   return s;
                 }).filter(Boolean)
               : [];
             _renderHourChips();
+            campAdmin._setType(c.campaign_type || 'horaria');
             var preview = document.getElementById('campImagePreview');
             if (c.image_data) {
               preview.innerHTML = '<img src="' + c.image_data + '" style="max-width:320px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;margin-top:4px;"><p style="font-size:12px;color:#64748b;margin:4px 0 0;">Carrega um novo ficheiro para substituir a imagem atual.</p>';
