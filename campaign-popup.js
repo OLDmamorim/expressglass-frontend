@@ -68,18 +68,28 @@
   }
 
   function _buildSlots() {
-    var hours = null;
+    var slots = null;
     if (_campaign && _campaign.display_hours) {
-      var parsed = String(_campaign.display_hours).split(',')
-        .map(function (h) { return parseInt(h.trim(), 10); })
-        .filter(function (h) { return !isNaN(h) && h >= 0 && h <= 23; });
-      if (parsed.length > 0) hours = parsed;
+      var parsed = String(_campaign.display_hours).split(',').map(function (s) {
+        s = s.trim();
+        // Legacy integer format "9" → h:9 m:0
+        if (/^\d+$/.test(s)) {
+          var h = parseInt(s, 10);
+          return isNaN(h) ? null : { h: h, m: 0, key: 'h' + h + 'm0' };
+        }
+        // HH:MM format "09:30"
+        var parts = s.split(':');
+        if (parts.length === 2) {
+          var hh = parseInt(parts[0], 10), mm = parseInt(parts[1], 10);
+          if (!isNaN(hh) && !isNaN(mm)) return { h: hh, m: mm, key: 'h' + hh + 'm' + mm };
+        }
+        return null;
+      }).filter(Boolean);
+      if (parsed.length > 0) slots = parsed;
     }
     // Default slots when no hours defined in campaign
-    if (!hours) hours = [9, 14, 17];
-    return hours.map(function (h) {
-      return { h: h, key: 'h' + h };
-    });
+    if (!slots) slots = [{ h: 9, m: 0, key: 'h9m0' }, { h: 14, m: 0, key: 'h14m0' }, { h: 17, m: 0, key: 'h17m0' }];
+    return slots;
   }
 
   function _init() {
