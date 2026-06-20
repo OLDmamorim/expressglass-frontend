@@ -269,16 +269,38 @@
       : '—';
   };
 
+  function _getField(obj, keys) {
+    for (var i = 0; i < keys.length; i++) {
+      if (obj[keys[i]] != null) return obj[keys[i]];
+    }
+    return null;
+  }
+
   function fillBanner2(data) {
-    var lista = data.lojas || data.resultados || data.data || [];
+    console.log('[PEG escovas] raw data:', JSON.stringify(data).slice(0, 500));
+
+    // Tentar vários nomes de array possíveis
+    var lista = data.lojas || data.resultados || data.data || data.vendas || data.items || [];
+    if (!Array.isArray(lista)) lista = [];
+    console.log('[PEG escovas] lista length:', lista.length, lista[0]);
+
     var currentId = parseInt(data.lojaId);
 
-    var lojaAtual = lista.find(function(l) { return parseInt(l.lojaId) === currentId; }) || {};
-    var escovasVal = lojaAtual.escovasVendas != null ? parseFloat(lojaAtual.escovasVendas) : null;
+    // Tentar vários nomes de campo para id da loja
+    var lojaAtual = lista.find(function(l) {
+      var id = parseInt(_getField(l, ['lojaId', 'loja_id', 'id', 'lojaID']));
+      return id === currentId;
+    }) || {};
 
+    // Tentar vários nomes de campo para escovas
+    var escovasVal = _getField(lojaAtual, ['escovasVendas', 'escova_vendas', 'escovas', 'escovasTotal', 'escovas_vendas']);
+    escovasVal = escovasVal != null ? parseFloat(escovasVal) : null;
+
+    // Campeã: maior escovasVendas
     var campea = lista.reduce(function(best, l) {
-      if (!best) return l;
-      return (parseFloat(l.escovasVendas) || 0) > (parseFloat(best.escovasVendas) || 0) ? l : best;
+      var v = parseFloat(_getField(l, ['escovasVendas', 'escova_vendas', 'escovas', 'escovasTotal', 'escovas_vendas']) || 0);
+      var bv = parseFloat(_getField(best || {}, ['escovasVendas', 'escova_vendas', 'escovas', 'escovasTotal', 'escovas_vendas']) || 0);
+      return v > bv ? l : best;
     }, null);
 
     var elEscovas = document.getElementById('peg2Escovas');
@@ -289,8 +311,11 @@
       elEscovas.style.color = (escovasVal || 0) > 0 ? '#4ade80' : '#94a3b8';
     }
     if (elCampea && campea) {
-      var isCurrent = !isNaN(currentId) && parseInt(campea.lojaId) === currentId;
-      elCampea.textContent = campea.lojaNome + ' — ' + _fmtEur(parseFloat(campea.escovasVendas));
+      var nomeC  = _getField(campea, ['lojaNome', 'loja_nome', 'nome', 'lojaNome', 'lojaName']);
+      var valC   = parseFloat(_getField(campea, ['escovasVendas', 'escova_vendas', 'escovas', 'escovasTotal', 'escovas_vendas']) || 0);
+      var idC    = parseInt(_getField(campea, ['lojaId', 'loja_id', 'id', 'lojaID']));
+      var isCurrent = !isNaN(currentId) && idC === currentId;
+      elCampea.textContent = (nomeC || '?') + ' — ' + _fmtEur(valC);
       elCampea.style.color = isCurrent ? '#4ade80' : '#fde68a';
     }
   }
