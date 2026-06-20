@@ -2047,7 +2047,7 @@ async function enforceSingleSecondOfDay(newId, date) {
   if (others.length > 0) renderAll();
 }
 
-async function _doSaveExecuted(id, executed, reason) {
+async function _doSaveExecuted(id, executed, reason, sadEmojis) {
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
   const prev = { executed: appointments[i].executed, not_done_reason: appointments[i].not_done_reason, glass_removed: appointments[i].glass_removed, glass_removed_date: appointments[i].glass_removed_date };
@@ -2059,7 +2059,8 @@ async function _doSaveExecuted(id, executed, reason) {
     appointments[i].glass_removed_date = null;
   }
   renderAll();
-  if (executed === true) fireRealizadoEmojis(); else if (executed === false) fireNaoRealizadoEmojis();
+  if (executed === true) { sadEmojis ? fireNaoRealizadoEmojis() : fireRealizadoEmojis(); }
+  else if (executed === false) fireNaoRealizadoEmojis();
   try {
     await window.apiClient.updateAppointment(id, { ...appointments[i], executed, not_done_reason: reason || null });
 
@@ -2096,6 +2097,14 @@ async function persistExecuted(id, executed) {
   }
   if (!executed) {
     openNotDoneModal(id);
+    return;
+  }
+  // Campanha interativa: mostrar popup com Sim/Não antes de gravar
+  if (window._showInteractiveCampaign) {
+    window._showInteractiveCampaign(
+      async function () { await _doSaveExecuted(id, true, null, false); },  // Sim → emojis alegres
+      async function () { await _doSaveExecuted(id, true, null, true); }    // Não → emojis tristes
+    );
     return;
   }
   await _doSaveExecuted(id, true, null);
