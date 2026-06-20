@@ -201,10 +201,17 @@
     try {
       const tok = localStorage.getItem('eg_auth_token');
       const portalId = window.portalConfig?.id || appt?.portal_id || null;
+      // Spread all existing appointment fields so the full-update PUT handler does not
+      // overwrite plate/car/status/date/etc. with nulls — then override only what changed.
       const res = await fetch('/.netlify/functions/appointments/' + _apptId, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) },
-        body: JSON.stringify({ notes: newNotes, damage_details: newDamageDetails, _portalId: portalId })
+        body: JSON.stringify({
+          ...(appt || { plate: _plate }),
+          notes: newNotes,
+          damage_details: newDamageDetails,
+          _portalId: portalId
+        })
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Erro ao guardar');
