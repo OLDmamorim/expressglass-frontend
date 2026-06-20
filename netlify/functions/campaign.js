@@ -21,6 +21,7 @@ async function ensureTable(client) {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  await client.query(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS display_hours TEXT`);
 }
 
 function verifyAdmin(event) {
@@ -66,7 +67,7 @@ exports.handler = async (event) => {
       // Public: active campaign for today (no auth required)
       const today = new Date().toISOString().slice(0, 10);
       const { rows } = await client.query(
-        `SELECT id, title, start_date, end_date, image_data
+        `SELECT id, title, start_date, end_date, image_data, display_hours
          FROM campaigns
          WHERE active = true AND start_date <= $1 AND end_date >= $1
          ORDER BY created_at DESC LIMIT 1`,
@@ -82,9 +83,9 @@ exports.handler = async (event) => {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'start_date e end_date são obrigatórios' }) };
       }
       const { rows } = await client.query(
-        `INSERT INTO campaigns (title, start_date, end_date, image_data, active)
-         VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-        [d.title || '', d.start_date, d.end_date, d.image_data || null, d.active !== false]
+        `INSERT INTO campaigns (title, start_date, end_date, image_data, active, display_hours)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+        [d.title || '', d.start_date, d.end_date, d.image_data || null, d.active !== false, d.display_hours || null]
       );
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, id: rows[0].id }) };
     }
@@ -97,13 +98,13 @@ exports.handler = async (event) => {
       const hasImage = d.image_data !== undefined;
       if (hasImage) {
         await client.query(
-          `UPDATE campaigns SET title=$1, start_date=$2, end_date=$3, active=$4, image_data=$5 WHERE id=$6`,
-          [d.title || '', d.start_date, d.end_date, d.active !== false, d.image_data, id]
+          `UPDATE campaigns SET title=$1, start_date=$2, end_date=$3, active=$4, image_data=$5, display_hours=$6 WHERE id=$7`,
+          [d.title || '', d.start_date, d.end_date, d.active !== false, d.image_data, d.display_hours || null, id]
         );
       } else {
         await client.query(
-          `UPDATE campaigns SET title=$1, start_date=$2, end_date=$3, active=$4 WHERE id=$5`,
-          [d.title || '', d.start_date, d.end_date, d.active !== false, id]
+          `UPDATE campaigns SET title=$1, start_date=$2, end_date=$3, active=$4, display_hours=$5 WHERE id=$6`,
+          [d.title || '', d.start_date, d.end_date, d.active !== false, d.display_hours || null, id]
         );
       }
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };

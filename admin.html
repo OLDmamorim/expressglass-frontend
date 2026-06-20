@@ -441,6 +441,10 @@
           <input type="file" id="campImageFile" accept="image/*" onchange="campAdmin.onImagePick(this)" style="font-size:13px;">
           <div id="campImagePreview" style="margin-top:10px;"></div>
         </div>
+        <div style="margin-bottom:14px;">
+          <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Horas de exibição <span style="font-weight:400;color:#94a3b8;font-size:12px;">(seleciona uma ou mais; sem seleção usa 9h, 14h e 17h)</span></label>
+          <div id="campHoursGrid" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
         <div style="display:flex;gap:10px;align-items:center;">
           <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
             <input type="checkbox" id="campActive" checked> Ativa
@@ -836,7 +840,21 @@
   <script>
   (function () {
     var _imageData = null;
+    var _selectedHours = [];
     var _AUTH = window.authClient;
+
+    var CAMP_HOURS = [7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+
+    function _renderHourChips() {
+      var el = document.getElementById('campHoursGrid');
+      if (!el) return;
+      el.innerHTML = CAMP_HOURS.map(function(h) {
+        var sel = _selectedHours.indexOf(h) >= 0;
+        return '<button type="button" onclick="campAdmin._toggleHour(' + h + ')" style="padding:5px 13px;border-radius:20px;border:1.5px solid ' +
+          (sel ? '#2563eb' : '#d1d5db') + ';background:' + (sel ? '#eff6ff' : '#fff') + ';cursor:pointer;font-size:13px;font-weight:' +
+          (sel ? '700' : '500') + ';color:' + (sel ? '#2563eb' : '#374151') + ';">' + h + 'h</button>';
+      }).join('');
+    }
 
     function _fmtDate(d) {
       if (!d) return '—';
@@ -887,7 +905,16 @@
         document.getElementById('campImageFile').value = '';
         document.getElementById('campSaveMsg').textContent = '';
         _imageData = null;
+        _selectedHours = [];
+        _renderHourChips();
         document.getElementById('campForm').style.display = 'block';
+      },
+
+      _toggleHour: function (h) {
+        var idx = _selectedHours.indexOf(h);
+        if (idx >= 0) _selectedHours.splice(idx, 1);
+        else _selectedHours.push(h);
+        _renderHourChips();
       },
 
       closeForm: function () {
@@ -931,7 +958,8 @@
           title: document.getElementById('campTitle').value.trim(),
           start_date: document.getElementById('campStart').value,
           end_date: document.getElementById('campEnd').value,
-          active: document.getElementById('campActive').checked
+          active: document.getElementById('campActive').checked,
+          display_hours: _selectedHours.length ? _selectedHours.slice().sort(function(a,b){return a-b;}).join(',') : null
         };
         if (!body.start_date || !body.end_date) {
           alert('Preenche as datas de início e fim.');
@@ -981,6 +1009,10 @@
             document.getElementById('campSaveMsg').textContent = '';
             document.getElementById('campImageFile').value = '';
             _imageData = null;
+            _selectedHours = c.display_hours
+              ? String(c.display_hours).split(',').map(function(h){return parseInt(h,10);}).filter(function(h){return !isNaN(h);})
+              : [];
+            _renderHourChips();
             var preview = document.getElementById('campImagePreview');
             if (c.image_data) {
               preview.innerHTML = '<img src="' + c.image_data + '" style="max-width:320px;max-height:200px;border-radius:8px;border:1px solid #e2e8f0;margin-top:4px;"><p style="font-size:12px;color:#64748b;margin:4px 0 0;">Carrega um novo ficheiro para substituir a imagem atual.</p>';
