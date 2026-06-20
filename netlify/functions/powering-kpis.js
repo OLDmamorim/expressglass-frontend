@@ -78,12 +78,16 @@ exports.handler = async (event) => {
         );
         lojaId = rows[0]?.powering_loja_id ?? null;
       }
-      const data = await fetchPowering(`/vendas-complementares?mes=${mes}&ano=${ano}`);
+      const raw = await fetchPowering(`/vendas-complementares?mes=${mes}&ano=${ano}`);
       // debug=1 devolve resposta raw para diagnosticar nomes de campos
       if (p.debug === '1') {
-        return { statusCode: 200, headers, body: JSON.stringify({ debug: true, lojaId, raw: data }) };
+        return { statusCode: 200, headers, body: JSON.stringify({ debug: true, lojaId, raw }) };
       }
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, mes, ano, lojaId, ...data }) };
+      // Normalizar: PoweringEG pode devolver array directo ou objecto com chave variável
+      const lista = Array.isArray(raw)
+        ? raw
+        : (raw.lojas || raw.resultados || raw.data || raw.items || raw.vendas || []);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, mes, ano, lojaId, lojas: lista }) };
     }
 
     const now = new Date();

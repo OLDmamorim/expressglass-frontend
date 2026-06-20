@@ -277,12 +277,10 @@
   }
 
   function fillBanner2(data) {
-    console.log('[PEG escovas] raw data:', JSON.stringify(data).slice(0, 500));
-
-    // Tentar vários nomes de array possíveis
-    var lista = data.lojas || data.resultados || data.data || data.vendas || data.items || [];
+    // Proxy normaliza sempre para data.lojas
+    var lista = data.lojas || [];
     if (!Array.isArray(lista)) lista = [];
-    console.log('[PEG escovas] lista length:', lista.length, lista[0]);
+    console.log('[PEG escovas] lojas:', lista.length, lista[0]);
 
     var currentId = parseInt(data.lojaId);
 
