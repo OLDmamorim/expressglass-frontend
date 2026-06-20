@@ -1,12 +1,6 @@
 (function () {
   'use strict';
 
-  var SLOTS = [
-    { h: 9,  m: 45, key: 'morning' },
-    { h: 14, m: 45, key: 'afternoon' },
-    { h: 16, m: 0,  key: 'special_1600', onlyDate: '2026-06-19' }
-  ];
-
   var _campaign = null;
 
   function _todayKey() {
@@ -52,9 +46,8 @@
   }
 
   function _scheduleSlot(slot) {
-    if (slot.onlyDate && _todayKey() !== slot.onlyDate) return;
     var now = new Date();
-    var fire = new Date(now.getFullYear(), now.getMonth(), now.getDate(), slot.h, slot.m, 0, 0);
+    var fire = new Date(now.getFullYear(), now.getMonth(), now.getDate(), slot.h, 0, 0, 0);
     var ms = fire - now;
 
     if (ms <= 0) {
@@ -74,18 +67,28 @@
     }, ms);
   }
 
+  function _buildSlots() {
+    var hours = null;
+    if (_campaign && _campaign.display_hours) {
+      var parsed = String(_campaign.display_hours).split(',')
+        .map(function (h) { return parseInt(h.trim(), 10); })
+        .filter(function (h) { return !isNaN(h) && h >= 0 && h <= 23; });
+      if (parsed.length > 0) hours = parsed;
+    }
+    // Default slots when no hours defined in campaign
+    if (!hours) hours = [9, 14, 17];
+    return hours.map(function (h) {
+      return { h: h, key: 'h' + h };
+    });
+  }
+
   function _init() {
     fetch('/.netlify/functions/campaign')
       .then(function (r) { return r.json(); })
       .then(function (d) {
         if (!d.success || !d.campaign) return;
         _campaign = d.campaign;
-        SLOTS.forEach(_scheduleSlot);
-        // Disparo imediato pontual (2026-06-19)
-        if (_todayKey() === '2026-06-19' && !_wasShown('special_immediate')) {
-          _markShown('special_immediate');
-          setTimeout(_showModal, 800);
-        }
+        _buildSlots().forEach(_scheduleSlot);
       })
       .catch(function () {});
   }
