@@ -64,23 +64,22 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ total: lojas.length, lojas }) };
     }
 
-    // Vendas complementares
+    // Vendas complementares — devolve TODAS as lojas + lojaId da loja atual
+    // O frontend usa lojaId para filtrar a loja corrente e calcular a campeã nacional
     if (p.action === 'vendas-complementares') {
       const now2 = new Date();
       const mes = parseInt(p.mes || now2.getMonth() + 1);
       const ano = parseInt(p.ano || now2.getFullYear());
-      let lojaIdFiltro = p.loja_id ? parseInt(p.loja_id) : null;
-      if (!lojaIdFiltro && p.portal_id) {
+      let lojaId = p.loja_id ? parseInt(p.loja_id) : null;
+      if (!lojaId && p.portal_id) {
         const { rows } = await pool.query(
           'SELECT powering_loja_id FROM portals WHERE id = $1 LIMIT 1',
           [parseInt(p.portal_id)]
         );
-        lojaIdFiltro = rows[0]?.powering_loja_id ?? null;
+        lojaId = rows[0]?.powering_loja_id ?? null;
       }
-      let path = `/vendas-complementares?mes=${mes}&ano=${ano}`;
-      if (lojaIdFiltro) path += `&lojaId=${lojaIdFiltro}`;
-      const data = await fetchPowering(path);
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, mes, ano, ...data }) };
+      const data = await fetchPowering(`/vendas-complementares?mes=${mes}&ano=${ano}`);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, mes, ano, lojaId, ...data }) };
     }
 
     const now = new Date();
