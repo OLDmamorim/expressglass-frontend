@@ -549,7 +549,7 @@ function _rwRenderComparison(dataA, dataB) {
     (m.better ? m.vA > m.vB : m.vA < m.vB) ? winsA++ : winsB++;
   });
 
-  // 5-column: [icon+label | value A | split bar | value B | Melhor/Neutro]
+  // 4-column: [icon+label | value A | split bar | value B]
   function compTable(rows, sectionTitle, hasA = true, hasB = true) {
     const rowsHtml = rows.map((r, i) => {
       const aWins = r.better !== null && r.vA !== r.vB && (r.better ? r.vA > r.vB : r.vA < r.vB);
@@ -557,12 +557,8 @@ function _rwRenderComparison(dataA, dataB) {
       const sum = r.vA + r.vB;
       const pctA = sum > 0 ? Math.round((r.vA / sum) * 100) : 50;
       const pctB = 100 - pctA;
-      const neutral = r.better === null || r.vA === r.vB;
-      const badge = neutral
-        ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#94a3b8;background:#f1f5f9;padding:4px 11px;border-radius:20px;">⊝ Neutro</span>`
-        : `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#16a34a;background:#dcfce7;padding:4px 11px;border-radius:20px;">🏆 Melhor</span>`;
       return `
-        <div style="display:grid;grid-template-columns:200px 120px 1fr 120px 110px;align-items:center;border-bottom:1px solid #f1f5f9;${i%2===1?'background:#fafbfc;':''}">
+        <div style="display:grid;grid-template-columns:200px 120px 1fr 120px;align-items:center;border-bottom:1px solid #f1f5f9;${i%2===1?'background:#fafbfc;':''}">
           <div style="padding:14px 16px;display:flex;align-items:center;gap:10px;">
             <span style="font-size:18px;">${r.icon}</span>
             <span style="font-size:13px;font-weight:600;color:#374151;">${r.label}</span>
@@ -579,7 +575,6 @@ function _rwRenderComparison(dataA, dataB) {
           <div style="padding:14px 12px;">
             <span style="font-size:${bWins?'20':'17'}px;font-weight:${bWins?'800':'600'};color:${PURPLE};${aWins&&!bWins?'opacity:.5;':''}">${hasB ? r.fmt(r.vB) : '—'}</span>
           </div>
-          <div style="padding:14px 10px;text-align:center;">${badge}</div>
         </div>`;
     }).join('');
 
@@ -589,12 +584,11 @@ function _rwRenderComparison(dataA, dataB) {
           <span style="font-size:15px;">${sectionTitle.match(/^\S+/)[0]}</span>
           <span style="font-size:11px;font-weight:800;color:#1e293b;text-transform:uppercase;letter-spacing:.08em;">${sectionTitle.replace(/^\S+\s*/, '')}</span>
         </div>` : ''}
-        <div style="display:grid;grid-template-columns:200px 120px 1fr 120px 110px;background:#f8fafc;border-bottom:2px solid #e2e8f0;">
+        <div style="display:grid;grid-template-columns:200px 120px 1fr 120px;background:#f8fafc;border-bottom:2px solid #e2e8f0;">
           <div style="padding:9px 16px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;"></div>
           <div style="padding:9px 12px;font-size:12px;font-weight:800;color:${BLUE};text-align:right;">${nameA}</div>
           <div style="padding:9px 20px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;text-align:center;">Comparação</div>
           <div style="padding:9px 12px;font-size:12px;font-weight:800;color:${PURPLE};">${nameB}</div>
-          <div style="padding:9px 10px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.07em;text-align:center;">Melhor</div>
         </div>
         ${rowsHtml}
       </div>`;
