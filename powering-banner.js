@@ -217,18 +217,126 @@
     const sel = document.getElementById('portalSwitcherSelect');
     if (!sel || sel._pegListenerAttached) return;
     sel._pegListenerAttached = true;
-    sel.addEventListener('change', rebuildBanner);
+    sel.addEventListener('change', () => { rebuildBanner(); rebuildBanner2(); });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // BANNER 2 — Escovas da loja actual + Campeã nacional
+  // ═══════════════════════════════════════════════════════════════════════
+  const BANNER2_ID = 'poweringEGEscovasBanner';
+
+  async function fetchVendasCompl(portalId) {
+    const { mes, ano } = getMonthMeta();
+    const r = await window.authClient.authenticatedFetch(
+      `/.netlify/functions/powering-kpis?action=vendas-complementares&portal_id=${portalId}&mes=${mes}&ano=${ano}`
+    );
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'sem dados complementares');
+    return d;
+  }
+
+  function buildBanner2Shell() {
+    const el = document.createElement('div');
+    el.id = BANNER2_ID;
+    el.style.cssText = [
+      'background:#0b1e38',
+      'border-left:4px solid #f59e0b',
+      'border-top:1px solid #1e3a5f',
+      'padding:8px 16px',
+      'font-family:Figtree,system-ui,sans-serif',
+      'display:flex',
+      'align-items:center',
+    ].join(';');
+    el.innerHTML =
+      '<div style="flex:1;display:flex;align-items:center;gap:10px;">' +
+        '<div>' +
+          '<div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🧹 Escovas este mês</div>' +
+          '<div id="peg2Escovas" style="font-size:21px;font-weight:900;color:#94a3b8;font-variant-numeric:tabular-nums;line-height:1;">—</div>' +
+        '</div>' +
+      '</div>' +
+      '<div style="flex:1;display:flex;align-items:center;gap:10px;border-left:1px solid #1e3a5f;padding-left:16px;min-width:0;">' +
+        '<div style="min-width:0;">' +
+          '<div style="font-size:9px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🏆 Loja campeã de vendas</div>' +
+          '<div id="peg2Campea" style="font-size:14px;font-weight:800;color:#fde68a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;">—</div>' +
+        '</div>' +
+      '</div>';
+    return el;
+  }
+
+  var _fmtEur = function(v) {
+    return (v != null && !isNaN(v))
+      ? new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v)
+      : '—';
+  };
+
+  function fillBanner2(data) {
+    var lista = data.lojas || data.resultados || data.data || [];
+    var currentId = parseInt(data.lojaId);
+
+    var lojaAtual = lista.find(function(l) { return parseInt(l.lojaId) === currentId; }) || {};
+    var escovasVal = lojaAtual.escovasVendas != null ? parseFloat(lojaAtual.escovasVendas) : null;
+
+    var campea = lista.reduce(function(best, l) {
+      if (!best) return l;
+      return (parseFloat(l.escovasVendas) || 0) > (parseFloat(best.escovasVendas) || 0) ? l : best;
+    }, null);
+
+    var elEscovas = document.getElementById('peg2Escovas');
+    var elCampea  = document.getElementById('peg2Campea');
+
+    if (elEscovas) {
+      elEscovas.textContent = _fmtEur(escovasVal);
+      elEscovas.style.color = (escovasVal || 0) > 0 ? '#4ade80' : '#94a3b8';
+    }
+    if (elCampea && campea) {
+      var isCurrent = !isNaN(currentId) && parseInt(campea.lojaId) === currentId;
+      elCampea.textContent = campea.lojaNome + ' — ' + _fmtEur(parseFloat(campea.escovasVendas));
+      elCampea.style.color = isCurrent ? '#4ade80' : '#fde68a';
+    }
+  }
+
+  function insertBanner2(el) {
+    var b1 = document.getElementById(BANNER_ID);
+    if (b1) {
+      b1.insertAdjacentElement('afterend', el);
+    } else {
+      insertBanner(el);
+    }
+  }
+
+  async function initBanner2() {
+    if (document.getElementById(BANNER2_ID)) return;
+    if (!window.authClient?.getUser?.()) return;
+    var { portalId } = getActivePortal();
+    if (!portalId) return;
+
+    var shell = buildBanner2Shell();
+    insertBanner2(shell);
+
+    try {
+      var data = await fetchVendasCompl(portalId);
+      fillBanner2(data);
+    } catch (e) {
+      console.warn('[PoweringEG escovas]', e.message);
+    }
+  }
+
+  function rebuildBanner2() {
+    document.getElementById(BANNER2_ID)?.remove();
+    setTimeout(() => initBanner2().catch(() => {}), 150);
   }
 
   // ── Triggers (sem guard de role — corre para todos) ───────────────────
   initBanner().catch(() => {});
-  window.addEventListener('portalReady',   () => {
+  initBanner2().catch(() => {});
+  window.addEventListener('portalReady', () => {
     attachSwitcherListener();
     initBanner().catch(() => {});
+    initBanner2().catch(() => {});
   });
-  window.addEventListener('portalChanged', rebuildBanner);
-  setTimeout(() => { attachSwitcherListener(); initBanner().catch(() => {}); }, 900);
-  setTimeout(() => { attachSwitcherListener(); initBanner().catch(() => {}); }, 2500);
-  setTimeout(() => { attachSwitcherListener(); initBanner().catch(() => {}); }, 4000);
+  window.addEventListener('portalChanged', () => { rebuildBanner(); rebuildBanner2(); });
+  setTimeout(() => { attachSwitcherListener(); initBanner().catch(() => {}); initBanner2().catch(() => {}); }, 900);
+  setTimeout(() => { attachSwitcherListener(); initBanner().catch(() => {}); initBanner2().catch(() => {}); }, 2500);
+  setTimeout(() => { attachSwitcherListener(); initBanner().catch(() => {}); initBanner2().catch(() => {}); }, 4000);
 
 })();
