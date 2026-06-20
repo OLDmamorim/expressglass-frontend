@@ -26,8 +26,12 @@ function fetchPowering(path) {
         let data = '';
         res.on('data', c => data += c);
         res.on('end', () => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`PoweringEG HTTP ${res.statusCode}: ${data.slice(0, 120)}`));
+            return;
+          }
           try { resolve(JSON.parse(data)); }
-          catch(e) { reject(new Error('Resposta inválida do PoweringEG')); }
+          catch(e) { reject(new Error(`Resposta inválida: ${data.slice(0, 80)}`)); }
         });
       }
     );
