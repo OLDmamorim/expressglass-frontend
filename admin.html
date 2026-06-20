@@ -902,7 +902,9 @@
                   ? '<span style="background:#fef9c3;color:#854d0e;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;">Agendada</span>'
                   : '<span style="background:#f1f5f9;color:#94a3b8;font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;">Inativa</span>');
               return '<tr><td>' + (c.title || '—') + '</td><td>' + _fmtDate(c.start_date) + '</td><td>' + _fmtDate(c.end_date) + '</td><td>' + badge + '</td>' +
-                '<td style="white-space:nowrap;"><button onclick="campAdmin.edit(' + c.id + ')" style="background:#1e40af;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px;">Editar</button>' +
+                '<td style="white-space:nowrap;">' +
+                '<button onclick="campAdmin.preview(' + c.id + ')" style="background:#7c3aed;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px;">▶ Pré-visualizar</button>' +
+                '<button onclick="campAdmin.edit(' + c.id + ')" style="background:#1e40af;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px;">Editar</button>' +
                 '<button onclick="campAdmin.del(' + c.id + ')" style="background:#dc2626;color:#fff;border:none;padding:5px 12px;border-radius:6px;font-size:12px;cursor:pointer;">Eliminar</button></td></tr>';
             }).join('') +
           '</tbody></table>';
@@ -1057,6 +1059,54 @@
               preview.innerHTML = '';
             }
             document.getElementById('campForm').style.display = 'block';
+          })
+          .catch(function (e) { alert('Erro: ' + e.message); });
+      },
+
+      preview: function (id) {
+        _AUTH.authenticatedFetch('/.netlify/functions/campaign?id=' + id)
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.success || !d.campaign || !d.campaign.image_data) {
+              alert('Esta campanha não tem imagem definida.');
+              return;
+            }
+            var camp = d.campaign;
+            var secs = 5;
+            var toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:12px 28px;border-radius:12px;font-size:14px;font-weight:700;z-index:99998;pointer-events:none;';
+            toast.textContent = 'A abrir pré-visualização em ' + secs + 's…';
+            document.body.appendChild(toast);
+            var iv = setInterval(function () {
+              secs--;
+              if (secs > 0) { toast.textContent = 'A abrir pré-visualização em ' + secs + 's…'; }
+              else {
+                clearInterval(iv);
+                toast.remove();
+                var modal = document.getElementById('campPreviewModal');
+                if (!modal) {
+                  modal = document.createElement('div');
+                  modal.id = 'campPreviewModal';
+                  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.78);padding:16px;box-sizing:border-box;';
+                  document.body.appendChild(modal);
+                  modal.addEventListener('click', function (e) { if (e.target === modal) modal.style.display = 'none'; });
+                }
+                var close = 'document.getElementById(\'campPreviewModal\').style.display=\'none\'';
+                if (camp.campaign_type === 'interativa') {
+                  modal.innerHTML = '<div style="position:relative;max-width:540px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.7);background:#fff;">' +
+                    '<img src="' + camp.image_data + '" alt="Campanha" style="width:100%;display:block;max-height:60vh;object-fit:contain;background:#000;">' +
+                    '<div style="padding:18px 20px;display:flex;gap:12px;">' +
+                      '<button onclick="' + close + '" style="flex:1;background:#16a34a;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;">👍 Sim</button>' +
+                      '<button onclick="' + close + '" style="flex:1;background:#dc2626;color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:800;cursor:pointer;">👎 Não</button>' +
+                    '</div></div>';
+                } else {
+                  modal.innerHTML = '<div style="position:relative;max-width:640px;width:100%;border-radius:16px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.7);">' +
+                    '<button onclick="' + close + '" style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(0,0,0,0.55);color:#fff;border:none;width:34px;height:34px;border-radius:50%;font-size:19px;line-height:34px;text-align:center;cursor:pointer;font-weight:700;">✕</button>' +
+                    '<img src="' + camp.image_data + '" alt="Campanha" style="width:100%;display:block;max-height:88vh;object-fit:contain;background:#000;"></div>';
+                }
+                modal.style.display = 'flex';
+              }
+            }, 1000);
           })
           .catch(function (e) { alert('Erro: ' + e.message); });
       },
