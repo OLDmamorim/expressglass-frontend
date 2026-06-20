@@ -127,6 +127,10 @@ exports.handler = async (event) => {
          WHEN POSITION(${idx}::text IN ${col}) > 0 THEN ${col}
          ELSE ${col} || ' | ' || ${idx}::text END`;
 
+    // Set de matrículas em inserção para evitar duplicados em processamento concorrente.
+    // JavaScript é single-thread: o check+add é atómico antes de qualquer await.
+    const _inserting = new Set();
+
     async function processService(svc) {
       const plateNorm = norm(svc.plate);
       if (!plateNorm) { results.errors++; return; }
@@ -134,6 +138,9 @@ exports.handler = async (event) => {
       try {
         // Priorizar match por n_obra; fallback para plate
         const existing = (svc.n_obra && existingByNObra.get(String(svc.n_obra))) || existingByPlate.get(plateNorm);
+
+        // Outra tarefa concorrente já está a inserir esta matrícula → ignorar
+        if (!existing && _inserting.has(plateNorm)) { results.skipped++; return; }
 
         if (existing) {
           // Já agendado — atualizar dados e data se necessário
@@ -162,25 +169,35 @@ exports.handler = async (event) => {
           }
           results.updated++;
         } else {
-          // Não existe → criar
-          await pool.query(
-            `INSERT INTO appointments (
-               date, period, plate, car, service, locality, status,
-               notes, extra, phone, client_name, n_obra, km, sortIndex, "glassOrdered",
-               auto_imported, confirmed, portal_id, created_at, updated_at,
-               order_ref, reception_ref
-             ) VALUES ($1,$2,$3,$4,$5,null,$6,$7,$8,$9,$10,$11,null,1,false,$12,false,$13,$14,$15,$16,$17)`,
-            [
-              svc.date||null, svc.period||null,
-              String(svc.plate).trim(), svc.car||null, svc.service||null,
-              svc.status||'NE', svc.notes||null, svc.extra||null, svc.phone||null,
-              svc.client_name||null, svc.n_obra||null,
-              !!svc.date, portal_id,
-              svc.createdAt||now, now,
-              normalizeOrderRef(svc.order_ref), normalizeReceptionRef(svc.reception_ref)
-            ]
-          );
-          results.created++;
+          // Marcar como em inserção antes do await — atómico no event loop JS
+          _inserting.add(plateNorm);
+          try {
+            const insertResult = await pool.query(
+              `INSERT INTO appointments (
+                 date, period, plate, car, service, locality, status,
+                 notes, extra, phone, client_name, n_obra, km, sortIndex, "glassOrdered",
+                 auto_imported, confirmed, portal_id, created_at, updated_at,
+                 order_ref, reception_ref
+               ) VALUES ($1,$2,$3,$4,$5,null,$6,$7,$8,$9,$10,$11,null,1,false,$12,false,$13,$14,$15,$16,$17)
+               RETURNING id`,
+              [
+                svc.date||null, svc.period||null,
+                String(svc.plate).trim(), svc.car||null, svc.service||null,
+                svc.status||'NE', svc.notes||null, svc.extra||null, svc.phone||null,
+                svc.client_name||null, svc.n_obra||null,
+                !!svc.date, portal_id,
+                svc.createdAt||now, now,
+                normalizeOrderRef(svc.order_ref), normalizeReceptionRef(svc.reception_ref)
+              ]
+            );
+            // Atualizar mapas para que tarefas posteriores no mesmo batch não dupliquem
+            const newId = insertResult.rows?.[0]?.id;
+            existingByPlate.set(plateNorm, { id: newId, date: null });
+            if (svc.n_obra) existingByNObra.set(String(svc.n_obra), { id: newId, date: null, n_obra: svc.n_obra, plate_norm: plateNorm });
+            results.created++;
+          } finally {
+            _inserting.delete(plateNorm);
+          }
         }
 
         // Sincronizar car e n_obra no mural mycar_services se a matrícula constar
