@@ -1768,8 +1768,17 @@ async function load(){
       if (a.extra && typeof a.extra === 'string') {
         try { _extraObj = JSON.parse(a.extra); } catch(e) { _extraObj = null; }
       }
+      // Clean notes: if it accidentally contains the extra JSON, clear it
+      let _notes = a.notes || '';
+      if (_notes.trim().startsWith('{') && _notes.trim().endsWith('}')) {
+        try {
+          const _nObj = JSON.parse(_notes.trim());
+          if ('eurocode' in _nObj || 'photo_url' in _nObj || 'history' in _nObj) _notes = '';
+        } catch(e) {}
+      }
       return {
         ...a,
+        notes: _notes,
         address: a.address || a.morada || a.addr || null,
         createdAt: a.createdAt || a.created_at || null,
         extra_services: extras,
