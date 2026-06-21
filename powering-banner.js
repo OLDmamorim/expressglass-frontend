@@ -329,27 +329,32 @@
 
   async function initBanner2() {
     if (document.getElementById(BANNER2_ID)) return;
-    if (!window.authClient?.getUser?.()) return;
-    var { portalId } = getActivePortal();
-    if (!portalId) return;
 
     var shell = buildBanner2Shell();
     insertBanner2(shell);
+
+    function _dbg(msg, cor) {
+      var e1 = document.getElementById('peg2Escovas');
+      var e2 = document.getElementById('peg2Campea');
+      if (e1) { e1.textContent = '⚠'; e1.style.color = cor || '#f87171'; e1.style.fontSize = '16px'; }
+      if (e2) { e2.textContent = String(msg).slice(0, 80); e2.style.color = cor || '#f87171'; e2.style.fontSize = '12px'; e2.style.fontWeight = '700'; e2.style.whiteSpace = 'normal'; }
+    }
+
+    if (!window.authClient) { _dbg('authClient indisponível'); return; }
+    if (!window.authClient.getUser?.()) { _dbg('sem utilizador autenticado'); return; }
+    var { portalId } = getActivePortal();
+    if (!portalId) { _dbg('portalId null'); return; }
 
     try {
       var data = await fetchVendasCompl(portalId);
       var lista = data.lojas || [];
       if (lista.length === 0) {
-        // Diagnóstico visível: API respondeu mas sem lojas
-        var elDbg = document.getElementById('peg2Campea');
-        if (elDbg) { elDbg.textContent = 'API OK — 0 lojas (ver debug=1)'; elDbg.style.color = '#fb923c'; elDbg.style.fontSize = '10px'; }
+        _dbg('API OK — 0 lojas devolvidas', '#fb923c');
+        return;
       }
       fillBanner2(data);
     } catch (e) {
-      console.warn('[PoweringEG escovas]', e.message);
-      // Mostrar erro no banner para diagnóstico sem consola
-      var elErr = document.getElementById('peg2Campea');
-      if (elErr) { elErr.textContent = e.message.slice(0, 60); elErr.style.color = '#f87171'; elErr.style.fontSize = '10px'; }
+      _dbg(e.message);
     }
   }
 
