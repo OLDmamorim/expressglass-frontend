@@ -348,14 +348,24 @@ function renderAll(){
 window.reloadAppointments = async function() {
   try {
     const raw = await window.apiClient.getAppointments();
-    appointments = raw.map(a => ({
-      ...a,
-      date: a.date ? String(a.date).slice(0,10) : null,
-      address: a.address || a.morada || a.addr || null,
-      sortIndex: a.sortIndex || a.sortindex || 1,
-      id: a.id ?? (Date.now() + Math.random()),
-      createdAt: a.createdAt || a.created_at || null
-    }));
+    appointments = raw.map(a => {
+      var _notes = a.notes || '';
+      if (_notes) {
+        var _nt = _notes.trim();
+        if (_nt.startsWith('{') && _nt.endsWith('}')) {
+          try { var _no = JSON.parse(_nt); if ('eurocode' in _no || 'photo_url' in _no || 'history' in _no) _notes = ''; } catch(e) {}
+        }
+      }
+      return {
+        ...a,
+        notes: _notes || null,
+        date: a.date ? String(a.date).slice(0,10) : null,
+        address: a.address || a.morada || a.addr || null,
+        sortIndex: a.sortIndex || a.sortindex || 1,
+        id: a.id ?? (Date.now() + Math.random()),
+        createdAt: a.createdAt || a.created_at || null
+      };
+    });
     // Recarregar dias bloqueados do portal ativo (pode ter mudado ao trocar portal)
     if (typeof loadBlockedDays === 'function') {
       try { await loadBlockedDays(); } catch(e) { console.warn('loadBlockedDays:', e); }
@@ -1396,13 +1406,11 @@ function bootApp() {
        
         // Re-fetch completo e redesenha
         appointments = await window.apiClient.getAppointments();
-        appointments = appointments.map(a => ({
-          ...a,
-          date: a.date ? String(a.date).slice(0, 10) : null,
-          address: a.address || a.morada || a.addr || null,
-          sortIndex: a.sortIndex || 1,
-          id: a.id ?? (Date.now() + Math.random())
-        }));
+        appointments = appointments.map(a => {
+          var _n = (a.notes || '').trim();
+          if (_n.startsWith('{') && _n.endsWith('}')) { try { var _o = JSON.parse(_n); if ('eurocode' in _o || 'photo_url' in _o || 'history' in _o) a = { ...a, notes: null }; } catch(e) {} }
+          return { ...a, date: a.date ? String(a.date).slice(0, 10) : null, address: a.address || a.morada || a.addr || null, sortIndex: a.sortIndex || 1, id: a.id ?? (Date.now() + Math.random()) };
+        });
         // Fallback: se o novo serviço ainda não chegou na re-fetch, adicionar manualmente
         const createdId = created?.id;
         if (createdId && !appointments.find(a => String(a.id) === String(createdId))) {
