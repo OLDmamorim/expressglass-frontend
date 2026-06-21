@@ -256,8 +256,8 @@
       '</div>' +
       '<div style="flex:1;display:flex;align-items:center;gap:10px;border-left:1px solid #1e3a5f;padding-left:14px;min-width:0;">' +
         '<div style="min-width:0;width:100%;">' +
-          '<div style="font-size:11px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🏆 Loja campeã de vendas</div>' +
-          '<div id="peg2Campea" style="font-size:13px;font-weight:800;color:#fde68a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;">—</div>' +
+          '<div style="font-size:11px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🏆 Campeã de vendas</div>' +
+          '<div id="peg2Campea" style="font-size:13px;font-weight:800;color:#fde68a;white-space:normal;word-break:break-word;line-height:1.2;">—</div>' +
         '</div>' +
       '</div>';
     return el;
