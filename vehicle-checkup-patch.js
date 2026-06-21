@@ -68,7 +68,7 @@
            style="border:2px ${has ? 'solid #16a34a' : 'dashed #cbd5e1'};border-radius:10px;padding:12px;text-align:center;cursor:pointer;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:${has ? '#f0fdf4' : '#f8fafc'};">
         <div style="font-size:28px;">${has ? '✅' : '📷'}</div>
         <div style="font-size:12px;font-weight:700;color:${has ? '#16a34a' : '#64748b'};">${label}</div>
-        <input type="file" id="vcFileInput${i}" accept="image/*" capture="environment" style="display:none;" onchange="window._vcOnPhoto(${i},this)">
+        <input type="file" id="vcFileInput${i}" accept="image/*" style="display:none;" onchange="window._vcOnPhoto(${i},this)">
       </div>`;
     }).join('');
     const btn = document.getElementById('vcAnalyzeBtn');
@@ -186,14 +186,8 @@
 
     if (!selected.length) { window._vcClose(); return; }
 
-    const today = new Date().toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    const lines = selected.map(d => `• ${d.description} (${d.angle})`).join('\n');
-    const prefix = `[Check-up ${today}]\n${lines}`;
-
     const appts = window.appointments || [];
     const appt = appts.find(a => String(a.id) === String(_apptId));
-    const existing = appt?.notes || '';
-    const newNotes = existing ? prefix + '\n\n' + existing : prefix;
     const newDamageDetails = selected.map(d => d.description).join('; ');
 
     document.getElementById('vcBody').innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A guardar…</p>`;
@@ -208,7 +202,6 @@
         headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) },
         body: JSON.stringify({
           ...(appt || { plate: _plate }),
-          notes: newNotes,
           damage_details: newDamageDetails,
           _portalId: portalId
         })
@@ -216,7 +209,7 @@
       const json = await res.json();
       if (!json.success) throw new Error(json.error || 'Erro ao guardar');
 
-      if (appt) { appt.notes = newNotes; appt.damage_details = newDamageDetails; }
+      if (appt) { appt.damage_details = newDamageDetails; }
       if (typeof renderAll === 'function') renderAll();
 
       document.getElementById('vcBody').innerHTML = `
