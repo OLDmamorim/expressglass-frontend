@@ -1770,12 +1770,7 @@ async function load(){
       }
       // Clean notes: if it accidentally contains the extra JSON, clear it
       let _notes = a.notes || '';
-      if (_notes.trim().startsWith('{') && _notes.trim().endsWith('}')) {
-        try {
-          const _nObj = JSON.parse(_notes.trim());
-          if ('eurocode' in _nObj || 'photo_url' in _nObj || 'history' in _nObj) _notes = '';
-        } catch(e) {}
-      }
+      if (_notes.includes('"eurocode":') || _notes.includes('"photo_url":') || _notes.includes('"history":')) _notes = '';
       return {
         ...a,
         notes: _notes,
