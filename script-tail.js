@@ -1002,6 +1002,13 @@ async function _silentRefreshAppointments() {
       if (a.sortIndex === null || a.sortIndex === undefined) {
         a.sortIndex = (a.sortindex !== null && a.sortindex !== undefined) ? a.sortindex : 1;
       }
+      // Clean notes if it accidentally contains extra JSON (eurocode/photo_url/history)
+      if (a.notes) {
+        var _nt = a.notes.trim();
+        if (_nt.startsWith('{') && _nt.endsWith('}')) {
+          try { var _no = JSON.parse(_nt); if ('eurocode' in _no || 'photo_url' in _no || 'history' in _no) a.notes = ''; } catch(e) {}
+        }
+      }
     });
     // Replace the module-level appointments array in-place so renderAll() picks it up
     appointments.length = 0;
