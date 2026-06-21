@@ -345,7 +345,12 @@
         if (elDbg) { elDbg.textContent = 'API OK — 0 lojas'; elDbg.style.color = '#fb923c'; elDbg.style.fontSize = '12px'; elDbg.style.fontWeight = '700'; }
         return;
       }
-      fillBanner2(data);
+      // DEBUG: mostrar keys do 1.º item para identificar nomes de campos
+      var el1d = document.getElementById('peg2Escovas');
+      var el2d = document.getElementById('peg2Campea');
+      var item0 = lista[0] || {};
+      if (el1d) { el1d.textContent = lista.length + ' lojas'; el1d.style.color = '#4ade80'; el1d.style.fontSize = '11px'; }
+      if (el2d) { el2d.textContent = JSON.stringify(item0).slice(0, 120); el2d.style.color = '#fde68a'; el2d.style.fontSize = '10px'; el2d.style.whiteSpace = 'normal'; el2d.style.wordBreak = 'break-all'; }
     } catch (e) {
       var el1 = document.getElementById('peg2Escovas');
       var el2 = document.getElementById('peg2Campea');
