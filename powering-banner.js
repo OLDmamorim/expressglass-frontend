@@ -250,7 +250,7 @@
     el.innerHTML =
       '<div style="flex:0 0 auto;display:flex;align-items:center;gap:10px;padding-right:14px;">' +
         '<div>' +
-          '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🧹 Escovas este mês</div>' +
+          '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">💰 Vendas complementares</div>' +
           '<div id="peg2Escovas" style="font-size:21px;font-weight:900;color:#94a3b8;font-variant-numeric:tabular-nums;line-height:1;">—</div>' +
         '</div>' +
       '</div>' +
@@ -269,9 +269,8 @@
       : '—';
   };
 
-  // escovas.vendas é um objecto aninhado: {vendas: €, quantidade: N, percentagem: %}
-  function _escovasVendas(l) {
-    return l && l.escovas && l.escovas.vendas != null ? parseFloat(l.escovas.vendas) : 0;
+  function _totalVendas(l) {
+    return l && l.totalVendas != null ? parseFloat(l.totalVendas) : 0;
   }
 
   function fillBanner2(data) {
@@ -280,23 +279,22 @@
 
     var currentId = parseInt(data.lojaId);
     var lojaAtual = lista.find(function(l) { return parseInt(l.lojaId) === currentId; }) || {};
-    var escovasVal = lojaAtual.escovas && lojaAtual.escovas.vendas != null
-      ? parseFloat(lojaAtual.escovas.vendas) : null;
+    var totalVal = lojaAtual.totalVendas != null ? parseFloat(lojaAtual.totalVendas) : null;
 
     var campea = lista.reduce(function(best, l) {
-      return _escovasVendas(l) > _escovasVendas(best) ? l : best;
+      return _totalVendas(l) > _totalVendas(best) ? l : best;
     }, lista[0] || null);
 
     var elEscovas = document.getElementById('peg2Escovas');
     var elCampea  = document.getElementById('peg2Campea');
 
     if (elEscovas) {
-      elEscovas.textContent = _fmtEur(escovasVal);
-      elEscovas.style.color = (escovasVal || 0) > 0 ? '#4ade80' : '#94a3b8';
+      elEscovas.textContent = _fmtEur(totalVal);
+      elEscovas.style.color = (totalVal || 0) > 0 ? '#4ade80' : '#94a3b8';
     }
     if (elCampea && campea) {
       var isCurrent = !isNaN(currentId) && parseInt(campea.lojaId) === currentId;
-      elCampea.textContent = (campea.lojaNome || '?') + ' — ' + _fmtEur(_escovasVendas(campea));
+      elCampea.textContent = (campea.lojaNome || '?') + ' — ' + _fmtEur(_totalVendas(campea));
       elCampea.style.color = isCurrent ? '#4ade80' : '#fde68a';
     }
   }
