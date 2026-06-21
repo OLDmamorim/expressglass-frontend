@@ -350,12 +350,7 @@ window.reloadAppointments = async function() {
     const raw = await window.apiClient.getAppointments();
     appointments = raw.map(a => {
       var _notes = a.notes || '';
-      if (_notes) {
-        var _nt = _notes.trim();
-        if (_nt.startsWith('{') && _nt.endsWith('}')) {
-          try { var _no = JSON.parse(_nt); if ('eurocode' in _no || 'photo_url' in _no || 'history' in _no) _notes = ''; } catch(e) {}
-        }
-      }
+      if (_notes && (_notes.includes('"eurocode":') || _notes.includes('"photo_url":') || _notes.includes('"history":'))) _notes = '';
       return {
         ...a,
         notes: _notes || null,
@@ -1013,12 +1008,7 @@ async function _silentRefreshAppointments() {
         a.sortIndex = (a.sortindex !== null && a.sortindex !== undefined) ? a.sortindex : 1;
       }
       // Clean notes if it accidentally contains extra JSON (eurocode/photo_url/history)
-      if (a.notes) {
-        var _nt = a.notes.trim();
-        if (_nt.startsWith('{') && _nt.endsWith('}')) {
-          try { var _no = JSON.parse(_nt); if ('eurocode' in _no || 'photo_url' in _no || 'history' in _no) a.notes = ''; } catch(e) {}
-        }
-      }
+      if (a.notes && (a.notes.includes('"eurocode":') || a.notes.includes('"photo_url":') || a.notes.includes('"history":'))) a.notes = '';
     });
     // Replace the module-level appointments array in-place so renderAll() picks it up
     appointments.length = 0;
@@ -1407,8 +1397,8 @@ function bootApp() {
         // Re-fetch completo e redesenha
         appointments = await window.apiClient.getAppointments();
         appointments = appointments.map(a => {
-          var _n = (a.notes || '').trim();
-          if (_n.startsWith('{') && _n.endsWith('}')) { try { var _o = JSON.parse(_n); if ('eurocode' in _o || 'photo_url' in _o || 'history' in _o) a = { ...a, notes: null }; } catch(e) {} }
+          var _n = a.notes || '';
+          if (_n && (_n.includes('"eurocode":') || _n.includes('"photo_url":') || _n.includes('"history":'))) a = { ...a, notes: null };
           return { ...a, date: a.date ? String(a.date).slice(0, 10) : null, address: a.address || a.morada || a.addr || null, sortIndex: a.sortIndex || 1, id: a.id ?? (Date.now() + Math.random()) };
         });
         // Fallback: se o novo serviço ainda não chegou na re-fetch, adicionar manualmente

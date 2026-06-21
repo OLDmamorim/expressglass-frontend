@@ -229,12 +229,10 @@ exports.handler = async (event) => {
       const { rows } = await pool.query(q, [portalId]);
 
       // Fire-and-forget: clean notes that accidentally contain extra JSON (eurocode/photo_url/history)
-      // Uses TRIM + regex to be resilient to leading/trailing whitespace/newlines
       pool.query(
         `UPDATE appointments SET notes = NULL
          WHERE portal_id = $1
            AND notes IS NOT NULL
-           AND TRIM(notes) ~ '^\\{.*\\}$'
            AND notes LIKE '%"eurocode":%'`,
         [portalId]
       ).catch(() => {});
@@ -376,10 +374,7 @@ exports.handler = async (event) => {
         (function() {
           const n = data.notes || null;
           if (!n) return n;
-          const t = n.trim();
-          if (t.startsWith('{') && t.endsWith('}')) {
-            try { const o = JSON.parse(t); if ('eurocode' in o || 'photo_url' in o || 'history' in o) return null; } catch(e) {}
-          }
+          if (n.includes('"eurocode":') || n.includes('"photo_url":') || n.includes('"history":')) return null;
           return n;
         })(),
         data.address || null, data.extra || null,
