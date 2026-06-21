@@ -265,39 +265,37 @@
     });
   }
 
-  // ── Hook renderAll ────────────────────────────────────────────────────────
-  function hookRenderAll() {
-    const orig = window.renderAll;
-    if (typeof orig === 'function') {
-      window.renderAll = function () {
-        orig.apply(this, arguments);
-        setTimeout(injectCheckupButtons, 70);
+  // ── Hook renderAll + renderMobileDay ─────────────────────────────────────
+  function hookRenders() {
+    function wrap(fn, delay) {
+      return function () {
+        fn.apply(this, arguments);
+        setTimeout(injectCheckupButtons, delay);
       };
-    } else {
-      window.addEventListener('portalReady', function () {
-        setTimeout(function () {
-          const o = window.renderAll;
-          if (typeof o === 'function') {
-            window.renderAll = function () {
-              o.apply(this, arguments);
-              setTimeout(injectCheckupButtons, 70);
-            };
-          }
-        }, 500);
-      }, { once: true });
+    }
+    if (typeof window.renderAll === 'function') {
+      window.renderAll = wrap(window.renderAll, 70);
+    }
+    // renderMobileDay is called directly on mobile day navigation (prevDay/nextDay)
+    if (typeof window.renderMobileDay === 'function') {
+      window.renderMobileDay = wrap(window.renderMobileDay, 80);
     }
   }
 
   function init() {
-    if (!isBraga()) return;
-    hookRenderAll();
-    console.log('🔍 Vehicle Check-up Patch carregado (Braga)');
+    // Always hook renders; isBraga() is checked inside injectCheckupButtons
+    hookRenders();
+    console.log('🔍 Vehicle Check-up Patch carregado');
   }
 
-  if (window.portalConfig) {
+  if (typeof window.renderAll === 'function') {
+    // renderAll already defined — hook now
     init();
   } else {
-    window.addEventListener('portalReady', init, { once: true });
+    // Wait for scripts to finish defining renderAll
+    window.addEventListener('portalReady', function () {
+      setTimeout(init, 100);
+    }, { once: true });
   }
 
 })();
