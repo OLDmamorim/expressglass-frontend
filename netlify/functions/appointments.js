@@ -227,6 +227,17 @@ exports.handler = async (event) => {
         ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
       `;
       const { rows } = await pool.query(q, [portalId]);
+
+      // Fire-and-forget: clean any notes that accidentally contain extra JSON
+      pool.query(
+        `UPDATE appointments SET notes = NULL
+         WHERE portal_id = $1
+           AND notes IS NOT NULL
+           AND notes LIKE '{%}'
+           AND (notes LIKE '%"eurocode"%' OR notes LIKE '%"photo_url"%' OR notes LIKE '%"history"%')`,
+        [portalId]
+      ).catch(() => {});
+
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
     }
 
