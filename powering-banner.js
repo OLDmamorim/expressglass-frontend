@@ -269,37 +269,23 @@
       : '—';
   };
 
-  function _getField(obj, keys) {
-    for (var i = 0; i < keys.length; i++) {
-      if (obj[keys[i]] != null) return obj[keys[i]];
-    }
-    return null;
+  // escovas.vendas é um objecto aninhado: {vendas: €, quantidade: N, percentagem: %}
+  function _escovasVendas(l) {
+    return l && l.escovas && l.escovas.vendas != null ? parseFloat(l.escovas.vendas) : 0;
   }
 
   function fillBanner2(data) {
-    // Proxy normaliza sempre para data.lojas
     var lista = data.lojas || [];
     if (!Array.isArray(lista)) lista = [];
-    console.log('[PEG escovas] lojas:', lista.length, lista[0]);
 
     var currentId = parseInt(data.lojaId);
+    var lojaAtual = lista.find(function(l) { return parseInt(l.lojaId) === currentId; }) || {};
+    var escovasVal = lojaAtual.escovas && lojaAtual.escovas.vendas != null
+      ? parseFloat(lojaAtual.escovas.vendas) : null;
 
-    // Tentar vários nomes de campo para id da loja
-    var lojaAtual = lista.find(function(l) {
-      var id = parseInt(_getField(l, ['lojaId', 'loja_id', 'id', 'lojaID']));
-      return id === currentId;
-    }) || {};
-
-    // Tentar vários nomes de campo para escovas
-    var escovasVal = _getField(lojaAtual, ['escovasVendas', 'escova_vendas', 'escovas', 'escovasTotal', 'escovas_vendas']);
-    escovasVal = escovasVal != null ? parseFloat(escovasVal) : null;
-
-    // Campeã: maior escovasVendas
     var campea = lista.reduce(function(best, l) {
-      var v = parseFloat(_getField(l, ['escovasVendas', 'escova_vendas', 'escovas', 'escovasTotal', 'escovas_vendas']) || 0);
-      var bv = parseFloat(_getField(best || {}, ['escovasVendas', 'escova_vendas', 'escovas', 'escovasTotal', 'escovas_vendas']) || 0);
-      return v > bv ? l : best;
-    }, null);
+      return _escovasVendas(l) > _escovasVendas(best) ? l : best;
+    }, lista[0] || null);
 
     var elEscovas = document.getElementById('peg2Escovas');
     var elCampea  = document.getElementById('peg2Campea');
@@ -309,11 +295,8 @@
       elEscovas.style.color = (escovasVal || 0) > 0 ? '#4ade80' : '#94a3b8';
     }
     if (elCampea && campea) {
-      var nomeC  = _getField(campea, ['lojaNome', 'loja_nome', 'nome', 'lojaNome', 'lojaName']);
-      var valC   = parseFloat(_getField(campea, ['escovasVendas', 'escova_vendas', 'escovas', 'escovasTotal', 'escovas_vendas']) || 0);
-      var idC    = parseInt(_getField(campea, ['lojaId', 'loja_id', 'id', 'lojaID']));
-      var isCurrent = !isNaN(currentId) && idC === currentId;
-      elCampea.textContent = (nomeC || '?') + ' — ' + _fmtEur(valC);
+      var isCurrent = !isNaN(currentId) && parseInt(campea.lojaId) === currentId;
+      elCampea.textContent = (campea.lojaNome || '?') + ' — ' + _fmtEur(_escovasVendas(campea));
       elCampea.style.color = isCurrent ? '#4ade80' : '#fde68a';
     }
   }
@@ -340,17 +323,8 @@
     try {
       var data = await fetchVendasCompl(portalId);
       var lista = data.lojas || [];
-      if (lista.length === 0) {
-        var elDbg = document.getElementById('peg2Campea');
-        if (elDbg) { elDbg.textContent = 'API OK — 0 lojas'; elDbg.style.color = '#fb923c'; elDbg.style.fontSize = '12px'; elDbg.style.fontWeight = '700'; }
-        return;
-      }
-      // DEBUG: mostrar keys do 1.º item para identificar nomes de campos
-      var el1d = document.getElementById('peg2Escovas');
-      var el2d = document.getElementById('peg2Campea');
-      var item0 = lista[0] || {};
-      if (el1d) { el1d.textContent = lista.length + ' lojas'; el1d.style.color = '#4ade80'; el1d.style.fontSize = '11px'; }
-      if (el2d) { el2d.textContent = JSON.stringify(item0).slice(0, 120); el2d.style.color = '#fde68a'; el2d.style.fontSize = '10px'; el2d.style.whiteSpace = 'normal'; el2d.style.wordBreak = 'break-all'; }
+      if (lista.length === 0) return;
+      fillBanner2(data);
     } catch (e) {
       var el1 = document.getElementById('peg2Escovas');
       var el2 = document.getElementById('peg2Campea');
