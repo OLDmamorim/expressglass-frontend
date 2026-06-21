@@ -250,7 +250,7 @@
     el.innerHTML =
       '<div style="flex:0 0 auto;display:flex;align-items:center;gap:10px;padding-right:14px;">' +
         '<div>' +
-          '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">💰 Vendas complementares</div>' +
+          '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">💰 V. Complementares</div>' +
           '<div id="peg2Escovas" style="font-size:21px;font-weight:900;color:#94a3b8;font-variant-numeric:tabular-nums;line-height:1;">—</div>' +
         '</div>' +
       '</div>' +
