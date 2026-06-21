@@ -360,7 +360,17 @@ exports.handler = async (event) => {
         data.plate ? String(data.plate).trim() : null,
         data.car ? String(data.car).trim() : null,
         data.service || null, data.locality || null, data.status || 'NE',
-        data.notes || null, data.address || null, data.extra || null,
+        // Clean notes if it accidentally contains the extra JSON (eurocode/photo_url/history)
+        (function() {
+          const n = data.notes || null;
+          if (!n) return n;
+          const t = n.trim();
+          if (t.startsWith('{') && t.endsWith('}')) {
+            try { const o = JSON.parse(t); if ('eurocode' in o || 'photo_url' in o || 'history' in o) return null; } catch(e) {}
+          }
+          return n;
+        })(),
+        data.address || null, data.extra || null,
         data.phone || null, data.km || null, data.sortIndex || null,
         data.glassOrdered !== undefined ? data.glassOrdered : null,
         data.vehicleType || data.vehicle_type || 'L',
