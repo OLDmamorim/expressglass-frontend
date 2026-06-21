@@ -329,32 +329,28 @@
 
   async function initBanner2() {
     if (document.getElementById(BANNER2_ID)) return;
+    if (!window.authClient?.getUser?.()) return;
+    var { portalId } = getActivePortal();
+    // Sem portalId ainda — não inserir o shell para que os retries possam tentar de novo
+    if (!portalId) return;
 
     var shell = buildBanner2Shell();
     insertBanner2(shell);
-
-    function _dbg(msg, cor) {
-      var e1 = document.getElementById('peg2Escovas');
-      var e2 = document.getElementById('peg2Campea');
-      if (e1) { e1.textContent = '⚠'; e1.style.color = cor || '#f87171'; e1.style.fontSize = '16px'; }
-      if (e2) { e2.textContent = String(msg).slice(0, 80); e2.style.color = cor || '#f87171'; e2.style.fontSize = '12px'; e2.style.fontWeight = '700'; e2.style.whiteSpace = 'normal'; }
-    }
-
-    if (!window.authClient) { _dbg('authClient indisponível'); return; }
-    if (!window.authClient.getUser?.()) { _dbg('sem utilizador autenticado'); return; }
-    var { portalId } = getActivePortal();
-    if (!portalId) { _dbg('portalId null'); return; }
 
     try {
       var data = await fetchVendasCompl(portalId);
       var lista = data.lojas || [];
       if (lista.length === 0) {
-        _dbg('API OK — 0 lojas devolvidas', '#fb923c');
+        var elDbg = document.getElementById('peg2Campea');
+        if (elDbg) { elDbg.textContent = 'API OK — 0 lojas'; elDbg.style.color = '#fb923c'; elDbg.style.fontSize = '12px'; elDbg.style.fontWeight = '700'; }
         return;
       }
       fillBanner2(data);
     } catch (e) {
-      _dbg(e.message);
+      var el1 = document.getElementById('peg2Escovas');
+      var el2 = document.getElementById('peg2Campea');
+      if (el1) { el1.textContent = '⚠'; el1.style.color = '#f87171'; }
+      if (el2) { el2.textContent = String(e.message).slice(0, 80); el2.style.color = '#f87171'; el2.style.fontSize = '12px'; el2.style.fontWeight = '700'; el2.style.whiteSpace = 'normal'; }
     }
   }
 
