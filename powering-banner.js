@@ -248,16 +248,16 @@
       'align-items:center',
     ].join(';');
     el.innerHTML =
-      '<div style="flex:1;display:flex;align-items:center;gap:10px;">' +
+      '<div style="flex:0 0 auto;display:flex;align-items:center;gap:10px;padding-right:14px;">' +
         '<div>' +
-          '<div style="font-size:9px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🧹 Escovas este mês</div>' +
+          '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🧹 Escovas este mês</div>' +
           '<div id="peg2Escovas" style="font-size:21px;font-weight:900;color:#94a3b8;font-variant-numeric:tabular-nums;line-height:1;">—</div>' +
         '</div>' +
       '</div>' +
-      '<div style="flex:1;display:flex;align-items:center;gap:10px;border-left:1px solid #1e3a5f;padding-left:16px;min-width:0;">' +
-        '<div style="min-width:0;">' +
-          '<div style="font-size:9px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🏆 Loja campeã de vendas</div>' +
-          '<div id="peg2Campea" style="font-size:14px;font-weight:800;color:#fde68a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;">—</div>' +
+      '<div style="flex:1;display:flex;align-items:center;gap:10px;border-left:1px solid #1e3a5f;padding-left:14px;min-width:0;">' +
+        '<div style="min-width:0;width:100%;">' +
+          '<div style="font-size:11px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🏆 Loja campeã de vendas</div>' +
+          '<div id="peg2Campea" style="font-size:13px;font-weight:800;color:#fde68a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;">—</div>' +
         '</div>' +
       '</div>';
     return el;
