@@ -2847,7 +2847,7 @@ function renderSchedule(){
       const cell = dominant
         ? `<div style="text-align:center;line-height:1.3;">
              <div style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase;">Local.Dominante</div>
-             <div style="font-size:13px;font-weight:800;color:#fbbf24;white-space:nowrap;">${dominant[0]} <span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.45);">×${dominant[1]}</span></div>
+             <div style="font-size:17px;font-weight:800;color:#fbbf24;white-space:nowrap;">${dominant[0]} <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.45);">×${dominant[1]}</span></div>
            </div>`
         : '';
       return `<td${isToday(d) ? ' class="is-today"' : ''}>${cell}</td>`;
