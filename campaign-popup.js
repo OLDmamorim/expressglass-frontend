@@ -27,7 +27,11 @@
 
   // ── Modal horária (só imagem + fechar) ───────────────────────────────────
   function _showModal() {
-    if (!_campaign || !_campaign.image_data) return;
+    if (!_campaign) return;
+    if (!_campaign.image_data) {
+      console.warn('[Campaign] Campanha ativa mas sem imagem — verifique o admin.');
+      return;
+    }
     var modal = document.getElementById('campaignPopupModal');
     if (!modal) {
       modal = document.createElement('div');
@@ -138,7 +142,7 @@
         } else {
           // Horária: se a campanha ainda não foi mostrada hoje, mostrar imediatamente
           var shownToday = _wasShown('daily');
-          if (!shownToday) {
+          if (!shownToday && _campaign.image_data) {
             _markShown('daily');
             _showModal();
           }
