@@ -2629,9 +2629,12 @@ function buildDesktopCard(a){
   const service = a.service || 'PB';
   const car = (a.car || '').toUpperCase();
   const clientNameStr = a.client_name ? a.client_name : '';
-  let _extraDisplay = a.extra || '';
-  if (_extraDisplay) {
-    try { const _p = JSON.parse(_extraDisplay); _extraDisplay = _p.eurocode || ''; } catch(e) {}
+  let _extraDisplay = '';
+  if (a.extra) {
+    try {
+      const _p = typeof a.extra === 'string' ? JSON.parse(a.extra) : a.extra;
+      _extraDisplay = (typeof _p === 'object' && _p !== null) ? (_p.eurocode || '') : '';
+    } catch(e) { _extraDisplay = ''; }
   }
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
