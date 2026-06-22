@@ -131,24 +131,32 @@
     fetch('/.netlify/functions/campaign')
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        if (!d.success || !d.campaign) return;
-        _campaign = d.campaign;
+        if (!d.success) return;
 
-        if (_campaign.campaign_type === 'interativa') {
-          // Expor função para script.js usar quando clicam em "Serviço Realizado"
+        // Campanha interativa (Serviço Realizado)
+        var interactive = d.interactiveCampaign || (d.campaign && d.campaign.campaign_type === 'interativa' ? d.campaign : null);
+        if (interactive) {
+          var _interactiveCampaign = interactive;
           window._showInteractiveCampaign = function (onSim, onNao) {
+            var prev = _campaign;
+            _campaign = _interactiveCampaign;
             _showInteractiveModal(onSim, onNao);
+            _campaign = prev;
           };
-        } else {
-          // Horária: se a campanha ainda não foi mostrada hoje, mostrar imediatamente
-          var shownToday = _wasShown('daily');
-          if (!shownToday && _campaign.image_data) {
-            _markShown('daily');
-            _showModal();
-          }
-          // Agendar slots futuros normalmente
-          _buildSlots().forEach(_scheduleSlot);
         }
+
+        // Campanha horária (popup automático)
+        var horaria = d.campaign && d.campaign.campaign_type !== 'interativa' ? d.campaign : null;
+        if (!horaria) return;
+        _campaign = horaria;
+
+        var shownToday = _wasShown('daily');
+        if (!shownToday && _campaign.image_data) {
+          _markShown('daily');
+          _showModal();
+        }
+        // Agendar slots futuros normalmente
+        _buildSlots().forEach(_scheduleSlot);
       })
       .catch(function () {});
   }
