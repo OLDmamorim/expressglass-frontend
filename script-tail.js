@@ -313,6 +313,21 @@ async function renderMobileDay(){
 
   // Resumo do dia (só SM)
   const summary = buildDaySummary(currentMobileDay, true);
+
+  // Localidade dominante (só SM)
+  var _localBanner = '';
+  if (!isLoja()) {
+    const counts = {};
+    items.forEach(a => { if (a.locality) counts[a.locality] = (counts[a.locality] || 0) + 1; });
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (sorted.length > 0) {
+      _localBanner = '<div style="background:#1e293b;border-radius:10px;padding:8px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">' +
+        '<span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;">Local.Dominante</span>' +
+        '<span style="font-size:17px;font-weight:800;color:#fbbf24;">' + sorted[0][0] + ' <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.45);">×' + sorted[0][1] + '</span></span>' +
+        '</div>';
+    }
+  }
+
   const allServices = items.map(buildMobileCard).join('');
 
   // Botão Rota — só se houver serviços com morada
@@ -328,7 +343,7 @@ async function renderMobileDay(){
       🗺️ Ver Rota do Dia
     </button>` : '';
 
-  list.innerHTML = _toggleRow + _bmBanner + _rlBanner + (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
+  list.innerHTML = _toggleRow + _bmBanner + _rlBanner + (summary ? `<div class="mobile-day-summary">${summary}</div>` : '') + _localBanner + rotaBtn + allServices || '<p style="text-align:center;color:#6b7280;margin:20px;">Nenhum serviço agendado</p>';
   highlightSearchResults();
   window.guiaAT?.injectBadges();
 }
