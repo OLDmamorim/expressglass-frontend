@@ -2834,6 +2834,23 @@ function renderSchedule(){
     summaryRow.innerHTML = `<th>Resumo</th>` + week.map(d => `<td${isToday(d)?' class="is-today"':''}>${buildDaySummary(d)}</td>`).join('');
     tbody.appendChild(summaryRow);
 
+    // Linha de localidade dominante
+    const localityRow = document.createElement('tr');
+    localityRow.className = 'dominant-locality-row';
+    localityRow.innerHTML = `<th style="font-size:11px;color:#94a3b8;font-weight:600;white-space:nowrap;">Local.</th>` + week.map(d => {
+      const iso = localISO(d);
+      const dayAppts = appointments.filter(a => a.date === iso && a.locality);
+      const counts = {};
+      dayAppts.forEach(a => { counts[a.locality] = (counts[a.locality] || 0) + 1; });
+      const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+      const dominant = sorted[0];
+      const cell = dominant
+        ? `<div style="padding:3px 6px;text-align:center;"><span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700;color:#1d4ed8;white-space:nowrap;">${dominant[0]}<span style="background:#2563eb;color:#fff;border-radius:10px;padding:0 5px;font-size:10px;">${dominant[1]}</span></span></div>`
+        : '';
+      return `<td${isToday(d)?' class="is-today"':''} style="padding:2px 0;">${cell}</td>`;
+    }).join('');
+    tbody.appendChild(localityRow);
+
     // Linha de serviços
     const row = document.createElement('tr');
     row.innerHTML = `<th>Serviços</th>` + week.map(d => `<td${isToday(d)?' class="is-today"':''}>${renderCell(d)}</td>`).join('');
