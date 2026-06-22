@@ -243,6 +243,29 @@ table.schedule td.is-today {
   border-left: 1px solid #334155 !important;
   vertical-align: middle !important;
 }
+/* Dominant locality row */
+.dominant-locality-row th {
+  background: #1e293b !important;
+  color: rgba(255,255,255,0.5) !important;
+  font-family: 'Figtree', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+  padding: 6px 14px !important;
+  vertical-align: middle !important;
+}
+.dominant-locality-row td {
+  background: #1e293b;
+  padding: 4px 8px !important;
+  border-bottom: 3px solid #334155 !important;
+  border-left: 1px solid #334155 !important;
+  vertical-align: middle !important;
+}
+.dominant-locality-row td.is-today {
+  background: #1a2f4a !important;
+  border-left: 2px solid rgba(59,130,246,.4) !important;
+  border-right: 2px solid rgba(59,130,246,.4) !important;
+}
 .day-summary {
   display: flex;
   flex-wrap: wrap;
