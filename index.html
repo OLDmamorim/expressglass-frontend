@@ -2249,24 +2249,27 @@
 
   async function _loadCoordList() {
     try {
-      const [resConf, resMiss] = await Promise.all([
+      const [resConf, resMiss, resPend] = await Promise.all([
         fetch(API + '/glass-reception?status=confirmed', { headers: authHeaders() }),
-        fetch(API + '/glass-reception?status=missing', { headers: authHeaders() })
+        fetch(API + '/glass-reception?status=missing', { headers: authHeaders() }),
+        fetch(API + '/glass-reception?status=pending', { headers: authHeaders() })
       ]);
-      const [jsonConf, jsonMiss] = await Promise.all([resConf.json(), resMiss.json()]);
+      const [jsonConf, jsonMiss, jsonPend] = await Promise.all([resConf.json(), resMiss.json(), resPend.json()]);
       if (!jsonConf.success) throw new Error(jsonConf.error);
       const confirmed = jsonConf.data || [];
       const missing = jsonMiss.success ? (jsonMiss.data || []) : [];
-      _renderCoordList(confirmed, missing);
+      const pending = jsonPend.success ? (jsonPend.data || []) : [];
+      _renderCoordList(confirmed, missing, pending);
     } catch (e) {
       const el = document.getElementById('grTabContent');
       if (el) el.innerHTML = `<p style="color:#dc2626;text-align:center;padding:20px;">Erro: ${e.message}</p>`;
     }
   }
 
-  function _renderCoordList(items, missing) {
+  function _renderCoordList(items, missing, pending) {
     missing = missing || [];
-    const total = items.length + missing.length;
+    pending = pending || [];
+    const total = items.length + missing.length + pending.length;
     const badge = document.getElementById('grCoordBadge');
     if (badge) { badge.textContent = total + ' pendente' + (total !== 1 ? 's' : ''); badge.style.display = total ? '' : 'none'; }
 
@@ -2281,6 +2284,28 @@
         </div>`;
       return;
     }
+
+    const pendingHtml = pending.length === 0 ? '' : `
+      <div style="margin-bottom:6px;font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.5px;">🔍 Por associar a agendamento</div>
+      ${pending.map(r => `
+        <div id="grRow${r.id}" style="border:2px solid #3b82f6;border-radius:12px;padding:14px;margin-bottom:10px;background:#eff6ff;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <span style="font-family:monospace;font-weight:800;font-size:14px;background:#1d4ed8;color:#fff;padding:3px 10px;border-radius:6px;">${(r.order_ref || r.eurocode || '—').toUpperCase()}</span>
+            <span style="font-size:11px;color:#1d4ed8;margin-left:auto;">${fmtDate(r.created_at)}</span>
+          </div>
+          <div style="display:flex;gap:14px;font-size:12px;color:#1e40af;flex-wrap:wrap;margin-bottom:10px;">
+            <span>🏪 ${r.portal_label || r.portal_name || '—'}</span>
+            <span>👤 ${r.technician_name || '—'}</span>
+            ${r.order_ref ? `<span>📦 ${r.order_ref}</span>` : ''}
+            ${r.eurocode  ? `<span>🔢 ${r.eurocode}</span>` : ''}
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="window.glassReception._markReceived(${r.id})" style="background:#16a34a;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">✅ Rececionado</button>
+            <button onclick="window.glassReception._rejectReception(${r.id},'${(r.order_ref||r.eurocode||'').replace(/'/g,"\\'")}')" style="background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">❌ Rejeitar</button>
+          </div>
+        </div>
+      `).join('')}
+    `;
 
     const confirmedHtml = items.map(r => `
       <div id="grRow${r.id}" style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;background:#fff;">
@@ -2324,7 +2349,7 @@
       `).join('')}
     `;
 
-    content.innerHTML = confirmedHtml + missingHtml;
+    content.innerHTML = pendingHtml + confirmedHtml + missingHtml;
   }
 
   // ── RETURNS / DAMAGED ────────────────────────────────────────────────────
