@@ -66,15 +66,19 @@ exports.handler = async (event) => {
       }
 
       // Public: active campaign for today (no auth required)
+      // Return horária and interativa campaigns separately so both can be used simultaneously
       const today = new Date().toISOString().slice(0, 10);
       const { rows } = await client.query(
         `SELECT id, title, start_date, end_date, image_data, display_hours, campaign_type
          FROM campaigns
          WHERE active = true AND start_date <= $1 AND end_date >= $1
-         ORDER BY created_at DESC LIMIT 1`,
+         ORDER BY created_at DESC`,
         [today]
       );
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, campaign: rows[0] || null }) };
+      const horaria = rows.find(r => r.campaign_type !== 'interativa') || null;
+      const interativa = rows.find(r => r.campaign_type === 'interativa') || null;
+      // Keep backwards compat: `campaign` = horária (for automatic popup)
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, campaign: horaria, interactiveCampaign: interativa }) };
     }
 
     if (event.httpMethod === 'POST') {
