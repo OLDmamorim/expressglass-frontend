@@ -202,33 +202,53 @@ class ExpressglassFileProcessor {
   async processFile(data) {
     const results = {
       success: [],
-      errors: []
+      errors: [],
+      ignored: []
     };
-    
+
+    const ALLOWED_STATUSES = new Set([
+      'AUTORIZADO',
+      'AUTORIZADO SEM DADOS',
+      'Consulta / Orçamento',
+      'INCIDÊNCIA',
+      'PEDIDO RETIFICACAO',
+      'RECUSADO',
+      'STAND BY'
+    ]);
+
     const template = window.templateManager?.getTemplate(this.templateId);
     if (!template) {
       throw new Error('Template Expressglass Completo não encontrado');
     }
-    
+
     data.forEach((row, index) => {
       try {
+        const phcStatus = (row[7] || '').toString().trim();
+
+        // Ignorar estados que não devem ser importados
+        if (!ALLOWED_STATUSES.has(phcStatus)) {
+          results.ignored.push({ row: index + 2, plate: row[8] || '?', reason: phcStatus });
+          return;
+        }
+
         // Validar linha
         const validationErrors = this.validateRow(row);
         if (validationErrors.length > 0) {
           results.errors.push({
-            row: index + 2, // +2 porque índice começa em 0 e primeira linha são cabeçalhos
+            row: index + 2,
             errors: validationErrors
           });
           return;
         }
-        
+
         // Processar linha
         const processed = this.processRow(row, template);
+        processed.phc_status = phcStatus;
         results.success.push({
           row: index + 2,
           data: processed
         });
-        
+
       } catch (error) {
         results.errors.push({
           row: index + 2,
@@ -236,7 +256,7 @@ class ExpressglassFileProcessor {
         });
       }
     });
-    
+
     return results;
   }
 }

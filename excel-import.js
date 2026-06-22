@@ -120,17 +120,19 @@ class ExcelImporter {
           row: err.row,
           error: err.errors.join(', ')
         }));
-        
+
         const processedData = results.success.map(item => item.data);
-        
+
         console.log('✅ Dados processados (Expressglass):', {
           valid: processedData.length,
-          errors: this.validationErrors.length
+          errors: this.validationErrors.length,
+          ignored: (results.ignored || []).length
         });
-        
+
         return {
           data: processedData,
-          errors: this.validationErrors
+          errors: this.validationErrors,
+          ignored: results.ignored || []
         };
         
       } catch (error) {
