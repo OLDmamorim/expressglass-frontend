@@ -88,7 +88,7 @@ const telBtn = phone ? `
     a.second_of_day ? `<span class="m-chip" style="background:#f97316;color:#fff;font-weight:700;">⭐ 2.º</span>` : ''
   ].filter(Boolean).join('');
   let _extraDisp = '';
-  if (a.extra) { try { _extraDisp = JSON.parse(a.extra).eurocode || ''; } catch(e) { const _m = a.extra.match(/"eurocode"\s*:\s*"([^"]+)"/); _extraDisp = _m ? _m[1] : a.extra; } }
+  if (a.extra) { try { const _p = typeof a.extra === 'string' ? JSON.parse(a.extra) : a.extra; _extraDisp = (typeof _p === 'object' && _p !== null) ? (_p.eurocode || '') : ''; } catch(e) { _extraDisp = ''; } }
   const _mRole = window.authClient?.getUser?.()?.role;
   const notes = [a.client_name, _extraDisp, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
   const mEncRecFooter = ''; // movido para o semáforo de stock (coluna direita)
