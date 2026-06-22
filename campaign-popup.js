@@ -136,7 +136,13 @@
             _showInteractiveModal(onSim, onNao);
           };
         } else {
-          // Horária: agendar slots normais
+          // Horária: se a campanha ainda não foi mostrada hoje, mostrar imediatamente
+          var shownToday = _wasShown('daily');
+          if (!shownToday) {
+            _markShown('daily');
+            _showModal();
+          }
+          // Agendar slots futuros normalmente
           _buildSlots().forEach(_scheduleSlot);
         }
       })
