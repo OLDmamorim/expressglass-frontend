@@ -63,12 +63,27 @@
     if (!el) return;
     el.innerHTML = ANGLES.map((label, i) => {
       const has = !!_photos[i];
+      if (has) {
+        return `
+      <div style="border:2px solid #16a34a;border-radius:10px;padding:12px;text-align:center;cursor:pointer;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#f0fdf4;"
+           onclick="document.getElementById('vcFileInputCam${i}').click()">
+        <div style="font-size:28px;">✅</div>
+        <div style="font-size:12px;font-weight:700;color:#16a34a;">${label}</div>
+        <input type="file" id="vcFileInputCam${i}" accept="image/*" capture="environment" style="display:none;" onchange="window._vcOnPhoto(${i},this)">
+        <input type="file" id="vcFileInputGal${i}" accept="image/*" style="display:none;" onchange="window._vcOnPhoto(${i},this)">
+      </div>`;
+      }
       return `
-      <div onclick="document.getElementById('vcFileInput${i}').click()"
-           style="border:2px ${has ? 'solid #16a34a' : 'dashed #cbd5e1'};border-radius:10px;padding:12px;text-align:center;cursor:pointer;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:${has ? '#f0fdf4' : '#f8fafc'};">
-        <div style="font-size:28px;">${has ? '✅' : '📷'}</div>
-        <div style="font-size:12px;font-weight:700;color:${has ? '#16a34a' : '#64748b'};">${label}</div>
-        <input type="file" id="vcFileInput${i}" accept="image/*" capture="environment" style="display:none;" onchange="window._vcOnPhoto(${i},this)">
+      <div style="border:2px dashed #cbd5e1;border-radius:10px;padding:8px;text-align:center;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:#f8fafc;">
+        <div style="font-size:12px;font-weight:700;color:#64748b;margin-bottom:4px;">${label}</div>
+        <div style="display:flex;gap:6px;">
+          <button type="button" onclick="document.getElementById('vcFileInputCam${i}').click()"
+            style="background:#2563eb;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:18px;cursor:pointer;" title="Câmara">📷</button>
+          <button type="button" onclick="document.getElementById('vcFileInputGal${i}').click()"
+            style="background:#64748b;color:#fff;border:none;border-radius:8px;padding:6px 10px;font-size:18px;cursor:pointer;" title="Galeria">🖼️</button>
+        </div>
+        <input type="file" id="vcFileInputCam${i}" accept="image/*" capture="environment" style="display:none;" onchange="window._vcOnPhoto(${i},this)">
+        <input type="file" id="vcFileInputGal${i}" accept="image/*" style="display:none;" onchange="window._vcOnPhoto(${i},this)">
       </div>`;
     }).join('');
     const btn = document.getElementById('vcAnalyzeBtn');
