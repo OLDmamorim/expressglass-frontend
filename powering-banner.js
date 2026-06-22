@@ -79,16 +79,15 @@
         }
         @media (min-width: 768px) {
           #${BANNER_ID} {
-            padding: 18px 28px 22px;
-            border-left-width: 6px;
+            padding: 12px 20px 16px;
           }
-          #${BANNER_ID} .peg-head { margin-bottom: 14px; }
-          #${BANNER_ID} .peg-name { font-size: 15px; letter-spacing: 1px; }
-          #${BANNER_ID} .peg-month { font-size: 14px; }
-          #${BANNER_ID} .peg-grid { gap: 8px 24px; }
-          #${BANNER_ID} .peg-lbl { font-size: 12px; letter-spacing: 0.8px; margin-bottom: 4px; }
-          #${BANNER_ID} .peg-val { font-size: 42px; }
-          #${BANNER_ID} .peg-skel { height: 38px; }
+          #${BANNER_ID} .peg-head { margin-bottom: 10px; }
+          #${BANNER_ID} .peg-name { font-size: 12px; }
+          #${BANNER_ID} .peg-month { font-size: 12px; }
+          #${BANNER_ID} .peg-grid { gap: 6px 16px; }
+          #${BANNER_ID} .peg-lbl { font-size: 10px; margin-bottom: 2px; }
+          #${BANNER_ID} .peg-val { font-size: 30px; }
+          #${BANNER_ID} .peg-skel { height: 28px; }
         }
       </style>
       <div class="peg-head">
@@ -263,13 +262,11 @@
     el.innerHTML =
       '<style>' +
         '@media(min-width:768px){' +
-          '#' + BANNER2_ID + '{padding:18px 28px!important;border-left-width:6px!important;gap:0!important;}' +
-          '#' + BANNER2_ID + ' .p2-lbl{font-size:13px!important;margin-bottom:5px!important;}' +
-          '#' + BANNER2_ID + ' .p2-val{font-size:42px!important;}' +
-          '#' + BANNER2_ID + ' .p2-camp-lbl{font-size:13px!important;margin-bottom:5px!important;}' +
-          '#' + BANNER2_ID + ' .p2-camp-val{font-size:24px!important;}' +
-          '#' + BANNER2_ID + ' .p2-left{padding-right:24px!important;}' +
-          '#' + BANNER2_ID + ' .p2-right{padding-left:24px!important;}' +
+          '#' + BANNER2_ID + '{padding:12px 20px!important;}' +
+          '#' + BANNER2_ID + ' .p2-lbl{font-size:10px!important;}' +
+          '#' + BANNER2_ID + ' .p2-val{font-size:30px!important;}' +
+          '#' + BANNER2_ID + ' .p2-camp-lbl{font-size:10px!important;}' +
+          '#' + BANNER2_ID + ' .p2-camp-val{font-size:18px!important;}' +
         '}' +
       '</style>' +
       '<div class="p2-left" style="flex:0 0 auto;display:flex;align-items:center;gap:10px;padding-right:14px;">' +
