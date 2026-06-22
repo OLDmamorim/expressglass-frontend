@@ -77,6 +77,19 @@
           0%   { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
+        @media (min-width: 768px) {
+          #${BANNER_ID} {
+            padding: 18px 28px 22px;
+            border-left-width: 6px;
+          }
+          #${BANNER_ID} .peg-head { margin-bottom: 14px; }
+          #${BANNER_ID} .peg-name { font-size: 15px; letter-spacing: 1px; }
+          #${BANNER_ID} .peg-month { font-size: 14px; }
+          #${BANNER_ID} .peg-grid { gap: 8px 24px; }
+          #${BANNER_ID} .peg-lbl { font-size: 12px; letter-spacing: 0.8px; margin-bottom: 4px; }
+          #${BANNER_ID} .peg-val { font-size: 42px; }
+          #${BANNER_ID} .peg-skel { height: 38px; }
+        }
       </style>
       <div class="peg-head">
         <div class="peg-name"><em>📊</em>${(portalName || 'Portal').toUpperCase()}</div>
@@ -248,16 +261,27 @@
       'align-items:center',
     ].join(';');
     el.innerHTML =
-      '<div style="flex:0 0 auto;display:flex;align-items:center;gap:10px;padding-right:14px;">' +
+      '<style>' +
+        '@media(min-width:768px){' +
+          '#' + BANNER2_ID + '{padding:18px 28px!important;border-left-width:6px!important;gap:0!important;}' +
+          '#' + BANNER2_ID + ' .p2-lbl{font-size:13px!important;margin-bottom:5px!important;}' +
+          '#' + BANNER2_ID + ' .p2-val{font-size:42px!important;}' +
+          '#' + BANNER2_ID + ' .p2-camp-lbl{font-size:13px!important;margin-bottom:5px!important;}' +
+          '#' + BANNER2_ID + ' .p2-camp-val{font-size:24px!important;}' +
+          '#' + BANNER2_ID + ' .p2-left{padding-right:24px!important;}' +
+          '#' + BANNER2_ID + ' .p2-right{padding-left:24px!important;}' +
+        '}' +
+      '</style>' +
+      '<div class="p2-left" style="flex:0 0 auto;display:flex;align-items:center;gap:10px;padding-right:14px;">' +
         '<div>' +
-          '<div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">💰 V. Complementares</div>' +
-          '<div id="peg2Escovas" style="font-size:21px;font-weight:900;color:#94a3b8;font-variant-numeric:tabular-nums;line-height:1;">—</div>' +
+          '<div class="p2-lbl" style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">💰 V. Complementares</div>' +
+          '<div id="peg2Escovas" class="p2-val" style="font-size:21px;font-weight:900;color:#94a3b8;font-variant-numeric:tabular-nums;line-height:1;">—</div>' +
         '</div>' +
       '</div>' +
-      '<div style="flex:1;display:flex;align-items:center;gap:10px;border-left:1px solid #1e3a5f;padding-left:14px;min-width:0;">' +
+      '<div class="p2-right" style="flex:1;display:flex;align-items:center;gap:10px;border-left:1px solid #1e3a5f;padding-left:14px;min-width:0;">' +
         '<div style="min-width:0;width:100%;">' +
-          '<div style="font-size:11px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🏆 Campeão de vendas</div>' +
-          '<div id="peg2Campea" style="font-size:13px;font-weight:800;color:#fde68a;white-space:normal;word-break:break-word;line-height:1.2;">—</div>' +
+          '<div class="p2-camp-lbl" style="font-size:11px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1px;">🏆 Campeão de vendas</div>' +
+          '<div id="peg2Campea" class="p2-camp-val" style="font-size:13px;font-weight:800;color:#fde68a;white-space:normal;word-break:break-word;line-height:1.2;">—</div>' +
         '</div>' +
       '</div>';
     return el;
