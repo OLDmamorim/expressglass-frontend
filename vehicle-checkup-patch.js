@@ -68,7 +68,7 @@
            style="border:2px ${has ? 'solid #16a34a' : 'dashed #cbd5e1'};border-radius:10px;padding:12px;text-align:center;cursor:pointer;min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;background:${has ? '#f0fdf4' : '#f8fafc'};">
         <div style="font-size:28px;">${has ? '✅' : '📷'}</div>
         <div style="font-size:12px;font-weight:700;color:${has ? '#16a34a' : '#64748b'};">${label}</div>
-        <input type="file" id="vcFileInput${i}" accept="image/*" style="display:none;" onchange="window._vcOnPhoto(${i},this)">
+        <input type="file" id="vcFileInput${i}" accept="image/*" capture="environment" style="display:none;" onchange="window._vcOnPhoto(${i},this)">
       </div>`;
     }).join('');
     const btn = document.getElementById('vcAnalyzeBtn');
