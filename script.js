@@ -2846,13 +2846,13 @@ function renderSchedule(){
       const counts = {};
       dayAppts.forEach(a => { counts[a.locality] = (counts[a.locality] || 0) + 1; });
       const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-      const dominant = sorted[0];
-      const cell = dominant
+      const dominant = sorted.length > 0 && (sorted.length === 1 || sorted[0][1] > sorted[1][1]) ? sorted[0] : null;
+      const cell = sorted.length === 0 ? '' : dominant
         ? `<div style="text-align:center;line-height:1.3;">
              <div style="font-size:9px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:0.5px;text-transform:uppercase;">Local.Dominante</div>
              <div style="font-size:17px;font-weight:800;color:#fbbf24;white-space:nowrap;">${dominant[0]} <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.45);">×${dominant[1]}</span></div>
            </div>`
-        : '';
+        : `<div style="text-align:center;font-size:18px;font-weight:700;color:rgba(255,255,255,0.25);">—</div>`;
       return `<td${isToday(d) ? ' class="is-today"' : ''}>${cell}</td>`;
     }).join('');
     tbody.appendChild(localityRow);
