@@ -321,9 +321,12 @@ async function renderMobileDay(){
     items.forEach(a => { if (a.locality) counts[a.locality] = (counts[a.locality] || 0) + 1; });
     const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
     if (sorted.length > 0) {
+      const dominant = sorted.length === 1 || sorted[0][1] > sorted[1][1] ? sorted[0] : null;
       _localBanner = '<div style="background:#1e293b;border-radius:10px;padding:8px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">' +
         '<span style="font-size:10px;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.5px;">Local.Dominante</span>' +
-        '<span style="font-size:17px;font-weight:800;color:#fbbf24;">' + sorted[0][0] + ' <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.45);">×' + sorted[0][1] + '</span></span>' +
+        (dominant
+          ? '<span style="font-size:17px;font-weight:800;color:#fbbf24;">' + dominant[0] + ' <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.45);">×' + dominant[1] + '</span></span>'
+          : '<span style="font-size:18px;font-weight:700;color:rgba(255,255,255,0.25);">—</span>') +
         '</div>';
     }
   }
