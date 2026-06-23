@@ -1655,7 +1655,7 @@
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || json.message || "Erro desconhecido");
-      _doSearch(json.data.order_ref, json.data.eurocode, json.data.raw_text, base64);
+      _doSearch(json.data.order_ref, json.data.eurocode, json.data.raw_text, base64, null, json.data.all_eurocodes);
     } catch (e) {
       document.getElementById('grScanBody').innerHTML = `
         <p style="color:#dc2626;text-align:center;margin-bottom:12px;">Erro: ${e.message}</p>
@@ -1675,8 +1675,9 @@
 
   function _step1() { renderStep1(); }
 
-  async function _doSearch(orderRef, eurocode, rawText, photoBase64, plate) {
+  async function _doSearch(orderRef, eurocode, rawText, photoBase64, plate, allEurocodes) {
     eurocode = _prefixedEurocode(eurocode);
+    const extraEurocodes = (allEurocodes || []).map(_prefixedEurocode).filter(e => e && e !== eurocode);
     // Show loading state
     const body = document.getElementById('grScanBody');
     if (body) body.innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A procurar em todos os portais…</p>`;
@@ -1684,43 +1685,54 @@
     // Normalize I↔1 and O↔0 to handle OCR character confusion
     const normEc = s => (s || '').toLowerCase().replace(/i/g, '1').replace(/o/g, '0');
     const ecNorm = eurocode ? normEc(eurocode.trim()) : null;
+    const allEcNorms = [ecNorm, ...extraEurocodes.map(e => normEc(e.trim()))].filter(Boolean);
     const plateNorm = p => (p || '').replace(/[-\s]/g, '').toLowerCase();
     const pNorm = plate ? plateNorm(plate) : null;
 
     // Local search first (active portal appointments already loaded)
     const localResults = (window.appointments || []).filter(a => {
+      if (a.executed === true) return false;
       const matchOrder = orderRef && a.order_ref && a.order_ref.trim().toLowerCase() === orderRef.trim().toLowerCase();
       const matchOrderNotes = orderRef && (
         (a.notes || '').includes(orderRef) ||
         (a.n_obra || '').includes(orderRef) ||
         ((a.extra || '').includes && (a.extra || '').includes(orderRef))
       );
-      const matchEuro  = ecNorm && a.glass_eurocode && normEc(a.glass_eurocode) === ecNorm;
       let extraEuro = '';
       if (a.extra) { try { extraEuro = (JSON.parse(a.extra).eurocode || ''); } catch(e) { extraEuro = (a.extra || ''); } }
-      // Use negative lookbehind so '#3750...' never matches a search for '3750...' (different glass)
-      const matchEuroNotes = ecNorm && (() => {
+      const aptEcNorm = a.glass_eurocode ? normEc(a.glass_eurocode) : null;
+      const aptExtraEcNorm = extraEuro ? normEc(extraEuro) : null;
+      const matchEuro = allEcNorms.some(en => (aptEcNorm && aptEcNorm === en) || (aptExtraEcNorm && aptExtraEcNorm === en));
+      const matchEuroNotes = allEcNorms.some(en => {
         const txt = normEc((a.notes || '') + ' ' + (a.n_obra || '') + ' ' + extraEuro);
-        const re = new RegExp('(?<!#)' + ecNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+        const re = new RegExp('(?<!#)' + en.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
         return re.test(txt);
-      })();
+      });
       const matchPlate = pNorm && plateNorm(a.plate) === pNorm;
       return matchOrder || matchOrderNotes || matchEuro || matchEuroNotes || matchPlate;
     });
 
-    // Cross-portal API search
+    // Cross-portal API search — one call per eurocode, merge results
     let apiResults = [];
     try {
-      const qp = new URLSearchParams();
-      if (eurocode) qp.set('search_eurocode', eurocode.trim());
-      if (orderRef) qp.set('search_order_ref', orderRef.trim());
-      if (plate)    qp.set('search_plate', plate.trim());
-      qp.set('include_executed', 'true'); // glass scan must match even if service already done
-      if (eurocode || orderRef || plate) {
-        const res = await fetch(API + '/appointments?' + qp.toString(), { headers: authHeaders() });
-        const json = await res.json();
-        if (json.success) apiResults = json.data || [];
+      const eurosToSearch = [eurocode, ...extraEurocodes].filter(Boolean);
+      const searches = eurosToSearch.map(ec => {
+        const qp = new URLSearchParams({ search_eurocode: ec.trim() });
+        if (orderRef) qp.set('search_order_ref', orderRef.trim());
+        if (plate) qp.set('search_plate', plate.trim());
+        return fetch(API + '/appointments?' + qp.toString(), { headers: authHeaders() })
+          .then(r => r.json()).then(j => j.success ? (j.data || []) : []).catch(() => []);
+      });
+      if (!eurosToSearch.length && (orderRef || plate)) {
+        const qp = new URLSearchParams();
+        if (orderRef) qp.set('search_order_ref', orderRef.trim());
+        if (plate) qp.set('search_plate', plate.trim());
+        searches.push(fetch(API + '/appointments?' + qp.toString(), { headers: authHeaders() })
+          .then(r => r.json()).then(j => j.success ? (j.data || []) : []).catch(() => []));
       }
+      const results = await Promise.all(searches);
+      const seenApi = new Set();
+      results.flat().forEach(a => { if (!seenApi.has(a.id)) { seenApi.add(a.id); apiResults.push(a); } });
     } catch (e) { console.warn('Cross-portal search failed:', e); }
 
     // Merge: local results + API results (deduplicate by id)
