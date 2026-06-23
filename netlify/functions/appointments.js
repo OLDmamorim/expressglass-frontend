@@ -158,7 +158,7 @@ exports.handler = async (event) => {
           idx++;
         }
         if (params.search_order_ref) {
-          conditions.push(`(LOWER(order_ref) = LOWER($${idx}) OR notes LIKE '%' || $${idx} || '%' OR n_obra LIKE '%' || $${idx} || '%')`);
+          conditions.push(`(LOWER(order_ref) = LOWER($${idx}) OR notes ILIKE '%' || $${idx} || '%' OR n_obra ILIKE '%' || $${idx} || '%')`);
           vals.push(params.search_order_ref.trim());
           idx++;
         }
