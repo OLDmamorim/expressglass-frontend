@@ -158,7 +158,7 @@
 
     widget.innerHTML = `
       <!-- Botão Receção Vidros -->
-      <button id="recBotBtn" onclick="window.glassReception?.openScan()" style="
+      <button id="recBotBtn" onclick="window.glassReception?.openCoordPanel()" style="
         width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;
         background:linear-gradient(135deg,#1d4ed8,#0f172a);
         color:#fff;font-size:22px;
