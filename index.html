@@ -1677,6 +1677,7 @@
   function _step1() { renderStep1(); }
 
   async function _doSearch(orderRef, eurocode, rawText, photoBase64, plate) {
+    eurocode = _prefixedEurocode(eurocode);
     // Show loading state
     const body = document.getElementById('grScanBody');
     if (body) body.innerHTML = `<p style="text-align:center;padding:30px;color:#64748b;">A procurar em todos os portais…</p>`;
