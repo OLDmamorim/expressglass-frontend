@@ -1368,6 +1368,8 @@
     window._grReturnDamagePhotos = [];
     window._grReturnLabelPhoto = null;
     window._grReturnAppointmentId = null;
+    window._grReturnForPortalId = null;
+    window._grReturnForPortalName = null;
     const isPartido = reason === 'partido';
     document.getElementById('grScanBody').innerHTML = `
       <div style="background:${isPartido ? '#fef2f2' : '#fffbeb'};border:2px solid ${isPartido ? '#dc2626' : '#f59e0b'};border-radius:10px;padding:10px 14px;margin-bottom:14px;">
@@ -1536,7 +1538,7 @@
     try {
       const res = await fetch(API + '/glass-reception', {
         method: 'POST', headers: authHeaders(),
-        body: JSON.stringify({ is_return: true, return_reason: effectiveReason, eurocode: eurocode || null, label_photo: labelPhoto, damage_photos: damagePhotos.length ? damagePhotos : null, order_ref: orderRef, carrier_guide: carrierGuide, appointment_id: window._grReturnAppointmentId || null })
+        body: JSON.stringify({ is_return: true, return_reason: effectiveReason, eurocode: eurocode || null, label_photo: labelPhoto, damage_photos: damagePhotos.length ? damagePhotos : null, order_ref: orderRef, carrier_guide: carrierGuide, appointment_id: window._grReturnAppointmentId || null, portal_id: window._grReturnForPortalId || null, portal_name: window._grReturnForPortalName || null })
       });
       const text = await res.text();
       let json;
@@ -2701,7 +2703,7 @@
             </button>
             <button onclick="window.glassReception._rejectReturnMatch()"
               style="background:#e2e8f0;color:#374151;font-weight:700;font-size:13px;padding:10px;border-radius:8px;border:none;cursor:pointer;">
-              ❓ Não tenho a certeza
+              ❌ Não
             </button>
           </div>
         </div>`;
@@ -2726,7 +2728,7 @@
           }).join('')}
           <button onclick="window.glassReception._rejectReturnMatch()"
             style="margin-top:8px;background:#e2e8f0;color:#374151;font-weight:700;font-size:12px;padding:8px;border-radius:8px;border:none;cursor:pointer;width:100%;">
-            ❌ Nenhum destes
+            ❌ Não é nenhum destes
           </button>
         </div>`;
     }
@@ -2746,10 +2748,46 @@
       </div>`;
   }
 
-  function _rejectReturnMatch() {
+  async function _rejectReturnMatch() {
     window._grReturnAppointmentId = null;
+    window._grReturnForPortalId = null;
+    window._grReturnForPortalName = null;
     const card = document.getElementById('grReturnMatchCard');
-    if (card) card.innerHTML = '';
+    if (!card) return;
+    card.innerHTML = `<p style="text-align:center;padding:8px;color:#64748b;font-size:12px;">A carregar lojas…</p>`;
+    let portals = [];
+    try {
+      const res = await fetch(API + '/glass-reception?list_portals=true', { headers: authHeaders() });
+      const json = await res.json();
+      if (json.success) portals = json.data;
+    } catch(_) {}
+    if (!portals.length) { card.innerHTML = ''; return; }
+    card.innerHTML = `
+      <div style="background:#fff7ed;border:2px solid #f59e0b;border-radius:10px;padding:12px 14px;">
+        <p style="font-size:12px;font-weight:700;color:#92400e;margin:0 0 10px 0;">🏪 A que loja pertence esta devolução?</p>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          ${portals.map(p => `
+            <button onclick="window.glassReception._selectReturnPortal(${p.id},'${(p.name||'').replace(/'/g,"\\'")}')"
+              style="background:#fff;color:#374151;border:2px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;text-align:left;">
+              🏪 ${p.name}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function _selectReturnPortal(id, name) {
+    window._grReturnForPortalId = id;
+    window._grReturnForPortalName = name;
+    const card = document.getElementById('grReturnMatchCard');
+    if (card) card.innerHTML = `
+      <div style="background:#fff7ed;border:2px solid #f59e0b;border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">🏪</span>
+        <span style="font-size:13px;font-weight:700;color:#92400e;">${name}</span>
+        <button onclick="window.glassReception._rejectReturnMatch()" style="margin-left:auto;background:none;border:none;font-size:18px;cursor:pointer;color:#64748b;">✕</button>
+      </div>
+    `;
   }
 
   async function _devolvido(id) {
