@@ -1832,7 +1832,11 @@ document.addEventListener('DOMContentLoaded', function() {
       if (existingService.notes) document.getElementById('appointmentNotes').value = existingService.notes;
       if (existingService.address) document.getElementById('appointmentAddress').value = existingService.address;
       if (existingService.phone) document.getElementById('appointmentPhone').value = existingService.phone;
-      if (existingService.extra) document.getElementById('appointmentExtra').value = existingService.extra;
+      if (existingService.extra) {
+        let _ec = existingService.extra;
+        try { const _p = JSON.parse(existingService.extra); if (_p && typeof _p === 'object') _ec = _p.eurocode || ''; } catch(e) {}
+        if (_ec) document.getElementById('appointmentExtra').value = _ec;
+      }
       if (existingService.status) {
         const statusEl = document.getElementById('appointmentStatus');
         if (statusEl) statusEl.value = existingService.status;
