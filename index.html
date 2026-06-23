@@ -1689,6 +1689,7 @@
 
     // Local search first (active portal appointments already loaded)
     const localResults = (window.appointments || []).filter(a => {
+      if (a.executed === true) return false;
       const matchOrder = orderRef && a.order_ref && a.order_ref.trim().toLowerCase() === orderRef.trim().toLowerCase();
       const matchOrderNotes = orderRef && (
         (a.notes || '').includes(orderRef) ||
@@ -1715,8 +1716,7 @@
       if (eurocode) qp.set('search_eurocode', eurocode.trim());
       if (orderRef) qp.set('search_order_ref', orderRef.trim());
       if (plate)    qp.set('search_plate', plate.trim());
-      qp.set('include_executed', 'true'); // glass scan must match even if service already done
-      if (eurocode || orderRef || plate) {
+      if (qp.toString()) {
         const res = await fetch(API + '/appointments?' + qp.toString(), { headers: authHeaders() });
         const json = await res.json();
         if (json.success) apiResults = json.data || [];
