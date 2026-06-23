@@ -275,6 +275,9 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
             Admin
           </a>
+          <button id="btnRececaoVidrosMobile" style="display:none;" class="guia-at-upload-btn" onclick="window.glassReception?.openCoordPanel()" title="Painel de Receção de Vidros">
+            📦 Receção Vidros
+          </button>
         </div>
       </div>
 
@@ -815,7 +818,7 @@
   <script src="glass-alert.js?v=2026-04-09"></script>
   <script src="glass-alert-urgent.js?v=2026-05-05"></script>
   <script src="incomplete-services-alert.js?v=2026-06-01c"></script>
-  <script src="agenda-bot.js?v=2026-06-23a"></script>
+  <script src="agenda-bot.js?v=2026-06-23b"></script>
   <script src="powering-banner.js?v=2026-06-22b"></script>
   <script src="rota-do-dia-map.js?v=2026-06-15c"></script>
   <script src="timeline-rota.js?v=2026-05-14g"></script>
@@ -3296,10 +3299,12 @@
     const user = window.authClient?.getUser?.() || JSON.parse(localStorage.getItem('user_data') || 'null');
     if (!user) return;
     const role = user.role || '';
-    // Coordinator/admin: show desk button + poll badge
+    // Coordinator/admin: show desk button + mobile panel button + poll badge
     if (role === 'admin' || role === 'coordenador') {
       const btn = document.getElementById('btnRececaoVidros');
       if (btn) btn.style.display = '';
+      const mobileBtn = document.getElementById('btnRececaoVidrosMobile');
+      if (mobileBtn) mobileBtn.style.display = '';
       _pollPendingBadge();
       setInterval(_pollPendingBadge, 60000);
       setTimeout(_checkGlassAlerts, 4000);
