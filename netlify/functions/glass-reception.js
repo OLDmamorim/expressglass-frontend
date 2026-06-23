@@ -434,8 +434,9 @@ exports.handler = async (event) => {
 
   } catch (err) {
     console.error('glass-reception:', err);
-    const code = err.message.includes('autenticado') ? 401 : 500;
-    return { statusCode: code, headers, body: JSON.stringify({ success: false, error: err.message }) };
+    const msg = (err && err.message) ? err.message : String(err || 'Erro interno');
+    const code = msg.includes('autenticado') ? 401 : 500;
+    return { statusCode: code, headers, body: JSON.stringify({ success: false, error: msg }) };
   } finally {
     if (client) client.release();
   }

@@ -794,7 +794,7 @@
 
   <script src="portal-init.js?v=2026-05-15h"></script>
   <script src="api.js?v=2026-04-09"></script>
-  <script src="script.js?v=2026-06-22k"></script>
+  <script src="script.js?v=2026-06-23b"></script>
   <script src="script-tail.js?v=2026-06-22k"></script>
   <script src="portal-consult-patch.js?v=2"></script>
   <script src="transfer-sm-patch.js?v=2"></script>
@@ -1997,7 +1997,7 @@
         body: JSON.stringify({ appointment_id: appointmentId, order_ref: orderRef, eurocode, raw_label_text: window._grRawText || null })
       });
       const json = await res.json();
-      if (!json.success) throw new Error(json.error);
+      if (!json.success) throw new Error(json.error || json.message || `Erro HTTP ${res.status}`);
 
       // Update in-memory appointment so card turns green immediately
       let apt = null;
