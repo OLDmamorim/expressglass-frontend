@@ -100,17 +100,14 @@ Se não encontrares algum campo coloca null.`
           // Splits on "/" so "1605/6577AGACMVZ" yields ["1605", "6577AGACMVZ"] and finds 6577AGACMVZ.
           if (result.raw_text) {
             const rawUpper = String(result.raw_text).toUpperCase();
-            const candidates = rawUpper.split(/[\s\/,;|:]+/)
+            const candidates = [...new Set(rawUpper.split(/[\s\/,;|:]+/)
               .map(t => t.replace(/^[^A-Z0-9]+/, '').replace(/[^A-Z0-9]+$/, ''))
               .filter(t => /^\d{4}[A-Z0-9]{3,}/.test(t))
-              // Normalize I→1 and O→0 BEFORE the letter check so "COD AT:19113I76130"
-              // becomes "19113176130" (all digits) and gets correctly rejected.
               .map(t => t.slice(0, 4) + t.slice(4).replace(/I/g, '1').replace(/O/g, '0'))
-              // Real eurocodes always contain at least one letter after the first 4 digits.
-              // Pure-digit strings (e.g. COD AT numbers) are not eurocodes.
-              .filter(t => /[A-Z]/.test(t.slice(4)));
+              .filter(t => /[A-Z]/.test(t.slice(4))))];
             if (candidates.length > 0) {
               result.eurocode = candidates.sort((a, b) => b.length - a.length)[0];
+              result.all_eurocodes = candidates;
             }
           }
 
