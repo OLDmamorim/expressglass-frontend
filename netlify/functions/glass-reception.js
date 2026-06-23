@@ -170,8 +170,8 @@ exports.handler = async (event) => {
                  a.reception_ref AS apt_reception_ref,
                  a.executed      AS apt_executed,
                  COALESCE(a.glass_eurocode,
-                   CASE WHEN a.extra ~ '"eurocode"\s*:\s*"([^"]+)"'
-                   THEN regexp_replace(a.extra, '.*"eurocode"\s*:\s*"([^"]+)".*', '\1', 'g')
+                   CASE WHEN a.extra ~ '"eurocode"\\s*:\\s*"([^"]+)"'
+                   THEN regexp_replace(a.extra, '.*"eurocode"\\s*:\\s*"([^"]+)".*', '\\1', 'g')
                    ELSE NULL END
                  ) AS apt_eurocode,
                  COALESCE(a.order_ref) AS apt_order_ref,
