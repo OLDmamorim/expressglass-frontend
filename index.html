@@ -1680,27 +1680,36 @@
     const allPrefixed = [...new Set((allEurocodes || []).map(_prefixedEurocode).filter(Boolean))];
     const extraEurocodes = allPrefixed.filter(e => e !== eurocode);
 
-    // If multiple distinct eurocodes found, ask which one is being received now
+    // If multiple distinct eurocodes found, ask which ones are being received
     if (extraEurocodes.length > 0) {
       const body = document.getElementById('grScanBody');
       if (body) {
         const allEcs = [eurocode, ...extraEurocodes];
+        const cbKey = '_grEcSel_' + Date.now();
+        window[cbKey] = function() {
+          const selected = allEcs.filter((_, i) => {
+            const el = document.getElementById(cbKey + '_' + i);
+            return el && el.checked;
+          });
+          delete window[cbKey];
+          if (!selected.length) { alert('Seleciona pelo menos um eurocode.'); return; }
+          _doSearch(orderRef, selected[0], rawText, null, plate || null, selected.length > 1 ? selected : null);
+        };
         body.innerHTML = `
           <div style="padding:16px 4px;">
             <p style="font-weight:700;font-size:15px;margin:0 0 6px 0;">Esta etiqueta tem ${allEcs.length} eurocodes diferentes.</p>
-            <p style="font-size:13px;color:#64748b;margin:0 0 18px 0;">Qual está a receber nesta caixa?</p>
+            <p style="font-size:13px;color:#64748b;margin:0 0 18px 0;">Seleciona os que estás a receber nesta entrega:</p>
             <div style="display:flex;flex-direction:column;gap:10px;">
-              ${allEcs.map(ec => `
-                <button onclick="window.glassReception._doSearch(${JSON.stringify(orderRef)},${JSON.stringify(ec)},${JSON.stringify(rawText)},null,${JSON.stringify(plate||null)},null)"
-                  style="background:#0f172a;color:#fff;border:none;border-radius:10px;padding:14px 18px;font-size:15px;font-weight:700;font-family:monospace;cursor:pointer;text-align:left;">
-                  🔢 ${ec}
-                </button>
+              ${allEcs.map((ec, i) => `
+                <label style="display:flex;align-items:center;gap:12px;background:#f8fafc;border:2px solid #0f172a;border-radius:10px;padding:14px 18px;cursor:pointer;">
+                  <input type="checkbox" id="${cbKey}_${i}" checked style="width:20px;height:20px;cursor:pointer;accent-color:#0f172a;">
+                  <span style="font-size:15px;font-weight:700;font-family:monospace;">🔢 ${ec}</span>
+                </label>
               `).join('')}
-              <button onclick="window.glassReception._doSearch(${JSON.stringify(orderRef)},${JSON.stringify(eurocode)},${JSON.stringify(rawText)},null,${JSON.stringify(plate||null)},${JSON.stringify(allPrefixed)})"
-                style="background:#e2e8f0;color:#1e293b;border:none;border-radius:10px;padding:12px 18px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">
-                📦 Ver todos os agendamentos (${allEcs.length} eurocodes)
-              </button>
             </div>
+            <button onclick="window['${cbKey}']()" style="background:#0f172a;color:#fff;border:none;border-radius:10px;padding:14px 18px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:14px;">
+              Confirmar
+            </button>
           </div>
         `;
       }
