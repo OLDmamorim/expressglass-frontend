@@ -1675,13 +1675,14 @@
 
   function _step1() { renderStep1(); }
 
-  async function _doSearch(orderRef, eurocode, rawText, photoBase64, plate, allEurocodes) {
+  async function _doSearch(orderRef, eurocode, rawText, photoBase64, plate, allEurocodes, skipEcSelection) {
+    if (!skipEcSelection) window._grLabelSelectedEurocodes = null;
     eurocode = _prefixedEurocode(eurocode);
     const allPrefixed = [...new Set((allEurocodes || []).map(_prefixedEurocode).filter(Boolean))];
     const extraEurocodes = allPrefixed.filter(e => e !== eurocode);
 
     // If multiple distinct eurocodes found, ask which ones are being received
-    if (extraEurocodes.length > 0) {
+    if (extraEurocodes.length > 0 && !skipEcSelection) {
       const body = document.getElementById('grScanBody');
       if (body) {
         const allEcs = [eurocode, ...extraEurocodes];
@@ -1693,7 +1694,8 @@
           });
           delete window[cbKey];
           if (!selected.length) { alert('Seleciona pelo menos um eurocode.'); return; }
-          _doSearch(orderRef, selected[0], rawText, null, plate || null, selected.length > 1 ? selected : null);
+          window._grLabelSelectedEurocodes = selected;
+          _doSearch(orderRef, selected[0], rawText, null, plate || null, selected.length > 1 ? selected : null, true);
         };
         body.innerHTML = `
           <div style="padding:16px 4px;">
@@ -2063,11 +2065,21 @@
 
       _pollPendingBadge();
 
+      const normEc = s => (s || '').toLowerCase().replace(/i/g, '1').replace(/o/g, '0');
+      const receivedNorm = normEc(eurocode);
+
+      // Check if label had multiple selected eurocodes — receive them all on this appointment
+      const labelSelected = window._grLabelSelectedEurocodes || [];
+      const labelRemaining = labelSelected.filter(e => normEc(e) !== receivedNorm);
+      window._grLabelSelectedEurocodes = null;
+      if (labelRemaining.length > 0) {
+        _askExtraEurocode(labelRemaining, 0, appointmentId, plate, orderRef, []);
+        return;
+      }
+
       // Check if this appointment has additional eurocodes that need receiving
       if (apt && eurocode) {
         const allEuros = _extractAllEurocodes(apt);
-        const normEc = s => (s || '').toLowerCase().replace(/i/g, '1').replace(/o/g, '0');
-        const receivedNorm = normEc(eurocode);
         const remaining = allEuros.filter(e => normEc(e) !== receivedNorm);
         if (remaining.length > 0) {
           _askExtraEurocode(remaining, 0, appointmentId, plate, orderRef, []);
