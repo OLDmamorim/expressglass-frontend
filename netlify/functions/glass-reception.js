@@ -238,6 +238,45 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: Object.values(latest) }) };
       }
 
+      // ── Inventory: eurocode_cache × glass_receptions ─────────────────────────
+      if (p.inventory === 'true') {
+        const isAdmin = user.role === 'admin';
+        const portalIds = user.portalIds?.length ? user.portalIds
+          : (user.portalId ? [user.portalId] : []);
+
+        const portalFilter = p.portal_id ? [parseInt(p.portal_id)]
+          : (isAdmin ? null : portalIds);
+
+        const { rows: invRows } = await client.query(`
+          SELECT
+            ec.eurocode,
+            ec.glass_types,
+            ec.car_models,
+            ec.seen_count,
+            ec.last_seen,
+            COALESCE(r.received, 0)::int  AS received,
+            COALESCE(r.consumed, 0)::int  AS consumed,
+            COALESCE(r.returned, 0)::int  AS returned,
+            GREATEST(0, COALESCE(r.received,0) - COALESCE(r.consumed,0) - COALESCE(r.returned,0))::int AS in_stock
+          FROM eurocode_cache ec
+          LEFT JOIN (
+            SELECT
+              UPPER(regexp_replace(eurocode, '^[#*]+', '')) AS canonical_ec,
+              COUNT(*) FILTER (WHERE is_return = false AND status NOT IN ('missing','return')) AS received,
+              COUNT(*) FILTER (WHERE is_return = false AND status = 'consumed') AS consumed,
+              COUNT(*) FILTER (WHERE is_return = true AND status NOT IN ('devolvido','reported')) AS returned
+            FROM glass_receptions
+            WHERE eurocode IS NOT NULL
+            ${portalFilter ? 'AND portal_id = ANY($1)' : ''}
+            GROUP BY canonical_ec
+          ) r ON r.canonical_ec = ec.eurocode
+          ORDER BY ec.seen_count DESC, ec.eurocode ASC
+          LIMIT 500
+        `, portalFilter ? [portalFilter] : []);
+
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: invRows }) };
+      }
+
       // ── Returns query (is_return=true, filtered by reason) ───────────────────
       if (p.returns) {
         const isErradoGroup = p.returns === 'errado_cancelado';
