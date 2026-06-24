@@ -29,6 +29,14 @@ function verifyToken(event) {
   return jwt.verify(h.substring(7), JWT_SECRET);
 }
 
+function parseEurocode(raw) {
+  if (!raw) return { canonical: null, glassType: 'rede' };
+  const s = String(raw).trim();
+  if (s.startsWith('#')) return { canonical: s.slice(1).toUpperCase(), glassType: 'complementar' };
+  if (s.startsWith('*')) return { canonical: s.slice(1).toUpperCase(), glassType: 'oem' };
+  return { canonical: s.toUpperCase(), glassType: 'rede' };
+}
+
 async function ensureTable(client) {
   await client.query(`
     CREATE TABLE IF NOT EXISTS glass_receptions (
@@ -52,6 +60,16 @@ async function ensureTable(client) {
   await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS damage_photos JSONB`);
   await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS label_photo TEXT`);
   await client.query(`ALTER TABLE glass_receptions ADD COLUMN IF NOT EXISTS carrier_guide TEXT`);
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS eurocode_cache (
+      eurocode    TEXT PRIMARY KEY,
+      glass_types TEXT[] DEFAULT '{}',
+      car_models  TEXT[] DEFAULT '{}',
+      seen_count  INT DEFAULT 1,
+      last_seen   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
 }
 
 exports.handler = async (event) => {
@@ -292,7 +310,7 @@ exports.handler = async (event) => {
       let resolvedPortalName = d.portal_name || null;
       if (d.appointment_id) {
         const aptRow = await client.query(
-          `SELECT a.portal_id, p.name AS portal_name FROM appointments a LEFT JOIN portals p ON p.id = a.portal_id WHERE a.id = $1`,
+          `SELECT a.portal_id, a.car, p.name AS portal_name FROM appointments a LEFT JOIN portals p ON p.id = a.portal_id WHERE a.id = $1`,
           [d.appointment_id]
         );
         if (aptRow.rows.length) {
@@ -354,6 +372,29 @@ exports.handler = async (event) => {
             `UPDATE appointments SET glass_eurocode = $1 WHERE id = $2 AND (glass_eurocode IS NULL OR glass_eurocode = '')`,
             [d.eurocode, d.appointment_id]
           );
+        }
+      }
+
+      // Learn eurocode → glass type + car model from confirmed receptions
+      if (d.appointment_id && !d.is_return && d.eurocode) {
+        const { canonical, glassType } = parseEurocode(d.eurocode);
+        const carModel = aptRow.rows[0]?.car || null;
+        if (canonical) {
+          await client.query(`
+            INSERT INTO eurocode_cache (eurocode, glass_types, car_models, seen_count, last_seen)
+            VALUES ($1, ARRAY[$2]::text[], $3::text[], 1, NOW())
+            ON CONFLICT (eurocode) DO UPDATE SET
+              glass_types = (
+                SELECT array_agg(DISTINCT g) FROM unnest(array_append(eurocode_cache.glass_types, $2)) g
+              ),
+              car_models = CASE
+                WHEN $4::text IS NULL OR $4::text = ANY(eurocode_cache.car_models)
+                THEN eurocode_cache.car_models
+                ELSE array_append(eurocode_cache.car_models, $4::text)
+              END,
+              seen_count = eurocode_cache.seen_count + 1,
+              last_seen  = NOW()
+          `, [canonical, glassType, carModel ? [carModel] : [], carModel]).catch(() => {});
         }
       }
 
