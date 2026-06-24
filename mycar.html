@@ -448,6 +448,16 @@
       gap: 8px;
     }
 
+    /* ─── EM TRATAMENTO CHECKBOX ─── */
+    .treat-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: #2563eb;
+      cursor: pointer;
+    }
+    tr.in-treatment { background: #eff6ff; }
+    tr.in-treatment:hover { background: #dbeafe; }
+
     /* ─── TOAST ─── */
     .toast-container {
       position: fixed;
@@ -581,6 +591,8 @@
           <th>Matrícula</th>
           <th class="col-glass" style="white-space:nowrap">Vidro</th>
           <th class="col-total">Total</th>
+          <th class="col-fs" style="text-align:center;white-space:nowrap">FS</th>
+          <th class="col-treat" style="text-align:center;white-space:nowrap" title="Em tratamento">☑</th>
           <th class="col-pend">Pendentes</th>
           <th class="col-trat">Tratados</th>
           <th class="col-rej">Rejeitados</th>
@@ -589,7 +601,7 @@
         </tr>
       </thead>
       <tbody id="table-body">
-        <tr class="loading-row"><td colspan="7"><div class="spinner"></div>A carregar…</td></tr>
+        <tr class="loading-row"><td colspan="9"><div class="spinner"></div>A carregar…</td></tr>
       </tbody>
     </table>
   </div>
@@ -772,7 +784,7 @@ function buildGroups(services) {
   const map = {};
   for (const svc of services) {
     const key = svc.matricula.toUpperCase();
-    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null };
+    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null, in_treatment: false };
     map[key].services.push(svc);
     const d = svc.email_received_at || svc.created_at;
     if (d && (!map[key].lastDate || d > map[key].lastDate)) map[key].lastDate = d;
@@ -781,6 +793,7 @@ function buildGroups(services) {
     if (svc.n_obra && !map[key].n_obra) map[key].n_obra = svc.n_obra;
     if (svc.glass_status && !map[key].glass_status) map[key].glass_status = svc.glass_status;
     if (svc.apt_order_ref && !map[key].apt_order_ref) map[key].apt_order_ref = svc.apt_order_ref;
+    if (svc.in_treatment) map[key].in_treatment = true;
   }
   return Object.values(map).sort((a, b) =>
     (b.lastDate || '').localeCompare(a.lastDate || '')
@@ -804,7 +817,7 @@ function renderTable(groups) {
   const tbody = document.getElementById('table-body');
   if (groups.length === 0) {
     tbody.innerHTML = `
-      <tr><td colspan="7">
+      <tr><td colspan="9">
         <div class="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
@@ -821,7 +834,7 @@ function renderTable(groups) {
     const rej  = g.services.filter(s => s.status === 'rejeitado').length;
     const last = g.lastDate ? fmtDate(g.lastDate) : '—';
     return `
-      <tr class="${g.isNew ? 'row-new' : ''}" onclick="openDetail('${g.matricula}')">
+      <tr class="${g.isNew ? 'row-new' : ''}${g.in_treatment ? ' in-treatment' : ''}" onclick="openDetail('${g.matricula}')">
         <td class="plate-cell">
           <span class="plate-badge"><span class="plate-badge-text">${g.matricula}</span></span>
           ${g.isNew ? '<span class="count-badge badge-new" style="margin-left:6px">Novo</span>' : ''}
@@ -838,6 +851,12 @@ function renderTable(groups) {
           </div>`;
         })()}</td>
         <td class="col-total"><span class="count-badge badge-neutral">${g.services.length}</span></td>
+        <td class="col-fs" style="text-align:center;font-size:.82rem;font-weight:700;color:#2563eb">${g.n_obra ? `FS${g.n_obra}` : '<span style="color:#d1d5db">—</span>'}</td>
+        <td class="col-treat" style="text-align:center" onclick="event.stopPropagation()">
+          <input type="checkbox" class="treat-checkbox" title="Em tratamento"
+            ${g.in_treatment ? 'checked' : ''}
+            onchange="toggleInTreatment('${g.matricula}', this.checked)">
+        </td>
         <td class="col-pend">${pend > 0 ? `<span class="count-badge badge-pending">${pend}</span>` : '<span style="color:#d1d5db">0</span>'}</td>
         <td class="col-trat">${trat > 0 ? `<span class="count-badge badge-done">${trat}</span>`    : '<span style="color:#d1d5db">0</span>'}</td>
         <td class="col-rej">${rej  > 0 ? `<span class="count-badge badge-reject">${rej}</span>`   : '<span style="color:#d1d5db">0</span>'}</td>
@@ -1008,6 +1027,23 @@ async function updateStatus(id, status, workType) {
     updateStats();
     renderDetailBody(currentPlate);
     toast(`Estado atualizado: ${status}`, 'success');
+  } catch (e) {
+    toast(`Erro: ${e.message}`, 'error');
+  }
+}
+
+async function toggleInTreatment(matricula, checked) {
+  try {
+    const res = await fetch(`${API_BASE}/mycar-services`, {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ matricula, in_treatment: checked })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    allServices.filter(s => s.matricula.toUpperCase() === matricula.toUpperCase())
+               .forEach(s => { s.in_treatment = checked; });
+    filterTable();
   } catch (e) {
     toast(`Erro: ${e.message}`, 'error');
   }

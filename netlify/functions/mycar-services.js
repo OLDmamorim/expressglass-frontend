@@ -42,6 +42,7 @@ async function ensureTable(client) {
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS car TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS work_type VARCHAR(20)`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS in_treatment BOOLEAN DEFAULT FALSE`);
   await client.query(`ALTER TABLE mycar_services DROP CONSTRAINT IF EXISTS mycar_services_status_check`);
   await client.query(`UPDATE mycar_services SET status = 'realizado' WHERE status = 'tratado'`);
   await client.query(`ALTER TABLE mycar_services ADD CONSTRAINT mycar_services_status_check CHECK (status IN ('pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado'))`);
@@ -120,7 +121,21 @@ exports.handler = async (event) => {
 
     // PATCH - atualizar status de um serviço (ou marcar como visto)
     if (event.httpMethod === 'PATCH') {
-      const { id, status, notas, obs_tecnico, viewed, work_type } = JSON.parse(event.body || '{}');
+      const { id, status, notas, obs_tecnico, viewed, work_type, matricula, in_treatment } = JSON.parse(event.body || '{}');
+
+      // Bulk: togglear em tratamento por matrícula
+      if (matricula && in_treatment !== undefined && !id) {
+        const portalCond = user.role !== 'admin' && user.portalId
+          ? 'AND (portal_id = $3 OR portal_id IS NULL)'
+          : '';
+        const params = [in_treatment, matricula.toUpperCase()];
+        if (user.role !== 'admin' && user.portalId) params.push(user.portalId);
+        await client.query(
+          `UPDATE mycar_services SET in_treatment = $1 WHERE UPPER(matricula) = $2 ${portalCond}`,
+          params
+        );
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+      }
 
       // Marcar como visto (pode ser sem status)
       if (id && viewed && !status) {
