@@ -41,6 +41,7 @@ async function ensureTable(client) {
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMP`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS car TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS work_type VARCHAR(20)`);
   await client.query(`ALTER TABLE mycar_services DROP CONSTRAINT IF EXISTS mycar_services_status_check`);
   await client.query(`UPDATE mycar_services SET status = 'realizado' WHERE status = 'tratado'`);
   await client.query(`ALTER TABLE mycar_services ADD CONSTRAINT mycar_services_status_check CHECK (status IN ('pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado'))`);
@@ -119,7 +120,7 @@ exports.handler = async (event) => {
 
     // PATCH - atualizar status de um serviço (ou marcar como visto)
     if (event.httpMethod === 'PATCH') {
-      const { id, status, notas, obs_tecnico, viewed } = JSON.parse(event.body || '{}');
+      const { id, status, notas, obs_tecnico, viewed, work_type } = JSON.parse(event.body || '{}');
 
       // Marcar como visto (pode ser sem status)
       if (id && viewed && !status) {
@@ -148,6 +149,10 @@ exports.handler = async (event) => {
       if (obs_tecnico !== undefined) {
         setClauses.push(`obs_tecnico = $${idx++}`);
         params.push(obs_tecnico);
+      }
+      if (work_type !== undefined) {
+        setClauses.push(`work_type = $${idx++}`);
+        params.push(work_type);
       }
       params.push(id);
 
