@@ -592,7 +592,7 @@
           <th class="col-glass" style="white-space:nowrap">Vidro</th>
           <th class="col-total">Total</th>
           <th class="col-treat" style="text-align:center;white-space:nowrap" title="Em tratamento">☑</th>
-          <th class="col-pend">Pendentes</th>
+
           <th class="col-trat">Tratados</th>
           <th class="col-rej">Rejeitados</th>
           <th class="col-last">Último registo</th>
@@ -600,7 +600,7 @@
         </tr>
       </thead>
       <tbody id="table-body">
-        <tr class="loading-row"><td colspan="8"><div class="spinner"></div>A carregar…</td></tr>
+        <tr class="loading-row"><td colspan="7"><div class="spinner"></div>A carregar…</td></tr>
       </tbody>
     </table>
   </div>
@@ -816,7 +816,7 @@ function renderTable(groups) {
   const tbody = document.getElementById('table-body');
   if (groups.length === 0) {
     tbody.innerHTML = `
-      <tr><td colspan="8">
+      <tr><td colspan="7">
         <div class="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
@@ -855,7 +855,6 @@ function renderTable(groups) {
             ${g.in_treatment ? 'checked' : ''}
             onchange="toggleInTreatment('${g.matricula}', this.checked)">
         </td>
-        <td class="col-pend">${pend > 0 ? `<span class="count-badge badge-pending">${pend}</span>` : '<span style="color:#d1d5db">0</span>'}</td>
         <td class="col-trat">${trat > 0 ? `<span class="count-badge badge-done">${trat}</span>`    : '<span style="color:#d1d5db">0</span>'}</td>
         <td class="col-rej">${rej  > 0 ? `<span class="count-badge badge-reject">${rej}</span>`   : '<span style="color:#d1d5db">0</span>'}</td>
         <td class="col-last" style="color:var(--gray);font-size:.82rem">${last}</td>
