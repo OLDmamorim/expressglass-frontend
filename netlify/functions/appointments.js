@@ -128,6 +128,37 @@ exports.handler = async (event) => {
 
     // ---------- GET ----------
     if (event.httpMethod === 'GET') {
+      // History report: all portals the user has access to, with date range
+      if (params.history === 'true') {
+        let allowedPortalIds;
+        if (user.role === 'admin') {
+          const { rows: allPortals } = await pool.query('SELECT id FROM portals');
+          allowedPortalIds = allPortals.map(r => r.id);
+        } else {
+          allowedPortalIds = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
+        }
+        if (!allowedPortalIds.length) {
+          return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: [] }) };
+        }
+        const fromDate = params.from || (() => { const d = new Date(); d.setMonth(d.getMonth() - 3); return d.toISOString().slice(0,10); })();
+        const toDate   = params.to   || new Date().toISOString().slice(0,10);
+        const { rows } = await pool.query(`
+          SELECT a.id, a.date, a.period, a.plate, a.car, a.service, a.locality, a.status,
+                 a.notes, a.client_name, a.phone, a.executed, a.confirmed,
+                 a.not_done_reason, a.not_done_at, a.glass_removed, a.glass_removed_date,
+                 a.order_ref, a.glass_eurocode, a.portal_id,
+                 p.name AS portal_name
+          FROM appointments a
+          LEFT JOIN portals p ON p.id = a.portal_id
+          WHERE a.portal_id = ANY($1)
+            AND a.date >= $2
+            AND a.date <= $3
+          ORDER BY a.date DESC, a.created_at DESC
+          LIMIT 2000
+        `, [allowedPortalIds, fromDate, toDate]);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
+      }
+
       // Cross-portal search for glass reception matching
       if (params.search_eurocode || params.search_order_ref) {
         let allowedPortalIds;
