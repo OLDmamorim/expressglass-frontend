@@ -214,7 +214,7 @@ exports.handler = async (event) => {
 
       const q = `
         SELECT a.id, a.date, a.period, a.plate, a.car, a.service, a.locality, a.status,
-               a.notes, a.address, a.extra, a.phone, a.km, a."sortIndex", a."glassOrdered",
+               a.notes, a.address, a.extra, a.phone, a.km, a.sortIndex, a."glassOrdered",
                a.vehicle_type, a.travel_time, a.auto_imported, a.executed, a.confirmed,
                a.calibration, a.first_of_day, a.second_of_day, a.not_done_reason, a.commercial_user_id,
                a.return_km, a.return_time, a.client_name, a.damage_details, a.glass_removed, a.glass_removed_date,
@@ -226,7 +226,7 @@ exports.handler = async (event) => {
         FROM appointments a
         LEFT JOIN portals p ON p.id = a.portal_id
         WHERE a.portal_id = $1
-        ORDER BY a.date ASC NULLS LAST, a."sortIndex" ASC NULLS LAST, a.created_at ASC
+        ORDER BY a.date ASC NULLS LAST, a.sortIndex ASC NULLS LAST, a.created_at ASC
       `;
       const { rows } = await pool.query(q, [portalId]);
 
