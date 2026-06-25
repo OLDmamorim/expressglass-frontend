@@ -956,6 +956,12 @@
         <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Pesquisar</label>
         <input type="text" id="histFilterSearch" placeholder="Matrícula, carro, cliente…" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#1e293b;font-size:13px;padding:6px 10px;outline:none;width:100%;" oninput="window.historicoModal.render()">
       </div>
+      <div style="display:flex;flex-direction:column;gap:4px;min-width:160px;">
+        <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Loja / Serviço Móvel</label>
+        <select id="histFilterPortal" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#1e293b;font-size:13px;padding:6px 10px;outline:none;cursor:pointer;" onchange="window.historicoModal.render()">
+          <option value="">Todas</option>
+        </select>
+      </div>
       <div style="display:flex;align-items:flex-end;gap:6px;">
         <button onclick="window.historicoModal.resetFilters()" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#64748b;font-size:12px;font-weight:600;padding:7px 14px;cursor:pointer;">↺ Limpar</button>
       </div>
@@ -985,6 +991,7 @@
 
     <!-- Footer -->
     <div style="display:flex;justify-content:flex-end;padding:14px 24px;border-top:1px solid #e2e8f0;gap:8px;background:#f8fafc;border-radius:0 0 16px 16px;">
+      <button onclick="window.historicoModal.exportCSV()" style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">📥 Excel</button>
       <button onclick="window.historicoModal.print()" style="display:inline-flex;align-items:center;gap:6px;background:#1e40af;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">🖨️ Imprimir</button>
       <button onclick="window.historicoModal.close()" style="background:#e2e8f0;border:none;border-radius:8px;color:#374151;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">Fechar</button>
     </div>
@@ -1053,36 +1060,38 @@
     return d.toISOString().slice(0, 10);
   }
 
-  function render() {
+  function _getFiltered() {
     const appts = window.appointments || [];
     const from   = document.getElementById('histFilterFrom')?.value || '';
     const to     = document.getElementById('histFilterTo')?.value || '';
     const status = document.getElementById('histFilterStatus')?.value || '';
     const search = (document.getElementById('histFilterSearch')?.value || '').toLowerCase().trim();
+    const portal = document.getElementById('histFilterPortal')?.value || '';
 
-    const baseRows = appts.filter(a => {
+    const base = appts.filter(a => {
       if (!a.date) return false;
       if (from && a.date < from) return false;
       if (to   && a.date > to)   return false;
+      if (portal && (a.portal_name || '') !== portal) return false;
       if (search) {
-        const hay = [a.plate, a.car, a.client_name, a.locality, a.service, a.notes].join(' ').toLowerCase();
+        const hay = [a.plate, a.car, a.client_name, a.locality, a.service, a.notes, a.portal_name].join(' ').toLowerCase();
         if (!hay.includes(search)) return false;
       }
       return true;
     });
-
-    const totalCount = status ? baseRows.filter(a => getStatus(a) === status).length : baseRows.length;
-
-    let rows = baseRows.filter(a => {
-      if (status) return getStatus(a) === status;
-      return getStatus(a) !== 'nao_realizado';
-    });
-
+    const all  = base;
+    const rows = base.filter(a => status ? getStatus(a) === status : getStatus(a) !== 'nao_realizado');
     rows.sort((a, b) => {
-      const av = _sortField === 'date' ? (a.date || '') : (a[_sortField] || '');
-      const bv = _sortField === 'date' ? (b.date || '') : (b[_sortField] || '');
+      const av = _sortField === 'date' ? (a.date||'') : (a[_sortField]||'');
+      const bv = _sortField === 'date' ? (b.date||'') : (b[_sortField]||'');
       return av < bv ? _sortDir : av > bv ? -_sortDir : 0;
     });
+    return { all, rows, status, from, to, portal, search };
+  }
+
+  function render() {
+    const { all, rows, status } = _getFiltered();
+    const totalCount = status ? all.filter(a => getStatus(a) === status).length : all.length;
 
     const tbody = document.getElementById('historicoTbody');
     const empty = document.getElementById('historicoEmpty');
@@ -1126,6 +1135,14 @@
     const toEl   = document.getElementById('histFilterTo');
     if (fromEl && !fromEl.value) fromEl.value = defaultFrom();
     if (toEl   && !toEl.value)   toEl.value   = defaultTo();
+    // populate portal options
+    const portalEl = document.getElementById('histFilterPortal');
+    if (portalEl) {
+      const names = [...new Set((window.appointments || []).map(a => a.portal_name).filter(Boolean))].sort();
+      const cur = portalEl.value;
+      portalEl.innerHTML = '<option value="">Todas</option>' +
+        names.map(n => `<option value="${n.replace(/"/g,'&quot;')}" ${cur===n?'selected':''}>${n}</option>`).join('');
+    }
     modal.style.display = 'flex';
     render();
   }
@@ -1142,42 +1159,38 @@
   }
 
   function resetFilters() {
-    const fromEl = document.getElementById('histFilterFrom');
-    const toEl   = document.getElementById('histFilterTo');
-    const stEl   = document.getElementById('histFilterStatus');
-    const srEl   = document.getElementById('histFilterSearch');
-    if (fromEl) fromEl.value = defaultFrom();
-    if (toEl)   toEl.value   = defaultTo();
-    if (stEl)   stEl.value   = '';
-    if (srEl)   srEl.value   = '';
+    const fromEl   = document.getElementById('histFilterFrom');
+    const toEl     = document.getElementById('histFilterTo');
+    const stEl     = document.getElementById('histFilterStatus');
+    const srEl     = document.getElementById('histFilterSearch');
+    const portalEl = document.getElementById('histFilterPortal');
+    if (fromEl)   fromEl.value   = defaultFrom();
+    if (toEl)     toEl.value     = defaultTo();
+    if (stEl)     stEl.value     = '';
+    if (srEl)     srEl.value     = '';
+    if (portalEl) portalEl.value = '';
     render();
   }
 
-  function print() {
-    const appts = window.appointments || [];
-    const from   = document.getElementById('histFilterFrom')?.value || '';
-    const to     = document.getElementById('histFilterTo')?.value || '';
-    const status = document.getElementById('histFilterStatus')?.value || '';
-    const search = (document.getElementById('histFilterSearch')?.value || '').toLowerCase().trim();
+  function exportCSV() {
+    const { rows, from, to, portal, status } = _getFiltered();
+    const statusLabel = { realizado:'Realizado', nao_realizado:'Não Realizado', vidro_retirado:'Vidro Retirado', pre_agendado:'Pré-agendado', pendente:'Pendente' };
+    const esc = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
+    const lines = [['DATA','MATRÍCULA','CARRO','SERVIÇO','LOJA','LOCALIDADE','CLIENTE','ESTADO','NOTAS'].map(esc).join(',')];
+    rows.forEach(a => {
+      const s = getStatus(a);
+      const nota = a.not_done_reason ? `Motivo: ${a.not_done_reason}` : (a.notes || '');
+      lines.push([fmtDate(a.date), (a.plate||'').toUpperCase(), a.car||'', a.service||'', a.portal_name||'', getLocality(a), a.client_name||'', statusLabel[s]||s, nota].map(esc).join(','));
+    });
+    const blob = new Blob(['﻿'+lines.join('\r\n')], { type:'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'historico-servicos.csv';
+    link.click();
+  }
 
-    const baseRowsPrint = appts.filter(a => {
-      if (!a.date) return false;
-      if (from && a.date < from) return false;
-      if (to   && a.date > to)   return false;
-      if (search) {
-        const hay = [a.plate, a.car, a.client_name, a.locality, a.service, a.notes].join(' ').toLowerCase();
-        if (!hay.includes(search)) return false;
-      }
-      return true;
-    });
-    let rows = baseRowsPrint.filter(a => {
-      if (status) return getStatus(a) === status;
-      return getStatus(a) !== 'nao_realizado';
-    });
-    rows.sort((a, b) => {
-      const av = a[_sortField] || ''; const bv = b[_sortField] || '';
-      return av < bv ? _sortDir : av > bv ? -_sortDir : 0;
-    });
+  function print() {
+    const { rows, from, to, portal, status, search } = _getFiltered();
 
     const statusLabel = { realizado: 'Realizado', nao_realizado: 'Não Realizado', vidro_retirado: 'Vidro Retirado', pre_agendado: 'Pré-agendado', pendente: 'Pendente' };
     const statusColor = { realizado: '#16a34a', nao_realizado: '#dc2626', vidro_retirado: '#2563eb', pre_agendado: '#d97706', pendente: '#6b7280' };
@@ -1191,6 +1204,7 @@
         <td><strong>${(a.plate||'—').toUpperCase()}</strong></td>
         <td>${a.car||'—'}</td>
         <td>${a.service||'—'}</td>
+        <td>${a.portal_name||'—'}</td>
         <td>${getLocality(a)}</td>
         <td>${a.client_name||'—'}</td>
         <td><span style="display:inline-block;background:${statusColor[s]||'#6b7280'};color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact;">${statusLabel[s]||'—'}</span></td>
@@ -1199,10 +1213,11 @@
     }).join('');
 
     const filterInfo = [
-      from ? `De: ${fmtDate(from)}` : '',
-      to   ? `Até: ${fmtDate(to)}`  : '',
+      from   ? `De: ${fmtDate(from)}`              : '',
+      to     ? `Até: ${fmtDate(to)}`               : '',
+      portal ? `Loja: ${portal}`                   : '',
       status ? `Estado: ${statusLabel[status]||status}` : '',
-      search ? `Pesquisa: "${search}"` : ''
+      search ? `Pesquisa: "${search}"`             : ''
     ].filter(Boolean).join('  •  ');
 
     const html = `<!DOCTYPE html><html lang="pt-PT"><head><meta charset="UTF-8">
@@ -1221,7 +1236,7 @@
 <h1>🕘 Histórico de Serviços</h1>
 <div class="meta">Impresso em ${new Date().toLocaleDateString('pt-PT', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}${filterInfo ? '  •  ' + filterInfo : ''}  •  ${rows.length} serviço(s)</div>
 <table>
-  <thead><tr><th>Data</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Localidade</th><th>Cliente</th><th>Estado</th><th>Notas</th></tr></thead>
+  <thead><tr><th>Data</th><th>Matrícula</th><th>Carro</th><th>Serviço</th><th>Loja</th><th>Localidade</th><th>Cliente</th><th>Estado</th><th>Notas</th></tr></thead>
   <tbody>${tableRows}</tbody>
 </table>
 <script>window.onload=function(){window.print();}<\/script>
@@ -1232,7 +1247,7 @@
     else alert('Ativa os pop-ups para imprimir.');
   }
 
-  window.historicoModal = { open, close, render, sort, resetFilters, print };
+  window.historicoModal = { open, close, render, sort, resetFilters, print, exportCSV };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
