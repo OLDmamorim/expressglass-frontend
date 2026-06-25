@@ -456,15 +456,15 @@ exports.handler = async (event) => {
         }
       }
 
-      // Prevent duplicate reception of the same eurocode (unless it's a return)
+      // Prevent duplicate reception of the same eurocode for the SAME appointment
       if (d.eurocode && !d.is_return && d.appointment_id) {
         const dupCheck = await client.query(
           `SELECT gr.id, a.plate FROM glass_receptions gr
            LEFT JOIN appointments a ON a.id = gr.appointment_id
            WHERE LOWER(REPLACE(REPLACE(gr.eurocode,'i','1'),'o','0')) = LOWER(REPLACE(REPLACE($1,'i','1'),'o','0'))
-             AND gr.status != 'return'
-             AND gr.appointment_id IS NOT NULL`,
-          [d.eurocode]
+             AND gr.appointment_id = $2
+             AND gr.status != 'return'`,
+          [d.eurocode, d.appointment_id]
         );
         if (dupCheck.rows.length > 0) {
           const plates = dupCheck.rows.map(r => r.plate || '?').join(', ');
