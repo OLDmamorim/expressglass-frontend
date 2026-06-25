@@ -2982,6 +2982,10 @@
           ${portalOpts}
         </select>
         <span style="font-size:12px;color:#94a3b8;">${data.length} eurocode${data.length !== 1 ? 's' : ''} conhecidos</span>
+        <button onclick="window.glassReception._backfillCache()" id="btnBackfillCache"
+          style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;color:#374151;white-space:nowrap;">
+          🔄 Preencher histórico
+        </button>
       </div>
       ${data.length === 0 ? `
         <div style="text-align:center;padding:40px;color:#94a3b8;">
@@ -3005,6 +3009,24 @@
         </table>
       </div>`}
     `;
+  }
+
+  async function _backfillCache() {
+    const btn = document.getElementById('btnBackfillCache');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ A preencher…'; }
+    try {
+      const res = await fetch(API + '/glass-reception', {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'backfill_cache' })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      await _loadInventory(document.getElementById('grInvPortalFilter')?.value || undefined);
+    } catch(e) {
+      alert('Erro: ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 Preencher histórico'; }
+    }
   }
 
   // ── HISTORY ───────────────────────────────────────────────────────────────
@@ -3641,7 +3663,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
