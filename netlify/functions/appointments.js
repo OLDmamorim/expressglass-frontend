@@ -213,18 +213,20 @@ exports.handler = async (event) => {
       }
 
       const q = `
-        SELECT id, date, period, plate, car, service, locality, status,
-               notes, address, extra, phone, km, sortIndex, "glassOrdered",
-               vehicle_type, travel_time, auto_imported, executed, confirmed,
-               calibration, first_of_day, second_of_day, not_done_reason, commercial_user_id,
-               return_km, return_time, client_name, damage_details, glass_removed, glass_removed_date,
-               custom_service_time, foreign_plate, extra_services, n_obra,
-               order_ref, glass_eurocode, reception_ref, reception_date,
-               comp_sales_desc, comp_sales_nif, comp_sales_name, comp_sales_faturado,
-               created_at, updated_at, not_done_at
-        FROM appointments
-        WHERE portal_id = $1
-        ORDER BY date ASC NULLS LAST, sortIndex ASC NULLS LAST, created_at ASC
+        SELECT a.id, a.date, a.period, a.plate, a.car, a.service, a.locality, a.status,
+               a.notes, a.address, a.extra, a.phone, a.km, a."sortIndex", a."glassOrdered",
+               a.vehicle_type, a.travel_time, a.auto_imported, a.executed, a.confirmed,
+               a.calibration, a.first_of_day, a.second_of_day, a.not_done_reason, a.commercial_user_id,
+               a.return_km, a.return_time, a.client_name, a.damage_details, a.glass_removed, a.glass_removed_date,
+               a.custom_service_time, a.foreign_plate, a.extra_services, a.n_obra,
+               a.order_ref, a.glass_eurocode, a.reception_ref, a.reception_date,
+               a.comp_sales_desc, a.comp_sales_nif, a.comp_sales_name, a.comp_sales_faturado,
+               a.created_at, a.updated_at, a.not_done_at, a.portal_id,
+               p.name AS portal_name
+        FROM appointments a
+        LEFT JOIN portals p ON p.id = a.portal_id
+        WHERE a.portal_id = $1
+        ORDER BY a.date ASC NULLS LAST, a."sortIndex" ASC NULLS LAST, a.created_at ASC
       `;
       const { rows } = await pool.query(q, [portalId]);
 

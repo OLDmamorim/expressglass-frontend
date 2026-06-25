@@ -1053,14 +1053,12 @@
 
   function defaultFrom() {
     const d = new Date();
-    d.setMonth(d.getMonth() - 3);
+    d.setDate(1);
     return d.toISOString().slice(0, 10);
   }
 
   function defaultTo() {
-    const d = new Date();
-    d.setDate(d.getDate() + 7);
-    return d.toISOString().slice(0, 10);
+    return new Date().toISOString().slice(0, 10);
   }
 
   function _getFiltered() {
