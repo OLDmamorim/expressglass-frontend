@@ -274,6 +274,9 @@
           <button id="btnRececaoVidrosMobile" style="display:none;" class="guia-at-upload-btn" onclick="window.glassReception?.openCoordPanel()" title="Painel de Receção de Vidros">
             📦 Receção Vidros
           </button>
+          <button id="btnHistoricoMobile" style="display:none;" class="guia-at-upload-btn" onclick="window.historicoModal?.open()" title="Histórico de Serviços">
+            🕘 Histórico
+          </button>
         </div>
       </div>
 
@@ -3719,6 +3722,9 @@
       const adminMobileBtn = document.getElementById('btnAdminPanelMobile');
       if (adminMobileBtn) adminMobileBtn.style.display = '';
     }
+    // All authenticated users: show Histórico button
+    const histBtn = document.getElementById('btnHistoricoMobile');
+    if (histBtn) histBtn.style.display = '';
   }
 
   // ── HELPERS ───────────────────────────────────────────────────────────────
