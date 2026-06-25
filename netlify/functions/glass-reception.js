@@ -294,28 +294,28 @@ exports.handler = async (event) => {
 
         const { rows: invRows } = await client.query(`
           SELECT
-            ec.eurocode,
-            ec.glass_types,
-            ec.car_models,
-            ec.seen_count,
+            r.canonical_ec                  AS eurocode,
+            COALESCE(ec.glass_types, '{}')  AS glass_types,
+            COALESCE(ec.car_models,  '{}')  AS car_models,
+            COALESCE(ec.seen_count,  0)     AS seen_count,
             ec.last_seen,
-            COALESCE(r.received, 0)::int  AS received,
-            COALESCE(r.consumed, 0)::int  AS consumed,
-            COALESCE(r.returned, 0)::int  AS returned,
+            COALESCE(r.received, 0)::int    AS received,
+            COALESCE(r.consumed, 0)::int    AS consumed,
+            COALESCE(r.returned, 0)::int    AS returned,
             GREATEST(0, COALESCE(r.received,0) - COALESCE(r.consumed,0) - COALESCE(r.returned,0))::int AS in_stock
-          FROM eurocode_cache ec
-          LEFT JOIN (
+          FROM (
             SELECT
               UPPER(regexp_replace(eurocode, '^[#*]+', '')) AS canonical_ec,
               COUNT(*) FILTER (WHERE is_return = false AND status NOT IN ('missing','return')) AS received,
-              COUNT(*) FILTER (WHERE is_return = false AND status = 'consumed') AS consumed,
-              COUNT(*) FILTER (WHERE is_return = true AND status NOT IN ('devolvido','reported')) AS returned
+              COUNT(*) FILTER (WHERE is_return = false AND status = 'consumed')               AS consumed,
+              COUNT(*) FILTER (WHERE is_return = true  AND status NOT IN ('devolvido','reported')) AS returned
             FROM glass_receptions
             WHERE eurocode IS NOT NULL
             ${portalFilter ? 'AND portal_id = ANY($1)' : ''}
             GROUP BY canonical_ec
-          ) r ON r.canonical_ec = ec.eurocode
-          ORDER BY ec.seen_count DESC, ec.eurocode ASC
+          ) r
+          LEFT JOIN eurocode_cache ec ON ec.eurocode = r.canonical_ec
+          ORDER BY r.received DESC, r.canonical_ec ASC
           LIMIT 500
         `, portalFilter ? [portalFilter] : []);
 
