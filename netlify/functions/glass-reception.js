@@ -296,9 +296,10 @@ exports.handler = async (event) => {
 
         const { rows: invRows } = await client.query(`
           SELECT
-            r.canonical_ec                  AS eurocode,
-            COALESCE(ec.glass_types, '{}')  AS glass_types,
-            COALESCE(ec.car_models,  '{}')  AS car_models,
+            r.canonical_ec                     AS eurocode,
+            COALESCE(ec.glass_types,    '{}')  AS glass_types,
+            COALESCE(ec.service_types,  '{}')  AS service_types,
+            COALESCE(ec.car_models,     '{}')  AS car_models,
             COALESCE(ec.seen_count,  0)     AS seen_count,
             ec.last_seen,
             COALESCE(r.received, 0)::int    AS received,
