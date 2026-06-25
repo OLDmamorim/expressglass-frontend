@@ -542,6 +542,46 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'PUT') {
       const d = JSON.parse(event.body || '{}');
 
+      // Backfill eurocode_cache from existing glass_receptions + appointments
+      if (d.action === 'backfill_cache') {
+        const { rows: bRows } = await client.query(`
+          INSERT INTO eurocode_cache (eurocode, glass_types, car_models, seen_count, last_seen)
+          SELECT
+            UPPER(regexp_replace(gr.eurocode, '^[#*]+', '')) AS canonical,
+            array_agg(DISTINCT CASE
+              WHEN gr.eurocode LIKE '#%' THEN 'complementar'
+              WHEN gr.eurocode LIKE '*%' THEN 'oem'
+              ELSE 'rede'
+            END) AS glass_types,
+            COALESCE(
+              array_agg(DISTINCT a.car) FILTER (WHERE a.car IS NOT NULL AND TRIM(a.car) != ''),
+              '{}'::text[]
+            ) AS car_models,
+            COUNT(*) AS seen_count,
+            MAX(gr.created_at) AS last_seen
+          FROM glass_receptions gr
+          LEFT JOIN appointments a ON a.id = gr.appointment_id
+          WHERE gr.eurocode IS NOT NULL
+            AND gr.is_return = false
+          GROUP BY canonical
+          ON CONFLICT (eurocode) DO UPDATE SET
+            glass_types = (
+              SELECT array_agg(DISTINCT g)
+              FROM unnest(eurocode_cache.glass_types || EXCLUDED.glass_types) g
+              WHERE g IS NOT NULL
+            ),
+            car_models = (
+              SELECT array_agg(DISTINCT c)
+              FROM unnest(COALESCE(eurocode_cache.car_models,'{}') || COALESCE(EXCLUDED.car_models,'{}')) c
+              WHERE c IS NOT NULL AND TRIM(c) != ''
+            ),
+            seen_count = GREATEST(eurocode_cache.seen_count, EXCLUDED.seen_count),
+            last_seen  = GREATEST(eurocode_cache.last_seen,  EXCLUDED.last_seen)
+          RETURNING eurocode
+        `);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, count: bRows.length }) };
+      }
+
       // Bulk sync: mark glasses consumed when linked appointment is Realizado
       if (d.action === 'sync_stock') {
         let allowedIds;
