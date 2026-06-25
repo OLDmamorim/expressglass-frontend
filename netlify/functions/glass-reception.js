@@ -70,6 +70,25 @@ async function ensureTable(client) {
       last_seen   TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS close_requests (
+      id             SERIAL PRIMARY KEY,
+      appointment_id INTEGER REFERENCES appointments(id) ON DELETE SET NULL,
+      eurocode       TEXT,
+      plate          TEXT,
+      order_ref      TEXT,
+      n_obra         TEXT,
+      portal_id      INTEGER,
+      portal_name    TEXT,
+      notes          TEXT,
+      status         VARCHAR(20) DEFAULT 'pending',
+      requested_by   TEXT,
+      created_at     TIMESTAMPTZ DEFAULT NOW(),
+      done_at        TIMESTAMPTZ,
+      done_by        TEXT
+    )
+  `);
 }
 
 exports.handler = async (event) => {
@@ -141,12 +160,18 @@ exports.handler = async (event) => {
             WHERE gr.status = 'missing' ${portalCond}`, vals),
         ]);
 
+        const closeR = await client.query(
+          `SELECT COUNT(*) AS n FROM close_requests WHERE status = 'pending' ${portalCond.replace(/gr\./g, '')}`,
+          vals
+        );
+
         return { statusCode: 200, headers, body: JSON.stringify({
           success: true,
           pending: parseInt(pendR.rows[0].n, 10) || 0,
           damaged: parseInt(damR.rows[0].n, 10) || 0,
           returns: parseInt(retR.rows[0].n, 10) || 0,
           missing: parseInt(missR.rows[0].n, 10) || 0,
+          close_requests: parseInt(closeR.rows[0].n, 10) || 0,
         })};
       }
 
@@ -174,6 +199,26 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({
           success: true, data: rows, count: rows.length
         })};
+      }
+
+      // ── Close requests list ───────────────────────────────────────────────────
+      if (p.close_requests === 'true') {
+        const isAdmin = user.role === 'admin';
+        const portalIds = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
+        const portalCond = isAdmin ? '' : `AND cr.portal_id = ANY($1)`;
+        const vals = isAdmin ? [] : [portalIds];
+        const { rows: crRows } = await client.query(`
+          SELECT cr.*,
+                 a.plate   AS apt_plate,
+                 a.car     AS apt_car,
+                 a.service AS apt_service
+          FROM close_requests cr
+          LEFT JOIN appointments a ON a.id = cr.appointment_id
+          WHERE cr.status = 'pending'
+          ${portalCond}
+          ORDER BY cr.created_at DESC
+        `, vals);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: crRows }) };
       }
 
       // ── History query ─────────────────────────────────────────────────────────
@@ -340,6 +385,59 @@ exports.handler = async (event) => {
     // ── POST ───────────────────────────────────────────────────────────────────
     if (event.httpMethod === 'POST') {
       const d = JSON.parse(event.body || '{}');
+
+      // ── Criar pedido de fecho de ficha ────────────────────────────────────────
+      if (d.action === 'close_request') {
+        const { appointment_id, eurocode, plate, order_ref, n_obra, notes, portal_id, portal_name } = d;
+        const reqBy = user.name || user.email || null;
+        const pid = portal_id || user.portalId || null;
+        const { rows: crRows } = await client.query(`
+          INSERT INTO close_requests (appointment_id, eurocode, plate, order_ref, n_obra, portal_id, portal_name, notes, requested_by)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          RETURNING *
+        `, [appointment_id || null, eurocode || null, plate || null, order_ref || null,
+            n_obra || null, pid, portal_name || null, notes || null, reqBy]);
+        return { statusCode: 201, headers, body: JSON.stringify({ success: true, data: crRows[0] }) };
+      }
+
+      // ── Processar pedido de fecho (coordenador marca como Tratado) ────────────
+      if (d.action === 'process_close_request') {
+        const { id } = d;
+        const { rows: crRows } = await client.query(`SELECT * FROM close_requests WHERE id = $1`, [id]);
+        if (!crRows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Pedido não encontrado' }) };
+        const cr = crRows[0];
+
+        // 1. Remover eurocode do stock: marcar glass_reception como consumed
+        if (cr.appointment_id) {
+          const ecCond = cr.eurocode
+            ? `AND UPPER(REGEXP_REPLACE(eurocode, '^[#*]+', '')) = UPPER(REGEXP_REPLACE($2, '^[#*]+', ''))`
+            : '';
+          const ecVals = cr.eurocode ? [cr.appointment_id, cr.eurocode] : [cr.appointment_id];
+          await client.query(`
+            UPDATE glass_receptions
+            SET status = 'consumed', updated_at = NOW()
+            WHERE appointment_id = $1
+              AND is_return = false
+              AND status NOT IN ('consumed','missing','return')
+              ${ecCond}
+          `, ecVals).catch(() => {});
+
+          // 2. Fechar o agendamento
+          await client.query(
+            `UPDATE appointments SET executed = true, updated_at = NOW() WHERE id = $1`,
+            [cr.appointment_id]
+          ).catch(() => {});
+        }
+
+        // 3. Marcar pedido como tratado
+        const doneBy = user.name || user.email || null;
+        await client.query(
+          `UPDATE close_requests SET status = 'done', done_at = NOW(), done_by = $1 WHERE id = $2`,
+          [doneBy, id]
+        );
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+      }
+
       const status = d.status === 'missing' ? 'missing' : (d.is_return ? 'return' : (d.appointment_id ? 'confirmed' : 'pending'));
 
       // When linked to an appointment, always derive portal from the appointment
