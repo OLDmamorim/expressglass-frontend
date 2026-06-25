@@ -63,13 +63,15 @@ async function ensureTable(client) {
 
   await client.query(`
     CREATE TABLE IF NOT EXISTS eurocode_cache (
-      eurocode    TEXT PRIMARY KEY,
-      glass_types TEXT[] DEFAULT '{}',
-      car_models  TEXT[] DEFAULT '{}',
-      seen_count  INT DEFAULT 1,
-      last_seen   TIMESTAMPTZ DEFAULT NOW()
+      eurocode      TEXT PRIMARY KEY,
+      glass_types   TEXT[] DEFAULT '{}',
+      service_types TEXT[] DEFAULT '{}',
+      car_models    TEXT[] DEFAULT '{}',
+      seen_count    INT DEFAULT 1,
+      last_seen     TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  await client.query(`ALTER TABLE eurocode_cache ADD COLUMN IF NOT EXISTS service_types TEXT[] DEFAULT '{}'`);
 
   await client.query(`
     CREATE TABLE IF NOT EXISTS close_requests (
@@ -447,7 +449,7 @@ exports.handler = async (event) => {
       let resolvedPortalName = d.portal_name || null;
       if (d.appointment_id) {
         const aptRow = await client.query(
-          `SELECT a.portal_id, a.car, p.name AS portal_name FROM appointments a LEFT JOIN portals p ON p.id = a.portal_id WHERE a.id = $1`,
+          `SELECT a.portal_id, a.car, a.service, p.name AS portal_name FROM appointments a LEFT JOIN portals p ON p.id = a.portal_id WHERE a.id = $1`,
           [d.appointment_id]
         );
         if (aptRow.rows.length) {
@@ -512,18 +514,24 @@ exports.handler = async (event) => {
         }
       }
 
-      // Learn eurocode → glass type + car model from confirmed receptions
+      // Learn eurocode → glass type + service type + car model from confirmed receptions
       if (d.appointment_id && !d.is_return && d.eurocode) {
         const { canonical, glassType } = parseEurocode(d.eurocode);
-        const carModel = aptRow.rows[0]?.car || null;
+        const carModel   = aptRow.rows[0]?.car     || null;
+        const svcType    = aptRow.rows[0]?.service || null;
         if (canonical) {
           await client.query(`
-            INSERT INTO eurocode_cache (eurocode, glass_types, car_models, seen_count, last_seen)
-            VALUES ($1, ARRAY[$2]::text[], $3::text[], 1, NOW())
+            INSERT INTO eurocode_cache (eurocode, glass_types, service_types, car_models, seen_count, last_seen)
+            VALUES ($1, ARRAY[$2]::text[], $5::text[], $3::text[], 1, NOW())
             ON CONFLICT (eurocode) DO UPDATE SET
               glass_types = (
                 SELECT array_agg(DISTINCT g) FROM unnest(array_append(eurocode_cache.glass_types, $2)) g
               ),
+              service_types = CASE
+                WHEN $6::text IS NULL OR $6::text = ANY(eurocode_cache.service_types)
+                THEN eurocode_cache.service_types
+                ELSE array_append(eurocode_cache.service_types, $6::text)
+              END,
               car_models = CASE
                 WHEN $4::text IS NULL OR $4::text = ANY(eurocode_cache.car_models)
                 THEN eurocode_cache.car_models
@@ -531,7 +539,8 @@ exports.handler = async (event) => {
               END,
               seen_count = eurocode_cache.seen_count + 1,
               last_seen  = NOW()
-          `, [canonical, glassType, carModel ? [carModel] : [], carModel]).catch(() => {});
+          `, [canonical, glassType, carModel ? [carModel] : [], carModel,
+              svcType ? [svcType] : [], svcType]).catch(() => {});
         }
       }
 
@@ -545,7 +554,7 @@ exports.handler = async (event) => {
       // Backfill eurocode_cache from existing glass_receptions + appointments
       if (d.action === 'backfill_cache') {
         const { rows: bRows } = await client.query(`
-          INSERT INTO eurocode_cache (eurocode, glass_types, car_models, seen_count, last_seen)
+          INSERT INTO eurocode_cache (eurocode, glass_types, service_types, car_models, seen_count, last_seen)
           SELECT
             UPPER(regexp_replace(gr.eurocode, '^[#*]+', '')) AS canonical,
             array_agg(DISTINCT CASE
@@ -553,6 +562,10 @@ exports.handler = async (event) => {
               WHEN gr.eurocode LIKE '*%' THEN 'oem'
               ELSE 'rede'
             END) AS glass_types,
+            COALESCE(
+              array_agg(DISTINCT a.service) FILTER (WHERE a.service IS NOT NULL AND TRIM(a.service) != ''),
+              '{}'::text[]
+            ) AS service_types,
             COALESCE(
               array_agg(DISTINCT a.car) FILTER (WHERE a.car IS NOT NULL AND TRIM(a.car) != ''),
               '{}'::text[]
@@ -569,6 +582,11 @@ exports.handler = async (event) => {
               SELECT array_agg(DISTINCT g)
               FROM unnest(eurocode_cache.glass_types || EXCLUDED.glass_types) g
               WHERE g IS NOT NULL
+            ),
+            service_types = (
+              SELECT array_agg(DISTINCT s)
+              FROM unnest(COALESCE(eurocode_cache.service_types,'{}') || COALESCE(EXCLUDED.service_types,'{}')) s
+              WHERE s IS NOT NULL AND TRIM(s) != ''
             ),
             car_models = (
               SELECT array_agg(DISTINCT c)
