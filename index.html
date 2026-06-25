@@ -2957,9 +2957,16 @@
       const [bg, label] = map[t] || ['#94a3b8', t];
       return `<span style="background:${bg};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;margin-right:3px;">${label}</span>`;
     };
+    const svcBadge = s => {
+      const map = { PB: ['#1d4ed8','PB'], LT: ['#059669','LT'], OC: ['#d97706','OC'] };
+      const [bg, label] = map[(s||'').toUpperCase()] || ['#64748b', s];
+      return `<span style="background:${bg};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;margin-right:3px;">${label}</span>`;
+    };
 
     const rows = data.map(r => {
-      const types = (r.glass_types || []).map(typeBadge).join('');
+      const svcTypes = (r.service_types || []).filter(Boolean).map(svcBadge).join('');
+      const chTypes  = (r.glass_types   || []).map(typeBadge).join('');
+      const types = svcTypes + chTypes || '—';
       const cars = (r.car_models || []).join(', ') || '—';
       const stockColor = r.in_stock > 0 ? '#16a34a' : r.in_stock === 0 ? '#64748b' : '#dc2626';
       return `
