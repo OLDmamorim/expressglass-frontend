@@ -453,8 +453,9 @@ exports.handler = async (event) => {
       // belongs to "Braga" loja but receives glass for "Braga SM" appointments)
       let resolvedPortalId = d.portal_id || user.portalId || null;
       let resolvedPortalName = d.portal_name || null;
+      let aptRow = null;
       if (d.appointment_id) {
-        const aptRow = await client.query(
+        aptRow = await client.query(
           `SELECT a.portal_id, a.car, a.service, p.name AS portal_name FROM appointments a LEFT JOIN portals p ON p.id = a.portal_id WHERE a.id = $1`,
           [d.appointment_id]
         );
@@ -523,8 +524,8 @@ exports.handler = async (event) => {
       // Learn eurocode → glass type + service type + car model from confirmed receptions
       if (d.appointment_id && !d.is_return && d.eurocode) {
         const { canonical, glassType } = parseEurocode(d.eurocode);
-        const carModel   = aptRow.rows[0]?.car     || null;
-        const svcType    = aptRow.rows[0]?.service || null;
+        const carModel   = aptRow?.rows[0]?.car     || null;
+        const svcType    = aptRow?.rows[0]?.service || null;
         if (canonical) {
           await client.query(`
             INSERT INTO eurocode_cache (eurocode, glass_types, service_types, car_models, seen_count, last_seen)
