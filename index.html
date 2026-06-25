@@ -2981,6 +2981,7 @@
         </tr>`;
     }).join('');
 
+    window._grInventoryData = data;
     content.innerHTML = `
       <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <select id="grInvPortalFilter" onchange="window.glassReception._loadInventory(this.value||undefined)"
@@ -2989,6 +2990,14 @@
           ${portalOpts}
         </select>
         <span style="font-size:12px;color:#94a3b8;">${data.length} eurocode${data.length !== 1 ? 's' : ''} conhecidos</span>
+        <button onclick="window.glassReception._exportInventoryCSV()" title="Exportar para Excel"
+          style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
+          📥 Excel
+        </button>
+        <button onclick="window.glassReception._printInventory()" title="Imprimir inventário"
+          style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
+          🖨️ Imprimir
+        </button>
         <button onclick="window.glassReception._backfillCache()" id="btnBackfillCache"
           style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;color:#374151;white-space:nowrap;">
           🔄 Preencher histórico
@@ -3016,6 +3025,70 @@
         </table>
       </div>`}
     `;
+  }
+
+  function _exportInventoryCSV() {
+    const data = window._grInventoryData || [];
+    const esc = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const lines = [
+      ['EUROCODE','TIPO','CANAL','CARROS','EM STOCK','RECEBIDO','USADO','DEVOLVIDO'].map(esc).join(',')
+    ];
+    data.forEach(r => {
+      lines.push([
+        r.eurocode,
+        (r.service_types || []).join('+') || '',
+        (r.glass_types   || []).map(t => ({rede:'Rede',complementar:'Comp.',oem:'OEM'})[t]||t).join('+') || '',
+        (r.car_models    || []).join('; ') || '',
+        r.in_stock,
+        r.received,
+        r.consumed,
+        r.returned
+      ].map(esc).join(','));
+    });
+    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'inventario-vidros.csv';
+    a.click();
+  }
+
+  function _printInventory() {
+    const data = window._grInventoryData || [];
+    const svcLabel = s => ({ PB:'PB', LT:'LT', OC:'OC' })[s] || s;
+    const chLabel  = t => ({ rede:'Rede', complementar:'Comp.', oem:'OEM' })[t] || t;
+    const rows = data.map(r => `
+      <tr>
+        <td>${r.eurocode}</td>
+        <td>${(r.service_types||[]).map(svcLabel).join(' ') || ''}</td>
+        <td>${(r.glass_types||[]).map(chLabel).join(' ') || ''}</td>
+        <td>${(r.car_models||[]).join(', ') || '—'}</td>
+        <td style="text-align:center;font-weight:700;color:${r.in_stock>0?'#16a34a':r.in_stock===0?'#64748b':'#dc2626'}">${r.in_stock}</td>
+        <td style="text-align:center">${r.received}</td>
+        <td style="text-align:center">${r.consumed}</td>
+        <td style="text-align:center">${r.returned}</td>
+      </tr>`).join('');
+    const w = window.open('','_blank','width=900,height=700');
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Inventário de Vidros</title>
+      <style>
+        body{font-family:Arial,sans-serif;font-size:12px;margin:20px}
+        h2{margin-bottom:4px}p{color:#64748b;margin-bottom:12px}
+        table{width:100%;border-collapse:collapse}
+        th{background:#0f172a;color:#fff;padding:7px 8px;text-align:left;font-size:11px}
+        td{padding:6px 8px;border-bottom:1px solid #e2e8f0;font-size:12px}
+        tr:nth-child(even) td{background:#f8fafc}
+        @media print{body{margin:8mm}}
+      </style></head><body>
+      <h2>Inventário de Vidros</h2>
+      <p>${data.length} eurocodes &nbsp;·&nbsp; ${new Date().toLocaleDateString('pt-PT')}</p>
+      <table><thead><tr>
+        <th>EUROCODE</th><th>TIPO</th><th>CANAL</th><th>CARROS</th>
+        <th style="text-align:center">EM STOCK</th>
+        <th style="text-align:center">RECEBIDO</th>
+        <th style="text-align:center">USADO</th>
+        <th style="text-align:center">DEVOL.</th>
+      </tr></thead><tbody>${rows}</tbody></table>
+      <script>window.onload=()=>window.print()<\/script></body></html>`);
+    w.document.close();
   }
 
   async function _backfillCache() {
@@ -3670,7 +3743,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
