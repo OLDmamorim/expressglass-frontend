@@ -938,11 +938,11 @@
     <div style="display:flex;flex-wrap:wrap;gap:10px;padding:16px 24px;border-bottom:1px solid #e2e8f0;background:#f8fafc;">
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">De</label>
-        <input type="date" id="histFilterFrom" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#1e293b;font-size:13px;padding:6px 10px;outline:none;" oninput="window.historicoModal.render()">
+        <input type="date" id="histFilterFrom" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#1e293b;font-size:13px;padding:6px 10px;outline:none;">
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Até</label>
-        <input type="date" id="histFilterTo" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#1e293b;font-size:13px;padding:6px 10px;outline:none;" oninput="window.historicoModal.render()">
+        <input type="date" id="histFilterTo" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#1e293b;font-size:13px;padding:6px 10px;outline:none;">
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;">
         <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Estado</label>
@@ -966,6 +966,7 @@
         </select>
       </div>
       <div style="display:flex;align-items:flex-end;gap:6px;">
+        <button onclick="window.historicoModal.applyDates()" style="background:#0f172a;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;padding:7px 14px;cursor:pointer;">🔍 Aplicar</button>
         <button onclick="window.historicoModal.resetFilters()" style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;color:#64748b;font-size:12px;font-weight:600;padding:7px 14px;cursor:pointer;">↺ Limpar</button>
       </div>
     </div>
@@ -1062,7 +1063,7 @@
   }
 
   function _getFiltered() {
-    const appts = window.appointments || [];
+    const appts = window._histAppts || window.appointments || [];
     const from   = document.getElementById('histFilterFrom')?.value || '';
     const to     = document.getElementById('histFilterTo')?.value || '';
     const status = document.getElementById('histFilterStatus')?.value || '';
@@ -1129,34 +1130,85 @@
     }).join('');
   }
 
-  function open() {
+  async function open() {
     const modal = document.getElementById('historicoModal');
     if (!modal) return;
+    modal.style.display = 'flex';
+
     const fromEl = document.getElementById('histFilterFrom');
     const toEl   = document.getElementById('histFilterTo');
     if (fromEl && !fromEl.value) fromEl.value = defaultFrom();
     if (toEl   && !toEl.value)   toEl.value   = defaultTo();
-    // populate portal options
-    const portalEl = document.getElementById('histFilterPortal');
-    if (portalEl) {
-      const names = [...new Set((window.appointments || []).map(a => a.portal_name).filter(Boolean))].sort();
-      const cur = portalEl.value;
-      portalEl.innerHTML = '<option value="">Todas</option>' +
-        names.map(n => `<option value="${n.replace(/"/g,'&quot;')}" ${cur===n?'selected':''}>${n}</option>`).join('');
-    }
-    modal.style.display = 'flex';
-    render();
+
+    render(); // render imediatamente com dados locais
+
+    // Carregar todos os portais em background
+    try {
+      const from = document.getElementById('histFilterFrom')?.value || defaultFrom();
+      const to   = document.getElementById('histFilterTo')?.value   || defaultTo();
+      const token = window.authClient?.getToken?.() || localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+      const res = await fetch(`/.netlify/functions/appointments?history=true&from=${from}&to=${to}`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        window._histAppts = json.data.map(a => ({
+          ...a,
+          date: a.date ? String(a.date).slice(0,10) : null,
+          notes: (a.notes || '').includes('"eurocode":') ? null : (a.notes || null)
+        }));
+        // populate portal options
+        const portalEl = document.getElementById('histFilterPortal');
+        if (portalEl) {
+          const names = [...new Set(window._histAppts.map(a => a.portal_name).filter(Boolean))].sort();
+          const cur = portalEl.value;
+          portalEl.innerHTML = '<option value="">Todas</option>' +
+            names.map(n => `<option value="${n.replace(/"/g,'&quot;')}" ${cur===n?'selected':''}>${n}</option>`).join('');
+        }
+        render();
+      }
+    } catch(e) { console.warn('histAppts fetch:', e); }
   }
 
   function close() {
     const modal = document.getElementById('historicoModal');
     if (modal) modal.style.display = 'none';
+    window._histAppts = null;
   }
 
   function sort(field) {
     if (_sortField === field) _sortDir = -_sortDir;
     else { _sortField = field; _sortDir = -1; }
     render();
+  }
+
+  async function applyDates() {
+    window._histAppts = null;
+    render();
+    try {
+      const from = document.getElementById('histFilterFrom')?.value || defaultFrom();
+      const to   = document.getElementById('histFilterTo')?.value   || defaultTo();
+      const token = window.authClient?.getToken?.() || localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+      const res = await fetch(`/.netlify/functions/appointments?history=true&from=${from}&to=${to}`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        window._histAppts = json.data.map(a => ({
+          ...a,
+          date: a.date ? String(a.date).slice(0,10) : null,
+          notes: (a.notes || '').includes('"eurocode":') ? null : (a.notes || null)
+        }));
+        const portalEl = document.getElementById('histFilterPortal');
+        if (portalEl) {
+          const names = [...new Set(window._histAppts.map(a => a.portal_name).filter(Boolean))].sort();
+          const cur = portalEl.value;
+          portalEl.innerHTML = '<option value="">Todas</option>' +
+            names.map(n => `<option value="${n.replace(/"/g,'&quot;')}" ${cur===n?'selected':''}>${n}</option>`).join('');
+        }
+        render();
+      }
+    } catch(e) { console.warn('applyDates:', e); }
   }
 
   function resetFilters() {
@@ -1248,7 +1300,7 @@
     else alert('Ativa os pop-ups para imprimir.');
   }
 
-  window.historicoModal = { open, close, render, sort, resetFilters, print, exportCSV };
+  window.historicoModal = { open, close, render, sort, resetFilters, applyDates, print, exportCSV };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
