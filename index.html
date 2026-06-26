@@ -1075,7 +1075,12 @@
       if (!a.date) return false;
       if (from && a.date < from) return false;
       if (to   && a.date > to)   return false;
-      if (portal && String(a.portal_id || '') !== portal) return false;
+      if (portal) {
+        const matchById   = String(a.portal_id || '') === portal;
+        const portalName  = (window._histPortals || []).find(p => String(p.id) === portal)?.name || '';
+        const matchByName = portalName && (a.portal_name || '') === portalName;
+        if (!matchById && !matchByName) return false;
+      }
       if (search) {
         const hay = [a.plate, a.car, a.client_name, a.locality, a.service, a.notes, a.portal_name].join(' ').toLowerCase();
         if (!hay.includes(search)) return false;
