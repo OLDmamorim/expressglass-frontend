@@ -995,10 +995,20 @@
     </div>
 
     <!-- Footer -->
-    <div style="display:flex;justify-content:flex-end;padding:14px 24px;border-top:1px solid #e2e8f0;gap:8px;background:#f8fafc;border-radius:0 0 16px 16px;">
-      <button onclick="window.historicoModal.exportCSV()" style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">📥 Excel</button>
-      <button onclick="window.historicoModal.print()" style="display:inline-flex;align-items:center;gap:6px;background:#1e40af;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">🖨️ Imprimir</button>
-      <button onclick="window.historicoModal.close()" style="background:#e2e8f0;border:none;border-radius:8px;color:#374151;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">Fechar</button>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;padding:14px 24px;border-top:1px solid #e2e8f0;gap:10px;background:#f8fafc;border-radius:0 0 16px 16px;">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+        <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Exportar estados:</span>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;color:#16a34a;font-weight:600;"><input type="checkbox" class="hist-export-status" value="realizado" checked> ✅ Realizado</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;color:#dc2626;font-weight:600;"><input type="checkbox" class="hist-export-status" value="nao_realizado" checked> ❌ Não Realizado</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;color:#2563eb;font-weight:600;"><input type="checkbox" class="hist-export-status" value="vidro_retirado" checked> 🪟 Vidro Retirado</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;color:#d97706;font-weight:600;"><input type="checkbox" class="hist-export-status" value="pre_agendado" checked> 📋 Pré-agendado</label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;color:#6b7280;font-weight:600;"><input type="checkbox" class="hist-export-status" value="pendente" checked> ⏳ Pendente</label>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="window.historicoModal.exportCSV()" style="display:inline-flex;align-items:center;gap:6px;background:#16a34a;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">📥 Excel</button>
+        <button onclick="window.historicoModal.print()" style="display:inline-flex;align-items:center;gap:6px;background:#1e40af;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">🖨️ Imprimir</button>
+        <button onclick="window.historicoModal.close()" style="background:#e2e8f0;border:none;border-radius:8px;color:#374151;font-size:13px;font-weight:600;padding:8px 18px;cursor:pointer;">Fechar</button>
+      </div>
     </div>
 
   </div>
@@ -1245,64 +1255,51 @@
   function exportCSV() {
     const { rows } = _getFiltered();
     const statusLabel = { realizado:'Realizado', nao_realizado:'Não Realizado', vidro_retirado:'Vidro Retirado', pre_agendado:'Pré-agendado', pendente:'Pendente' };
-    const statusColorHex = { realizado:'#16A34A', nao_realizado:'#DC2626', vidro_retirado:'#2563EB', pre_agendado:'#D97706', pendente:'#6B7280' };
-    const e = v => String(v == null ? '' : v).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    const colWidths = [80,90,160,70,110,120,200,110,250];
-    const colNames  = ['DATA','MATRÍCULA','CARRO','SERVIÇO','LOJA','LOCALIDADE','CLIENTE','ESTADO','NOTAS'];
-    const nRows = rows.length + 1;
+    const statusColor = { realizado:'#16A34A', nao_realizado:'#DC2626', vidro_retirado:'#2563EB', pre_agendado:'#D97706', pendente:'#6B7280' };
 
-    const styles = `
-  <Styles>
-    <Style ss:ID="sH"><Interior ss:Color="#0F172A" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="11" ss:Name="Arial"/><Alignment ss:Horizontal="Left" ss:Vertical="Center"/></Style>
-    <Style ss:ID="s0"><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Font ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center" ss:WrapText="0"/></Style>
-    <Style ss:ID="s1"><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Font ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center" ss:WrapText="0"/></Style>
-    <Style ss:ID="sb0"><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center"/></Style>
-    <Style ss:ID="sb1"><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center"/></Style>
-    ${Object.entries(statusColorHex).map(([k,c]) => `
-    <Style ss:ID="st_${k}_0"><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Color="${c}" ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center"/></Style>
-    <Style ss:ID="st_${k}_1"><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Color="${c}" ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center"/></Style>`).join('')}
-  </Styles>`;
+    const checked = Array.from(document.querySelectorAll('.hist-export-status:checked')).map(cb => cb.value);
+    const exportRows = checked.length > 0 ? rows.filter(a => checked.includes(getStatus(a))) : rows;
 
-    const headerRow = `<Row ss:Height="22">${colNames.map(h => `<Cell ss:StyleID="sH"><Data ss:Type="String">${e(h)}</Data></Cell>`).join('')}</Row>`;
-
-    const dataRows2 = rows.map((a, i) => {
+    const tableRows = exportRows.map((a, i) => {
       const s = getStatus(a);
       const nota = a.not_done_reason ? `Motivo: ${a.not_done_reason}` : (a.notes || '');
-      const parity = i % 2;
-      const base = `s${parity}`, bold = `sb${parity}`, statStyle = `st_${s}_${parity}`;
-      const cell = (v, style) => `<Cell ss:StyleID="${style}"><Data ss:Type="String">${e(v)}</Data></Cell>`;
-      return `<Row ss:Height="18">
-        ${cell(fmtDate(a.date), base)}
-        ${cell((a.plate||'').toUpperCase(), bold)}
-        ${cell(a.car||'', base)}
-        ${cell(a.service||'', base)}
-        ${cell(a.portal_name||'', base)}
-        ${cell(getLocality(a), base)}
-        ${cell(a.client_name||'', base)}
-        ${cell(statusLabel[s]||s, statStyle)}
-        ${cell(nota, base)}
-      </Row>`;
+      const bg = i % 2 === 0 ? '#FFFFFF' : '#F8FAFC';
+      const esc = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `<tr style="background:${bg};">
+        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;white-space:nowrap;">${esc(fmtDate(a.date))}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;font-weight:700;">${esc((a.plate||'').toUpperCase())}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;">${esc(a.car||'')}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;">${esc(a.service||'')}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;">${esc(a.portal_name||'')}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;">${esc(getLocality(a))}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;">${esc(a.client_name||'')}</td>
+        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;"><span style="background:${statusColor[s]||'#6B7280'};color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;mso-background-alt:${statusColor[s]||'#6B7280'};">${esc(statusLabel[s]||s)}</span></td>
+        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;">${esc(nota)}</td>
+      </tr>`;
     }).join('');
 
-    const colDefs = colWidths.map(w => `<Column ss:Width="${w}"/>`).join('');
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Historico</x:Name><x:WorksheetOptions><x:FreezePanes/><x:SplitHorizontal>1</x:SplitHorizontal><x:TopRowBottomPane>1</x:TopRowBottomPane></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
+<body>
+<table border="0" cellspacing="0" cellpadding="0" style="font-family:Arial,sans-serif;font-size:12px;border-collapse:collapse;">
+  <thead>
+    <tr style="background:#0F172A;">
+      <th style="padding:8px 10px;color:#fff;font-weight:700;text-align:left;white-space:nowrap;border:1px solid #1e293b;">DATA</th>
+      <th style="padding:8px 10px;color:#fff;font-weight:700;text-align:left;border:1px solid #1e293b;">MAT&Iacute;CULA</th>
+      <th style="padding:8px 10px;color:#fff;font-weight:700;text-align:left;border:1px solid #1e293b;">CARRO</th>
+      <th style="padding:8px 10px;color:#fff;font-weight:700;text-align:left;border:1px solid #1e293b;">SERVI&Ccedil;O</th>
+      <th style="padding:8px 10px;color:#fff;font-weight:700;text-align:left;border:1px solid #1e293b;">LOJA</th>
+      <th style="padding:8px 10px;color:#fff;font-weight:700;text-align:left;border:1px solid #1e293b;">LOCALIDADE</th>
+      <th style="padding:8px 10px;color:#fff;font-weight:700;text-align:left;border:1px solid #1e293b;">CLIENTE</th>
+      <th style="padding:8px 10px;color:#fff;font-weight:700;text-align:left;border:1px solid #1e293b;">ESTADO</th>
+      <th style="padding:8px 10px;color:#fff;font-weight:700;text-align:left;border:1px solid #1e293b;">NOTAS</th>
+    </tr>
+  </thead>
+  <tbody>${tableRows}</tbody>
+</table>
+</body></html>`;
 
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
-  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
-  xmlns:x="urn:schemas-microsoft-com:office:excel"
-  xmlns:o="urn:schemas-microsoft-com:office:office">
-  ${styles}
-  <Worksheet ss:Name="Historico">
-    <Table>${colDefs}${headerRow}${dataRows2}</Table>
-    <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
-      <FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane>
-    </WorksheetOptions>
-    <AutoFilter x:Range="R1C1:R1C9"/>
-  </Worksheet>
-</Workbook>`;
-
-    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `historico-servicos-${new Date().toISOString().slice(0,10)}.xls`;
