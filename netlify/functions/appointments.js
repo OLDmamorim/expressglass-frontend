@@ -34,6 +34,28 @@ function getUserFromToken(event) {
   return jwt.verify(token, JWT_SECRET);
 }
 
+// Regista uma acção sobre agendamentos no audit_log. Nunca lança — falha de log
+// não pode quebrar a operação principal.
+async function auditLog({ user, action, entity_id, details, event }) {
+  try {
+    const ip = event?.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || null;
+    const ua = event?.headers?.['user-agent'] || null;
+    await pool.query(
+      `INSERT INTO audit_log (user_id, username, action, entity, entity_id, details, ip, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        user?.userId || null,
+        user?.username || null,
+        action,
+        'appointment',
+        entity_id != null ? String(entity_id) : null,
+        details ? JSON.stringify(details) : null,
+        ip, ua
+      ]
+    );
+  } catch (e) { console.warn('[audit appointments]', e.message); }
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -343,6 +365,15 @@ exports.handler = async (event) => {
         data.comp_sales_faturado === true
       ];
       const { rows } = await pool.query(q, v);
+      await auditLog({
+        user, action: 'appt_created', entity_id: rows[0].id, event,
+        details: {
+          plate: rows[0].plate, car: rows[0].car, date: rows[0].date,
+          locality: rows[0].locality, service: rows[0].service,
+          confirmed: rows[0].confirmed, portal_id: rows[0].portal_id,
+          portal: user?.portalName || null
+        }
+      });
       return { statusCode: 201, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
     }
 
@@ -448,6 +479,17 @@ exports.handler = async (event) => {
       ];
       const { rows } = await pool.query(q, v);
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
+      await auditLog({
+        user, action: 'appt_updated', entity_id: id, event,
+        details: {
+          plate: rows[0].plate, car: rows[0].car,
+          date_de: existingDate || '—', date_para: newDate || '—',
+          date_mudou: dateChanged,
+          locality: rows[0].locality, confirmed: rows[0].confirmed,
+          status: rows[0].status, portal_id: rows[0].portal_id,
+          portal: user?.portalName || null
+        }
+      });
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
     }
 
@@ -471,6 +513,14 @@ exports.handler = async (event) => {
       );
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
       console.log(`✅ DELETE - ${id} eliminado | plate: ${rows[0].plate} | car: ${rows[0].car} | locality: ${rows[0].locality} | date: ${rows[0].date}`);
+      await auditLog({
+        user, action: 'appt_deleted', entity_id: id, event,
+        details: {
+          plate: rows[0].plate, car: rows[0].car, date: rows[0].date,
+          locality: rows[0].locality, service: rows[0].service,
+          portal_id: rows[0].portal_id, portal: user?.portalName || null
+        }
+      });
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
     }
 
