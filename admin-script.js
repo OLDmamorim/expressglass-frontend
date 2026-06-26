@@ -2211,6 +2211,10 @@ function _renderTeamSection(teamStats) {
 
 function renderReport(data) {
   const { portal, period, totals, byLocality, byWeekday, byWeek, byService, byComercial, byMotivo } = data;
+  window._lastReportData = data;
+  // Repor a secção de análise IA a cada novo relatório
+  const _aiContent = document.getElementById('reportAIContent');
+  if (_aiContent) { _aiContent.style.display = 'none'; _aiContent.innerHTML = ''; }
 
   // Header
   const portalDisplayName = portal.name || 'Portal';
@@ -2546,6 +2550,44 @@ function renderReport(data) {
 
 function downloadReportPDF() {
   window.print();
+}
+
+async function gerarAnaliseIA() {
+  const data = window._lastReportData;
+  if (!data) { showToast('Gere primeiro um relatório', 'error'); return; }
+  const btn = document.getElementById('btnGerarAnaliseIA');
+  const content = document.getElementById('reportAIContent');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.textContent = '✨ A analisar...'; }
+  if (content) {
+    content.style.display = 'block';
+    content.innerHTML = '<span style="color:#0f766e;">🤖 A analisar os resultados...</span>';
+  }
+  try {
+    const resp = await authClient.authenticatedFetch('/.netlify/functions/report-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ report: {
+        portal: data.portal, period: data.period, totals: data.totals,
+        byLocality: data.byLocality, byComercial: data.byComercial, byMotivo: data.byMotivo
+      } })
+    });
+    const json = await resp.json();
+    if (json.success) {
+      // Converter markdown simples (**negrito**) e quebras de linha em HTML
+      const html = json.analysis
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\n/g, '<br>');
+      content.innerHTML = html;
+    } else {
+      content.innerHTML = `<span style="color:#dc2626;">❌ ${json.error || 'Erro ao gerar análise'}</span>`;
+    }
+  } catch (err) {
+    console.error('Erro análise IA:', err);
+    if (content) content.innerHTML = '<span style="color:#dc2626;">❌ Erro de ligação ao gerar análise.</span>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.textContent = '✨ Gerar análise'; }
+  }
 }
 
 
