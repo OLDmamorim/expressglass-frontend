@@ -1246,7 +1246,7 @@
     const { rows } = _getFiltered();
     const statusLabel = { realizado:'Realizado', nao_realizado:'Não Realizado', vidro_retirado:'Vidro Retirado', pre_agendado:'Pré-agendado', pendente:'Pendente' };
     const statusColorHex = { realizado:'#16A34A', nao_realizado:'#DC2626', vidro_retirado:'#2563EB', pre_agendado:'#D97706', pendente:'#6B7280' };
-    const e = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const e = v => String(v == null ? '' : v).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const colWidths = [80,90,160,70,110,120,200,110,250];
     const colNames  = ['DATA','MATRÍCULA','CARRO','SERVIÇO','LOJA','LOCALIDADE','CLIENTE','ESTADO','NOTAS'];
     const nRows = rows.length + 1;
@@ -1292,16 +1292,13 @@
   xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
   xmlns:x="urn:schemas-microsoft-com:office:excel"
   xmlns:o="urn:schemas-microsoft-com:office:office">
-  <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
-    <WindowHeight>10000</WindowHeight><WindowWidth>20000</WindowWidth>
-  </ExcelWorkbook>
   ${styles}
-  <Worksheet ss:Name="Histórico">
+  <Worksheet ss:Name="Historico">
     <Table>${colDefs}${headerRow}${dataRows2}</Table>
     <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
       <FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane>
     </WorksheetOptions>
-    <AutoFilter x:Range="R1C1:R1C9" xmlns:x="urn:schemas-microsoft-com:office:excel"/>
+    <AutoFilter x:Range="R1C1:R1C9"/>
   </Worksheet>
 </Workbook>`;
 
