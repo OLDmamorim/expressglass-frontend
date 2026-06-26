@@ -387,7 +387,7 @@ exports.handler = async (event) => {
       const isAdmin = user.role === 'admin';
       const isCoord = user.role === 'coordinator' || user.role === 'coordenador';
       const checkResult = await pool.query(
-        'SELECT id, portal_id, executed, not_done_reason, not_done_at, glass_removed, glass_removed_date, date FROM appointments WHERE id = $1',
+        'SELECT id, portal_id, executed, not_done_reason, not_done_at, glass_removed, glass_removed_date, date, custom_service_time FROM appointments WHERE id = $1',
         [id]
       );
       if (checkResult.rows.length === 0) {
@@ -431,7 +431,7 @@ exports.handler = async (event) => {
           return_km = $25, return_time = $26, client_name = $27, damage_details = $28, glass_removed = $29, extra_services = $30,
           glass_removed_date = $31, n_obra = $32, updated_at = $33, not_done_at = $36, reception_ref = $37,
           comp_sales_desc = $38, comp_sales_nif = $39, comp_sales_name = $40, comp_sales_faturado = $41,
-          order_ref = $42, glass_eurocode = $43
+          order_ref = $42, glass_eurocode = $43, custom_service_time = $44
         WHERE id = $34 AND portal_id = $35
         RETURNING *
       `;
@@ -475,7 +475,12 @@ exports.handler = async (event) => {
         data.comp_sales_name !== undefined ? (data.comp_sales_name || null) : null,
         data.comp_sales_faturado !== undefined ? (!!data.comp_sales_faturado) : false,
         data.order_ref !== undefined ? normalizeOrderRef(data.order_ref) : null,
-        data.glass_eurocode !== undefined ? (data.glass_eurocode || null) : null
+        data.glass_eurocode !== undefined ? (data.glass_eurocode || null) : null,
+        // Preservar tempo personalizado: usar o valor enviado; se não vier no payload,
+        // manter o que já está na BD (evita perder o tempo em updates parciais).
+        data.custom_service_time !== undefined
+          ? (data.custom_service_time ? parseInt(data.custom_service_time) : null)
+          : (existing.custom_service_time || null)
       ];
       const { rows } = await pool.query(q, v);
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
