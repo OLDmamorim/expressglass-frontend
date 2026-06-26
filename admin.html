@@ -237,6 +237,13 @@
           </div>
         </div>
 
+        <div class="settings-card" style="border:1px solid #fecaca;background:#fef2f2;">
+          <h3 style="margin-bottom:6px;color:#b91c1c;">🧹 Limpar importados por confirmar</h3>
+          <p style="font-size:13px;color:#6b7280;margin:0 0 14px;">Elimina permanentemente os serviços importados (cartões cinzas a piscar) que ainda estão por confirmar e cuja data já passou (até hoje, inclusive), em todas as lojas. Se voltarem a fazer falta, são reimportados pelo Excel.</p>
+          <button id="btnCleanupImported" onclick="cleanupImported()" style="background:#dc2626;color:#fff;border:none;padding:10px 18px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">🗑️ Eliminar importados por confirmar (data passada)</button>
+          <span id="cleanupImportedStatus" style="margin-left:12px;font-size:14px;display:none;"></span>
+        </div>
+
         <div style="margin-top:20px;">
           <button class="btn-primary" onclick="saveSettings()">💾 Guardar Configurações</button>
           <span id="settingsSaveStatus" style="margin-left:12px;color:#16a34a;font-size:14px;display:none;">✅ Guardado!</span>
