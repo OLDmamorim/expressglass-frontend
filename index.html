@@ -1243,20 +1243,19 @@
   }
 
   function exportCSV() {
-    const { rows, from, to, portal, status } = _getFiltered();
+    const { rows } = _getFiltered();
     const statusLabel = { realizado:'Realizado', nao_realizado:'Não Realizado', vidro_retirado:'Vidro Retirado', pre_agendado:'Pré-agendado', pendente:'Pendente' };
-    const esc = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
-    const lines = [['DATA','MATRÍCULA','CARRO','SERVIÇO','LOJA','LOCALIDADE','CLIENTE','ESTADO','NOTAS'].map(esc).join(',')];
-    rows.forEach(a => {
+    const hdr = ['DATA','MATRÍCULA','CARRO','SERVIÇO','LOJA','LOCALIDADE','CLIENTE','ESTADO','NOTAS'];
+    const data = rows.map(a => {
       const s = getStatus(a);
       const nota = a.not_done_reason ? `Motivo: ${a.not_done_reason}` : (a.notes || '');
-      lines.push([fmtDate(a.date), (a.plate||'').toUpperCase(), a.car||'', a.service||'', a.portal_name||'', getLocality(a), a.client_name||'', statusLabel[s]||s, nota].map(esc).join(','));
+      return [fmtDate(a.date), (a.plate||'').toUpperCase(), a.car||'', a.service||'', a.portal_name||'', getLocality(a), a.client_name||'', statusLabel[s]||s, nota];
     });
-    const blob = new Blob(['﻿'+lines.join('\r\n')], { type:'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'historico-servicos.csv';
-    link.click();
+    const ws = XLSX.utils.aoa_to_sheet([hdr, ...data]);
+    ws['!cols'] = [12,12,22,18,16,16,22,14,30].map(w => ({ wch: w }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
+    XLSX.writeFile(wb, `historico-servicos-${new Date().toISOString().slice(0,10)}.xlsx`);
   }
 
   function print() {
