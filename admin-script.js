@@ -1750,9 +1750,17 @@ async function loadSettings() {
       document.getElementById('timeREP_P').value = s.serviceTimes?.REP_P ?? 45;
       document.getElementById('timePOL_P').value = s.serviceTimes?.POL_P ?? 60;
       document.getElementById('timeRV_P').value = s.serviceTimes?.RV_P ?? 45;
+      // Autocarros
+      document.getElementById('timePB_A').value = s.serviceTimes?.PB_A ?? 150;
+      document.getElementById('timeLT_A').value = s.serviceTimes?.LT_A ?? 75;
+      document.getElementById('timeOC_A').value = s.serviceTimes?.OC_A ?? 105;
+      document.getElementById('timeREP_A').value = s.serviceTimes?.REP_A ?? 45;
+      document.getElementById('timePOL_A').value = s.serviceTimes?.POL_A ?? 60;
+      document.getElementById('timeRV_A').value = s.serviceTimes?.RV_A ?? 60;
       // Calibragem ADAS
       document.getElementById('timeCALIB_EXTRA_L').value = s.serviceTimes?.CALIB_EXTRA_L ?? 30;
       document.getElementById('timeCALIB_EXTRA_P').value = s.serviceTimes?.CALIB_EXTRA_P ?? 45;
+      document.getElementById('timeCALIB_EXTRA_A').value = s.serviceTimes?.CALIB_EXTRA_A ?? 45;
       // Rota
       document.getElementById('avgSpeed').value = s.avgSpeedKmh ?? 50;
       document.getElementById('fuelConsumption').value = s.fuelPer100km ?? 7.5;
@@ -1779,8 +1787,15 @@ async function saveSettings() {
       REP_P: parseInt(document.getElementById('timeREP_P').value) || 45,
       POL_P: parseInt(document.getElementById('timePOL_P').value) || 60,
       RV_P: parseInt(document.getElementById('timeRV_P').value) || 45,
+      PB_A: parseInt(document.getElementById('timePB_A').value) || 150,
+      LT_A: parseInt(document.getElementById('timeLT_A').value) || 75,
+      OC_A: parseInt(document.getElementById('timeOC_A').value) || 105,
+      REP_A: parseInt(document.getElementById('timeREP_A').value) || 45,
+      POL_A: parseInt(document.getElementById('timePOL_A').value) || 60,
+      RV_A: parseInt(document.getElementById('timeRV_A').value) || 60,
       CALIB_EXTRA_L: parseInt(document.getElementById('timeCALIB_EXTRA_L').value) || 30,
-      CALIB_EXTRA_P: parseInt(document.getElementById('timeCALIB_EXTRA_P').value) || 45
+      CALIB_EXTRA_P: parseInt(document.getElementById('timeCALIB_EXTRA_P').value) || 45,
+      CALIB_EXTRA_A: parseInt(document.getElementById('timeCALIB_EXTRA_A').value) || 45
     },
     avgSpeedKmh: parseFloat(document.getElementById('avgSpeed').value) || 50,
     fuelPer100km: parseFloat(document.getElementById('fuelConsumption').value) || 7.5,

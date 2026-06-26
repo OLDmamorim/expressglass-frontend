@@ -1033,9 +1033,11 @@ const ROUTE_CONFIG = {
 const SERVICE_TIMES = {
   PB_L: 90, LT_L: 45, OC_L: 60, REP_L: 30, POL_L: 45, RV_L: 30, OUT_L: 60,
   PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60, RV_P: 45, OUT_P: 90,
+  PB_A: 150, LT_A: 75, OC_A: 105, REP_A: 45, POL_A: 60, RV_A: 60, OUT_A: 90,
   // Tempo extra por calibragem ADAS (em minutos, somado ao serviço base)
   CALIB_EXTRA_L: 30,
-  CALIB_EXTRA_P: 45
+  CALIB_EXTRA_P: 45,
+  CALIB_EXTRA_A: 45
 };
 
 // Carregar configurações da API
@@ -1059,6 +1061,7 @@ async function loadRouteSettings() {
         // garantir que CALIB_EXTRA fica sempre disponível com defaults
         if (!SERVICE_TIMES.CALIB_EXTRA_L) SERVICE_TIMES.CALIB_EXTRA_L = 30;
         if (!SERVICE_TIMES.CALIB_EXTRA_P) SERVICE_TIMES.CALIB_EXTRA_P = 45;
+        if (!SERVICE_TIMES.CALIB_EXTRA_A) SERVICE_TIMES.CALIB_EXTRA_A = 45;
       }
     }
 

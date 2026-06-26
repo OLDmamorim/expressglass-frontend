@@ -12,7 +12,7 @@ function getAllServices(a) {
 
 function getTotalServiceTime(a) {
   const vt = a.vehicleType || a.vehicle_type || 'L';
-  const svcTimes = { PB_L:90,LT_L:45,OC_L:60,REP_L:30,POL_L:45,RV_L:30,OUT_L:60, PB_P:120,LT_P:60,OC_P:90,REP_P:45,POL_P:60,RV_P:45,OUT_P:90, CALIB_EXTRA_L:30,CALIB_EXTRA_P:45 };
+  const svcTimes = (typeof SERVICE_TIMES !== 'undefined' && SERVICE_TIMES) ? SERVICE_TIMES : { PB_L:90,LT_L:45,OC_L:60,REP_L:30,POL_L:45,RV_L:30,OUT_L:60, PB_P:120,LT_P:60,OC_P:90,REP_P:45,POL_P:60,RV_P:45,OUT_P:90, PB_A:150,LT_A:75,OC_A:105,REP_A:45,POL_A:60,RV_A:60,OUT_A:90, CALIB_EXTRA_L:30,CALIB_EXTRA_P:45,CALIB_EXTRA_A:45 };
   const vtKey = (vt||'L').toUpperCase().charAt(0);
   return getAllServices(a).reduce((sum, s) => {
     const code = (s.service||'PB').toUpperCase().split('-')[0].split(' ')[0];
