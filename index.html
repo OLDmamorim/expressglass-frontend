@@ -1142,11 +1142,29 @@
 
     render(); // render imediatamente com dados locais
 
-    // Carregar todos os portais em background
+    const token = window.authClient?.getToken?.() || localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+
+    // 1. Carregar lista completa de portais acessíveis (independente do período)
+    try {
+      const pRes = await fetch('/.netlify/functions/glass-reception?list_portals=true', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const pJson = await pRes.json();
+      if (pJson.success && pJson.data) {
+        window._histPortals = pJson.data; // [{id, name}]
+        const portalEl = document.getElementById('histFilterPortal');
+        if (portalEl) {
+          const cur = portalEl.value;
+          portalEl.innerHTML = '<option value="">Todas</option>' +
+            pJson.data.map(p => `<option value="${p.name.replace(/"/g,'&quot;')}" ${cur===p.name?'selected':''}>${p.name}</option>`).join('');
+        }
+      }
+    } catch(e) { console.warn('histPortals fetch:', e); }
+
+    // 2. Carregar agendamentos do período
     try {
       const from = document.getElementById('histFilterFrom')?.value || defaultFrom();
       const to   = document.getElementById('histFilterTo')?.value   || defaultTo();
-      const token = window.authClient?.getToken?.() || localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
       const res = await fetch(`/.netlify/functions/appointments?history=true&from=${from}&to=${to}`, {
         headers: { 'Authorization': 'Bearer ' + token }
       });
@@ -1157,14 +1175,6 @@
           date: a.date ? String(a.date).slice(0,10) : null,
           notes: (a.notes || '').includes('"eurocode":') ? null : (a.notes || null)
         }));
-        // populate portal options
-        const portalEl = document.getElementById('histFilterPortal');
-        if (portalEl) {
-          const names = [...new Set(window._histAppts.map(a => a.portal_name).filter(Boolean))].sort();
-          const cur = portalEl.value;
-          portalEl.innerHTML = '<option value="">Todas</option>' +
-            names.map(n => `<option value="${n.replace(/"/g,'&quot;')}" ${cur===n?'selected':''}>${n}</option>`).join('');
-        }
         render();
       }
     } catch(e) { console.warn('histAppts fetch:', e); }
@@ -1186,10 +1196,10 @@
     window._histAppts = null;
     render();
     try {
-      const from = document.getElementById('histFilterFrom')?.value || defaultFrom();
-      const to   = document.getElementById('histFilterTo')?.value   || defaultTo();
+      const from  = document.getElementById('histFilterFrom')?.value || defaultFrom();
+      const to    = document.getElementById('histFilterTo')?.value   || defaultTo();
       const token = window.authClient?.getToken?.() || localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
-      const res = await fetch(`/.netlify/functions/appointments?history=true&from=${from}&to=${to}`, {
+      const res   = await fetch(`/.netlify/functions/appointments?history=true&from=${from}&to=${to}`, {
         headers: { 'Authorization': 'Bearer ' + token }
       });
       const json = await res.json();
@@ -1199,12 +1209,12 @@
           date: a.date ? String(a.date).slice(0,10) : null,
           notes: (a.notes || '').includes('"eurocode":') ? null : (a.notes || null)
         }));
+        // re-popular lojas com lista completa (não apenas as do período)
         const portalEl = document.getElementById('histFilterPortal');
-        if (portalEl) {
-          const names = [...new Set(window._histAppts.map(a => a.portal_name).filter(Boolean))].sort();
+        if (portalEl && window._histPortals?.length) {
           const cur = portalEl.value;
           portalEl.innerHTML = '<option value="">Todas</option>' +
-            names.map(n => `<option value="${n.replace(/"/g,'&quot;')}" ${cur===n?'selected':''}>${n}</option>`).join('');
+            window._histPortals.map(p => `<option value="${p.name.replace(/"/g,'&quot;')}" ${cur===p.name?'selected':''}>${p.name}</option>`).join('');
         }
         render();
       }
