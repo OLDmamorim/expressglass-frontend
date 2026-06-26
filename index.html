@@ -1245,14 +1245,42 @@
   function exportCSV() {
     const { rows } = _getFiltered();
     const statusLabel = { realizado:'Realizado', nao_realizado:'Não Realizado', vidro_retirado:'Vidro Retirado', pre_agendado:'Pré-agendado', pendente:'Pendente' };
-    const hdr = ['DATA','MATRÍCULA','CARRO','SERVIÇO','LOJA','LOCALIDADE','CLIENTE','ESTADO','NOTAS'];
-    const data = rows.map(a => {
+    const statusColor = { realizado:'FF16A34A', nao_realizado:'FFDC2626', vidro_retirado:'FF2563EB', pre_agendado:'FFD97706', pendente:'FF6B7280' };
+    const cols = ['DATA','MATRÍCULA','CARRO','SERVIÇO','LOJA','LOCALIDADE','CLIENTE','ESTADO','NOTAS'];
+    const colWidths = [12,12,22,10,16,18,28,14,35];
+
+    const hdrStyle = { fill:{patternType:'solid',fgColor:{rgb:'FF0F172A'}}, font:{bold:true,color:{rgb:'FFFFFFFF'},sz:11}, alignment:{horizontal:'center',vertical:'center'} };
+    const evenStyle = { fill:{patternType:'solid',fgColor:{rgb:'FFF8FAFC'}}, font:{sz:10}, alignment:{vertical:'center'} };
+    const oddStyle  = { fill:{patternType:'solid',fgColor:{rgb:'FFFFFFFF'}}, font:{sz:10}, alignment:{vertical:'center'} };
+    const boldStyle = s => ({ ...s, font:{...s.font,bold:true} });
+
+    const ws = {};
+    const range = { s:{r:0,c:0}, e:{r:rows.length,c:cols.length-1} };
+
+    // Cabeçalho
+    cols.forEach((h,c) => { ws[XLSX.utils.encode_cell({r:0,c})] = { v:h, t:'s', s:hdrStyle }; });
+
+    // Dados
+    rows.forEach((a, i) => {
+      const r = i + 1;
       const s = getStatus(a);
       const nota = a.not_done_reason ? `Motivo: ${a.not_done_reason}` : (a.notes || '');
-      return [fmtDate(a.date), (a.plate||'').toUpperCase(), a.car||'', a.service||'', a.portal_name||'', getLocality(a), a.client_name||'', statusLabel[s]||s, nota];
+      const base = i % 2 === 0 ? evenStyle : oddStyle;
+      const vals = [fmtDate(a.date), (a.plate||'').toUpperCase(), a.car||'', a.service||'', a.portal_name||'', getLocality(a), a.client_name||'', statusLabel[s]||s, nota];
+
+      vals.forEach((v, c) => {
+        let style = base;
+        if (c === 1) style = boldStyle(base); // MATRÍCULA bold
+        if (c === 7) style = { ...base, font:{ ...base.font, bold:true, color:{ rgb: statusColor[s] || 'FF374151' } } }; // ESTADO colorido
+        ws[XLSX.utils.encode_cell({r,c})] = { v: v||'', t:'s', s: style };
+      });
     });
-    const ws = XLSX.utils.aoa_to_sheet([hdr, ...data]);
-    ws['!cols'] = [12,12,22,18,16,16,22,14,30].map(w => ({ wch: w }));
+
+    ws['!ref'] = XLSX.utils.encode_range(range);
+    ws['!cols'] = colWidths.map(w => ({ wch:w }));
+    ws['!rows'] = [{ hpt:20 }]; // altura cabeçalho
+    ws['!freeze'] = { xSplit:0, ySplit:1 }; // congelar cabeçalho
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Histórico');
     XLSX.writeFile(wb, `historico-servicos-${new Date().toISOString().slice(0,10)}.xlsx`);
