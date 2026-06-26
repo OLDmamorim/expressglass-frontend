@@ -10,7 +10,7 @@ function callAnthropic(systemPrompt, messages) {
     if (!ANTHROPIC_API_KEY) return reject(new Error('ANTHROPIC_API_KEY não configurada'));
 
     const body = JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-6',
       max_tokens: 1000,
       system: systemPrompt,
       messages
