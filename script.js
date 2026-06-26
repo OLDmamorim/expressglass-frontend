@@ -2629,12 +2629,12 @@ function buildDesktopCard(a){
   const service = a.service || 'PB';
   const car = (a.car || '').toUpperCase();
   const clientNameStr = a.client_name ? a.client_name : '';
-  let _extraDisplay = '';
-  if (a.extra) {
+  let _extraDisplay = a.glass_eurocode || '';
+  if (!_extraDisplay && a.extra) {
     try {
       const _p = typeof a.extra === 'string' ? JSON.parse(a.extra) : a.extra;
-      _extraDisplay = (typeof _p === 'object' && _p !== null) ? (_p.eurocode || '') : '';
-    } catch(e) { _extraDisplay = ''; }
+      _extraDisplay = (typeof _p === 'object' && _p !== null) ? (_p.eurocode || '') : (typeof _p === 'string' ? _p : '');
+    } catch(e) { _extraDisplay = typeof a.extra === 'string' ? a.extra : ''; }
   }
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
