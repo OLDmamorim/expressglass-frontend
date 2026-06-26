@@ -135,7 +135,12 @@ exports.handler = async (event) => {
           const { rows: allPortals } = await pool.query('SELECT id FROM portals');
           allowedPortalIds = allPortals.map(r => r.id);
         } else {
-          allowedPortalIds = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
+          const ids = new Set([
+            ...(user.portalIds || []),
+            ...(user.consultablePortalIds || []),
+            ...(user.portalId ? [user.portalId] : [])
+          ]);
+          allowedPortalIds = [...ids];
         }
         if (!allowedPortalIds.length) {
           return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: [] }) };
