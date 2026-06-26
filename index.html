@@ -1303,7 +1303,7 @@
         <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;">${esc(a.portal_name||'')}</td>
         <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;">${esc(getLocality(a))}</td>
         <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;">${esc(a.client_name||'')}</td>
-        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;"><span style="background:${statusColor[s]||'#6B7280'};color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;mso-background-alt:${statusColor[s]||'#6B7280'};">${esc(statusLabel[s]||s)}</span></td>
+        <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;background:${statusColor[s]||'#6B7280'};color:#fff;font-weight:700;text-align:center;">${esc(statusLabel[s]||s)}</td>
         <td style="padding:6px 10px;border-bottom:1px solid #E2E8F0;">${esc(nota)}</td>
       </tr>`;
     }).join('');
