@@ -341,6 +341,9 @@
           <option value="user_created">Utilizador criado</option>
           <option value="user_updated">Utilizador editado</option>
           <option value="user_deleted">Utilizador eliminado</option>
+          <option value="appt_created">Agendamento criado</option>
+          <option value="appt_updated">Agendamento editado</option>
+          <option value="appt_deleted">Agendamento eliminado</option>
         </select>
       </div>
       <div>
@@ -657,6 +660,9 @@
     user_created:   { label: '➕ Utilizador criado',  color: '#2563eb', bg: '#dbeafe' },
     user_updated:   { label: '✏️ Utilizador editado', color: '#d97706', bg: '#fef3c7' },
     user_deleted:   { label: '🗑️ Utilizador apagado', color: '#dc2626', bg: '#fee2e2' },
+    appt_created:   { label: '📅 Agendamento criado',  color: '#16a34a', bg: '#dcfce7' },
+    appt_updated:   { label: '✏️ Agendamento editado', color: '#d97706', bg: '#fef3c7' },
+    appt_deleted:   { label: '🗑️ Agendamento apagado', color: '#dc2626', bg: '#fee2e2' },
   };
 
   async function loadAuditLogs(page = 1) {
