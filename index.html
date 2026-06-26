@@ -1075,7 +1075,7 @@
       if (!a.date) return false;
       if (from && a.date < from) return false;
       if (to   && a.date > to)   return false;
-      if (portal && (a.portal_name || '') !== portal) return false;
+      if (portal && String(a.portal_id || '') !== portal) return false;
       if (search) {
         const hay = [a.plate, a.car, a.client_name, a.locality, a.service, a.notes, a.portal_name].join(' ').toLowerCase();
         if (!hay.includes(search)) return false;
@@ -1083,7 +1083,7 @@
       return true;
     });
     const all  = base;
-    const rows = base.filter(a => status ? getStatus(a) === status : getStatus(a) !== 'nao_realizado');
+    const rows = status ? base.filter(a => getStatus(a) === status) : base;
     rows.sort((a, b) => {
       const av = _sortField === 'date' ? (a.date||'') : (a[_sortField]||'');
       const bv = _sortField === 'date' ? (b.date||'') : (b[_sortField]||'');
@@ -1157,7 +1157,7 @@
         if (portalEl) {
           const cur = portalEl.value;
           portalEl.innerHTML = '<option value="">Todas</option>' +
-            pJson.data.map(p => `<option value="${p.name.replace(/"/g,'&quot;')}" ${cur===p.name?'selected':''}>${p.name}</option>`).join('');
+            pJson.data.map(p => `<option value="${p.id}" ${cur===String(p.id)?'selected':''}>${p.name}</option>`).join('');
         }
       }
     } catch(e) { console.warn('histPortals fetch:', e); }
@@ -1215,7 +1215,7 @@
         if (portalEl && window._histPortals?.length) {
           const cur = portalEl.value;
           portalEl.innerHTML = '<option value="">Todas</option>' +
-            window._histPortals.map(p => `<option value="${p.name.replace(/"/g,'&quot;')}" ${cur===p.name?'selected':''}>${p.name}</option>`).join('');
+            window._histPortals.map(p => `<option value="${p.id}" ${cur===String(p.id)?'selected':''}>${p.name}</option>`).join('');
         }
         render();
       }
