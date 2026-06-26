@@ -163,6 +163,7 @@
 
         <button id="btnRececaoVidros" class="nav-button" style="display:none;background:#0f172a;color:#94a3b8;border:1px solid rgba(255,255,255,0.15);font-weight:700;position:relative;" title="Receção de Vidros" onclick="window.glassReception?.openCoordPanel()">📦 Receção Vidros</button>
         <button id="btnRelatoriosDesk" class="nav-button" style="display:none;background:#1e40af;color:#fff;font-weight:700;" title="Relatórios" onclick="openReportsPanel()">📊 Relatórios</button>
+        <button id="btnHistoricoDesk" class="nav-button" style="display:none;background:#0f766e;color:#fff;font-weight:700;" title="Histórico de Serviços" onclick="window.historicoModal?.open()">🕘 Histórico</button>
         <button id="printPage" class="nav-button" style="color:#fbbf24;">🖨 Imprimir</button>
         <!-- Guia AT upload (coordinator/admin only, desktop) -->
         <div id="guiaATUploadAreaDesk" style="display:none; align-items:center; gap:6px;">
@@ -3782,9 +3783,11 @@
       const adminMobileBtn = document.getElementById('btnAdminPanelMobile');
       if (adminMobileBtn) adminMobileBtn.style.display = '';
     }
-    // All authenticated users: show Histórico button
+    // All authenticated users: show Histórico button (mobile + desktop)
     const histBtn = document.getElementById('btnHistoricoMobile');
     if (histBtn) histBtn.style.display = '';
+    const histBtnDesk = document.getElementById('btnHistoricoDesk');
+    if (histBtnDesk) histBtnDesk.style.display = '';
   }
 
   // ── HELPERS ───────────────────────────────────────────────────────────────
