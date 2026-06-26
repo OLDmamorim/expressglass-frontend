@@ -59,6 +59,9 @@ exports.handler = async (event) => {
 
     const results = { created: 0, updated: 0, skipped: 0, errors: 0, details: [] };
 
+    // Data de hoje em formato YYYY-MM-DD (fuso servidor)
+    const todayStr = new Date().toISOString().slice(0, 10);
+
     // Garantir colunas car e n_obra em mycar_services
     try {
       await pool.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS car TEXT`);
@@ -168,16 +171,20 @@ exports.handler = async (event) => {
             updateVals.push(newStatusUpgrade);
           }
 
-          // Se NÃO está na agenda mas Excel tem data → colocar na agenda
+          // Se NÃO está na agenda mas Excel tem data → colocar na agenda apenas se a data for futura
           if (!hasDateInDB && hasDateInExcel) {
-            updateFields.push(`date = $${idx++}`);
-            updateVals.push(svc.date);
-            updateFields.push(`period = $${idx++}`);
-            updateVals.push(svc.period || null);
-            updateFields.push(`auto_imported = $${idx++}`);
-            updateVals.push(true);
-            updateFields.push(`confirmed = $${idx++}`);
-            updateVals.push(false);
+            const isFuture = svc.date > todayStr;
+            if (isFuture) {
+              updateFields.push(`date = $${idx++}`);
+              updateVals.push(svc.date);
+              updateFields.push(`period = $${idx++}`);
+              updateVals.push(svc.period || null);
+              updateFields.push(`auto_imported = $${idx++}`);
+              updateVals.push(true);
+              updateFields.push(`confirmed = $${idx++}`);
+              updateVals.push(false);
+            }
+            // Se data <= hoje: fica como pendente sem data na agenda
           }
           // Se JÁ está na agenda → nunca mexer em date/period/confirmed
 
@@ -203,7 +210,9 @@ exports.handler = async (event) => {
 
         } else {
           // ── SERVIÇO NOVO ──
-          const hasAutoDate = !!svc.date;
+          // Data só vai para a agenda se for futura; datas de hoje ou anteriores ficam como pendente
+          const isFutureDate = svc.date && svc.date > todayStr;
+          const hasAutoDate = isFutureDate;
 
           const insertStatus = svc.reception_ref ? 'ST' : (svc.order_ref ? 'VE' : (svc.status || 'NE'));
           await pool.query(
@@ -215,8 +224,8 @@ exports.handler = async (event) => {
               $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
             ) RETURNING id`,
             [
-              svc.date || null,
-              svc.period || null,
+              isFutureDate ? svc.date : null,
+              isFutureDate ? (svc.period || null) : null,
               String(svc.plate).trim(),
               svc.car || null,
               svc.service || null,
