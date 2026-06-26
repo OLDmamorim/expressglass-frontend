@@ -1823,6 +1823,34 @@ async function saveSettings() {
   }
 }
 
+async function cleanupImported() {
+  if (!confirm('Eliminar PERMANENTEMENTE todos os serviços importados por confirmar com data até hoje, em todas as lojas?\n\nEsta ação não pode ser revertida.')) return;
+  const btn = document.getElementById('btnCleanupImported');
+  const status = document.getElementById('cleanupImportedStatus');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+  if (status) { status.style.display = 'inline'; status.style.color = '#6b7280'; status.textContent = 'A eliminar...'; }
+  try {
+    const response = await authClient.authenticatedFetch('/.netlify/functions/cleanup-imported', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await response.json();
+    if (data.success) {
+      if (status) { status.style.color = '#16a34a'; status.textContent = `✅ ${data.removed} serviço(s) eliminado(s)`; }
+      showToast(`${data.removed} serviço(s) importado(s) eliminado(s)`, 'success');
+    } else {
+      if (status) { status.style.color = '#dc2626'; status.textContent = '❌ ' + (data.error || 'Erro'); }
+      showToast(data.error || 'Erro ao limpar', 'error');
+    }
+  } catch (err) {
+    console.error('Erro ao limpar importados:', err);
+    if (status) { status.style.color = '#dc2626'; status.textContent = '❌ Erro de ligação'; }
+    showToast('Erro ao limpar importados', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+  }
+}
+
 // Carregar settings ao abrir a tab
 document.querySelectorAll('.nav-tab').forEach(tab => {
   tab.addEventListener('click', () => {
