@@ -31,6 +31,11 @@ exports.handler = async (event) => {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'portal_id, date_from, date_to obrigatórios' }) };
   }
 
+  // Contabilizar apenas até à data de hoje — nunca contar serviços agendados
+  // para dias futuros. Se o período pedido terminar no passado, mantém-se.
+  const today = new Date().toISOString().slice(0, 10);
+  const effectiveDateTo = dateTo > today ? today : dateTo;
+
   // Detail list for a specific KPI card
   if (params.list) {
     const type = params.list; // agendados | realizados | nao_realizados
@@ -40,20 +45,20 @@ exports.handler = async (event) => {
            FROM appointments
            WHERE portal_id = $1 AND date BETWEEN $2 AND $3 AND executed = true
            ORDER BY date ASC, plate ASC`;
-      vals = [portalId, dateFrom, dateTo];
+      vals = [portalId, dateFrom, effectiveDateTo];
     } else if (type === 'nao_realizados') {
       q = `SELECT date, plate, car, service, locality, period, not_done_reason,
                   GREATEST(0, ROUND(EXTRACT(EPOCH FROM (updated_at - date::timestamp)) / 86400)::int) AS days_to_close
            FROM appointments
            WHERE portal_id = $1 AND date BETWEEN $2 AND $3 AND executed = false
            ORDER BY date ASC, plate ASC`;
-      vals = [portalId, dateFrom, dateTo];
+      vals = [portalId, dateFrom, effectiveDateTo];
     } else {
       q = `SELECT date, plate, car, service, locality, period, not_done_reason
            FROM appointments
            WHERE portal_id = $1 AND date BETWEEN $2 AND $3
            ORDER BY date ASC, plate ASC`;
-      vals = [portalId, dateFrom, dateTo];
+      vals = [portalId, dateFrom, effectiveDateTo];
     }
     try {
       const { rows } = await pool.query(q, vals);
@@ -74,7 +79,7 @@ exports.handler = async (event) => {
         COUNT(*) FILTER (WHERE date IS NULL) AS total_pendentes
       FROM appointments
       WHERE portal_id = $1
-    `, [portalId, dateFrom, dateTo]);
+    `, [portalId, dateFrom, effectiveDateTo]);
 
     // 2. Por localidade
     const { rows: byLocality } = await pool.query(`
@@ -87,7 +92,7 @@ exports.handler = async (event) => {
       WHERE portal_id = $1 AND date BETWEEN $2 AND $3
       GROUP BY locality
       ORDER BY total DESC
-    `, [portalId, dateFrom, dateTo]);
+    `, [portalId, dateFrom, effectiveDateTo]);
 
     // 3. Por dia da semana
     const { rows: byWeekday } = await pool.query(`
@@ -100,7 +105,7 @@ exports.handler = async (event) => {
       WHERE portal_id = $1 AND date BETWEEN $2 AND $3
       GROUP BY dow_num, dow_name
       ORDER BY dow_num
-    `, [portalId, dateFrom, dateTo]);
+    `, [portalId, dateFrom, effectiveDateTo]);
 
     // 4. Por semana (evolução)
     const { rows: byWeek } = await pool.query(`
@@ -113,7 +118,7 @@ exports.handler = async (event) => {
       WHERE portal_id = $1 AND date BETWEEN $2 AND $3
       GROUP BY week_start
       ORDER BY week_start
-    `, [portalId, dateFrom, dateTo]);
+    `, [portalId, dateFrom, effectiveDateTo]);
 
     // 5. Por tipo de serviço
     const { rows: byService } = await pool.query(`
@@ -124,7 +129,7 @@ exports.handler = async (event) => {
       WHERE portal_id = $1 AND date BETWEEN $2 AND $3
       GROUP BY service
       ORDER BY total DESC
-    `, [portalId, dateFrom, dateTo]);
+    `, [portalId, dateFrom, effectiveDateTo]);
 
     // 6. Portal info
     const { rows: portalInfo } = await pool.query(
@@ -136,7 +141,7 @@ exports.handler = async (event) => {
       SELECT COUNT(DISTINCT date) AS dias_com_servicos
       FROM appointments
       WHERE portal_id = $1 AND date BETWEEN $2 AND $3
-    `, [portalId, dateFrom, dateTo]);
+    `, [portalId, dateFrom, effectiveDateTo]);
 
     // 8. Totais de tempo (travel_time em minutos)
     const { rows: timeRows } = await pool.query(`
@@ -145,7 +150,7 @@ exports.handler = async (event) => {
         COUNT(*) FILTER (WHERE travel_time > 0) AS servicos_com_tempo
       FROM appointments
       WHERE portal_id = $1 AND date BETWEEN $2 AND $3
-    `, [portalId, dateFrom, dateTo]);
+    `, [portalId, dateFrom, effectiveDateTo]);
 
     // 9. Serviços por comercial
     const { rows: byComercial } = await pool.query(`
@@ -166,7 +171,7 @@ exports.handler = async (event) => {
         AND a.commercial_user_id IS NOT NULL
       GROUP BY u.username
       ORDER BY total DESC
-    `, [portalId, dateFrom, dateTo]);
+    `, [portalId, dateFrom, effectiveDateTo]);
 
     // 10. Motivos de não realização
     const { rows: byMotivo } = await pool.query(`
@@ -178,7 +183,7 @@ exports.handler = async (event) => {
         AND executed = false AND not_done_reason IS NOT NULL
       GROUP BY not_done_reason
       ORDER BY total DESC
-    `, [portalId, dateFrom, dateTo]);
+    `, [portalId, dateFrom, effectiveDateTo]);
 
     // 11. Tempo de execução por tipo de serviço
     const { rows: byServiceTime } = await pool.query(`
@@ -191,7 +196,7 @@ exports.handler = async (event) => {
       WHERE portal_id = $1 AND date BETWEEN $2 AND $3
       GROUP BY service
       ORDER BY total DESC
-    `, [portalId, dateFrom, dateTo]);
+    `, [portalId, dateFrom, effectiveDateTo]);
 
     // 12. Equipa — check-in/check-out com serviços por dia
     let teamStats = [];
@@ -211,7 +216,7 @@ exports.handler = async (event) => {
         WHERE tc.portal_id = $1 AND tc.date BETWEEN $2::date AND $3::date
         GROUP BY tc.date, tc.checkin_at, tc.checkout_at, tc.checkin_auto, tc.checkout_auto
         ORDER BY tc.date ASC
-      `, [portalId, dateFrom, dateTo]);
+      `, [portalId, dateFrom, effectiveDateTo]);
       teamStats = rows;
     } catch(e) {
       console.error('teamStats query error:', e.message);
