@@ -32,7 +32,7 @@ exports.handler = async (event) => {
     let i     = 1;
 
     if (action) { where.push(`action = $${i++}`); vals.push(action); }
-    if (user)   { where.push(`(username ILIKE $${i++} OR CAST(user_id AS TEXT) = $${i++})`); vals.push(`%${user}%`); vals.push(user); i++; }
+    if (user)   { where.push(`(username ILIKE $${i} OR CAST(user_id AS TEXT) = $${i+1})`); vals.push(`%${user}%`); vals.push(user); i += 2; }
 
     const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
