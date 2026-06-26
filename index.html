@@ -1245,38 +1245,67 @@
   function exportCSV() {
     const { rows } = _getFiltered();
     const statusLabel = { realizado:'Realizado', nao_realizado:'Não Realizado', vidro_retirado:'Vidro Retirado', pre_agendado:'Pré-agendado', pendente:'Pendente' };
-    const statusColor = { realizado:'#16a34a', nao_realizado:'#dc2626', vidro_retirado:'#2563eb', pre_agendado:'#d97706', pendente:'#6b7280' };
-    const e = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const statusColorHex = { realizado:'#16A34A', nao_realizado:'#DC2626', vidro_retirado:'#2563EB', pre_agendado:'#D97706', pendente:'#6B7280' };
+    const e = v => String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const colWidths = [80,90,160,70,110,120,200,110,250];
+    const colNames  = ['DATA','MATRÍCULA','CARRO','SERVIÇO','LOJA','LOCALIDADE','CLIENTE','ESTADO','NOTAS'];
+    const nRows = rows.length + 1;
 
-    const hdrCells = ['DATA','MATRÍCULA','CARRO','SERVIÇO','LOJA','LOCALIDADE','CLIENTE','ESTADO','NOTAS']
-      .map(h => `<th style="background:#0f172a;color:#fff;font-weight:bold;padding:6px 10px;text-align:left;white-space:nowrap;">${e(h)}</th>`).join('');
+    const styles = `
+  <Styles>
+    <Style ss:ID="sH"><Interior ss:Color="#0F172A" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="11" ss:Name="Arial"/><Alignment ss:Horizontal="Left" ss:Vertical="Center"/></Style>
+    <Style ss:ID="s0"><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Font ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center" ss:WrapText="0"/></Style>
+    <Style ss:ID="s1"><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Font ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center" ss:WrapText="0"/></Style>
+    <Style ss:ID="sb0"><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center"/></Style>
+    <Style ss:ID="sb1"><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center"/></Style>
+    ${Object.entries(statusColorHex).map(([k,c]) => `
+    <Style ss:ID="st_${k}_0"><Interior ss:Color="#F8FAFC" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Color="${c}" ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center"/></Style>
+    <Style ss:ID="st_${k}_1"><Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/><Font ss:Bold="1" ss:Color="${c}" ss:Size="10" ss:Name="Arial"/><Alignment ss:Vertical="Center"/></Style>`).join('')}
+  </Styles>`;
 
-    const dataRows = rows.map((a, i) => {
+    const headerRow = `<Row ss:Height="22">${colNames.map(h => `<Cell ss:StyleID="sH"><Data ss:Type="String">${e(h)}</Data></Cell>`).join('')}</Row>`;
+
+    const dataRows2 = rows.map((a, i) => {
       const s = getStatus(a);
       const nota = a.not_done_reason ? `Motivo: ${a.not_done_reason}` : (a.notes || '');
-      const bg = i % 2 === 0 ? '#f8fafc' : '#ffffff';
-      const sc = statusColor[s] || '#374151';
-      const td = (v, extra='') => `<td style="padding:4px 8px;${extra}">${e(v)}</td>`;
-      return `<tr style="background:${bg};">
-        ${td(fmtDate(a.date))}
-        ${td((a.plate||'').toUpperCase(),'font-weight:bold;')}
-        ${td(a.car||'')}
-        ${td(a.service||'')}
-        ${td(a.portal_name||'')}
-        ${td(getLocality(a))}
-        ${td(a.client_name||'')}
-        ${td(statusLabel[s]||s,`color:${sc};font-weight:bold;`)}
-        ${td(nota)}
-      </tr>`;
+      const parity = i % 2;
+      const base = `s${parity}`, bold = `sb${parity}`, statStyle = `st_${s}_${parity}`;
+      const cell = (v, style) => `<Cell ss:StyleID="${style}"><Data ss:Type="String">${e(v)}</Data></Cell>`;
+      return `<Row ss:Height="18">
+        ${cell(fmtDate(a.date), base)}
+        ${cell((a.plate||'').toUpperCase(), bold)}
+        ${cell(a.car||'', base)}
+        ${cell(a.service||'', base)}
+        ${cell(a.portal_name||'', base)}
+        ${cell(getLocality(a), base)}
+        ${cell(a.client_name||'', base)}
+        ${cell(statusLabel[s]||s, statStyle)}
+        ${cell(nota, base)}
+      </Row>`;
     }).join('');
 
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Histórico</x:Name></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
-<body><table border="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:11px;">
-<tr>${hdrCells}</tr>${dataRows}
-</table></body></html>`;
+    const colDefs = colWidths.map(w => `<Column ss:Width="${w}"/>`).join('');
 
-    const blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:x="urn:schemas-microsoft-com:office:excel"
+  xmlns:o="urn:schemas-microsoft-com:office:office">
+  <ExcelWorkbook xmlns="urn:schemas-microsoft-com:office:excel">
+    <WindowHeight>10000</WindowHeight><WindowWidth>20000</WindowWidth>
+  </ExcelWorkbook>
+  ${styles}
+  <Worksheet ss:Name="Histórico">
+    <Table>${colDefs}${headerRow}${dataRows2}</Table>
+    <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
+      <FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal><TopRowBottomPane>1</TopRowBottomPane>
+    </WorksheetOptions>
+    <AutoFilter x:Range="R1C1:R1C9" xmlns:x="urn:schemas-microsoft-com:office:excel"/>
+  </Worksheet>
+</Workbook>`;
+
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `historico-servicos-${new Date().toISOString().slice(0,10)}.xls`;
