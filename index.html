@@ -1024,12 +1024,42 @@
     });
   }
 
+  const _localityNorm = {
+    'vila nova de famalicão': 'Famalicão',
+    'vila nova de famalicao': 'Famalicão',
+    'v. n. famalicão': 'Famalicão',
+    'vn famalicão': 'Famalicão',
+    'vn famalicao': 'Famalicão',
+    'póvoa de varzim': 'Póvoa de Varzim',
+    'povoa de varzim': 'Póvoa de Varzim',
+    'póvoa': 'Póvoa de Varzim',
+    'povoa': 'Póvoa de Varzim',
+    'póvoa de lanhoso': 'Póvoa de Lanhoso',
+    'povoa de lanhoso': 'Póvoa de Lanhoso',
+    'riba d\'ave': 'Riba D\'Ave',
+    'ribadave': 'Riba D\'Ave',
+    'vieira do minho': 'Vieira do Minho',
+    'vieira': 'Vieira do Minho',
+    'vila do conde': 'Vila do Conde',
+    'vila verde': 'Vila Verde',
+    'guimarães': 'Guimarães',
+    'guimaraes': 'Guimarães',
+    'esposende': 'Esposende',
+    'barcelos': 'Barcelos',
+    'braga': 'Braga',
+    'trofa': 'Trofa',
+  };
+
   function getLocality(a) {
     if (a.notes) {
       const m = a.notes.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\-\.]+?)\s*\|/);
-      if (m) return m[1].trim();
+      if (m) {
+        const raw = m[1].trim();
+        return _localityNorm[raw.toLowerCase()] || raw;
+      }
     }
-    return a.locality || '—';
+    const raw = a.locality || '';
+    return raw ? (_localityNorm[raw.toLowerCase()] || raw) : '—';
   }
 
   function getStatus(a) {
