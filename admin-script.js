@@ -2389,7 +2389,11 @@ function renderReport(data) {
                     const dias = !isNaN(grMs) ? Math.floor((Date.now() - grMs) / 86400000) : null;
                     const diasCor = dias === null ? '#64748b' : dias >= 14 ? '#dc2626' : dias >= 7 ? '#f59e0b' : '#2563eb';
                     const diasLabel = dias === null ? '?' : dias + 'd';
-                    const scheduledDate = a.date ? fmtD(a.date) : '<span style="color:#94a3b8;">—</span>';
+                    // "Reagendado" só conta se a data do agendamento for POSTERIOR à retirada.
+                    // Se for igual/anterior, ainda não houve reagendamento real → "—".
+                    const schedNorm = normDate(a.date);
+                    const isRescheduled = schedNorm && grNorm && schedNorm > grNorm;
+                    const scheduledDate = isRescheduled ? fmtD(a.date) : '<span style="color:#94a3b8;">—</span>';
                     return `<tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
                       <td style="padding:10px 12px;font-weight:800;color:#1e293b;">${(a.plate||'').toUpperCase()}</td>
                       <td style="padding:10px 12px;color:#374151;">${(a.car||'').toUpperCase()}<br><span style="font-size:12px;color:#6b7280;">${a.service||''}</span></td>
