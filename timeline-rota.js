@@ -90,10 +90,12 @@
       const travel = mesmoLocal ? 0 : validarTempoViagem(rawTravel, km);
       simCursor += travel;
       STEPS.push({ idx: i, type: 'viagem', start: simCursor - travel, end: simCursor, travel });
-      // Tempo de execução
-      const exec = (typeof window.getServiceTime === 'function')
-        ? window.getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration)
-        : 90;
+      // Tempo de execução — soma todos os serviços do card (multi-serviço)
+      const exec = (typeof window.getTotalServiceTime === 'function')
+        ? window.getTotalServiceTime(a)
+        : (typeof window.getServiceTime === 'function')
+          ? window.getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration)
+          : 90;
       STEPS.push({ idx: i, type: 'servico', start: simCursor, end: simCursor + exec, duration: exec, appt: a });
       simCursor += exec;
     });
@@ -146,9 +148,11 @@
       });
       cursor += travel;
 
-      const exec = (typeof window.getServiceTime === 'function')
-        ? window.getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration)
-        : 90;
+      const exec = (typeof window.getTotalServiceTime === 'function')
+        ? window.getTotalServiceTime(a)
+        : (typeof window.getServiceTime === 'function')
+          ? window.getServiceTime(a.service, a.vehicleType || a.vehicle_type, a.calibration)
+          : 90;
       events.push({
         type: 'servico',
         label: a.plate + ' — ' + (a.car || ''),
