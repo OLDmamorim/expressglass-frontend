@@ -79,8 +79,12 @@ const telBtn = phone ? `
   const lojaBadge = isRecalibra && a.locality
     ? `<div style="display:inline-block;background:#dc2626;color:#ffffff !important;-webkit-text-fill-color:#ffffff;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin:4px 0;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>`
     : '';
+  // Recalibra: hora clicável (blocos de 1h). Sem hora → botão para definir.
+  const hourBadge = isRecalibra
+    ? `<button onclick="event.stopPropagation();window.openRecalibraHourPicker('${a.id}')" style="display:inline-flex;align-items:center;gap:6px;background:${a.period?'#0f766e':'rgba(0,0,0,0.25)'};color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:15px;font-weight:800;cursor:pointer;margin:4px 0;">🕐 ${a.period || 'Definir hora'}</button>`
+    : '';
   const chips = [
-    a.period ? `<span class="m-chip">${a.period}</span>` : '',
+    (a.period && !isRecalibra) ? `<span class="m-chip">${a.period}</span>` : '',
     ..._allSvcs.map(function(s) { return `<span class="m-chip">${s}</span>`; }),
     !isLoja() && !isRecalibra && a.locality ? `<span class="m-chip">${a.locality}</span>` : '',
     a.calibration ? `<span class="m-chip m-chip-calib">⊕ CALIB</span>` : '',
@@ -190,6 +194,7 @@ const telBtn = phone ? `
       ${stockSemaphore}
       <div style="${iconPadding}">
         <div class="m-title"><span class="m-title-text">${plate}</span></div>
+        ${hourBadge ? `<div>${hourBadge}</div>` : ''}
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips" data-ms-patched="1">${chips}</div>` : ''}
         ${lojaBadge}
@@ -231,6 +236,10 @@ async function renderMobileDay(){
     appointments
       .filter(a => a.date === iso)
       .sort((a,b) => {
+        // Recalibra: ordenar por HORA (period = "HH:00"); sem hora fica no início
+        if (isRecalibra) {
+          return (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0);
+        }
         // Loja: ordenar por período (Manhã/Tarde) e depois sortIndex
         // SM: ordenar apenas por sortIndex (rota optimizada)
         if (isLoja()) {
@@ -252,7 +261,10 @@ async function renderMobileDay(){
   const routeLocked = typeof isDayRouteLocked === 'function' && isDayRouteLocked(iso);
 
   let items;
-  if (hasOptimizedOrder || routeLocked) {
+  if (isRecalibra) {
+    // Recalibra: ordem por hora (já feita acima), sem otimização geográfica nem pin
+    items = itemsRaw;
+  } else if (hasOptimizedOrder || routeLocked) {
     // Ordem manual/otimizada ou rota bloqueada → respeitar sortIndex
     console.log(routeLocked ? '🔒 MOBILE - Rota bloqueada, mantendo ordem do coordenador' : '✅ MOBILE - Usando ordem otimizada (sortIndex)');
     items = itemsRaw; // Já está ordenado por sortIndex na query acima
@@ -261,12 +273,14 @@ async function renderMobileDay(){
     console.log('🔄 MOBILE - Aplicando ordenação automática');
     items = await ordenarSeNecessario(itemsRaw);
   }
-  // Garantir sempre: first_of_day no topo, depois second_of_day, independente do caminho
-  items = [
-    ...items.filter(a => a.first_of_day),
-    ...items.filter(a => a.second_of_day && !a.first_of_day),
-    ...items.filter(a => !a.first_of_day && !a.second_of_day)
-  ];
+  // Garantir sempre: first_of_day no topo, depois second_of_day, independente do caminho (exceto Recalibra)
+  if (!isRecalibra) {
+    items = [
+      ...items.filter(a => a.first_of_day),
+      ...items.filter(a => a.second_of_day && !a.first_of_day),
+      ...items.filter(a => !a.first_of_day && !a.second_of_day)
+    ];
+  }
 
   var _bmBlocked = isDayBlocked(iso);
   var _bmRole = window.authClient?.getUser?.()?.role;

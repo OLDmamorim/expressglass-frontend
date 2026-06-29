@@ -1119,6 +1119,54 @@ function getTotalServiceTime(a) {
     sum + getServiceTime(s.service, vt, i === 0 ? a.calibration : false, s.custom_service_time), 0);
 }
 
+// ── RECALIBRA: seletor de hora (blocos de 1h), guardado no campo period ──────
+window.openRecalibraHourPicker = function(id) {
+  const appt = (window.appointments || []).find(a => String(a.id) === String(id));
+  if (!appt) return;
+  const cur = appt.period || '';
+  const hours = [];
+  for (let h = 8; h <= 19; h++) hours.push(String(h).padStart(2, '0') + ':00');
+  const existing = document.getElementById('recHourOverlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'recHourOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+      <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:2px;">🕐 Hora do serviço</div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:14px;">${(appt.plate || '').toUpperCase()}</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
+        ${hours.map(h => `<button data-h="${h}" style="padding:12px 0;border:1.5px solid ${cur===h?'#0f766e':'#e2e8f0'};background:${cur===h?'#0f766e':'#fff'};color:${cur===h?'#fff':'#1e293b'};border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">${h}</button>`).join('')}
+      </div>
+      <button data-h="" style="width:100%;padding:11px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">Sem hora</button>
+      <button id="recHourCancel" style="width:100%;padding:11px;border:none;background:#f1f5f9;color:#475569;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Cancelar</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById('recHourCancel').onclick = () => overlay.remove();
+  overlay.querySelectorAll('button[data-h]').forEach(btn => {
+    btn.onclick = () => { overlay.remove(); window.setRecalibraHour(id, btn.getAttribute('data-h')); };
+  });
+};
+
+window.setRecalibraHour = async function(id, hour) {
+  const i = (window.appointments || []).findIndex(a => String(a.id) === String(id));
+  if (i < 0) return;
+  const prev = window.appointments[i].period;
+  window.appointments[i].period = hour || null;
+  // Re-render otimista
+  try { if (typeof renderAll === 'function') renderAll(); } catch(e) {}
+  try { if (typeof renderMobileDay === 'function') renderMobileDay(); } catch(e) {}
+  try {
+    await window.apiClient.updateAppointment(id, { ...window.appointments[i], period: hour || null });
+  } catch (e) {
+    window.appointments[i].period = prev;
+    try { if (typeof showToast === 'function') showToast('Erro ao gravar a hora', 'error'); } catch(_) {}
+    try { if (typeof renderAll === 'function') renderAll(); } catch(_) {}
+    try { if (typeof renderMobileDay === 'function') renderMobileDay(); } catch(_) {}
+  }
+};
+
 // ── UI: linha de serviço extra no formulário ──────────────────────────────
 const _SVC_OPTS = ['PB - Para-brisas','LT - Lateral','OC - Óculo','REP - Reparação','POL - Polimento','RV - Retirar Vidro','OUT - Outros']
   .map(o => { const [v, l] = o.split(' - '); return `<option value="${v}">${v} - ${l}</option>`; }).join('');
@@ -2742,6 +2790,7 @@ function buildDesktopCard(a){
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar} ${glassRemovedBorderStyle}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
+      ${isRecalibra ? `<div style="margin:4px 0;"><button onclick="event.stopPropagation();window.openRecalibraHourPicker('${a.id}')" style="display:inline-flex;align-items:center;gap:6px;background:${a.period?'#0f766e':'rgba(0,0,0,0.25)'};color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:14px;font-weight:800;cursor:pointer;">🕐 ${a.period || 'Definir hora'}</button></div>` : ''}
       <div class="dc-meta" data-ms-patched="1">
         ${getAllServices(a).map(s => `<span class="dc-badge">${s.service||''}</span>`).join('')}
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
@@ -2825,6 +2874,10 @@ function renderSchedule(){
       let items = filterAppointments(
         appointments.filter(a => a.date && a.date === iso)
           .sort((a,b) => {
+            // Recalibra: ordenar por HORA (period = "HH:00"); sem hora fica no início
+            if (_isRecalibraPortal) {
+              return (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0);
+            }
             if (a.first_of_day && !b.first_of_day) return -1;
             if (!a.first_of_day && b.first_of_day) return 1;
             if (a.second_of_day && !b.second_of_day) return -1;
