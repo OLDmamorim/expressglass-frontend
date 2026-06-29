@@ -151,8 +151,8 @@
     overlay.innerHTML = `
       <div id="recusadosBox">
         <div class="rc-icon">🚫</div>
-        <h1 class="rc-title">${items.length} Recusado${items.length > 1 ? 's' : ''}!</h1>
-        <div class="rc-loja">📍 ${lojaName}</div>
+        <h1 class="rc-title">Recusados Pendentes</h1>
+        <div class="rc-loja">📍 ${lojaName} · ${items.length} recusado${items.length > 1 ? 's' : ''}</div>
         <div id="recusadosList">${buildListHTML(items)}</div>
         <div class="rc-btns">
           <button id="recusBtnPrint">🖨️ Imprimir</button>
