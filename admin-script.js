@@ -1170,6 +1170,7 @@ async function startSync() {
 
   // Agrupar serviços por portal
   const byPortal = {};
+  const recusadosByPortal = {}; // alimenta o aviso diário das 9h (não altera a importação)
   importExcelData.forEach(row => {
     const code = String(row[nmdosCol] || '').trim();
     const portalInfo = codeToPortal[code];
@@ -1220,6 +1221,17 @@ async function startSync() {
       order_ref: encColSync >= 0 && row[encColSync] ? String(row[encColSync]).trim().replace(/\.0$/, '') : null,
       reception_ref: recColSync >= 0 && row[recColSync] ? String(row[recColSync]).trim().replace(/\.0$/, '') : null
     });
+
+    // RECUSADOS → aviso diário das 9h (além da importação normal)
+    if (phcStatus === 'RECUSADO') {
+      if (!recusadosByPortal[portalInfo.id]) recusadosByPortal[portalInfo.id] = [];
+      recusadosByPortal[portalInfo.id].push({
+        plate, car, n_obra: n_obra || null,
+        data_obra: dataObraCol >= 0 ? excelDateToYMD(row[dataObraCol]) : null,
+        data_servico: dataServicoCol >= 0 ? excelDateToYMD(row[dataServicoCol]) : null,
+        client_name: client_name || null, obs: obs || null
+      });
+    }
   });
 
   const portalIds = Object.keys(byPortal);
@@ -1269,6 +1281,18 @@ async function startSync() {
       allErrorSamples.push('Erro de rede: ' + err.message);
     }
     done++;
+  }
+
+  // Sincronizar RECUSADOS por portal (alimenta o aviso das 9h; substitui o conjunto de cada loja)
+  document.getElementById('importProgressText').textContent = 'A sincronizar recusados...';
+  for (const portalId of portalIds) {
+    try {
+      await authClient.authenticatedFetch('/.netlify/functions/recusados', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ portal_id: parseInt(portalId), recusados: recusadosByPortal[portalId] || [] })
+      });
+    } catch (e) { console.warn('Sync recusados portal', portalId, e); }
   }
 
   document.getElementById('importProgressBar').style.width = '100%';
