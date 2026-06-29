@@ -344,11 +344,18 @@ exports.handler = async (event) => {
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40
         ) RETURNING *
       `;
+      // Nunca gravar o JSON interno (eurocode/photo_url/history) no campo notas
+      const cleanNotes = (function() {
+        const n = data.notes || null;
+        if (!n) return n;
+        if (n.includes('"eurocode":') || n.includes('"photo_url":') || n.includes('"history":')) return null;
+        return n;
+      })();
       const v = [
         data.date || null, data.period || null,
         String(data.plate).trim(), String(data.car).trim(),
         data.service || null, data.locality || null, data.status || 'NE',
-        data.notes || null, data.address || null, data.extra || null,
+        cleanNotes, data.address || null, data.extra || null,
         data.phone || null, data.km || null, data.sortIndex || 1,
         data.glassOrdered || false,
         data.vehicleType || data.vehicle_type || 'L',

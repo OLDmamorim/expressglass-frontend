@@ -2395,7 +2395,8 @@ function editAppointment(id) {
   if (document.getElementById('appointmentPeriod')) {
     document.getElementById('appointmentPeriod').value = appointment.period || 'Manhã';
   }
-  document.getElementById('appointmentNotes').value = appointment.notes || '';
+  // Não carregar notas contaminadas com o JSON interno (eurocode/photo_url/history)
+  document.getElementById('appointmentNotes').value = (appointment.notes && /"eurocode"|"photo_url"|"history"/.test(appointment.notes)) ? '' : (appointment.notes || '');
   document.getElementById('appointmentAddress').value = appointment.address || '';
   document.getElementById('appointmentPhone').value = appointment.phone || '';
   if (document.getElementById('appointmentClientName')) document.getElementById('appointmentClientName').value = appointment.client_name || '';
@@ -2645,9 +2646,11 @@ function buildDesktopCard(a){
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';
   const isRecalibra = window.portalConfig?.portalType === 'recalibra';
+  // Não mostrar notas que contenham o JSON interno (eurocode/photo_url/history)
+  const _notesClean = (a.notes && /"eurocode"|"photo_url"|"history"/.test(a.notes)) ? null : a.notes;
   const sub = loja
-    ? [clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ')
-    : [isRecalibra ? null : a.locality, clientNameStr, _extraDisplay, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
+    ? [clientNameStr, _extraDisplay, _notesClean, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ')
+    : [isRecalibra ? null : a.locality, clientNameStr, _extraDisplay, _notesClean, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
   const _recDateFmt = a.reception_date ? new Date(String(a.reception_date).slice(0,10)+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const encRecFooter = (a.order_ref || a.reception_ref || a.reception_date) ? `
     <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);">
