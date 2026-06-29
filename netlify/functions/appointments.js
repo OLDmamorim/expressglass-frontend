@@ -34,6 +34,16 @@ function getUserFromToken(event) {
   return jwt.verify(token, JWT_SECRET);
 }
 
+// Devolve o nome do portal a partir do id. Usado na auditoria para registar o
+// portal REAL onde o agendamento foi gravado (não o portal de origem do utilizador).
+async function getPortalName(id) {
+  if (!id) return null;
+  try {
+    const { rows } = await pool.query('SELECT name FROM portals WHERE id = $1', [id]);
+    return rows[0]?.name || null;
+  } catch (e) { return null; }
+}
+
 // Regista uma acção sobre agendamentos no audit_log. Nunca lança — falha de log
 // não pode quebrar a operação principal.
 async function auditLog({ user, action, entity_id, details, event }) {
@@ -371,7 +381,7 @@ exports.handler = async (event) => {
           plate: rows[0].plate, car: rows[0].car, date: rows[0].date,
           locality: rows[0].locality, service: rows[0].service,
           confirmed: rows[0].confirmed, portal_id: rows[0].portal_id,
-          portal: user?.portalName || null
+          portal: await getPortalName(rows[0].portal_id)
         }
       });
       return { statusCode: 201, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
@@ -492,7 +502,7 @@ exports.handler = async (event) => {
           date_mudou: dateChanged,
           locality: rows[0].locality, confirmed: rows[0].confirmed,
           status: rows[0].status, portal_id: rows[0].portal_id,
-          portal: user?.portalName || null
+          portal: await getPortalName(rows[0].portal_id)
         }
       });
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
@@ -523,7 +533,7 @@ exports.handler = async (event) => {
         details: {
           plate: rows[0].plate, car: rows[0].car, date: rows[0].date,
           locality: rows[0].locality, service: rows[0].service,
-          portal_id: rows[0].portal_id, portal: user?.portalName || null
+          portal_id: rows[0].portal_id, portal: await getPortalName(rows[0].portal_id)
         }
       });
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
