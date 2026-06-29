@@ -1106,7 +1106,10 @@ function getServiceTime(serviceCode, vehicleType, calibration, customTime) {
 // ===== MULTI-SERVIÇO: helpers =====
 function getAllServices(a) {
   const primary = a.service ? [{ service: a.service, custom_service_time: a.custom_service_time || null }] : [];
-  const extra = Array.isArray(a.extra_services) ? a.extra_services : [];
+  let extra = a.extra_services || [];
+  // extra_services pode vir como string JSON da API — parsear antes de usar
+  if (typeof extra === 'string') { try { extra = JSON.parse(extra); } catch(e) { extra = []; } }
+  if (!Array.isArray(extra)) extra = [];
   return [...primary, ...extra];
 }
 
