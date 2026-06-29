@@ -34,6 +34,7 @@
   }
 
   // Lojas que o utilizador trata (próprias). Coordenador → todas as que gere.
+  // Inclui sempre a loja ativa (cobre admin e a loja onde se está a importar).
   function getManagedPortals() {
     const u = window.authClient?.getUser?.();
     if (!u) return [];
@@ -41,6 +42,8 @@
     const add = (p) => { if (p && p.id && !seen.has(p.id)) { seen.add(p.id); list.push({ id: p.id, name: p.name || ('Loja ' + p.id) }); } };
     if (Array.isArray(u.portals)) u.portals.forEach(add);
     add(u.portal);
+    // Loja atualmente ativa (importante para admin e para a loja em uso)
+    if (window.activePortalId) add({ id: window.activePortalId, name: window.portalConfig?.name });
     return list;
   }
 
@@ -169,17 +172,17 @@
     };
   }
 
-  async function check() {
+  async function check(force) {
     if (!window.authClient?.getUser?.()) return;
     const now = new Date();
-    if (!isDebug() && now.getHours() < ALERT_HOUR) return; // só a partir das 9h
+    if (!force && !isDebug() && now.getHours() < ALERT_HOUR) return; // só a partir das 9h
 
     const portais = getManagedPortals();
     if (!portais.length) return;
 
     const queue = [];
     for (const p of portais) {
-      if (!isDebug() && isDismissed(p.id)) continue;
+      if (!force && !isDebug() && isDismissed(p.id)) continue;
       const items = await fetchRecusados(p.id);
       if (items.length > 0) queue.push({ portalId: p.id, lojaName: p.name, items });
     }
@@ -198,6 +201,9 @@
     setInterval(() => waitForData(check), 60 * 60 * 1000);
     document.addEventListener('portalReady', () => setTimeout(() => waitForData(check), 1200));
   }
+
+  // Exposto para re-verificar imediatamente após uma importação (força mostrar)
+  window._recusadosCheck = function () { waitForData(() => check(true)); };
 
   console.log('[Recusados] script carregado');
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

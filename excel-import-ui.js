@@ -368,6 +368,8 @@ async function importData() {
           body: JSON.stringify({ portal_id: pid, recusados: recus })
         });
         console.log('✅ Recusados sincronizados:', recus.length);
+        // Re-verificar logo para mostrar o aviso sem ser preciso recarregar
+        setTimeout(() => { try { window._recusadosCheck?.(); } catch (e) {} }, 800);
       }
     } catch (e) { console.warn('Sync recusados falhou:', e); }
 
