@@ -245,11 +245,14 @@ async function renderMobileDay(){
 
   // Verificar se já existe ordem otimizada (sortIndex > 1 em algum item)
   const hasOptimizedOrder = itemsRaw.some(item => (item.sortIndex || 0) > 1);
-  
+  // Rota bloqueada pelo coordenador → respeitar SEMPRE a ordem manual (sortIndex),
+  // nunca reordenar automaticamente.
+  const routeLocked = typeof isDayRouteLocked === 'function' && isDayRouteLocked(iso);
+
   let items;
-  if (hasOptimizedOrder) {
-    // Se já tem ordem otimizada, usar essa ordem (respeitar sortIndex)
-    console.log('✅ MOBILE - Usando ordem otimizada (sortIndex)');
+  if (hasOptimizedOrder || routeLocked) {
+    // Ordem manual/otimizada ou rota bloqueada → respeitar sortIndex
+    console.log(routeLocked ? '🔒 MOBILE - Rota bloqueada, mantendo ordem do coordenador' : '✅ MOBILE - Usando ordem otimizada (sortIndex)');
     items = itemsRaw; // Já está ordenado por sortIndex na query acima
   } else {
     // Se não tem ordem otimizada, aplicar ordenação automática
