@@ -181,15 +181,21 @@
     if (!force && !isDebug() && nowMin < TEST_MIN_OF_DAY) return;
 
     const portais = getManagedPortals();
-    if (!portais.length) return;
+    const diag = [];
+    if (!portais.length) {
+      if (isDebug()) alert('[Recusados] Nenhuma loja detetada para este utilizador.\nactivePortalId=' + window.activePortalId);
+      return;
+    }
 
     const queue = [];
     for (const p of portais) {
-      if (!force && !isDebug() && isDismissed(p.id)) continue;
-      const items = await fetchRecusados(p.id);
+      const dismissed = !force && !isDebug() && isDismissed(p.id);
+      const items = dismissed ? [] : await fetchRecusados(p.id);
+      diag.push(p.name + ' (id ' + p.id + '): ' + items.length + (dismissed ? ' [já tratei]' : ''));
       if (items.length > 0) queue.push({ portalId: p.id, lojaName: p.name, items });
     }
     if (queue.length) showQueue(queue);
+    else if (isDebug()) alert('[Recusados] Sem recusados a mostrar.\n\nLojas verificadas:\n' + diag.join('\n'));
   }
 
   function waitForData(fn, tries) {
