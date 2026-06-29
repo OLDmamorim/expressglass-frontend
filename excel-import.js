@@ -132,7 +132,8 @@ class ExcelImporter {
         return {
           data: processedData,
           errors: this.validationErrors,
-          ignored: results.ignored || []
+          ignored: results.ignored || [],
+          recusados: results.recusados || []
         };
         
       } catch (error) {

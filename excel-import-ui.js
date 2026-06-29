@@ -356,6 +356,21 @@ async function importData() {
   try {
     const results = await window.excelImporter.importData(processedData.data);
 
+    // Sincronizar RECUSADOS para o aviso diário das 9h (não altera a importação normal)
+    try {
+      const recus = processedData.recusados || [];
+      const pid = window.activePortalId || window.authClient?.getUser?.()?.portal?.id || window.portalConfig?.id;
+      const token = window.authClient?.getToken?.();
+      if (pid && token) {
+        await fetch('/.netlify/functions/recusados', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ portal_id: pid, recusados: recus })
+        });
+        console.log('✅ Recusados sincronizados:', recus.length);
+      }
+    } catch (e) { console.warn('Sync recusados falhou:', e); }
+
     // Mostrar resultados
     showImportResults(results);
 

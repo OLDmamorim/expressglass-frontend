@@ -102,7 +102,12 @@ class ExpressglassFileProcessor {
     result.startTime = row[20] || '';
     result.endTime = row[21] || '';
     result.damage_details = (row[23] || '').toString().trim() || null;
-    
+
+    // Data de abertura da obra (coluna 4 / D) — usada para contar dias em aberto nos recusados
+    result.data_obra = this.formatDate(row[3]);
+    // Observações (coluna 10 / J)
+    result.obs = (row[9] || '').toString().trim() || null;
+
     return result;
   }
   
@@ -203,7 +208,8 @@ class ExpressglassFileProcessor {
     const results = {
       success: [],
       errors: [],
-      ignored: []
+      ignored: [],
+      recusados: []  // alimenta o aviso diário das 9h (não altera a importação normal)
     };
 
     const ALLOWED_STATUSES = new Set([
@@ -248,6 +254,19 @@ class ExpressglassFileProcessor {
           row: index + 2,
           data: processed
         });
+
+        // Recolher RECUSADOS para o aviso diário (além da importação normal)
+        if (phcStatus === 'RECUSADO') {
+          results.recusados.push({
+            plate: processed.plate || null,
+            car: processed.car || null,
+            n_obra: processed.n_obra || null,
+            data_obra: processed.data_obra || null,
+            data_servico: processed.serviceDate || null,
+            client_name: processed.client_name || null,
+            obs: processed.obs || null
+          });
+        }
 
       } catch (error) {
         results.errors.push({
