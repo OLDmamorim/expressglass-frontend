@@ -7,7 +7,6 @@
 
   const DISMISS_PREFIX = 'recusadosDismissed_';
   const ALERT_HOUR = 9; // a partir das 9h
-  const TEST_MIN_OF_DAY = 22 * 60 + 55; // TEMPORÁRIO: aparecer a partir das 22:55
 
   function dayStr() { return new Date().toDateString(); }
   function dismissKey(portalId) { return DISMISS_PREFIX + portalId + '_' + dayStr(); }
@@ -176,9 +175,7 @@
   async function check(force) {
     if (!window.authClient?.getUser?.()) return;
     const now = new Date();
-    // TEMPORÁRIO: a partir das 22:55 (em vez das 9h)
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    if (!force && !isDebug() && nowMin < TEST_MIN_OF_DAY) return;
+    if (!force && !isDebug() && now.getHours() < ALERT_HOUR) return; // só a partir das 9h
 
     const portais = getManagedPortals();
     const diag = [];
@@ -206,8 +203,8 @@
 
   function init() {
     waitForData(check);
-    // TEMPORÁRIO: reverificar a cada minuto (apanha a transição das 22:55 com a app aberta)
-    setInterval(() => waitForData(check), 60 * 1000);
+    // Reverificar de hora a hora (apanha a transição das 9h se a app ficar aberta)
+    setInterval(() => waitForData(check), 60 * 60 * 1000);
     document.addEventListener('portalReady', () => setTimeout(() => waitForData(check), 1200));
   }
 

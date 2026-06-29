@@ -90,7 +90,9 @@ const telBtn = phone ? `
   let _extraDisp = '';
   if (a.extra) { try { const _p = typeof a.extra === 'string' ? JSON.parse(a.extra) : a.extra; _extraDisp = (typeof _p === 'object' && _p !== null) ? (_p.eurocode || '') : ''; } catch(e) { _extraDisp = ''; } }
   const _mRole = window.authClient?.getUser?.()?.role;
-  const notes = [a.client_name, _extraDisp, a.notes, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
+  // Não mostrar notas que contenham o JSON interno (eurocode/photo_url/history)
+  const _mNotesClean = (a.notes && /"eurocode"|"photo_url"|"history"/.test(a.notes)) ? null : a.notes;
+  const notes = [a.client_name, _extraDisp, _mNotesClean, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
   const mEncRecFooter = ''; // movido para o semáforo de stock (coluna direita)
   const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   const compSalesBadge = a.comp_sales_desc
@@ -1300,7 +1302,8 @@ function bootApp() {
       service:get('appointmentService'),
       locality:get('appointmentLocality'),
       period: (document.getElementById('appointmentPeriod')?.value || null),
-      notes:  get('appointmentNotes'),
+      // Nunca gravar o JSON interno (eurocode/photo_url/history) no campo notas
+      notes:  (function(){ const n = get('appointmentNotes'); return (n && /"eurocode"|"photo_url"|"history"/.test(n)) ? '' : n; })(),
       address:get('appointmentAddress'),
       phone:  get('appointmentPhone'),
       extra:  (function() {
