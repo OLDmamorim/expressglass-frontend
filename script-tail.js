@@ -225,6 +225,7 @@ async function renderMobileDay(){
   const list  = document.getElementById('mobileDayList');
   const label = document.getElementById('mobileDayLabel');
   if(!list || !label) return;
+  const isRecalibra = window.portalConfig?.portalType === 'recalibra';
 
   const iso = localISO(currentMobileDay);
   const weekday = currentMobileDay.toLocaleDateString('pt-PT',{ weekday:'long' });
