@@ -81,7 +81,7 @@ const telBtn = phone ? `
     : '';
   // Recalibra: hora clicável (blocos de 1h). Sem hora → botão para definir.
   const hourBadge = isRecalibra
-    ? `<button onclick="event.stopPropagation();window.openRecalibraHourPicker('${a.id}')" style="display:inline-flex;align-items:center;gap:6px;background:${a.period?'#0f766e':'rgba(0,0,0,0.25)'};color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:15px;font-weight:800;cursor:pointer;margin:4px 0;">🕐 ${a.period || 'Definir hora'}</button>`
+    ? `<button onclick="event.stopPropagation();window.openRecalibraHourPicker('${a.id}')" style="display:inline-flex;align-items:center;gap:6px;background:${a.period?'#0f766e':'rgba(0,0,0,0.25)'};color:#fff !important;-webkit-text-fill-color:#fff;border:none;border-radius:8px;padding:5px 14px;font-size:15px;font-weight:800;cursor:pointer;margin:4px 0;">🕐 ${a.period || 'Definir hora'}</button>`
     : '';
   const chips = [
     (a.period && !isRecalibra) ? `<span class="m-chip">${a.period}</span>` : '',
