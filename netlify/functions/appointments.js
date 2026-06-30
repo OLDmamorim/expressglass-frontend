@@ -131,6 +131,12 @@ exports.handler = async (event) => {
     await pool.query(`ALTER TABLE appointments ADD CONSTRAINT appointments_service_check CHECK (service IS NULL OR service IN ('PB', 'LT', 'OC', 'REP', 'POL', 'RV', 'OUT', 'CAL'))`);
   } catch(migErr) { console.warn('Migration service_check warning:', migErr.message); }
 
+  // Migração: permitir hora (HH:MM) no period, além de Manhã/Tarde (Recalibra usa hora)
+  try {
+    await pool.query(`ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_period_check`);
+    await pool.query(`ALTER TABLE appointments ADD CONSTRAINT appointments_period_check CHECK (period IS NULL OR period IN ('Manhã', 'Tarde') OR period ~ '^[0-9]{1,2}:[0-9]{2}$')`);
+  } catch(migErr) { console.warn('Migration period_check warning:', migErr.message); }
+
   try {
     const user = getUserFromToken(event);
     let portalId = user.portalId;
