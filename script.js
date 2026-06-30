@@ -1119,34 +1119,74 @@ function getTotalServiceTime(a) {
     sum + getServiceTime(s.service, vt, i === 0 ? a.calibration : false, s.custom_service_time), 0);
 }
 
-// ── RECALIBRA: seletor de hora (blocos de 1h), guardado no campo period ──────
+// ── RECALIBRA: seletor de hora (blocos de 1h), seleção múltipla CONTÍGUA ──────
+// Guardado no campo period: "09:00" (1 bloco) ou "09:00-11:00" (intervalo seguido).
 window.openRecalibraHourPicker = function(id) {
   const appt = (appointments || []).find(a => String(a.id) === String(id));
   if (!appt) return;
-  const cur = appt.period || '';
-  const hours = [];
-  for (let h = 8; h <= 19; h++) hours.push(String(h).padStart(2, '0') + ':00');
+  const HMIN = 8, HMAX = 19;
+  const fmt = h => String(h).padStart(2, '0') + ':00';
+
+  // Estado: conjunto de horas selecionadas (sempre contíguo)
+  let selected = new Set();
+  if (appt.period && /^[0-9]/.test(appt.period)) {
+    const p = appt.period.split('-').map(s => parseInt(s, 10));
+    if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) { for (let h = p[0]; h <= p[1]; h++) selected.add(h); }
+    else if (p.length === 1 && !isNaN(p[0])) selected.add(p[0]);
+  }
+
+  function toggle(h) {
+    if (selected.size === 0) { selected = new Set([h]); return; }
+    const arr = [...selected].sort((a, b) => a - b);
+    const lo = arr[0], hi = arr[arr.length - 1];
+    if (h === lo - 1 || h === hi + 1) selected.add(h);           // estende
+    else if ((h === lo || h === hi) && selected.size > 1) selected.delete(h); // encurta na ponta
+    else if (h === lo && selected.size === 1) selected.clear();  // desmarca o único
+    else selected = new Set([h]);                                 // salto ou meio → recomeça
+  }
+
+  function periodStr() {
+    if (!selected.size) return '';
+    const arr = [...selected].sort((a, b) => a - b);
+    return arr.length === 1 ? fmt(arr[0]) : fmt(arr[0]) + '-' + fmt(arr[arr.length - 1]);
+  }
+
   const existing = document.getElementById('recHourOverlay');
   if (existing) existing.remove();
   const overlay = document.createElement('div');
   overlay.id = 'recHourOverlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;';
-  overlay.innerHTML = `
-    <div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
-      <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:2px;">🕐 Hora do serviço</div>
-      <div style="font-size:13px;color:#64748b;margin-bottom:14px;">${(appt.plate || '').toUpperCase()}</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">
-        ${hours.map(h => `<button data-h="${h}" style="padding:12px 0;border:1.5px solid ${cur===h?'#0f766e':'#e2e8f0'};background:${cur===h?'#0f766e':'#fff'};color:${cur===h?'#fff':'#1e293b'};border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">${h}</button>`).join('')}
-      </div>
-      <button data-h="" style="width:100%;padding:11px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">Sem hora</button>
-      <button id="recHourCancel" style="width:100%;padding:11px;border:none;background:#f1f5f9;color:#475569;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Cancelar</button>
-    </div>`;
   document.body.appendChild(overlay);
+
+  function render() {
+    const arr = [...selected].sort((a, b) => a - b);
+    const resumo = arr.length ? (arr.length === 1 ? fmt(arr[0]) : fmt(arr[0]) + ' → ' + fmt(arr[arr.length - 1])) : 'Sem hora';
+    let grid = '';
+    for (let h = HMIN; h <= HMAX; h++) {
+      const on = selected.has(h);
+      grid += `<button data-h="${h}" style="padding:12px 0;border:1.5px solid ${on?'#0f766e':'#e2e8f0'};background:${on?'#0f766e':'#fff'};color:${on?'#fff':'#1e293b'};border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">${fmt(h)}</button>`;
+    }
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+        <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:2px;">🕐 Hora do serviço</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:2px;">${(appt.plate || '').toUpperCase()}</div>
+        <div style="font-size:13px;color:#0f766e;font-weight:800;margin-bottom:12px;">${resumo}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:10px;">Toca para selecionar horas seguidas (ex.: 09:00 → 11:00).</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;">${grid}</div>
+        <button id="recHourSave" style="width:100%;padding:12px;border:none;background:#16a34a;color:#fff;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:8px;">✅ Guardar</button>
+        <button id="recHourNone" style="width:100%;padding:10px;border:1.5px solid #fecaca;background:#fef2f2;color:#dc2626;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">Sem hora</button>
+        <button id="recHourCancel" style="width:100%;padding:10px;border:none;background:#f1f5f9;color:#475569;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Cancelar</button>
+      </div>`;
+    overlay.querySelectorAll('button[data-h]').forEach(btn => {
+      btn.onclick = () => { toggle(parseInt(btn.getAttribute('data-h'), 10)); render(); };
+    });
+    document.getElementById('recHourSave').onclick = () => { overlay.remove(); window.setRecalibraHour(id, periodStr()); };
+    document.getElementById('recHourNone').onclick = () => { selected.clear(); overlay.remove(); window.setRecalibraHour(id, ''); };
+    document.getElementById('recHourCancel').onclick = () => overlay.remove();
+  }
+
   overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-  document.getElementById('recHourCancel').onclick = () => overlay.remove();
-  overlay.querySelectorAll('button[data-h]').forEach(btn => {
-    btn.onclick = () => { overlay.remove(); window.setRecalibraHour(id, btn.getAttribute('data-h')); };
-  });
+  render();
 };
 
 window.setRecalibraHour = async function(id, hour) {
