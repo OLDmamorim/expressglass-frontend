@@ -1161,7 +1161,8 @@ window.setRecalibraHour = async function(id, hour) {
     await window.apiClient.updateAppointment(id, { ...appointments[i], period: hour || null });
   } catch (e) {
     appointments[i].period = prev;
-    try { if (typeof showToast === 'function') showToast('Erro ao gravar a hora', 'error'); } catch(_) {}
+    console.error('[Recalibra] erro ao gravar hora:', e);
+    try { if (typeof showToast === 'function') showToast('Erro ao gravar a hora: ' + (e && e.message ? e.message : e), 'error'); } catch(_) {}
     try { if (typeof renderAll === 'function') renderAll(); } catch(_) {}
     try { if (typeof renderMobileDay === 'function') renderMobileDay(); } catch(_) {}
   }
