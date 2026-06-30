@@ -1119,6 +1119,9 @@ function getTotalServiceTime(a) {
     sum + getServiceTime(s.service, vt, i === 0 ? a.calibration : false, s.custom_service_time), 0);
 }
 
+// Devolve sempre o array de agendamentos ao vivo (não uma cópia desatualizada)
+window.getLiveAppointments = function () { return appointments; };
+
 // ── RECALIBRA: seletor de hora (blocos de 1h), seleção múltipla CONTÍGUA ──────
 // Guardado no campo period: "09:00" (1 bloco) ou "09:00-11:00" (intervalo seguido).
 window.openRecalibraHourPicker = function(id) {

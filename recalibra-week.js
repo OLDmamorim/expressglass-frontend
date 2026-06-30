@@ -42,9 +42,13 @@
   const fmt = h => String(h).padStart(2, '0') + ':00';
 
   // Mapa: para uma data, que horas estão ocupadas e por quem
+  function liveAppointments() {
+    return (typeof window.getLiveAppointments === 'function') ? (window.getLiveAppointments() || []) : (window.appointments || []);
+  }
+
   function occupancyFor(dateIso) {
     const map = {}; // hour -> {plate, locality}
-    (window.appointments || []).forEach(a => {
+    liveAppointments().forEach(a => {
       if (a.date !== dateIso) return;
       if (!a.period || !/^[0-9]/.test(a.period)) return;
       const p = String(a.period).split('-').map(s => parseInt(s, 10));
@@ -52,7 +56,11 @@
       if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) { lo = p[0]; hi = p[1]; }
       else if (p.length === 1 && !isNaN(p[0])) { lo = hi = p[0]; }
       else return;
-      for (let h = lo; h <= hi; h++) map[h] = { plate: (a.plate || '').toUpperCase(), locality: (a.locality || '').toUpperCase() };
+      const entry = { plate: (a.plate || '').toUpperCase(), locality: (a.locality || '').toUpperCase() };
+      for (let h = lo; h <= hi; h++) {
+        // Em caso de sobreposição, preferir o que tem loja definida
+        if (!map[h] || (!map[h].locality && entry.locality)) map[h] = entry;
+      }
     });
     return map;
   }
