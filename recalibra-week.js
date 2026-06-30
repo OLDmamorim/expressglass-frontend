@@ -144,14 +144,15 @@
   window.openRecalibraWeek = open;
 
   function updateButton() {
+    const rec = isRecalibra();
     const btn = document.getElementById('btnRecalibraWeek');
-    if (!btn) return;
-    if (isRecalibra()) {
-      btn.style.display = '';
-      if (!btn._bound) { btn._bound = true; btn.onclick = open; }
-    } else {
-      btn.style.display = 'none';
+    if (btn) {
+      btn.style.display = rec ? '' : 'none';
+      if (rec && !btn._bound) { btn._bound = true; btn.onclick = open; }
     }
+    // No Recalibra, esconder os 3 botões (Vendas / Calcular Rotas / Timeline)
+    const row = document.getElementById('mobileActionRow');
+    if (row) row.style.display = rec ? 'none' : '';
   }
 
   function init() {
