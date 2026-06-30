@@ -9,6 +9,26 @@
   const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   let weekCursor = null; // Segunda-feira da semana mostrada
 
+  // Cor por loja (cada loja com a sua cor)
+  const LOJA_COLORS = {
+    'BARCELOS': '#2563eb',
+    'BRAGA MINHO CENTER': '#dc2626',
+    'BRAGA SM': '#ea580c',
+    'FAMALICÃO': '#7c3aed',
+    'FAMALICÃO SM': '#db2777',
+    'GUIMARÃES': '#16a34a',
+    'MYCARCENTER': '#0891b2',
+    'PAÇOS DE FERREIRA': '#a16207',
+    'PAREDES': '#4f46e5',
+    'PAREDES SM': '#9333ea',
+    'PÓVOA DE VARZIM': '#0d9488',
+    'RECALIBRA MINHO': '#b91c1c',
+    'VIANA DO CASTELO': '#1d4ed8',
+    'VIANA DO CASTELO SM': '#c2410c',
+    'VILA VERDE': '#15803d'
+  };
+  function lojaColor(loja) { return LOJA_COLORS[(loja || '').toUpperCase()] || '#475569'; }
+
   function isRecalibra() { return window.portalConfig?.portalType === 'recalibra'; }
 
   function mondayOf(d) {
@@ -68,8 +88,10 @@
       occ.forEach(m => {
         const c = m[h];
         if (c) {
-          const lbl = c.plate || (c.locality ? c.locality.slice(0, 6) : '•');
-          rows += `<div title="${c.plate}${c.locality ? ' · ' + c.locality : ''}" style="background:#dc2626;color:#fff;border-radius:5px;min-height:26px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;padding:1px;overflow:hidden;text-align:center;line-height:1;">${lbl}</div>`;
+          const loja = c.locality || '';
+          const lbl = loja || c.plate || '•';
+          const bg = loja ? lojaColor(loja) : '#475569';
+          rows += `<div title="${loja || c.plate}${loja && c.plate ? ' · ' + c.plate : ''}" style="background:${bg};color:#fff;border-radius:5px;min-height:26px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;padding:2px;overflow:hidden;text-align:center;line-height:1.05;">${lbl}</div>`;
         } else {
           rows += `<div style="background:#dcfce7;border:1px solid #bbf7d0;border-radius:5px;min-height:26px;"></div>`;
         }
@@ -91,9 +113,9 @@
           <div style="display:grid;grid-template-columns:40px repeat(6,1fr);gap:3px;margin-bottom:3px;">${head}</div>
           <div style="display:grid;grid-template-columns:40px repeat(6,1fr);gap:3px;">${rows}</div>
         </div>
-        <div style="display:flex;gap:14px;justify-content:center;padding:8px 10px 14px;font-size:11px;color:#64748b;font-weight:600;">
+        <div style="display:flex;gap:14px;justify-content:center;align-items:center;padding:8px 10px 14px;font-size:11px;color:#64748b;font-weight:600;">
           <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:3px;display:inline-block;"></span> Livre</span>
-          <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#dc2626;border-radius:3px;display:inline-block;"></span> Ocupado</span>
+          <span>Ocupado = cor da loja</span>
         </div>
         <div style="padding:0 14px 16px;">
           <button id="recWeekCloseBtn" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Fechar</button>
