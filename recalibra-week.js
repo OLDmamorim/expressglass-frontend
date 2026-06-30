@@ -1,0 +1,135 @@
+// recalibra-week.js
+// Vista de semana (grelha dias × horas) para o portal Recalibra, no mobile.
+// Botão "📅 Ver semana" abre uma janela com a ocupação da semana para se ver
+// rapidamente onde há espaço para encaixar um serviço. Fecha a qualquer momento.
+(function () {
+  'use strict';
+
+  const HMIN = 8, HMAX = 19;
+  const DAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  let weekCursor = null; // Segunda-feira da semana mostrada
+
+  function isRecalibra() { return window.portalConfig?.portalType === 'recalibra'; }
+
+  function mondayOf(d) {
+    if (typeof getMonday === 'function') return getMonday(d);
+    const r = new Date(d); const day = r.getDay();
+    const diff = r.getDate() - day + (day === 0 ? -6 : 1);
+    r.setDate(diff); r.setHours(0, 0, 0, 0); return r;
+  }
+  function addD(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); r.setHours(0, 0, 0, 0); return r; }
+  function iso(d) { return (typeof localISO === 'function') ? localISO(d) : d.toISOString().slice(0, 10); }
+  const fmt = h => String(h).padStart(2, '0') + ':00';
+
+  // Mapa: para uma data, que horas estão ocupadas e por quem
+  function occupancyFor(dateIso) {
+    const map = {}; // hour -> {plate, locality}
+    (window.appointments || []).forEach(a => {
+      if (a.date !== dateIso) return;
+      if (!a.period || !/^[0-9]/.test(a.period)) return;
+      const p = String(a.period).split('-').map(s => parseInt(s, 10));
+      let lo, hi;
+      if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) { lo = p[0]; hi = p[1]; }
+      else if (p.length === 1 && !isNaN(p[0])) { lo = hi = p[0]; }
+      else return;
+      for (let h = lo; h <= hi; h++) map[h] = { plate: (a.plate || '').toUpperCase(), locality: (a.locality || '').toUpperCase() };
+    });
+    return map;
+  }
+
+  function close() { document.getElementById('recWeekOverlay')?.remove(); }
+
+  function render() {
+    let overlay = document.getElementById('recWeekOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'recWeekOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:flex-start;justify-content:center;padding:10px;overflow:auto;';
+      overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+      document.body.appendChild(overlay);
+    }
+
+    const days = DAYS.map((_, i) => addD(weekCursor, i));
+    const occ = days.map(d => occupancyFor(iso(d)));
+    const fimSemana = addD(weekCursor, 5);
+    const titulo = weekCursor.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }) + ' – ' + fimSemana.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+
+    // Cabeçalho de dias
+    let head = `<div style="font-size:10px;font-weight:800;color:#64748b;"></div>`;
+    days.forEach((d, i) => {
+      const isToday = iso(d) === iso(new Date());
+      head += `<div style="text-align:center;font-size:10px;font-weight:800;color:${isToday ? '#0f766e' : '#475569'};line-height:1.1;">${DAYS[i]}<br><span style="font-size:9px;font-weight:600;color:#94a3b8;">${d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}</span></div>`;
+    });
+
+    // Linhas de horas
+    let rows = '';
+    for (let h = HMIN; h <= HMAX; h++) {
+      rows += `<div style="font-size:10px;font-weight:700;color:#475569;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;">${fmt(h)}</div>`;
+      occ.forEach(m => {
+        const c = m[h];
+        if (c) {
+          const lbl = c.plate || (c.locality ? c.locality.slice(0, 6) : '•');
+          rows += `<div title="${c.plate}${c.locality ? ' · ' + c.locality : ''}" style="background:#dc2626;color:#fff;border-radius:5px;min-height:26px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;padding:1px;overflow:hidden;text-align:center;line-height:1;">${lbl}</div>`;
+        } else {
+          rows += `<div style="background:#dcfce7;border:1px solid #bbf7d0;border-radius:5px;min-height:26px;"></div>`;
+        }
+      });
+    }
+
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;max-width:560px;width:100%;margin:auto;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #e2e8f0;">
+          <div style="font-size:16px;font-weight:900;color:#0f172a;">📅 Semana</div>
+          <button id="recWeekClose" style="background:none;border:none;font-size:26px;color:#94a3b8;cursor:pointer;line-height:1;">&times;</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:14px;padding:10px;">
+          <button id="recWeekPrev" style="background:#f1f5f9;border:none;border-radius:8px;padding:7px 14px;font-size:16px;font-weight:800;cursor:pointer;">‹</button>
+          <div style="font-size:14px;font-weight:800;color:#0f766e;min-width:120px;text-align:center;">${titulo}</div>
+          <button id="recWeekNext" style="background:#f1f5f9;border:none;border-radius:8px;padding:7px 14px;font-size:16px;font-weight:800;cursor:pointer;">›</button>
+        </div>
+        <div style="padding:0 10px 6px;">
+          <div style="display:grid;grid-template-columns:40px repeat(6,1fr);gap:3px;margin-bottom:3px;">${head}</div>
+          <div style="display:grid;grid-template-columns:40px repeat(6,1fr);gap:3px;">${rows}</div>
+        </div>
+        <div style="display:flex;gap:14px;justify-content:center;padding:8px 10px 14px;font-size:11px;color:#64748b;font-weight:600;">
+          <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:3px;display:inline-block;"></span> Livre</span>
+          <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#dc2626;border-radius:3px;display:inline-block;"></span> Ocupado</span>
+        </div>
+        <div style="padding:0 14px 16px;">
+          <button id="recWeekCloseBtn" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;">Fechar</button>
+        </div>
+      </div>`;
+
+    document.getElementById('recWeekClose').onclick = close;
+    document.getElementById('recWeekCloseBtn').onclick = close;
+    document.getElementById('recWeekPrev').onclick = () => { weekCursor = addD(weekCursor, -7); render(); };
+    document.getElementById('recWeekNext').onclick = () => { weekCursor = addD(weekCursor, 7); render(); };
+  }
+
+  function open() {
+    const base = (typeof currentMobileDay !== 'undefined' && currentMobileDay) ? currentMobileDay : new Date();
+    weekCursor = mondayOf(base);
+    render();
+  }
+  window.openRecalibraWeek = open;
+
+  function updateButton() {
+    const btn = document.getElementById('btnRecalibraWeek');
+    if (!btn) return;
+    if (isRecalibra()) {
+      btn.style.display = '';
+      if (!btn._bound) { btn._bound = true; btn.onclick = open; }
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+
+  function init() {
+    updateButton();
+    document.addEventListener('portalReady', () => setTimeout(updateButton, 300));
+    setInterval(updateButton, 3000); // apanha mudanças de portal
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
