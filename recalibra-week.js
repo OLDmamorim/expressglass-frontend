@@ -151,8 +151,9 @@
       if (rec && !btn._bound) { btn._bound = true; btn.onclick = open; }
     }
     // No Recalibra, esconder os 3 botões (Vendas / Calcular Rotas / Timeline)
+    // Nos outros portais repor a grelha de 3 colunas (não 'block')
     const row = document.getElementById('mobileActionRow');
-    if (row) row.style.display = rec ? 'none' : '';
+    if (row) row.style.display = rec ? 'none' : 'grid';
   }
 
   function init() {
