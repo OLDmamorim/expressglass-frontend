@@ -2791,7 +2791,7 @@ function buildDesktopCard(a){
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar} ${glassRemovedBorderStyle}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
-      ${isRecalibra ? `<div style="margin:4px 0;"><button onclick="event.stopPropagation();window.openRecalibraHourPicker('${a.id}')" style="display:inline-flex;align-items:center;gap:6px;background:${a.period?'#0f766e':'rgba(0,0,0,0.25)'};color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:14px;font-weight:800;cursor:pointer;">🕐 ${a.period || 'Definir hora'}</button></div>` : ''}
+      ${isRecalibra ? `<div style="margin:4px 0;"><button onclick="event.stopPropagation();window.openRecalibraHourPicker('${a.id}')" style="display:inline-flex;align-items:center;gap:6px;background:${a.period?'#0f766e':'rgba(0,0,0,0.25)'};color:#fff !important;-webkit-text-fill-color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:14px;font-weight:800;cursor:pointer;">🕐 ${a.period || 'Definir hora'}</button></div>` : ''}
       <div class="dc-meta" data-ms-patched="1">
         ${getAllServices(a).map(s => `<span class="dc-badge">${s.service||''}</span>`).join('')}
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
