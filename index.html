@@ -3785,8 +3785,19 @@
   // ── COORDINATOR GLASS ALERT NOTIFICATIONS ────────────────────────────────
   const _GR_SNOOZE_KEY = 'gr_alert_snooze';
 
+  // Horários a que o aviso "Vidros por tratar" aparece: 11:45 e 16:45 (uma vez por cada)
+  const _GR_SLOTS = [{ k: '1145', m: 11 * 60 + 45 }, { k: '1645', m: 16 * 60 + 45 }];
+  function _grSlotShownKey(k) { return 'gr_alert_slot_' + k + '_' + new Date().toDateString(); }
+  function _grReachedUnshownSlots() {
+    const now = new Date(); const mins = now.getHours() * 60 + now.getMinutes();
+    return _GR_SLOTS.filter(s => mins >= s.m && !localStorage.getItem(_grSlotShownKey(s.k)));
+  }
+
   async function _checkGlassAlerts() {
     if (Date.now() < (parseInt(sessionStorage.getItem(_GR_SNOOZE_KEY) || '0', 10))) return;
+    const _grDbg = new URLSearchParams(location.search).get('debugGlassAlert') === '1';
+    const _grDue = _grReachedUnshownSlots();
+    if (!_grDbg && !_grDue.length) return; // só aparece às 11:45 e às 16:45
     try {
       const res = await fetch(API + '/glass-reception?alerts=true', { headers: authHeaders() });
       const data = await res.json();
@@ -3806,6 +3817,8 @@
         </div>
       `).join('');
       document.getElementById('grAlertPopup').style.display = 'flex';
+      // Marcar os horários já apresentados hoje (evita repetir no mesmo período)
+      if (!_grDbg) _grDue.forEach(s => { try { localStorage.setItem(_grSlotShownKey(s.k), '1'); } catch (e) {} });
     } catch (_) {}
   }
 
