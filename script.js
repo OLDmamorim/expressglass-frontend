@@ -1127,13 +1127,25 @@ window.openRecalibraHourPicker = function(id) {
   const HMIN = 8, HMAX = 19;
   const fmt = h => String(h).padStart(2, '0') + ':00';
 
+  // Horas → conjunto, a partir de "HH:00" ou "HH:00-HH:00"
+  const parseHours = (period, set) => {
+    if (!period || !/^[0-9]/.test(period)) return;
+    const p = period.split('-').map(s => parseInt(s, 10));
+    if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) { for (let h = p[0]; h <= p[1]; h++) set.add(h); }
+    else if (p.length === 1 && !isNaN(p[0])) set.add(p[0]);
+  };
+
   // Estado: conjunto de horas selecionadas (sempre contíguo)
   let selected = new Set();
-  if (appt.period && /^[0-9]/.test(appt.period)) {
-    const p = appt.period.split('-').map(s => parseInt(s, 10));
-    if (p.length === 2 && !isNaN(p[0]) && !isNaN(p[1])) { for (let h = p[0]; h <= p[1]; h++) selected.add(h); }
-    else if (p.length === 1 && !isNaN(p[0])) selected.add(p[0]);
-  }
+  parseHours(appt.period, selected);
+
+  // Horas já ocupadas por OUTROS cards do mesmo dia → bloqueadas
+  const takenByOthers = new Set();
+  (appointments || []).forEach(o => {
+    if (String(o.id) === String(id)) return;
+    if (o.date !== appt.date) return;
+    parseHours(o.period, takenByOthers);
+  });
 
   function toggle(h) {
     if (selected.size === 0) { selected = new Set([h]); return; }
@@ -1164,7 +1176,12 @@ window.openRecalibraHourPicker = function(id) {
     let grid = '';
     for (let h = HMIN; h <= HMAX; h++) {
       const on = selected.has(h);
-      grid += `<button data-h="${h}" style="padding:12px 0;border:1.5px solid ${on?'#0f766e':'#e2e8f0'};background:${on?'#0f766e':'#fff'};color:${on?'#fff':'#1e293b'};border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">${fmt(h)}</button>`;
+      const taken = takenByOthers.has(h) && !on;
+      if (taken) {
+        grid += `<button disabled title="Já ocupada noutro serviço" style="padding:12px 0;border:1.5px solid #e2e8f0;background:#f1f5f9;color:#cbd5e1;border-radius:10px;font-size:15px;font-weight:700;cursor:not-allowed;text-decoration:line-through;">${fmt(h)}</button>`;
+      } else {
+        grid += `<button data-h="${h}" style="padding:12px 0;border:1.5px solid ${on?'#0f766e':'#e2e8f0'};background:${on?'#0f766e':'#fff'};color:${on?'#fff':'#1e293b'};border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">${fmt(h)}</button>`;
+      }
     }
     overlay.innerHTML = `
       <div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
