@@ -50,7 +50,7 @@ const telBtn = phone ? `
   const _semLabel = { NE: 'S/STOCK', VE: 'ENC.', ST: 'STOCK' }[_st] || 'S/STOCK';
   const _numBtns = [wazeBtn, mapsBtn, telBtn].filter(Boolean).length;
   const _semTop = 10 + _numBtns * 36;
-  const stockSemaphore = `
+  const stockSemaphore = isRecalibra ? '' : `
     <div style="position:absolute;top:${_semTop}px;right:10px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;z-index:5;">
       <div style="display:flex;flex-direction:column;align-items:center;gap:3px;background:rgba(0,0,0,0.35);border-radius:16px;padding:6px 5px 4px;">
         ${_lights.map(l => `<div style="width:14px;height:14px;border-radius:50%;background:${_st===l.s ? l.on : 'rgba(255,255,255,0.12)'};${_st===l.s ? `box-shadow:0 0 7px 2px ${l.glow};` : ''}"></div>`).join('')}

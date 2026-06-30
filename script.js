@@ -1121,7 +1121,7 @@ function getTotalServiceTime(a) {
 
 // ── RECALIBRA: seletor de hora (blocos de 1h), guardado no campo period ──────
 window.openRecalibraHourPicker = function(id) {
-  const appt = (window.appointments || []).find(a => String(a.id) === String(id));
+  const appt = (appointments || []).find(a => String(a.id) === String(id));
   if (!appt) return;
   const cur = appt.period || '';
   const hours = [];
@@ -1150,17 +1150,17 @@ window.openRecalibraHourPicker = function(id) {
 };
 
 window.setRecalibraHour = async function(id, hour) {
-  const i = (window.appointments || []).findIndex(a => String(a.id) === String(id));
+  const i = (appointments || []).findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
-  const prev = window.appointments[i].period;
-  window.appointments[i].period = hour || null;
+  const prev = appointments[i].period;
+  appointments[i].period = hour || null;
   // Re-render otimista
   try { if (typeof renderAll === 'function') renderAll(); } catch(e) {}
   try { if (typeof renderMobileDay === 'function') renderMobileDay(); } catch(e) {}
   try {
-    await window.apiClient.updateAppointment(id, { ...window.appointments[i], period: hour || null });
+    await window.apiClient.updateAppointment(id, { ...appointments[i], period: hour || null });
   } catch (e) {
-    window.appointments[i].period = prev;
+    appointments[i].period = prev;
     try { if (typeof showToast === 'function') showToast('Erro ao gravar a hora', 'error'); } catch(_) {}
     try { if (typeof renderAll === 'function') renderAll(); } catch(_) {}
     try { if (typeof renderMobileDay === 'function') renderMobileDay(); } catch(_) {}
@@ -2678,7 +2678,7 @@ function buildDesktopCard(a){
   const g = gradFromBase(base);
   const textColor = textColorForBg(base);
   const loja = isLoja();
-  const bar = loja ? '' : `border-left:5px solid ${statusBarColors[a.status] || '#475569'}`;
+  const bar = (loja || window.portalConfig?.portalType === 'recalibra') ? '' : `border-left:5px solid ${statusBarColors[a.status] || '#475569'}`;
   // Nova hierarquia: matrícula em Barlow Condensed, badge serviço, carro secundário
   const plate = (a.plate || '').toUpperCase();
   const service = a.service || 'PB';
