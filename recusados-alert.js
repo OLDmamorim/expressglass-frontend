@@ -166,9 +166,24 @@
 
     document.getElementById('recusBtnPrint').onclick = () => printList(lojaName, items);
     document.getElementById('recusBtnOk').onclick = () => {
-      markDismissed(portalId);
-      overlay.remove();
-      showQueue(queue.slice(1)); // próxima loja
+      // Confirmação antes de dispensar
+      const conf = document.createElement('div');
+      conf.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000001;display:flex;align-items:center;justify-content:center;padding:20px;';
+      conf.innerHTML = `
+        <div style="background:#fff;border:6px solid #dc2626;border-radius:18px;max-width:420px;width:100%;text-align:center;padding:28px 22px;box-shadow:0 20px 60px rgba(220,38,38,.45);">
+          <div style="font-size:46px;margin-bottom:6px;">⚠️</div>
+          <div style="font-size:21px;font-weight:900;color:#dc2626;margin-bottom:8px;">Tens a certeza??</div>
+          <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:20px;">Estes processos não podem ser ignorados</div>
+          <button id="recusConfirmYes" style="width:100%;padding:13px;border:none;border-radius:12px;background:#16a34a;color:#fff;font-size:16px;font-weight:800;cursor:pointer;">Tenho</button>
+        </div>`;
+      document.body.appendChild(conf);
+      conf.addEventListener('click', e => { if (e.target === conf) conf.remove(); });
+      document.getElementById('recusConfirmYes').onclick = () => {
+        conf.remove();
+        markDismissed(portalId);
+        overlay.remove();
+        showQueue(queue.slice(1)); // próxima loja
+      };
     };
   }
 
