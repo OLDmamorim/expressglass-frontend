@@ -76,8 +76,9 @@ const telBtn = phone ? `
     const extraNames = extra.map(function(s) { return s && s.service ? s.service : ''; }).filter(Boolean);
     return [...primary, ...extraNames];
   })();
-  const lojaBadge = isRecalibra && a.locality
-    ? `<div style="display:inline-block;background:#dc2626;color:#ffffff !important;-webkit-text-fill-color:#ffffff;font-weight:900;font-size:12px;letter-spacing:1.5px;padding:3px 10px;border-radius:6px;margin:4px 0;text-transform:uppercase;">${(a.locality).toUpperCase()}</div>`
+  // Recalibra: loja clicável (dropdown). Mostra a loja ou "Definir loja".
+  const lojaBadge = isRecalibra
+    ? `<button onclick="event.stopPropagation();window.openRecalibraLojaPicker('${a.id}')" style="display:inline-flex;align-items:center;gap:6px;background:${a.locality?'#dc2626':'rgba(0,0,0,0.25)'};color:#fff !important;-webkit-text-fill-color:#fff;border:none;font-weight:800;font-size:13px;letter-spacing:.5px;padding:5px 12px;border-radius:8px;margin:4px 0;text-transform:uppercase;cursor:pointer;">📍 ${a.locality ? a.locality.toUpperCase() : 'DEFINIR LOJA'}</button>`
     : '';
   // Recalibra: hora clicável (blocos de 1h). Sem hora → botão para definir.
   const hourBadge = isRecalibra
@@ -194,10 +195,9 @@ const telBtn = phone ? `
       ${stockSemaphore}
       <div style="${iconPadding}">
         <div class="m-title"><span class="m-title-text">${plate}</span></div>
-        ${hourBadge ? `<div>${hourBadge}</div>` : ''}
+        ${(hourBadge || lojaBadge) ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">${hourBadge}${lojaBadge}</div>` : ''}
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips" data-ms-patched="1">${chips}</div>` : ''}
-        ${lojaBadge}
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${damageRow}

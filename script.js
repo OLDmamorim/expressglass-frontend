@@ -1189,6 +1189,84 @@ window.openRecalibraHourPicker = function(id) {
   render();
 };
 
+// ── RECALIBRA: seletor de loja (dropdown). "OUTRA" → texto livre. Guarda em locality.
+const RECALIBRA_LOJAS = ['BARCELOS','BRAGA MINHO CENTER','BRAGA SM','FAMALICÃO','FAMALICÃO SM','GUIMARÃES','MYCARCENTER','PAÇOS DE FERREIRA','PAREDES','PAREDES SM','PÓVOA DE VARZIM','RECALIBRA MINHO','VIANA DO CASTELO','VIANA DO CASTELO SM','VILA VERDE','OUTRA'];
+
+window.openRecalibraLojaPicker = function(id) {
+  const appt = (appointments || []).find(a => String(a.id) === String(id));
+  if (!appt) return;
+  const cur = appt.locality || '';
+  const existing = document.getElementById('recLojaOverlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'recLojaOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  function renderList() {
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;max-width:400px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);max-height:88vh;display:flex;flex-direction:column;">
+        <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:2px;">📍 Loja</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:12px;">${(appt.plate || '').toUpperCase()}</div>
+        <div style="overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:10px;">
+          ${RECALIBRA_LOJAS.map(l => {
+            const on = (l === 'OUTRA') ? (cur && !RECALIBRA_LOJAS.includes(cur)) : (cur === l);
+            return `<button data-loja="${l}" style="text-align:left;padding:11px 14px;border:1.5px solid ${on?'#dc2626':'#e2e8f0'};background:${on?'#dc2626':'#fff'};color:${on?'#fff':'#1e293b'};border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">${l}${l==='OUTRA'?' ✏️':''}</button>`;
+          }).join('')}
+        </div>
+        <button id="recLojaCancel" style="padding:10px;border:none;background:#f1f5f9;color:#475569;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Cancelar</button>
+      </div>`;
+    overlay.querySelectorAll('button[data-loja]').forEach(btn => {
+      btn.onclick = () => {
+        const loja = btn.getAttribute('data-loja');
+        if (loja === 'OUTRA') renderOutra();
+        else { overlay.remove(); window.setRecalibraLoja(id, loja); }
+      };
+    });
+    document.getElementById('recLojaCancel').onclick = () => overlay.remove();
+  }
+
+  function renderOutra() {
+    const pre = (cur && !RECALIBRA_LOJAS.includes(cur)) ? cur : '';
+    overlay.innerHTML = `
+      <div style="background:#fff;border-radius:16px;max-width:400px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+        <div style="font-size:17px;font-weight:800;color:#0f172a;margin-bottom:10px;">📍 Outra loja</div>
+        <input id="recLojaOutra" type="text" value="${pre.replace(/"/g,'&quot;')}" placeholder="Escreve o nome da loja..." style="width:100%;box-sizing:border-box;padding:12px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:15px;margin-bottom:12px;">
+        <button id="recLojaSave" style="width:100%;padding:12px;border:none;background:#16a34a;color:#fff;border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;margin-bottom:8px;">✅ Guardar</button>
+        <button id="recLojaBack" style="width:100%;padding:10px;border:none;background:#f1f5f9;color:#475569;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">← Voltar</button>
+      </div>`;
+    const inp = document.getElementById('recLojaOutra');
+    inp.focus();
+    document.getElementById('recLojaSave').onclick = () => {
+      const v = (inp.value || '').trim();
+      if (!v) { inp.focus(); return; }
+      overlay.remove(); window.setRecalibraLoja(id, v);
+    };
+    document.getElementById('recLojaBack').onclick = renderList;
+  }
+
+  renderList();
+};
+
+window.setRecalibraLoja = async function(id, loja) {
+  const i = (appointments || []).findIndex(a => String(a.id) === String(id));
+  if (i < 0) return;
+  const prev = appointments[i].locality;
+  appointments[i].locality = loja || null;
+  try { if (typeof renderAll === 'function') renderAll(); } catch(e) {}
+  try { if (typeof renderMobileDay === 'function') renderMobileDay(); } catch(e) {}
+  try {
+    await window.apiClient.updateAppointment(id, { ...appointments[i], locality: loja || null });
+  } catch (e) {
+    appointments[i].locality = prev;
+    console.error('[Recalibra] erro ao gravar loja:', e);
+    try { if (typeof showToast === 'function') showToast('Erro ao gravar a loja', 'error'); } catch(_) {}
+    try { if (typeof renderAll === 'function') renderAll(); } catch(_) {}
+    try { if (typeof renderMobileDay === 'function') renderMobileDay(); } catch(_) {}
+  }
+};
+
 window.setRecalibraHour = async function(id, hour) {
   const i = (appointments || []).findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
@@ -2831,7 +2909,10 @@ function buildDesktopCard(a){
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar} ${glassRemovedBorderStyle}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>
-      ${isRecalibra ? `<div style="margin:4px 0;"><button onclick="event.stopPropagation();window.openRecalibraHourPicker('${a.id}')" style="display:inline-flex;align-items:center;gap:6px;background:${a.period?'#0f766e':'rgba(0,0,0,0.25)'};color:#fff !important;-webkit-text-fill-color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:14px;font-weight:800;cursor:pointer;">🕐 ${a.period || 'Definir hora'}</button></div>` : ''}
+      ${isRecalibra ? `<div style="margin:4px 0;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+        <button onclick="event.stopPropagation();window.openRecalibraHourPicker('${a.id}')" style="display:inline-flex;align-items:center;gap:6px;background:${a.period?'#0f766e':'rgba(0,0,0,0.25)'};color:#fff !important;-webkit-text-fill-color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:14px;font-weight:800;cursor:pointer;">🕐 ${a.period || 'Definir hora'}</button>
+        <button onclick="event.stopPropagation();window.openRecalibraLojaPicker('${a.id}')" style="display:inline-flex;align-items:center;gap:6px;background:${a.locality?'#dc2626':'rgba(0,0,0,0.25)'};color:#fff !important;-webkit-text-fill-color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:14px;font-weight:800;cursor:pointer;text-transform:uppercase;">📍 ${a.locality ? a.locality.toUpperCase() : 'DEFINIR LOJA'}</button>
+      </div>` : ''}
       <div class="dc-meta" data-ms-patched="1">
         ${getAllServices(a).map(s => `<span class="dc-badge">${s.service||''}</span>`).join('')}
         ${a.calibration ? '<span class="dc-calib-badge">⊕ CALIB</span>' : ''}
