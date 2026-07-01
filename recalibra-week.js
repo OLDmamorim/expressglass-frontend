@@ -77,7 +77,24 @@
     return list;
   }
 
-  function close() { document.getElementById('recWeekOverlay')?.remove(); }
+  // Permitir zoom com os dedos APENAS enquanto a vista de semana está aberta.
+  // A app tem maximum-scale=1 (zoom desativado); libertamos ao abrir e
+  // repomos ao fechar, para não ficar zoom acidental no resto da agenda.
+  const VIEWPORT_ZOOM = 'width=device-width, initial-scale=1.0, maximum-scale=5, user-scalable=yes';
+  let _viewportPrev = null;
+  function enableZoom() {
+    const m = document.querySelector('meta[name=viewport]');
+    if (!m) return;
+    if (_viewportPrev === null) _viewportPrev = m.getAttribute('content');
+    m.setAttribute('content', VIEWPORT_ZOOM);
+  }
+  function restoreZoom() {
+    const m = document.querySelector('meta[name=viewport]');
+    if (m && _viewportPrev !== null) m.setAttribute('content', _viewportPrev);
+    _viewportPrev = null;
+  }
+
+  function close() { restoreZoom(); document.getElementById('recWeekOverlay')?.remove(); }
 
   function render() {
     let overlay = document.getElementById('recWeekOverlay');
@@ -169,6 +186,7 @@
   function open() {
     const base = (typeof currentMobileDay !== 'undefined' && currentMobileDay) ? currentMobileDay : new Date();
     weekCursor = mondayOf(base);
+    enableZoom();
     render();
   }
   window.openRecalibraWeek = open;
