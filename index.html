@@ -276,6 +276,9 @@
           <button id="btnRececaoVidrosMobile" style="display:none;" class="guia-at-upload-btn" onclick="window.glassReception?.openCoordPanel()" title="Painel de Receção de Vidros">
             📦 Receção Vidros
           </button>
+          <button id="btnVidrosRetiradosMobile" style="display:none;background:#f59e0b;color:#fff;border-color:#f59e0b;" class="guia-at-upload-btn" onclick="window._openVidrosPanel?.()" title="Ver vidros retirados">
+            🪟 Vidros Retirados
+          </button>
           <button id="btnHistoricoMobile" style="display:none;" class="guia-at-upload-btn" onclick="window.historicoModal?.open()" title="Histórico de Serviços">
             🕘 Histórico
           </button>
@@ -3871,6 +3874,8 @@
       if (btn) btn.style.display = '';
       const mobileBtn = document.getElementById('btnRececaoVidrosMobile');
       if (mobileBtn) mobileBtn.style.display = '';
+      const vrMobileBtn = document.getElementById('btnVidrosRetiradosMobile');
+      if (vrMobileBtn) vrMobileBtn.style.display = '';
       _pollPendingBadge();
       setInterval(_pollPendingBadge, 60000);
       setTimeout(_checkGlassAlerts, 4000);
