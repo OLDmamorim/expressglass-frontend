@@ -65,36 +65,65 @@
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-  // ── Card compacto (só leitura) ──────────────────────────────────────────
-  function card(a, ptype) {
+  // ── Cor base do card, igual à vista semanal, mas por portal da coluna ───
+  //   loja      → cor pelo estado do stock (NE/VE/ST)
+  //   recalibra → verde se realizado, âmbar caso contrário
+  //   sm/pesados→ cor da localidade (mapa de cores do próprio portal)
+  function cardColor(a, portal) {
+    const ptype = portal.portalType;
+    if (ptype === 'loja') return STATUS[a.status] || '#9CA3AF';
+    if (ptype === 'recalibra') return a.executed === true ? '#10B981' : '#F59E0B';
+    const locs = portal.localities || {};
+    if (a.locality && locs[a.locality]) return locs[a.locality];
+    if (typeof getLocColor === 'function') { try { return getLocColor(a.locality); } catch (e) {} }
+    return '#64748b';
+  }
+  function grad(hex) {
+    if (typeof gradFromBase === 'function') { try { return gradFromBase(hex); } catch (e) {} }
+    return { c1: hex, c2: hex };
+  }
+  function textOn(hex) {
+    if (typeof textColorForBg === 'function') { try { return textColorForBg(hex); } catch (e) {} }
+    return '#fff';
+  }
+
+  // ── Card (cores como na vista semanal) ──────────────────────────────────
+  function card(a, portal) {
+    const ptype = portal.portalType;
+    const base = cardColor(a, portal);
+    const g = grad(base);
+    const txt = textOn(base);
+    const soft = txt === '#fff' ? 'rgba(255,255,255,.82)' : 'rgba(0,0,0,.6)';
+    const badgeBg = txt === '#fff' ? 'rgba(255,255,255,.9)' : 'rgba(0,0,0,.12)';
+    const badgeTx = txt === '#fff' ? '#0f172a' : '#0f172a';
+    // Estado do stock: barra à esquerda (só SM/Pesados, tal como na semanal)
+    const statusBar = (ptype === 'loja' || ptype === 'recalibra') ? '' : `border-left:5px solid ${STATUS[a.status] || '#475569'};`;
     const plate = esc((a.plate || '').toUpperCase());
     const car = esc((a.car || '').toUpperCase());
     const servs = allServices(a).map(s => esc(s.service)).filter(Boolean);
     const mins = totalTime(a);
     const period = esc(a.period || '');
     const loc = ptype !== 'loja' ? esc(a.locality || '') : '';
-    const status = a.status || 'NE';
-    const dot = STATUS[status] || '#94a3b8';
     const exec = a.executed === true
-      ? '<span style="color:#16a34a;font-weight:800;">✓</span>'
-      : a.executed === false ? '<span style="color:#dc2626;font-weight:800;">✗</span>' : '';
+      ? '<span style="font-weight:900;">✓</span>'
+      : a.executed === false ? '<span style="font-weight:900;">✗</span>' : '';
     const preAg = a.confirmed === false
       ? '<span style="font-size:9px;font-weight:800;color:#b45309;background:#fef3c7;border-radius:4px;padding:1px 5px;">⏳ p/ confirmar</span>' : '';
     const svcBadges = servs.map(s =>
-      `<span style="font-size:10px;font-weight:800;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 5px;">${s}</span>`).join(' ');
+      `<span style="font-size:10px;font-weight:800;background:${badgeBg};color:${badgeTx};border-radius:4px;padding:1px 5px;">${s}</span>`).join(' ');
     const periodBadge = period
-      ? `<span style="font-size:10px;font-weight:800;background:#f1f5f9;color:#334155;border-radius:4px;padding:1px 6px;">${period}</span>` : '';
+      ? `<span style="font-size:10px;font-weight:800;background:${badgeBg};color:${badgeTx};border-radius:4px;padding:1px 6px;">${period}</span>` : '';
     return `
-      <div style="background:#fff;border:1px solid #e2e8f0;border-left:4px solid ${dot};border-radius:8px;padding:8px 10px;margin-bottom:8px;box-shadow:0 1px 2px rgba(0,0,0,.05);">
+      <div style="background:linear-gradient(135deg,${g.c1},${g.c2});${statusBar}color:${txt};border-radius:8px;padding:8px 10px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.15);">
         <div style="display:flex;align-items:center;gap:6px;justify-content:space-between;">
-          <span style="font-size:15px;font-weight:900;color:#0f172a;letter-spacing:.5px;">${plate || '—'}</span>
+          <span style="font-size:15px;font-weight:900;letter-spacing:.5px;">${plate || '—'}</span>
           <span style="display:flex;align-items:center;gap:5px;">${periodBadge}${exec}</span>
         </div>
-        ${car ? `<div style="font-size:11px;color:#64748b;font-weight:600;margin-top:1px;">${car}</div>` : ''}
-        ${loc ? `<div style="font-size:11px;color:#475569;margin-top:2px;">📍 ${loc}</div>` : ''}
+        ${car ? `<div style="font-size:11px;font-weight:600;margin-top:1px;color:${soft};">${car}</div>` : ''}
+        ${loc ? `<div style="font-size:11px;margin-top:2px;color:${soft};">📍 ${loc}</div>` : ''}
         <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:5px;">
           ${svcBadges}
-          <span style="font-size:10px;color:#94a3b8;font-weight:700;margin-left:auto;">${mins}min</span>
+          <span style="font-size:10px;font-weight:700;margin-left:auto;color:${soft};">${mins}min</span>
         </div>
         ${preAg ? `<div style="margin-top:5px;">${preAg}</div>` : ''}
       </div>`;
@@ -110,7 +139,7 @@
     const h = Math.floor(totalMin / 60), m = totalMin % 60;
     const tempo = totalMin ? (h ? h + 'h' + (m ? String(m).padStart(2, '0') : '') : m + 'min') : '—';
     const body = list.length
-      ? list.map(a => card(a, p.portalType)).join('')
+      ? list.map(a => card(a, p)).join('')
       : '<div style="text-align:center;color:#94a3b8;font-size:12px;font-weight:600;padding:24px 0;">Sem serviços</div>';
     return `
       <div style="flex:0 0 240px;display:flex;flex-direction:column;min-width:0;">
