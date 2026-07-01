@@ -128,11 +128,14 @@ exports.handler = async (event) => {
                    : (p.dia ? parseInt(p.dia) : now.getDate());
 
     // PoweringEG: passados = até 2 dias antes de hoje; mês = até penúltimo dia
-    // Math.max(1, ...) protege contra divisão por zero
-    const diasUteisPassados = Math.max(1, contarDiasUteis(anoEfetivo, mesEfetivo, diaAtual - 2));
+    const diasPassadosRaw   = contarDiasUteis(anoEfetivo, mesEfetivo, diaAtual - 2);
+    const diasUteisPassados = Math.max(1, diasPassadosRaw);
     const diasUteisMes      = Math.max(1, contarDiasUteis(anoEfetivo, mesEfetivo, ultimoDiaDoMes - 1));
     const esperado          = objetivo * (diasUteisPassados / diasUteisMes);
-    const desvioPercent     = esperado > 0
+    // No início do mês (menos de 1 dia útil decorrido) o desvio não tem
+    // significado — o esperado seria minúsculo e o desvio dispararia para
+    // valores absurdos (ex.: +2252%). Nesse caso devolve 0.
+    const desvioPercent     = (esperado > 0 && diasPassadosRaw >= 1)
       ? Math.round(((servicos / esperado) - 1) * 1000) / 10
       : 0;
 

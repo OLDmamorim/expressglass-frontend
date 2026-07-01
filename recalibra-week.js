@@ -65,6 +65,18 @@
     return map;
   }
 
+  // Serviços do dia SEM hora definida (não são calibragens com bloco horário).
+  // Não cabem na grelha por hora, mas têm de aparecer na semana.
+  function noHourFor(dateIso) {
+    const list = [];
+    liveAppointments().forEach(a => {
+      if (a.date !== dateIso) return;
+      if (a.period && /^[0-9]/.test(a.period)) return; // tem hora → já aparece na grelha
+      list.push({ plate: (a.plate || '').toUpperCase(), locality: (a.locality || '').toUpperCase() });
+    });
+    return list;
+  }
+
   function close() { document.getElementById('recWeekOverlay')?.remove(); }
 
   function render() {
@@ -79,6 +91,7 @@
 
     const days = DAYS.map((_, i) => addD(weekCursor, i));
     const occ = days.map(d => occupancyFor(iso(d)));
+    const noHour = days.map(d => noHourFor(iso(d)));
     const fimSemana = addD(weekCursor, 5);
     const titulo = weekCursor.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' }) + ' – ' + fimSemana.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
 
@@ -89,8 +102,24 @@
       head += `<div style="text-align:center;font-size:10px;font-weight:800;color:${isToday ? '#0f766e' : '#475569'};line-height:1.1;">${DAYS[i]}<br><span style="font-size:9px;font-weight:600;color:#94a3b8;">${d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' })}</span></div>`;
     });
 
-    // Linhas de horas
+    // Linha "S/ hora" — serviços do dia sem bloco horário definido
     let rows = '';
+    rows += `<div style="font-size:9px;font-weight:800;color:#b45309;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;text-align:right;line-height:1;">S/ hora</div>`;
+    noHour.forEach(list => {
+      if (list.length) {
+        const chips = list.map(c => {
+          const loja = c.locality || '';
+          const lbl = loja || c.plate || '•';
+          const bg = loja ? lojaColor(loja) : '#475569';
+          return `<div title="${loja || c.plate}${loja && c.plate ? ' · ' + c.plate : ''}" style="background:${bg};color:#fff;border-radius:4px;font-size:7px;font-weight:800;padding:2px 3px;overflow:hidden;text-align:center;line-height:1.05;white-space:nowrap;text-overflow:ellipsis;">${lbl}</div>`;
+        }).join('');
+        rows += `<div style="display:flex;flex-direction:column;gap:2px;min-height:26px;background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:2px;">${chips}</div>`;
+      } else {
+        rows += `<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;min-height:26px;"></div>`;
+      }
+    });
+
+    // Linhas de horas
     for (let h = HMIN; h <= HMAX; h++) {
       rows += `<div style="font-size:10px;font-weight:700;color:#475569;display:flex;align-items:center;justify-content:flex-end;padding-right:4px;">${fmt(h)}</div>`;
       occ.forEach(m => {
@@ -123,6 +152,7 @@
         </div>
         <div style="display:flex;gap:14px;justify-content:center;align-items:center;padding:8px 10px 14px;font-size:11px;color:#64748b;font-weight:600;">
           <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:3px;display:inline-block;"></span> Livre</span>
+          <span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:3px;display:inline-block;"></span> S/ hora</span>
           <span>Ocupado = cor da loja</span>
         </div>
         <div style="padding:0 14px 16px;">

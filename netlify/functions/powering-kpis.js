@@ -82,16 +82,36 @@ exports.handler = async (event) => {
         );
         lojaId = rows[0]?.powering_loja_id ?? null;
       }
+      const normalizar = (raw) => Array.isArray(raw)
+        ? raw
+        : (raw.lojas || raw.resultados || raw.data || raw.items || raw.vendas || []);
+
       const raw = await fetchPowering(`/vendas-complementares?mes=${mes}&ano=${ano}`);
       // debug=1 devolve resposta raw para diagnosticar nomes de campos
       if (p.debug === '1') {
         return { statusCode: 200, headers, body: JSON.stringify({ debug: true, lojaId, raw }) };
       }
       // Normalizar: PoweringEG pode devolver array directo ou objecto com chave variável
-      const lista = Array.isArray(raw)
-        ? raw
-        : (raw.lojas || raw.resultados || raw.data || raw.items || raw.vendas || []);
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, mes, ano, lojaId, lojas: lista }) };
+      let lista = normalizar(raw);
+      let mesUsado = mes, anoUsado = ano;
+
+      // Início do mês: o mês corrente ainda não tem vendas complementares.
+      // Recuar para o mês anterior para que o banner mostre dados úteis em
+      // vez de "—" (igual à lógica do KPI que usa o último registo disponível).
+      const semDados = !lista.length || lista.every(l => {
+        const v = l && (l.totalVendas ?? l.total ?? l.vendas);
+        return !v || parseFloat(v) === 0;
+      });
+      if (semDados) {
+        const mesAnt = mes === 1 ? 12 : mes - 1;
+        const anoAnt = mes === 1 ? ano - 1 : ano;
+        try {
+          const rawAnt = normalizar(await fetchPowering(`/vendas-complementares?mes=${mesAnt}&ano=${anoAnt}`));
+          if (rawAnt.length) { lista = rawAnt; mesUsado = mesAnt; anoUsado = anoAnt; }
+        } catch (_) { /* mantém o mês corrente se o recuo falhar */ }
+      }
+
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, mes: mesUsado, ano: anoUsado, lojaId, lojas: lista }) };
     }
 
     const now = new Date();
@@ -159,11 +179,14 @@ exports.handler = async (event) => {
                      : ultimoDiaDoMes;
 
     // PoweringEG: passados = até 2 dias antes de hoje; mês = até penúltimo dia
-    // Math.max(1, ...) protege contra divisão por zero no início do mês
-    const diasUteisPassados = Math.max(1, contarDiasUteis(anoEfetivo, mesEfetivo, diaAtual - 2));
+    const diasPassadosRaw   = contarDiasUteis(anoEfetivo, mesEfetivo, diaAtual - 2);
+    const diasUteisPassados = Math.max(1, diasPassadosRaw);
     const diasUteisMes      = Math.max(1, contarDiasUteis(anoEfetivo, mesEfetivo, ultimoDiaDoMes - 1));
     const esperado          = objetivo * (diasUteisPassados / diasUteisMes);
-    const desvioPercent     = esperado > 0
+    // No início do mês (menos de 1 dia útil decorrido) o desvio não tem
+    // significado — o esperado seria minúsculo e o desvio dispararia para
+    // valores absurdos (ex.: +2252%). Nesse caso devolve 0.
+    const desvioPercent     = (esperado > 0 && diasPassadosRaw >= 1)
       ? Math.round(((servicos / esperado) - 1) * 1000) / 10
       : 0;
 
