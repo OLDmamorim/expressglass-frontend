@@ -29,6 +29,27 @@
   };
   function lojaColor(loja) { return LOJA_COLORS[(loja || '').toUpperCase()] || '#475569'; }
 
+  // Abreviatura por loja (para caber na célula). Se não for loja conhecida
+  // (ex.: matrícula ou localidade de cliente), mantém o texto original.
+  const LOJA_ABBR = {
+    'BARCELOS': 'BCL',
+    'BRAGA MINHO CENTER': 'BRG MC',
+    'BRAGA SM': 'BRG SM',
+    'FAMALICÃO': 'FML',
+    'FAMALICÃO SM': 'FML SM',
+    'GUIMARÃES': 'GMR',
+    'MYCARCENTER': 'MCC',
+    'PAÇOS DE FERREIRA': 'PÇF',
+    'PAREDES': 'PRD',
+    'PAREDES SM': 'PRD SM',
+    'PÓVOA DE VARZIM': 'PVZ',
+    'RECALIBRA MINHO': 'RCM',
+    'VIANA DO CASTELO': 'VNC',
+    'VIANA DO CASTELO SM': 'VNC SM',
+    'VILA VERDE': 'VVD'
+  };
+  function lojaAbbr(loja) { return LOJA_ABBR[(loja || '').toUpperCase()] || loja; }
+
   function isRecalibra() { return window.portalConfig?.portalType === 'recalibra'; }
 
   function mondayOf(d) {
@@ -126,9 +147,9 @@
       if (list.length) {
         const chips = list.map(c => {
           const loja = c.locality || '';
-          const lbl = loja || c.plate || '•';
+          const lbl = loja ? lojaAbbr(loja) : (c.plate || '•');
           const bg = loja ? lojaColor(loja) : '#475569';
-          return `<div title="${loja || c.plate}${loja && c.plate ? ' · ' + c.plate : ''}" style="background:${bg};color:#fff;border-radius:4px;font-size:7px;font-weight:800;padding:2px 3px;overflow:hidden;text-align:center;line-height:1.05;white-space:nowrap;text-overflow:ellipsis;">${lbl}</div>`;
+          return `<div title="${loja || c.plate}${loja && c.plate ? ' · ' + c.plate : ''}" style="background:${bg};color:#fff;border-radius:4px;font-size:8px;font-weight:800;padding:2px 3px;overflow:hidden;text-align:center;line-height:1.05;white-space:nowrap;text-overflow:ellipsis;">${lbl}</div>`;
         }).join('');
         rows += `<div style="display:flex;flex-direction:column;gap:2px;min-height:26px;background:#fff7ed;border:1px solid #fed7aa;border-radius:5px;padding:2px;">${chips}</div>`;
       } else {
@@ -143,9 +164,9 @@
         const c = m[h];
         if (c) {
           const loja = c.locality || '';
-          const lbl = loja || c.plate || '•';
+          const lbl = loja ? lojaAbbr(loja) : (c.plate || '•');
           const bg = loja ? lojaColor(loja) : '#475569';
-          rows += `<div title="${loja || c.plate}${loja && c.plate ? ' · ' + c.plate : ''}" style="background:${bg};color:#fff;border-radius:5px;min-height:26px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;padding:2px;overflow:hidden;text-align:center;line-height:1.05;">${lbl}</div>`;
+          rows += `<div title="${loja || c.plate}${loja && c.plate ? ' · ' + c.plate : ''}" style="background:${bg};color:#fff;border-radius:5px;min-height:26px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;padding:2px;overflow:hidden;text-align:center;line-height:1.05;">${lbl}</div>`;
         } else {
           rows += `<div style="background:#dcfce7;border:1px solid #bbf7d0;border-radius:5px;min-height:26px;"></div>`;
         }
