@@ -577,6 +577,10 @@
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
       Verificar Email
     </button>
+    <button class="btn btn-ghost" id="recover-btn" onclick="recoverDetails()" title="Reler emails recentes para preencher serviço/valor/eurocode em falta">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64L3 8"/><path d="M3 3v5h5"/></svg>
+      Recuperar detalhes
+    </button>
     <button class="btn btn-primary" onclick="openImport()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Importar Email
@@ -1096,7 +1100,7 @@ async function checkEmail() {
     let remaining = 0;
     // Processa por lotes: continua a chamar enquanto o servidor indicar que
     // ainda há emails por processar (limite por segurança).
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 60; i++) {
       const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
@@ -1119,6 +1123,35 @@ async function checkEmail() {
     btn.disabled = false;
     btn.innerHTML = orig;
   }
+}
+
+// Recupera os detalhes (serviço/valor/eurocode) das matrículas que entraram
+// sem eles: remarca os emails recentes como não-lidos e relê-os.
+async function recoverDetails() {
+  const btn = document.getElementById('recover-btn');
+  const orig = btn.innerHTML;
+  if (!confirm('Reler os emails dos últimos 7 dias para preencher serviço/valor/eurocode em falta?')) return;
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> A preparar…';
+  try {
+    const token = localStorage.getItem('eg_auth_token');
+    const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset_seen', days: 7 })
+    });
+    const data = await safeJson(res);
+    if (!data.success) { toast('❌ ' + (data.error || 'Erro'), 'error'); return; }
+    toast(`🔄 ${data.reset} email(s) marcados para reler`);
+  } catch (e) {
+    toast(`Erro: ${e.message}`, 'error');
+    return;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+  // Depois de remarcar, corre a verificação normal para reler e preencher.
+  await checkEmail();
 }
 
 function openImport() {

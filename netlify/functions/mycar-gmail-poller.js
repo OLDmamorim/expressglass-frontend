@@ -188,7 +188,7 @@ async function ensureTable(client) {
 // Máximo de emails processados por execução — evita esgotar o tempo limite
 // da função. O cron (a cada 15 min) e novos cliques em "Verificar Email"
 // esvaziam o resto, lote a lote.
-const MAX_PER_RUN = 100;
+const MAX_PER_RUN = 15;
 
 // Liga ao Gmail via IMAP e devolve um LOTE de emails não-lidos (os mais
 // antigos primeiro), marcando-os como lidos para o lote seguinte avançar.
@@ -227,10 +227,10 @@ function fetchUnseenEmails() {
           const batch = uids.slice(0, MAX_PER_RUN); // os mais antigos primeiro
           console.log(`📬 ${totalUnseen} não-lido(s); a processar lote de ${batch.length}`);
 
-          // Só CABEÇALHOS (assunto/from/data) — a matrícula vem do assunto, por
-          // isso não descarregamos o corpo com as imagens (muito mais rápido).
+          // Corpo completo — os dados (serviço, valor, eurocode) estão numa
+          // TABELA no corpo do email, por isso precisamos do HTML.
           // markSeen:true → marca como lido, evitando reprocessar.
-          const fetch = imap.fetch(batch, { bodies: 'HEADER.FIELDS (SUBJECT FROM DATE)', markSeen: true });
+          const fetch = imap.fetch(batch, { bodies: '', markSeen: true });
           const pending = [];
 
           fetch.on('message', (msg) => {
@@ -238,7 +238,7 @@ function fetchUnseenEmails() {
               const chunks = [];
               msg.on('body', (stream) => {
                 stream.on('data', chunk => chunks.push(chunk));
-                stream.once('end', () => res(Buffer.concat(chunks).toString('utf8')));
+                stream.once('end', () => res(Buffer.concat(chunks)));
               });
               msg.once('attributes', () => {});
             });
@@ -246,15 +246,9 @@ function fetchUnseenEmails() {
           });
 
           fetch.once('end', async () => {
-            for (const rawHeader of await Promise.all(pending)) {
-              const h = Imap.parseHeader(rawHeader);
-              emails.push({
-                subject: (h.subject && h.subject[0]) || '',
-                from: { text: (h.from && h.from[0]) || '' },
-                date: (h.date && h.date[0]) ? new Date(h.date[0]) : new Date(),
-                html: '',
-                text: ''
-              });
+            for (const raw of await Promise.all(pending)) {
+              const parsed = await simpleParser(raw);
+              emails.push(parsed);
             }
             imap.end();
             resolve({ emails, totalUnseen });
@@ -272,6 +266,35 @@ function fetchUnseenEmails() {
 
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
+
+// Remarca como NÃO LIDOS os emails dos últimos N dias, para o poller os reler
+// e preencher os detalhes (recuperação após importações incompletas).
+function resetSeen(days) {
+  return new Promise((resolve, reject) => {
+    if (!GMAIL_USER || !GMAIL_PASSWORD) { reject(new Error('Gmail não configurado')); return; }
+    const imap = new Imap({
+      user: GMAIL_USER, password: GMAIL_PASSWORD, host: 'imap.gmail.com',
+      port: 993, tls: true, tlsOptions: { rejectUnauthorized: false },
+      connTimeout: 20000, authTimeout: 10000
+    });
+    imap.once('ready', () => {
+      imap.openBox('INBOX', false, (err) => {
+        if (err) { imap.end(); reject(err); return; }
+        const since = new Date(); since.setDate(since.getDate() - days);
+        imap.search([['SINCE', since]], (err, uids) => {
+          if (err) { imap.end(); reject(err); return; }
+          if (!uids || uids.length === 0) { imap.end(); resolve(0); return; }
+          imap.delFlags(uids, ['\\Seen'], (err2) => {
+            imap.end();
+            if (err2) reject(err2); else resolve(uids.length);
+          });
+        });
+      });
+    });
+    imap.once('error', reject);
+    imap.connect();
+  });
+}
 
 async function runPoller() {
   console.log('🔄 Mycar Gmail Poller: início');
@@ -322,11 +345,31 @@ async function runPoller() {
 
       for (const svc of services) {
         const { rows: existing } = await client.query(
-          `SELECT id FROM mycar_services WHERE matricula = $1 AND email_subject = $2 LIMIT 1`,
+          `SELECT id, descricao, valor, eurocode FROM mycar_services WHERE matricula = $1 AND email_subject = $2 LIMIT 1`,
           [svc.matricula, subject]
         );
         if (existing.length > 0) {
-          console.log(`⏭️ Duplicado ignorado: ${svc.matricula} / "${subject}"`);
+          // Já existe. Se entrou antes sem detalhes (só matrícula) e agora
+          // temos a tabela, preenche o que falta (recupera os detalhes).
+          const e = existing[0];
+          const temNovos = svc.descricao || svc.valor != null || svc.eurocode;
+          const faltava  = !e.descricao && e.valor == null && !e.eurocode;
+          if (temNovos && faltava) {
+            await client.query(
+              `UPDATE mycar_services
+                 SET descricao = COALESCE($1, descricao),
+                     valor     = COALESCE($2, valor),
+                     eurocode  = COALESCE($3, eurocode),
+                     notas     = COALESCE(notas, $4),
+                     updated_at = NOW()
+               WHERE id = $5`,
+              [svc.descricao, svc.valor, svc.eurocode, wip, e.id]
+            );
+            totalImported++;
+            console.log(`🔧 Detalhes preenchidos: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
+          } else {
+            console.log(`⏭️ Duplicado ignorado: ${svc.matricula} / "${subject}"`);
+          }
           continue;
         }
 
@@ -365,6 +408,7 @@ exports.handler = async (event) => {
   if (method === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
   // POST via UI — requer autenticação JWT
+  let bodyObj = {};
   if (method === 'POST') {
     try {
       const authHeader = event.headers.authorization || event.headers.Authorization || '';
@@ -372,6 +416,18 @@ exports.handler = async (event) => {
       jwt.verify(authHeader.substring(7), JWT_SECRET);
     } catch {
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Não autenticado' }) };
+    }
+    try { bodyObj = JSON.parse(event.body || '{}'); } catch { bodyObj = {}; }
+  }
+
+  // Recuperação: remarca emails recentes como não-lidos para reler os detalhes
+  if (bodyObj.action === 'reset_seen') {
+    try {
+      const count = await resetSeen(parseInt(bodyObj.days) || 7);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, reset: count }) };
+    } catch (error) {
+      console.error('❌ reset_seen:', error.message);
+      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
     }
   }
 
