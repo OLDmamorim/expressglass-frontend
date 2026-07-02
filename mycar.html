@@ -1139,7 +1139,7 @@ async function checkEmail() {
       // Nada importado mas houve emails lidos — mostrar diagnóstico
       toast(`📭 ${totalRead} lido(s): ${agg.withTable} c/ tabela, ${agg.viaSubject} p/ assunto, ${agg.skipped} já existiam, ${agg.htmlVazio} sem HTML`, 'info');
     } else {
-      toast('📭 Sem emails não-lidos (usa "Recuperar detalhes")', 'info');
+      toast('✅ Tudo em dia — nada por processar', 'info');
     }
   } catch (e) {
     toast(`Erro: ${e.message}`, 'error');
