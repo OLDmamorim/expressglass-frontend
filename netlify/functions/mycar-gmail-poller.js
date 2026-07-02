@@ -185,7 +185,14 @@ async function ensureTable(client) {
   await client.query(`ALTER TABLE mycar_services ADD CONSTRAINT mycar_services_status_check CHECK (status IN ('pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado'))`);
 }
 
-// Liga ao Gmail via IMAP e devolve emails dos últimos 3 dias
+// Máximo de emails processados por execução — evita esgotar o tempo limite
+// da função. O cron (a cada 15 min) e novos cliques em "Verificar Email"
+// esvaziam o resto, lote a lote.
+const MAX_PER_RUN = 12;
+
+// Liga ao Gmail via IMAP e devolve um LOTE de emails não-lidos (os mais
+// antigos primeiro), marcando-os como lidos para o lote seguinte avançar.
+// Devolve { emails, totalUnseen }.
 function fetchUnseenEmails() {
   return new Promise((resolve, reject) => {
     if (!GMAIL_USER || !GMAIL_PASSWORD) {
@@ -210,16 +217,18 @@ function fetchUnseenEmails() {
       imap.openBox('INBOX', false, (err) => {
         if (err) { imap.end(); reject(err); return; }
 
-        // Pesquisar emails dos últimos 3 dias (apanha emails já lidos que falharam o parse)
-        const since = new Date();
-        since.setDate(since.getDate() - 3);
-        imap.search([['SINCE', since]], (err, uids) => {
+        // Só emails NÃO LIDOS — cada execução trata um lote e marca-os como
+        // lidos, por isso o próximo lote avança sem reprocessar.
+        imap.search(['UNSEEN'], (err, uids) => {
           if (err) { imap.end(); reject(err); return; }
-          if (!uids || uids.length === 0) { imap.end(); resolve([]); return; }
+          if (!uids || uids.length === 0) { imap.end(); resolve({ emails: [], totalUnseen: 0 }); return; }
 
-          console.log(`📬 ${uids.length} email(s) encontrado(s) nos últimos 3 dias`);
+          const totalUnseen = uids.length;
+          const batch = uids.slice(0, MAX_PER_RUN); // os mais antigos primeiro
+          console.log(`📬 ${totalUnseen} não-lido(s); a processar lote de ${batch.length}`);
 
-          const fetch = imap.fetch(uids, { bodies: '', markSeen: false });
+          // markSeen:true → marca como lido ao buscar, evitando reprocessar
+          const fetch = imap.fetch(batch, { bodies: '', markSeen: true });
           const pending = [];
 
           fetch.on('message', (msg) => {
@@ -240,7 +249,7 @@ function fetchUnseenEmails() {
               emails.push(parsed);
             }
             imap.end();
-            resolve(emails);
+            resolve({ emails, totalUnseen });
           });
 
           fetch.once('error', (err) => { imap.end(); reject(err); });
@@ -259,12 +268,15 @@ const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-
 async function runPoller() {
   console.log('🔄 Mycar Gmail Poller: início');
 
-  const emails = await fetchUnseenEmails();
+  const { emails, totalUnseen } = await fetchUnseenEmails();
 
   if (emails.length === 0) {
     console.log('📭 Sem emails novos');
-    return { processed: 0, emails: 0 };
+    return { processed: 0, emails: 0, remaining: 0 };
   }
+
+  // Quantos ficam por processar em execuções seguintes (lote/cron)
+  const remaining = Math.max(0, totalUnseen - emails.length);
 
   const client = await pool.connect();
   try {
@@ -323,8 +335,8 @@ async function runPoller() {
       }
     }
 
-    console.log(`📊 Total: ${totalImported} serviço(s) de ${emails.length} email(s)`);
-    return { processed: totalImported, emails: emails.length };
+    console.log(`📊 Total: ${totalImported} serviço(s) de ${emails.length} email(s) | ${remaining} por processar`);
+    return { processed: totalImported, emails: emails.length, remaining };
 
   } finally {
     client.release();

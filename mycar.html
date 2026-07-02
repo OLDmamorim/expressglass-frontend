@@ -1092,22 +1092,29 @@ async function checkEmail() {
 
   try {
     const token = localStorage.getItem('eg_auth_token');
-    const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-    });
-    const data = await safeJson(res);
-    if (data.success) {
-      const msg = data.processed > 0
-        ? `✅ ${data.processed} serviço(s) importado(s)!`
-        : '📭 Sem emails novos';
-      toast(msg);
+    let totalImported = 0;
+    let remaining = 0;
+    // Processa por lotes: continua a chamar enquanto o servidor indicar que
+    // ainda há emails por processar (limite por segurança).
+    for (let i = 0; i < 30; i++) {
+      const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      const data = await safeJson(res);
+      if (!data.success) { toast('❌ ' + (data.error || 'Erro ao verificar email')); break; }
+      totalImported += (data.processed || 0);
+      remaining = data.remaining || 0;
       if (data.processed > 0) await loadServices();
-    } else {
-      toast('❌ ' + (data.error || 'Erro ao verificar email'));
+      if (remaining > 0) {
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> ${remaining} por processar…`;
+        continue;
+      }
+      break;
     }
+    toast(totalImported > 0 ? `✅ ${totalImported} serviço(s) importado(s)!` : '📭 Sem emails novos');
   } catch (e) {
-    toast('❌ Erro: ' + e.message);
+    toast(`Erro: ${e.message}`, 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = orig;
