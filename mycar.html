@@ -1103,7 +1103,9 @@ async function checkEmail() {
     // Processa por lotes: continua a chamar enquanto o servidor indicar que
     // ainda há emails por processar (limite por segurança).
     let erros = 0;
-    for (let i = 0; i < 80; i++) {
+    let semProgresso = 0;
+    let prevRemaining = Infinity;
+    for (let i = 0; i < 200; i++) {
       let data;
       try {
         const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
@@ -1113,15 +1115,18 @@ async function checkEmail() {
         data = await safeJson(res);
       } catch (err) {
         // Erro transitório (ex.: timeout de um lote) — tenta continuar
-        if (++erros >= 5) { toast('❌ ' + err.message, 'error'); break; }
+        if (++erros >= 8) { toast('❌ ' + err.message, 'error'); break; }
         continue;
       }
-      if (!data.success) { if (++erros >= 5) { toast('❌ ' + (data.error || 'Erro ao verificar email'), 'error'); break; } continue; }
+      if (!data.success) { if (++erros >= 8) { toast('❌ ' + (data.error || 'Erro ao verificar email'), 'error'); break; } continue; }
       totalImported += (data.processed || 0);
       totalRead += (data.emails || 0);
       remaining = data.remaining || 0;
       if (data.stats) for (const k in agg) agg[k] += (data.stats[k] || 0);
       if (data.processed > 0) await loadServices();
+      // Proteção anti-bloqueio: se o "faltam" deixar de descer, pára.
+      if (remaining >= prevRemaining) { if (++semProgresso >= 3) break; } else semProgresso = 0;
+      prevRemaining = remaining;
       if (remaining > 0) {
         btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> ${remaining} por processar…`;
         continue;
