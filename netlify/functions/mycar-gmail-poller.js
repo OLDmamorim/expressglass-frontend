@@ -204,7 +204,7 @@ async function setCursor(client, uid) {
 // serviço (matrícula no assunto), para não esgotar o tempo.
 const SEARCH_DAYS   = 40;   // janela de pesquisa
 const SCAN_PER_RUN  = 25;   // quantos emails analisamos (cabeçalho) por execução
-const BODY_PER_RUN  = 10;   // quantos corpos descarregamos por execução
+const BODY_PER_RUN  = 6;    // quantos corpos descarregamos por execução
 
 // Determinístico via CURSOR (último UID processado). Não depende de marcar
 // como lido, por isso nunca fica preso a reler os mesmos emails.
@@ -275,13 +275,13 @@ function fetchBatch(cursor) {
             });
             bf.once('error', fail);
             bf.once('end', async () => {
-              try {
-                for (const raw of await Promise.all(pending)) {
-                  emails.push(await simpleParser(raw));
-                }
-                imap.end();
-                resolve({ emails, nextCursor, remaining, scanned: scanBatch.length });
-              } catch (e) { fail(e); }
+              // Um email problemático não pode travar o lote — salta-o.
+              for (const raw of await Promise.all(pending)) {
+                try { emails.push(await simpleParser(raw)); }
+                catch (e) { console.error('⚠️ simpleParser falhou, email ignorado:', e.message); }
+              }
+              imap.end();
+              resolve({ emails, nextCursor, remaining, scanned: scanBatch.length });
             });
           });
         });
