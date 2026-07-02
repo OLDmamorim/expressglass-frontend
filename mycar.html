@@ -1096,48 +1096,18 @@ async function checkEmail() {
 
   try {
     const token = localStorage.getItem('eg_auth_token');
-    let totalImported = 0;
-    let remaining = 0;
-    let totalRead = 0;
-    const agg = { withTable: 0, viaSubject: 0, noId: 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0 };
-    // Processa por lotes: continua a chamar enquanto o servidor indicar que
-    // ainda há emails por processar (limite por segurança).
-    let erros = 0;
-    let semProgresso = 0;
-    let prevRemaining = Infinity;
-    for (let i = 0; i < 200; i++) {
-      let data;
-      try {
-        const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-        });
-        data = await safeJson(res);
-      } catch (err) {
-        // Erro transitório (ex.: timeout de um lote) — tenta continuar
-        if (++erros >= 8) { toast('❌ ' + err.message, 'error'); break; }
-        continue;
-      }
-      if (!data.success) { if (++erros >= 8) { toast('❌ ' + (data.error || 'Erro ao verificar email'), 'error'); break; } continue; }
-      totalImported += (data.processed || 0);
-      totalRead += (data.emails || 0);
-      remaining = data.remaining || 0;
-      if (data.stats) for (const k in agg) agg[k] += (data.stats[k] || 0);
-      if (data.processed > 0) await loadServices();
-      // Proteção anti-bloqueio: se o "faltam" deixar de descer, pára.
-      if (remaining >= prevRemaining) { if (++semProgresso >= 3) break; } else semProgresso = 0;
-      prevRemaining = remaining;
-      if (remaining > 0) {
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> ${remaining} por processar…`;
-        continue;
-      }
-      break;
-    }
-    if (totalImported > 0) {
-      toast(`✅ ${totalImported} serviço(s) (${agg.inserted} novos, ${agg.updated} atualizados)`);
-    } else if (totalRead > 0) {
-      // Nada importado mas houve emails lidos — mostrar diagnóstico
-      toast(`📭 ${totalRead} lido(s): ${agg.withTable} c/ tabela, ${agg.viaSubject} p/ assunto, ${agg.skipped} já existiam, ${agg.htmlVazio} sem HTML`, 'info');
+    // UMA chamada = um lote. Rápido e nunca fica preso.
+    const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+    });
+    const data = await safeJson(res);
+    if (!data.success) { toast('❌ ' + (data.error || 'Erro ao verificar email'), 'error'); return; }
+    if (data.processed > 0) await loadServices();
+    if (data.processed > 0) {
+      toast(`✅ ${data.processed} serviço(s) importado(s)${data.remaining ? ` · faltam ${data.remaining}` : ''}`);
+    } else if (data.remaining > 0) {
+      toast(`📭 Nada novo neste lote · faltam ${data.remaining} (importa sozinho a cada 15 min)`, 'info');
     } else {
       toast('✅ Tudo em dia — nada por processar', 'info');
     }
@@ -1149,33 +1119,45 @@ async function checkEmail() {
   }
 }
 
-// Recupera os detalhes (serviço/valor/eurocode) das matrículas que entraram
-// sem eles: remarca os emails recentes como não-lidos e relê-os.
+// Preenche serviço/valor/eurocode das entradas que estão sem detalhes,
+// procurando cada uma pelo seu próprio assunto no Gmail. Lotes pequenos,
+// com contador visível — nunca fica preso.
 async function recoverDetails() {
   const btn = document.getElementById('recover-btn');
   const orig = btn.innerHTML;
-  if (!confirm('Reler os emails dos últimos 7 dias para preencher serviço/valor/eurocode em falta?')) return;
   btn.disabled = true;
-  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> A preparar…';
+  const spin = (txt) => btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> ${txt}`;
+  spin('A preencher…');
   try {
     const token = localStorage.getItem('eg_auth_token');
-    const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'reset_seen', days: 7 })
-    });
-    const data = await safeJson(res);
-    if (!data.success) { toast('❌ ' + (data.error || 'Erro'), 'error'); return; }
-    toast(`🔄 ${data.reset} email(s) marcados para reler`);
+    let filled = 0, remaining = 0, erros = 0;
+    for (let i = 0; i < 30; i++) {
+      let data;
+      try {
+        const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'fill_details', limit: 6 })
+        });
+        data = await safeJson(res);
+      } catch (err) { if (++erros >= 4) { toast('❌ ' + err.message, 'error'); break; } continue; }
+      if (!data.success) { if (++erros >= 4) { toast('❌ ' + (data.error || 'Erro'), 'error'); break; } continue; }
+      filled += (data.filled || 0);
+      remaining = data.remaining || 0;
+      if (data.filled > 0) await loadServices();
+      // Sem faltas OU o lote não preencheu nada (não dá para preencher mais) → pára
+      if (remaining === 0 || data.filled === 0) break;
+      spin(`faltam ${remaining}…`);
+    }
+    toast(filled > 0
+      ? `✅ ${filled} detalhe(s) preenchido(s)${remaining ? ` · ${remaining} sem correspondência` : ''}`
+      : (remaining ? `📭 ${remaining} sem correspondência no email` : '✅ Nada por preencher'), filled > 0 ? 'success' : 'info');
   } catch (e) {
     toast(`Erro: ${e.message}`, 'error');
-    return;
   } finally {
     btn.disabled = false;
     btn.innerHTML = orig;
   }
-  // Depois de remarcar, corre a verificação normal para reler e preencher.
-  await checkEmail();
 }
 
 function openImport() {

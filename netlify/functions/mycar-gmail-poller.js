@@ -434,6 +434,96 @@ async function runPoller() {
   }
 }
 
+// Procura no Gmail o email com este ASSUNTO e devolve os detalhes da tabela.
+function findServiceBySubject(imap, subject) {
+  return new Promise((resolve) => {
+    imap.search([['HEADER', 'SUBJECT', subject]], (err, uids) => {
+      if (err || !uids || !uids.length) return resolve(null);
+      const uid = uids[uids.length - 1]; // o mais recente com este assunto
+      const chunks = [];
+      const f = imap.fetch([uid], { bodies: '', markSeen: false });
+      f.on('message', (msg) => { msg.on('body', (stream) => { stream.on('data', c => chunks.push(c)); }); });
+      f.once('error', () => resolve(null));
+      f.once('end', async () => {
+        try {
+          const parsed = await simpleParser(Buffer.concat(chunks));
+          const subjId = extractIdFromSubject(parsed.subject || subject);
+          const rows = parsed.html ? parseTableHtml(parsed.html) : [];
+          if (!rows.length) return resolve(null);
+          const r = rows[0];
+          resolve({
+            matricula: (r.matricula && r.matricula.length >= 4) ? r.matricula : subjId,
+            descricao: r.descricao, valor: r.valor, eurocode: r.eurocode
+          });
+        } catch { resolve(null); }
+      });
+    });
+  });
+}
+
+// Preenche os detalhes (serviço/valor/eurocode) das entradas que estão sem
+// eles — procurando cada uma pelo seu próprio assunto. Bounded por 'limit'.
+async function runFillDetails(limit) {
+  const client = await pool.connect();
+  try {
+    await ensureTable(client);
+    const missingSql = `SELECT COUNT(*)::int AS n FROM mycar_services
+      WHERE email_subject IS NOT NULL AND descricao IS NULL AND valor IS NULL AND eurocode IS NULL`;
+    const { rows } = await client.query(
+      `SELECT id, email_subject FROM mycar_services
+       WHERE email_subject IS NOT NULL AND descricao IS NULL AND valor IS NULL AND eurocode IS NULL
+       ORDER BY created_at DESC LIMIT $1`, [limit]);
+    if (rows.length === 0) {
+      const { rows: r0 } = await client.query(missingSql);
+      return { filled: 0, remaining: r0[0].n };
+    }
+
+    const imap = new Imap({
+      user: GMAIL_USER, password: GMAIL_PASSWORD, host: 'imap.gmail.com',
+      port: 993, tls: true, tlsOptions: { rejectUnauthorized: false },
+      connTimeout: 20000, authTimeout: 10000
+    });
+
+    let filled = 0;
+    await new Promise((resolve, reject) => {
+      imap.once('ready', () => {
+        imap.openBox('INBOX', true, (err) => {
+          if (err) { try { imap.end(); } catch (_) {} return reject(err); }
+          (async () => {
+            for (const row of rows) {
+              try {
+                const svc = await findServiceBySubject(imap, row.email_subject);
+                if (svc && (svc.descricao || svc.valor != null || svc.eurocode)) {
+                  await client.query(
+                    `UPDATE mycar_services
+                       SET matricula = COALESCE($1, matricula),
+                           descricao = COALESCE($2, descricao),
+                           valor     = COALESCE($3, valor),
+                           eurocode  = COALESCE($4, eurocode),
+                           updated_at = NOW()
+                     WHERE id = $5`,
+                    [svc.matricula, svc.descricao, svc.valor, svc.eurocode, row.id]
+                  );
+                  filled++;
+                }
+              } catch (e) { console.error('⚠️ fill entry falhou:', e.message); }
+            }
+            try { imap.end(); } catch (_) {}
+            resolve();
+          })();
+        });
+      });
+      imap.once('error', reject);
+      imap.connect();
+    });
+
+    const { rows: rN } = await client.query(missingSql);
+    return { filled, remaining: rN[0].n };
+  } finally {
+    client.release();
+  }
+}
+
 exports.handler = async (event) => {
   const method = event?.httpMethod;
   console.log('🔔 Invocado | httpMethod:', method ?? 'NONE', '| next_run:', event?.next_run ?? 'NONE');
@@ -460,7 +550,18 @@ exports.handler = async (event) => {
     try { bodyObj = JSON.parse(event.body || '{}'); } catch { bodyObj = {}; }
   }
 
-  // Recuperação: repõe o cursor a 0 para reprocessar tudo e preencher detalhes
+  // Recuperar detalhes: preenche as entradas sem detalhes, uma a uma, pelo assunto
+  if (bodyObj.action === 'fill_details') {
+    try {
+      const result = await runFillDetails(parseInt(bodyObj.limit) || 6);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, ...result }) };
+    } catch (error) {
+      console.error('❌ fill_details:', error.message);
+      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+    }
+  }
+
+  // Recuperação (antigo): repõe o cursor a 0
   if (bodyObj.action === 'reset_seen' || bodyObj.action === 'reset_cursor') {
     const client = await pool.connect();
     try {
