@@ -188,7 +188,7 @@ async function ensureTable(client) {
 // Máximo de emails processados por execução — evita esgotar o tempo limite
 // da função. O cron (a cada 15 min) e novos cliques em "Verificar Email"
 // esvaziam o resto, lote a lote.
-const MAX_PER_RUN = 12;
+const MAX_PER_RUN = 100;
 
 // Liga ao Gmail via IMAP e devolve um LOTE de emails não-lidos (os mais
 // antigos primeiro), marcando-os como lidos para o lote seguinte avançar.
@@ -227,8 +227,10 @@ function fetchUnseenEmails() {
           const batch = uids.slice(0, MAX_PER_RUN); // os mais antigos primeiro
           console.log(`📬 ${totalUnseen} não-lido(s); a processar lote de ${batch.length}`);
 
-          // markSeen:true → marca como lido ao buscar, evitando reprocessar
-          const fetch = imap.fetch(batch, { bodies: '', markSeen: true });
+          // Só CABEÇALHOS (assunto/from/data) — a matrícula vem do assunto, por
+          // isso não descarregamos o corpo com as imagens (muito mais rápido).
+          // markSeen:true → marca como lido, evitando reprocessar.
+          const fetch = imap.fetch(batch, { bodies: 'HEADER.FIELDS (SUBJECT FROM DATE)', markSeen: true });
           const pending = [];
 
           fetch.on('message', (msg) => {
@@ -236,7 +238,7 @@ function fetchUnseenEmails() {
               const chunks = [];
               msg.on('body', (stream) => {
                 stream.on('data', chunk => chunks.push(chunk));
-                stream.once('end', () => res(Buffer.concat(chunks)));
+                stream.once('end', () => res(Buffer.concat(chunks).toString('utf8')));
               });
               msg.once('attributes', () => {});
             });
@@ -244,9 +246,15 @@ function fetchUnseenEmails() {
           });
 
           fetch.once('end', async () => {
-            for (const raw of await Promise.all(pending)) {
-              const parsed = await simpleParser(raw);
-              emails.push(parsed);
+            for (const rawHeader of await Promise.all(pending)) {
+              const h = Imap.parseHeader(rawHeader);
+              emails.push({
+                subject: (h.subject && h.subject[0]) || '',
+                from: { text: (h.from && h.from[0]) || '' },
+                date: (h.date && h.date[0]) ? new Date(h.date[0]) : new Date(),
+                html: '',
+                text: ''
+              });
             }
             imap.end();
             resolve({ emails, totalUnseen });
