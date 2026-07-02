@@ -458,7 +458,9 @@ function findServiceByMatricula(imap, matricula) {
               const r = rows[0];
               return resolve({
                 matricula: (r.matricula && r.matricula.length >= 4) ? r.matricula : matricula,
-                descricao: r.descricao, valor: r.valor, eurocode: r.eurocode
+                descricao: r.descricao, valor: r.valor, eurocode: r.eurocode,
+                wip: extractWip(parsed.subject || ''),
+                body: cleanEmailBody(parsed.text || '')
               });
             }
             tryNext();
@@ -505,13 +507,15 @@ async function runFillDetails(limit) {
                 if (svc && (svc.descricao || svc.valor != null || svc.eurocode)) {
                   await client.query(
                     `UPDATE mycar_services
-                       SET matricula = COALESCE($1, matricula),
-                           descricao = COALESCE($2, descricao),
-                           valor     = COALESCE($3, valor),
-                           eurocode  = COALESCE($4, eurocode),
+                       SET matricula  = COALESCE($1, matricula),
+                           descricao  = COALESCE($2, descricao),
+                           valor      = COALESCE($3, valor),
+                           eurocode   = COALESCE($4, eurocode),
+                           notas      = COALESCE(notas, $5),
+                           email_body = COALESCE(email_body, $6),
                            updated_at = NOW()
-                     WHERE id = $5`,
-                    [svc.matricula, svc.descricao, svc.valor, svc.eurocode, row.id]
+                     WHERE id = $7`,
+                    [svc.matricula, svc.descricao, svc.valor, svc.eurocode, svc.wip, svc.body, row.id]
                   );
                   filled++;
                 }
