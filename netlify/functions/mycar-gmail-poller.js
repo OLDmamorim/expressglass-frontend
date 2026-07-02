@@ -434,29 +434,38 @@ async function runPoller() {
   }
 }
 
-// Procura no Gmail o email com este ASSUNTO e devolve os detalhes da tabela.
-function findServiceBySubject(imap, subject) {
+// Procura no Gmail o email cujo ASSUNTO contém esta matrícula (ex.: "BM-79-LI"
+// → "FW: BM-79-LI | ...") e devolve os detalhes da tabela. Tenta do mais
+// recente para o mais antigo até encontrar um com tabela.
+function findServiceByMatricula(imap, matricula) {
   return new Promise((resolve) => {
-    imap.search([['HEADER', 'SUBJECT', subject]], (err, uids) => {
+    imap.search([['HEADER', 'SUBJECT', matricula]], (err, uids) => {
       if (err || !uids || !uids.length) return resolve(null);
-      const uid = uids[uids.length - 1]; // o mais recente com este assunto
-      const chunks = [];
-      const f = imap.fetch([uid], { bodies: '', markSeen: false });
-      f.on('message', (msg) => { msg.on('body', (stream) => { stream.on('data', c => chunks.push(c)); }); });
-      f.once('error', () => resolve(null));
-      f.once('end', async () => {
-        try {
-          const parsed = await simpleParser(Buffer.concat(chunks));
-          const subjId = extractIdFromSubject(parsed.subject || subject);
-          const rows = parsed.html ? parseTableHtml(parsed.html) : [];
-          if (!rows.length) return resolve(null);
-          const r = rows[0];
-          resolve({
-            matricula: (r.matricula && r.matricula.length >= 4) ? r.matricula : subjId,
-            descricao: r.descricao, valor: r.valor, eurocode: r.eurocode
-          });
-        } catch { resolve(null); }
-      });
+      const ordered = uids.slice().sort((a, b) => b - a).slice(0, 5);
+      let idx = 0;
+      const tryNext = () => {
+        if (idx >= ordered.length) return resolve(null);
+        const uid = ordered[idx++];
+        const chunks = [];
+        const f = imap.fetch([uid], { bodies: '', markSeen: false });
+        f.on('message', (msg) => { msg.on('body', (stream) => { stream.on('data', c => chunks.push(c)); }); });
+        f.once('error', () => tryNext());
+        f.once('end', async () => {
+          try {
+            const parsed = await simpleParser(Buffer.concat(chunks));
+            const rows = parsed.html ? parseTableHtml(parsed.html) : [];
+            if (rows.length) {
+              const r = rows[0];
+              return resolve({
+                matricula: (r.matricula && r.matricula.length >= 4) ? r.matricula : matricula,
+                descricao: r.descricao, valor: r.valor, eurocode: r.eurocode
+              });
+            }
+            tryNext();
+          } catch { tryNext(); }
+        });
+      };
+      tryNext();
     });
   });
 }
@@ -468,10 +477,10 @@ async function runFillDetails(limit) {
   try {
     await ensureTable(client);
     const missingSql = `SELECT COUNT(*)::int AS n FROM mycar_services
-      WHERE email_subject IS NOT NULL AND descricao IS NULL AND valor IS NULL AND eurocode IS NULL`;
+      WHERE matricula IS NOT NULL AND descricao IS NULL AND valor IS NULL AND eurocode IS NULL`;
     const { rows } = await client.query(
-      `SELECT id, email_subject FROM mycar_services
-       WHERE email_subject IS NOT NULL AND descricao IS NULL AND valor IS NULL AND eurocode IS NULL
+      `SELECT id, matricula FROM mycar_services
+       WHERE matricula IS NOT NULL AND descricao IS NULL AND valor IS NULL AND eurocode IS NULL
        ORDER BY created_at DESC LIMIT $1`, [limit]);
     if (rows.length === 0) {
       const { rows: r0 } = await client.query(missingSql);
@@ -492,7 +501,7 @@ async function runFillDetails(limit) {
           (async () => {
             for (const row of rows) {
               try {
-                const svc = await findServiceBySubject(imap, row.email_subject);
+                const svc = await findServiceByMatricula(imap, row.matricula);
                 if (svc && (svc.descricao || svc.valor != null || svc.eurocode)) {
                   await client.query(
                     `UPDATE mycar_services
