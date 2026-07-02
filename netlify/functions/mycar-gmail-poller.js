@@ -188,7 +188,7 @@ async function ensureTable(client) {
 // Máximo de emails processados por execução — evita esgotar o tempo limite
 // da função. O cron (a cada 15 min) e novos cliques em "Verificar Email"
 // esvaziam o resto, lote a lote.
-const MAX_PER_RUN = 15;
+const MAX_PER_RUN = 8;
 
 // Liga ao Gmail via IMAP e devolve um LOTE de emails não-lidos (os mais
 // antigos primeiro), marcando-os como lidos para o lote seguinte avançar.
@@ -317,6 +317,7 @@ async function runPoller() {
     const stats = { withTable: 0, viaSubject: 0, noId: 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0 };
 
     for (const email of emails) {
+     try {
       const subject  = email.subject || '';
       const from     = email.from?.text || '';
       const date     = email.date || new Date();
@@ -324,55 +325,57 @@ async function runPoller() {
       const wip      = extractWip(subject);
       const body     = cleanEmailBody(email.text || '');
 
-      const $dbg = html ? cheerio.load(html) : null;
-      const tableCount = $dbg ? $dbg('table').length : 0;
       if (!html) stats.htmlVazio++;
-      console.log(`📧 "${subject}" | html:${!!html} | tabelas:${tableCount} | from:${from}`);
 
-      let services = html ? parseTableHtml(html) : [];
-      if (services.length > 0) stats.withTable++;
+      // Matrícula/VIN vem do ASSUNTO (fiável); os detalhes (serviço/valor/
+      // eurocode) vêm da TABELA no corpo. Juntamos os dois.
+      const subjId = extractIdFromSubject(subject);
+      const tableRows = html ? parseTableHtml(html) : [];
+      if (tableRows.length > 0) stats.withTable++;
 
-      // Fallback: sem tabela → tentar extrair a matrícula/VIN do assunto.
-      if (services.length === 0) {
-        const subjId = extractIdFromSubject(subject);
-        if (subjId) {
-          services = [{ matricula: subjId, descricao: null, valor: null, eurocode: null, ne: null }];
-          stats.viaSubject++;
-          console.log(`🔤 Matrícula extraída do assunto: ${subjId} ("${subject}")`);
-        } else {
-          stats.noId++;
-          console.log(`⏭️ Sem tabela nem matrícula no assunto: "${subject}" (tabelas:${tableCount})`);
-          continue;
-        }
+      let services;
+      if (tableRows.length > 0) {
+        services = tableRows.map(r => ({
+          matricula: (r.matricula && r.matricula.length >= 4) ? r.matricula : subjId,
+          descricao: r.descricao, valor: r.valor, eurocode: r.eurocode, ne: r.ne
+        })).filter(s => s.matricula);
+      } else if (subjId) {
+        services = [{ matricula: subjId, descricao: null, valor: null, eurocode: null, ne: null }];
+        stats.viaSubject++;
+      } else {
+        stats.noId++;
+        continue; // não é um email de serviço MyCar
       }
+      if (services.length === 0) { stats.noId++; continue; }
+      console.log(`📧 "${subject}" | tabela:${tableRows.length} | serviços:${services.length}`);
 
       for (const svc of services) {
+        // Casar por ASSUNTO (um email = um orçamento) para atualizar a
+        // entrada certa mesmo que a matrícula tenha entrado diferente antes.
         const { rows: existing } = await client.query(
-          `SELECT id, descricao, valor, eurocode FROM mycar_services WHERE matricula = $1 AND email_subject = $2 LIMIT 1`,
-          [svc.matricula, subject]
+          `SELECT id, descricao, valor, eurocode FROM mycar_services WHERE email_subject = $1 LIMIT 1`,
+          [subject]
         );
         if (existing.length > 0) {
-          // Já existe. Se entrou antes sem detalhes (só matrícula) e agora
-          // temos a tabela, preenche o que falta (recupera os detalhes).
           const e = existing[0];
           const temNovos = svc.descricao || svc.valor != null || svc.eurocode;
           const faltava  = !e.descricao && e.valor == null && !e.eurocode;
           if (temNovos && faltava) {
             await client.query(
               `UPDATE mycar_services
-                 SET descricao = COALESCE($1, descricao),
-                     valor     = COALESCE($2, valor),
-                     eurocode  = COALESCE($3, eurocode),
-                     notas     = COALESCE(notas, $4),
+                 SET matricula = $1,
+                     descricao = COALESCE($2, descricao),
+                     valor     = COALESCE($3, valor),
+                     eurocode  = COALESCE($4, eurocode),
+                     notas     = COALESCE(notas, $5),
                      updated_at = NOW()
-               WHERE id = $5`,
-              [svc.descricao, svc.valor, svc.eurocode, wip, e.id]
+               WHERE id = $6`,
+              [svc.matricula, svc.descricao, svc.valor, svc.eurocode, wip, e.id]
             );
             totalImported++; stats.updated++;
             console.log(`🔧 Detalhes preenchidos: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
           } else {
             stats.skipped++;
-            console.log(`⏭️ Duplicado ignorado: ${svc.matricula} / "${subject}"`);
           }
           continue;
         }
@@ -388,6 +391,10 @@ async function runPoller() {
         totalImported++; stats.inserted++;
         console.log(`✅ Importado: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
       }
+     } catch (emailErr) {
+       stats.erros = (stats.erros || 0) + 1;
+       console.error('⚠️ Erro a processar email:', emailErr.message);
+     }
     }
 
     console.log(`📊 Total: ${totalImported} | lidos:${emails.length} | ${JSON.stringify(stats)} | ${remaining} por processar`);
