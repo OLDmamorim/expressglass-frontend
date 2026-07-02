@@ -594,3 +594,6 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
   }
 };
+
+// Exportado para o cron (mycar-poller-cron) reutilizar a MESMA lógica eficiente
+module.exports.runPoller = runPoller;
