@@ -45,7 +45,9 @@
     try {
       const resp = await window.authClient.authenticatedFetch('/.netlify/functions/appointments?portal_id=' + p.id);
       const data = await resp.json();
-      dataByPortal[p.id] = (data && data.success && Array.isArray(data.data)) ? data.data : [];
+      const arr = (data && data.success && Array.isArray(data.data)) ? data.data : [];
+      if (typeof window.sanitizeAppointmentText === 'function') arr.forEach(window.sanitizeAppointmentText);
+      dataByPortal[p.id] = arr;
     } catch (e) {
       console.warn('[coord-day-view] erro portal', p.name, e);
       dataByPortal[p.id] = [];

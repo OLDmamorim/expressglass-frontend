@@ -387,11 +387,10 @@ window.reloadAppointments = async function() {
   try {
     const raw = await window.apiClient.getAppointments();
     appointments = raw.map(a => {
-      var _notes = a.notes || '';
-      if (_notes && (_notes.includes('"eurocode":') || _notes.includes('"photo_url":') || _notes.includes('"history":'))) _notes = '';
+      if (typeof window.sanitizeAppointmentText === 'function') window.sanitizeAppointmentText(a);
       return {
         ...a,
-        notes: _notes || null,
+        notes: a.notes || null,
         date: a.date ? String(a.date).slice(0,10) : null,
         address: a.address || a.morada || a.addr || null,
         sortIndex: a.sortIndex || a.sortindex || 1,
@@ -1045,8 +1044,8 @@ async function _silentRefreshAppointments() {
       if (a.sortIndex === null || a.sortIndex === undefined) {
         a.sortIndex = (a.sortindex !== null && a.sortindex !== undefined) ? a.sortindex : 1;
       }
-      // Clean notes if it accidentally contains extra JSON (eurocode/photo_url/history)
-      if (a.notes && (a.notes.includes('"eurocode":') || a.notes.includes('"photo_url":') || a.notes.includes('"history":'))) a.notes = '';
+      // Limpar o blob interno de todos os campos de texto (notes, client_name, …)
+      if (typeof window.sanitizeAppointmentText === 'function') window.sanitizeAppointmentText(a);
     });
     // Replace the module-level appointments array in-place so renderAll() picks it up
     appointments.length = 0;
@@ -1436,8 +1435,7 @@ function bootApp() {
         // Re-fetch completo e redesenha
         appointments = await window.apiClient.getAppointments();
         appointments = appointments.map(a => {
-          var _n = a.notes || '';
-          if (_n && (_n.includes('"eurocode":') || _n.includes('"photo_url":') || _n.includes('"history":'))) a = { ...a, notes: null };
+          if (typeof window.sanitizeAppointmentText === 'function') window.sanitizeAppointmentText(a);
           return { ...a, date: a.date ? String(a.date).slice(0, 10) : null, address: a.address || a.morada || a.addr || null, sortIndex: a.sortIndex || 1, id: a.id ?? (Date.now() + Math.random()) };
         });
         // Fallback: se o novo serviço ainda não chegou na re-fetch, adicionar manualmente
