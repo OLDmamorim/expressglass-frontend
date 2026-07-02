@@ -37,6 +37,21 @@ function parseValor(str) {
   return isNaN(v) ? null : v;
 }
 
+// Extrai matrícula/VIN do assunto quando o email não traz tabela HTML
+// (encaminhados com os dados em imagem, ex.: "FW: BM-79-LI",
+//  "FW: BL-45-HM | WF0PXX...", "FW: M-049245//LSJW94393RG049245").
+function extractIdFromSubject(subject) {
+  if (!subject) return null;
+  const s = subject.toUpperCase();
+  // Matrícula PT: XX-XX-XX (letras/dígitos)
+  const plate = s.match(/\b([A-Z0-9]{2}-[A-Z0-9]{2}-[A-Z0-9]{2})\b/);
+  if (plate) return plate[1];
+  // VIN: 17 caracteres (sem I, O, Q)
+  const vin = s.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
+  if (vin) return vin[1];
+  return null;
+}
+
 // Lê a tabela HTML do email (incluindo emails encaminhados/FW) e devolve array de serviços
 function parseTableHtml(html) {
   if (!html) return [];
@@ -269,11 +284,20 @@ async function runPoller() {
       const tableCount = $dbg ? $dbg('table').length : 0;
       console.log(`📧 "${subject}" | html:${!!html} | tabelas:${tableCount} | from:${from}`);
 
-      const services = html ? parseTableHtml(html) : [];
+      let services = html ? parseTableHtml(html) : [];
 
+      // Fallback: sem tabela → tentar extrair a matrícula/VIN do assunto.
+      // Estes emails encaminhados trazem os dados em imagem, por isso entra
+      // só a matrícula (pendente) para o coordenador tratar manualmente.
       if (services.length === 0) {
-        console.log(`⏭️ Sem tabela de serviços: "${subject}" (tabelas:${tableCount})`);
-        continue;
+        const subjId = extractIdFromSubject(subject);
+        if (subjId) {
+          services = [{ matricula: subjId, descricao: null, valor: null, eurocode: null, ne: null }];
+          console.log(`🔤 Matrícula extraída do assunto: ${subjId} ("${subject}")`);
+        } else {
+          console.log(`⏭️ Sem tabela nem matrícula no assunto: "${subject}" (tabelas:${tableCount})`);
+          continue;
+        }
       }
 
       for (const svc of services) {
