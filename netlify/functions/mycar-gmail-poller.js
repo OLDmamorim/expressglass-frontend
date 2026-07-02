@@ -183,82 +183,110 @@ async function ensureTable(client) {
   await client.query(`ALTER TABLE mycar_services DROP CONSTRAINT IF EXISTS mycar_services_status_check`);
   await client.query(`UPDATE mycar_services SET status = 'realizado' WHERE status = 'tratado'`);
   await client.query(`ALTER TABLE mycar_services ADD CONSTRAINT mycar_services_status_check CHECK (status IN ('pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado'))`);
+  // Estado do poller (cursor = último UID processado)
+  await client.query(`CREATE TABLE IF NOT EXISTS mycar_poller_state (k TEXT PRIMARY KEY, v TEXT)`);
 }
 
-// Máximo de emails processados por execução — evita esgotar o tempo limite
-// da função. O cron (a cada 15 min) e novos cliques em "Verificar Email"
-// esvaziam o resto, lote a lote.
-const MAX_PER_RUN = 8;
+async function getCursor(client) {
+  const { rows } = await client.query(`SELECT v FROM mycar_poller_state WHERE k = 'cursor'`);
+  return rows.length ? (parseInt(rows[0].v) || 0) : 0;
+}
+async function setCursor(client, uid) {
+  await client.query(
+    `INSERT INTO mycar_poller_state (k, v) VALUES ('cursor', $1)
+     ON CONFLICT (k) DO UPDATE SET v = $1`,
+    [String(uid)]
+  );
+}
 
-// Liga ao Gmail via IMAP e devolve um LOTE de emails não-lidos (os mais
-// antigos primeiro), marcando-os como lidos para o lote seguinte avançar.
-// Devolve { emails, totalUnseen }.
-function fetchUnseenEmails() {
+// Janela de leitura e limites por execução. Lemos CABEÇALHOS de muitos
+// emails (barato) mas só descarregamos o CORPO dos que são mesmo de
+// serviço (matrícula no assunto), para não esgotar o tempo.
+const SEARCH_DAYS   = 40;   // janela de pesquisa
+const SCAN_PER_RUN  = 25;   // quantos emails analisamos (cabeçalho) por execução
+const BODY_PER_RUN  = 10;   // quantos corpos descarregamos por execução
+
+// Determinístico via CURSOR (último UID processado). Não depende de marcar
+// como lido, por isso nunca fica preso a reler os mesmos emails.
+// Devolve { emails, nextCursor, remaining, scanned }.
+function fetchBatch(cursor) {
   return new Promise((resolve, reject) => {
     if (!GMAIL_USER || !GMAIL_PASSWORD) {
       reject(new Error('MYCAR_GMAIL_USER ou MYCAR_GMAIL_PASSWORD não configurados'));
       return;
     }
-
     const imap = new Imap({
-      user: GMAIL_USER,
-      password: GMAIL_PASSWORD,
-      host: 'imap.gmail.com',
-      port: 993,
-      tls: true,
-      tlsOptions: { rejectUnauthorized: false },
-      connTimeout: 20000,
-      authTimeout: 10000
+      user: GMAIL_USER, password: GMAIL_PASSWORD, host: 'imap.gmail.com',
+      port: 993, tls: true, tlsOptions: { rejectUnauthorized: false },
+      connTimeout: 20000, authTimeout: 10000
     });
-
-    const emails = [];
+    const fail = (e) => { try { imap.end(); } catch (_) {} reject(e); };
 
     imap.once('ready', () => {
-      imap.openBox('INBOX', false, (err) => {
-        if (err) { imap.end(); reject(err); return; }
+      imap.openBox('INBOX', true, (err) => { // readonly — não alteramos flags
+        if (err) return fail(err);
+        const since = new Date(); since.setDate(since.getDate() - SEARCH_DAYS);
+        imap.search([['SINCE', since]], (err, uids) => {
+          if (err) return fail(err);
+          uids = (uids || []).sort((a, b) => a - b);
+          const pend = uids.filter(u => u > cursor);
+          const scanBatch = pend.slice(0, SCAN_PER_RUN);
+          if (scanBatch.length === 0) { imap.end(); return resolve({ emails: [], nextCursor: cursor, remaining: 0, scanned: 0 }); }
 
-        // Só emails NÃO LIDOS — cada execução trata um lote e marca-os como
-        // lidos, por isso o próximo lote avança sem reprocessar.
-        imap.search(['UNSEEN'], (err, uids) => {
-          if (err) { imap.end(); reject(err); return; }
-          if (!uids || uids.length === 0) { imap.end(); resolve({ emails: [], totalUnseen: 0 }); return; }
-
-          const totalUnseen = uids.length;
-          const batch = uids.slice(0, MAX_PER_RUN); // os mais antigos primeiro
-          console.log(`📬 ${totalUnseen} não-lido(s); a processar lote de ${batch.length}`);
-
-          // Corpo completo — os dados (serviço, valor, eurocode) estão numa
-          // TABELA no corpo do email, por isso precisamos do HTML.
-          // markSeen:true → marca como lido, evitando reprocessar.
-          const fetch = imap.fetch(batch, { bodies: '', markSeen: true });
-          const pending = [];
-
-          fetch.on('message', (msg) => {
-            const p = new Promise((res) => {
-              const chunks = [];
-              msg.on('body', (stream) => {
-                stream.on('data', chunk => chunks.push(chunk));
-                stream.once('end', () => res(Buffer.concat(chunks)));
-              });
-              msg.once('attributes', () => {});
-            });
-            pending.push(p);
+          // Fase 1 — cabeçalhos (assunto) para saber quais são de serviço
+          const subjOf = {};
+          const hf = imap.fetch(scanBatch, { bodies: 'HEADER.FIELDS (SUBJECT)', markSeen: false });
+          hf.on('message', (msg) => {
+            let uid = null; const chunks = [];
+            msg.on('body', (stream) => { stream.on('data', c => chunks.push(c)); });
+            msg.once('attributes', (a) => { uid = a.uid; });
+            msg.once('end', () => { const h = Imap.parseHeader(Buffer.concat(chunks).toString('utf8')); subjOf[uid] = (h.subject && h.subject[0]) || ''; });
           });
-
-          fetch.once('end', async () => {
-            for (const raw of await Promise.all(pending)) {
-              const parsed = await simpleParser(raw);
-              emails.push(parsed);
+          hf.once('error', fail);
+          hf.once('end', () => {
+            const relevant = scanBatch.filter(u => extractIdFromSubject(subjOf[u] || ''));
+            // Cursor: se todos os relevantes cabem no limite de corpos, avança
+            // por toda a janela analisada; senão pára no último corpo lido.
+            let bodyUids, nextCursor;
+            if (relevant.length <= BODY_PER_RUN) {
+              bodyUids = relevant;
+              nextCursor = scanBatch[scanBatch.length - 1];
+            } else {
+              bodyUids = relevant.slice(0, BODY_PER_RUN);
+              nextCursor = bodyUids[bodyUids.length - 1];
             }
-            imap.end();
-            resolve({ emails, totalUnseen });
-          });
+            const remaining = pend.filter(u => u > nextCursor).length;
+            console.log(`📬 janela:${scanBatch.length} | serviço:${relevant.length} | corpos:${bodyUids.length} | cursor:${cursor}→${nextCursor} | faltam:${remaining}`);
 
-          fetch.once('error', (err) => { imap.end(); reject(err); });
+            if (bodyUids.length === 0) { imap.end(); return resolve({ emails: [], nextCursor, remaining, scanned: scanBatch.length }); }
+
+            // Fase 2 — corpo completo só dos relevantes
+            const emails = [];
+            const bf = imap.fetch(bodyUids, { bodies: '', markSeen: false });
+            const pending = [];
+            bf.on('message', (msg) => {
+              const chunks = [];
+              const p = new Promise((res) => {
+                msg.on('body', (stream) => { stream.on('data', c => chunks.push(c)); });
+                msg.once('attributes', () => {});
+                msg.once('end', () => res(Buffer.concat(chunks)));
+              });
+              pending.push(p);
+            });
+            bf.once('error', fail);
+            bf.once('end', async () => {
+              try {
+                for (const raw of await Promise.all(pending)) {
+                  emails.push(await simpleParser(raw));
+                }
+                imap.end();
+                resolve({ emails, nextCursor, remaining, scanned: scanBatch.length });
+              } catch (e) { fail(e); }
+            });
+          });
         });
       });
     });
-
     imap.once('error', reject);
     imap.connect();
   });
@@ -299,20 +327,21 @@ function resetSeen(days) {
 async function runPoller() {
   console.log('🔄 Mycar Gmail Poller: início');
 
-  const { emails, totalUnseen } = await fetchUnseenEmails();
-
-  if (emails.length === 0) {
-    console.log('📭 Sem emails novos');
-    return { processed: 0, emails: 0, remaining: 0 };
-  }
-
-  // Quantos ficam por processar em execuções seguintes (lote/cron)
-  const remaining = Math.max(0, totalUnseen - emails.length);
-
   const client = await pool.connect();
   try {
     await ensureTable(client);
     const portalId = await getMycaPortalId(client);
+    const cursor = await getCursor(client);
+
+    const { emails, nextCursor, remaining, scanned } = await fetchBatch(cursor);
+    // Avança sempre o cursor (mesmo que a janela só tenha ruído)
+    if (nextCursor > cursor) await setCursor(client, nextCursor);
+
+    if (emails.length === 0) {
+      console.log(`📭 Nada de serviço nesta janela (analisados ${scanned || 0})`);
+      return { processed: 0, emails: 0, remaining, stats: { withTable: 0, viaSubject: 0, noId: scanned || 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0 } };
+    }
+
     let totalImported = 0;
     const stats = { withTable: 0, viaSubject: 0, noId: 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0 };
 
@@ -431,14 +460,18 @@ exports.handler = async (event) => {
     try { bodyObj = JSON.parse(event.body || '{}'); } catch { bodyObj = {}; }
   }
 
-  // Recuperação: remarca emails recentes como não-lidos para reler os detalhes
-  if (bodyObj.action === 'reset_seen') {
+  // Recuperação: repõe o cursor a 0 para reprocessar tudo e preencher detalhes
+  if (bodyObj.action === 'reset_seen' || bodyObj.action === 'reset_cursor') {
+    const client = await pool.connect();
     try {
-      const count = await resetSeen(parseInt(bodyObj.days) || 7);
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, reset: count }) };
+      await ensureTable(client);
+      await setCursor(client, 0);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, reset: 1 }) };
     } catch (error) {
-      console.error('❌ reset_seen:', error.message);
+      console.error('❌ reset_cursor:', error.message);
       return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+    } finally {
+      client.release();
     }
   }
 
