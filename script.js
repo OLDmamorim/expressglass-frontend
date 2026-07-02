@@ -1023,6 +1023,30 @@ function getCardBaseColor(a) {
   return getLocColor(a.locality);
 }
 
+// Remove o JSON interno (eurocode/photo_url/history) de QUALQUER campo de
+// texto — em dados antigos este blob chegou a ficar gravado em notes ou até
+// no client_name, aparecendo nos cards. Preserva o resto do texto e limpa
+// separadores órfãos. Usado centralmente para todos os cards.
+function stripInternalJson(s) {
+  if (!s || typeof s !== 'string') return s;
+  if (s.indexOf('"eurocode"') === -1 && s.indexOf('"photo_url"') === -1 && s.indexOf('"history"') === -1) return s;
+  let out = s.replace(/\{[^{}]*"(?:eurocode|photo_url|history)"[^{}]*\}/g, '');
+  out = out.replace(/\s*\|\s*\|\s*/g, ' | ').replace(/^\s*\|\s*/, '').replace(/\s*\|\s*$/, '').trim();
+  return out;
+}
+window.stripInternalJson = stripInternalJson;
+
+// Limpa o blob interno de todos os campos de texto de um agendamento (mutação
+// no próprio objeto). Seguro chamar em qualquer path de carregamento/sync.
+function sanitizeAppointmentText(a) {
+  if (!a || typeof a !== 'object') return a;
+  ['notes', 'client_name', 'car', 'locality', 'damage_details', 'comp_sales_desc', 'comp_sales_name'].forEach(f => {
+    if (typeof a[f] === 'string') a[f] = stripInternalJson(a[f]);
+  });
+  return a;
+}
+window.sanitizeAppointmentText = sanitizeAppointmentText;
+
 // === TOTALIZADOR DIÁRIO (SM) ===
 // Configurações default (serão sobrescritas pela API)
 const ROUTE_CONFIG = {
@@ -1961,12 +1985,17 @@ async function load(){
       if (a.extra && typeof a.extra === 'string') {
         try { _extraObj = JSON.parse(a.extra); } catch(e) { _extraObj = null; }
       }
-      // Clean notes: if it accidentally contains the extra JSON, clear it
-      let _notes = a.notes || '';
-      if (_notes.includes('"eurocode":') || _notes.includes('"photo_url":') || _notes.includes('"history":')) _notes = '';
+      // Limpar o JSON interno (eurocode/photo_url/history) de todos os campos
+      // de texto onde possa ter ficado gravado em dados antigos.
       return {
         ...a,
-        notes: _notes,
+        notes: stripInternalJson(a.notes || ''),
+        client_name: stripInternalJson(a.client_name),
+        car: stripInternalJson(a.car),
+        locality: stripInternalJson(a.locality),
+        damage_details: stripInternalJson(a.damage_details),
+        comp_sales_desc: stripInternalJson(a.comp_sales_desc),
+        comp_sales_name: stripInternalJson(a.comp_sales_name),
         address: a.address || a.morada || a.addr || null,
         createdAt: a.createdAt || a.created_at || null,
         extra_services: extras,
