@@ -1102,13 +1102,21 @@ async function checkEmail() {
     const agg = { withTable: 0, viaSubject: 0, noId: 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0 };
     // Processa por lotes: continua a chamar enquanto o servidor indicar que
     // ainda há emails por processar (limite por segurança).
-    for (let i = 0; i < 60; i++) {
-      const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-      });
-      const data = await safeJson(res);
-      if (!data.success) { toast('❌ ' + (data.error || 'Erro ao verificar email')); break; }
+    let erros = 0;
+    for (let i = 0; i < 80; i++) {
+      let data;
+      try {
+        const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        data = await safeJson(res);
+      } catch (err) {
+        // Erro transitório (ex.: timeout de um lote) — tenta continuar
+        if (++erros >= 5) { toast('❌ ' + err.message, 'error'); break; }
+        continue;
+      }
+      if (!data.success) { if (++erros >= 5) { toast('❌ ' + (data.error || 'Erro ao verificar email'), 'error'); break; } continue; }
       totalImported += (data.processed || 0);
       totalRead += (data.emails || 0);
       remaining = data.remaining || 0;
