@@ -314,6 +314,7 @@ async function runPoller() {
     await ensureTable(client);
     const portalId = await getMycaPortalId(client);
     let totalImported = 0;
+    const stats = { withTable: 0, viaSubject: 0, noId: 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0 };
 
     for (const email of emails) {
       const subject  = email.subject || '';
@@ -325,19 +326,21 @@ async function runPoller() {
 
       const $dbg = html ? cheerio.load(html) : null;
       const tableCount = $dbg ? $dbg('table').length : 0;
+      if (!html) stats.htmlVazio++;
       console.log(`📧 "${subject}" | html:${!!html} | tabelas:${tableCount} | from:${from}`);
 
       let services = html ? parseTableHtml(html) : [];
+      if (services.length > 0) stats.withTable++;
 
       // Fallback: sem tabela → tentar extrair a matrícula/VIN do assunto.
-      // Estes emails encaminhados trazem os dados em imagem, por isso entra
-      // só a matrícula (pendente) para o coordenador tratar manualmente.
       if (services.length === 0) {
         const subjId = extractIdFromSubject(subject);
         if (subjId) {
           services = [{ matricula: subjId, descricao: null, valor: null, eurocode: null, ne: null }];
+          stats.viaSubject++;
           console.log(`🔤 Matrícula extraída do assunto: ${subjId} ("${subject}")`);
         } else {
+          stats.noId++;
           console.log(`⏭️ Sem tabela nem matrícula no assunto: "${subject}" (tabelas:${tableCount})`);
           continue;
         }
@@ -365,9 +368,10 @@ async function runPoller() {
                WHERE id = $5`,
               [svc.descricao, svc.valor, svc.eurocode, wip, e.id]
             );
-            totalImported++;
+            totalImported++; stats.updated++;
             console.log(`🔧 Detalhes preenchidos: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
           } else {
+            stats.skipped++;
             console.log(`⏭️ Duplicado ignorado: ${svc.matricula} / "${subject}"`);
           }
           continue;
@@ -381,13 +385,13 @@ async function runPoller() {
           [svc.matricula, svc.descricao, svc.valor, svc.eurocode,
            from, subject, date, portalId, wip, body || null]
         );
-        totalImported++;
+        totalImported++; stats.inserted++;
         console.log(`✅ Importado: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
       }
     }
 
-    console.log(`📊 Total: ${totalImported} serviço(s) de ${emails.length} email(s) | ${remaining} por processar`);
-    return { processed: totalImported, emails: emails.length, remaining };
+    console.log(`📊 Total: ${totalImported} | lidos:${emails.length} | ${JSON.stringify(stats)} | ${remaining} por processar`);
+    return { processed: totalImported, emails: emails.length, remaining, stats };
 
   } finally {
     client.release();

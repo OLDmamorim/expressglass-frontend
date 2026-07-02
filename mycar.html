@@ -1098,6 +1098,8 @@ async function checkEmail() {
     const token = localStorage.getItem('eg_auth_token');
     let totalImported = 0;
     let remaining = 0;
+    let totalRead = 0;
+    const agg = { withTable: 0, viaSubject: 0, noId: 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0 };
     // Processa por lotes: continua a chamar enquanto o servidor indicar que
     // ainda há emails por processar (limite por segurança).
     for (let i = 0; i < 60; i++) {
@@ -1108,7 +1110,9 @@ async function checkEmail() {
       const data = await safeJson(res);
       if (!data.success) { toast('❌ ' + (data.error || 'Erro ao verificar email')); break; }
       totalImported += (data.processed || 0);
+      totalRead += (data.emails || 0);
       remaining = data.remaining || 0;
+      if (data.stats) for (const k in agg) agg[k] += (data.stats[k] || 0);
       if (data.processed > 0) await loadServices();
       if (remaining > 0) {
         btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> ${remaining} por processar…`;
@@ -1116,7 +1120,14 @@ async function checkEmail() {
       }
       break;
     }
-    toast(totalImported > 0 ? `✅ ${totalImported} serviço(s) importado(s)!` : '📭 Sem emails novos');
+    if (totalImported > 0) {
+      toast(`✅ ${totalImported} serviço(s) (${agg.inserted} novos, ${agg.updated} atualizados)`);
+    } else if (totalRead > 0) {
+      // Nada importado mas houve emails lidos — mostrar diagnóstico
+      toast(`📭 ${totalRead} lido(s): ${agg.withTable} c/ tabela, ${agg.viaSubject} p/ assunto, ${agg.skipped} já existiam, ${agg.htmlVazio} sem HTML`, 'info');
+    } else {
+      toast('📭 Sem emails não-lidos (usa "Recuperar detalhes")', 'info');
+    }
   } catch (e) {
     toast(`Erro: ${e.message}`, 'error');
   } finally {
