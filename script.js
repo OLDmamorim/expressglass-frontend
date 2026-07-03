@@ -2724,18 +2724,20 @@ function editAppointment(id) {
 }
 
 async function deleteAppointment(id) {
-  // Modal de confirmação próprio (confirm() bloqueado em PWA/mobile)
+  // O botão de lixo NÃO elimina o processo — apenas RETIRA da agenda e
+  // devolve o serviço aos pendentes (sem data). A eliminação definitiva
+  // fica a cargo da importação por Excel.
   const confirmed = await new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
       <div style="background:#fff;border-radius:16px;padding:24px;max-width:320px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.3);">
-        <div style="font-size:32px;margin-bottom:12px;">🗑️</div>
-        <div style="font-weight:700;font-size:16px;color:#1e293b;margin-bottom:8px;">Eliminar agendamento?</div>
-        <div style="font-size:13px;color:#64748b;margin-bottom:20px;">Esta ação não pode ser desfeita.</div>
+        <div style="font-size:32px;margin-bottom:12px;">↩️</div>
+        <div style="font-weight:700;font-size:16px;color:#1e293b;margin-bottom:8px;">Tirar da agenda?</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:20px;">O serviço volta aos <strong>pendentes</strong> (não é eliminado).</div>
         <div style="display:flex;gap:10px;justify-content:center;">
           <button id="confirmNo" style="background:#f1f5f9;color:#475569;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;flex:1;">Cancelar</button>
-          <button id="confirmYes" style="background:#ef4444;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;flex:1;">Eliminar</button>
+          <button id="confirmYes" style="background:#f59e0b;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;flex:1;">Tirar da agenda</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -2746,29 +2748,19 @@ async function deleteAppointment(id) {
 
   try {
     const appt = appointments.find(a => String(a.id) === String(id));
-    const commercialUserId = appt?.commercial_user_id || appt?.commercialUserId;
+    if (!appt) { showToast('Serviço não encontrado', 'error'); return; }
 
-    await window.apiClient.deleteAppointment(id);
-    const index = appointments.findIndex(a => String(a.id) === String(id));
-    if (index > -1) appointments.splice(index, 1);
+    // Retirar da agenda → pendentes (mesmo efeito que arrastar para "por agendar")
+    appt.date = null;
+    appt.period = null;
+    await window.apiClient.updateAppointment(id, appt);
 
-    // Se era pedido de comercial, marcar como cancelado
-    if (commercialUserId && appt?.plate) {
-      try {
-        await window.authClient.authenticatedFetch('/.netlify/functions/commercial-request', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ plate: appt.plate, status: 'cancelled', commercial_id: commercialUserId })
-        });
-      } catch(_) {}
-    }
-
-    showToast('Agendamento eliminado com sucesso', 'success');
+    showToast('Serviço devolvido aos pendentes', 'success');
     renderAll();
     document.getElementById('appointmentModal').classList.remove('show');
 
   } catch (error) {
-    showToast('Erro ao eliminar agendamento: ' + error.message, 'error');
+    showToast('Erro ao tirar da agenda: ' + error.message, 'error');
   }
 }
 
@@ -2988,7 +2980,7 @@ function buildDesktopCard(a){
       <div class="card-actions">
         ${a.photo_url ? `<a href="${a.photo_url}" target="_blank" rel="noopener" class="icon" title="Ver foto" style="text-decoration:none;">📷</a>` : ''}
         <button class="icon edit" onclick="editAppointment('${a.id}')" title="Editar" aria-label="Editar">✏️</button>
-        <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Eliminar" aria-label="Eliminar">🗑️</button>
+        <button class="icon delete" onclick="deleteAppointment('${a.id}')" title="Tirar da agenda (volta aos pendentes)" aria-label="Tirar da agenda">🗑️</button>
         ${encRecFooter}
       </div>
     ${glassRemovedBadge}${diasAbertoBadge}${(loja || isRecalibra) ? '' : buildKmRow(a)}${phcFooter}</div>`;
@@ -3151,7 +3143,6 @@ function renderUnscheduled(){
           <td>${statusBadge}</td>
           <td class="actions-cell">
             <button class="action-btn-small edit" onclick="editAppointment('${a.id}')" title="Editar">✏️</button>
-            <button class="action-btn-small delete" onclick="deleteAppointment('${a.id}')" title="Eliminar">🗑️</button>
           </td>
         </tr>`;
     }).join('');
