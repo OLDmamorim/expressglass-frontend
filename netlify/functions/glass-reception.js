@@ -73,6 +73,13 @@ async function ensureTable(client) {
   `);
   await client.query(`ALTER TABLE eurocode_cache ADD COLUMN IF NOT EXISTS service_types TEXT[] DEFAULT '{}'`);
 
+  // Receções já associadas a uma matrícula deixam de precisar de confirmação:
+  // converter as que estavam 'confirmed' (associadas) para 'received'. Idempotente.
+  await client.query(
+    `UPDATE glass_receptions SET status = 'received', updated_at = NOW()
+     WHERE status = 'confirmed' AND appointment_id IS NOT NULL`
+  );
+
   await client.query(`
     CREATE TABLE IF NOT EXISTS close_requests (
       id             SERIAL PRIMARY KEY,
@@ -446,7 +453,10 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
       }
 
-      const status = d.status === 'missing' ? 'missing' : (d.is_return ? 'return' : (d.appointment_id ? 'confirmed' : 'pending'));
+      // Quando a matrícula é detetada (associada a um agendamento) o vidro
+      // entra DIRETO como rececionado — não carece de confirmação do
+      // coordenador. Sem associação, fica 'pending' para tratamento manual.
+      const status = d.status === 'missing' ? 'missing' : (d.is_return ? 'return' : (d.appointment_id ? 'received' : 'pending'));
 
       // When linked to an appointment, always derive portal from the appointment
       // (the user's JWT portal may differ from the appointment's portal — e.g. bragaadmin
