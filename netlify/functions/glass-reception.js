@@ -73,11 +73,17 @@ async function ensureTable(client) {
   `);
   await client.query(`ALTER TABLE eurocode_cache ADD COLUMN IF NOT EXISTS service_types TEXT[] DEFAULT '{}'`);
 
-  // Receções já associadas a uma matrícula deixam de precisar de confirmação:
-  // converter as que estavam 'confirmed' (associadas) para 'received'. Idempotente.
+  // Definição por loja: receção automática de vidros (ligada por omissão)
+  await client.query(`ALTER TABLE portals ADD COLUMN IF NOT EXISTS auto_receive_glass BOOLEAN DEFAULT true`);
+
+  // Receções associadas a uma matrícula, em lojas com receção automática,
+  // deixam de precisar de confirmação: 'confirmed' → 'received'. Idempotente.
   await client.query(
-    `UPDATE glass_receptions SET status = 'received', updated_at = NOW()
-     WHERE status = 'confirmed' AND appointment_id IS NOT NULL`
+    `UPDATE glass_receptions gr SET status = 'received', updated_at = NOW()
+     FROM appointments a JOIN portals p ON p.id = a.portal_id
+     WHERE gr.appointment_id = a.id
+       AND gr.status = 'confirmed'
+       AND COALESCE(p.auto_receive_glass, true) = true`
   );
 
   await client.query(`
@@ -140,6 +146,27 @@ exports.handler = async (event) => {
           `, [uid]));
         }
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: pRows }) };
+      }
+
+      // ── Definições de receção automática por loja ────────────────────────────
+      if (p.portal_settings === 'true') {
+        let sRows;
+        if (user.role === 'admin') {
+          ({ rows: sRows } = await client.query(
+            `SELECT id, name, COALESCE(auto_receive_glass, true) AS auto_receive_glass FROM portals ORDER BY name`));
+        } else {
+          const uid = user.userId || user.id;
+          ({ rows: sRows } = await client.query(`
+            SELECT DISTINCT p.id, p.name, COALESCE(p.auto_receive_glass, true) AS auto_receive_glass FROM portals p
+            WHERE p.id IN (
+              SELECT portal_id FROM coordinator_portals WHERE user_id = $1
+              UNION
+              SELECT portal_id FROM users WHERE id = $1 AND portal_id IS NOT NULL
+            )
+            ORDER BY p.name
+          `, [uid]));
+        }
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: sRows }) };
       }
 
       // ── Coordinator alerts: counts of items older than 1 hour per category ──────
@@ -401,6 +428,27 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'POST') {
       const d = JSON.parse(event.body || '{}');
 
+      // ── Definir receção automática de uma loja (coordenador/admin) ────────────
+      if (d.action === 'set_auto_receive') {
+        if (!['admin', 'coordenador', 'coordinator'].includes(user.role)) {
+          return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Sem permissão' }) };
+        }
+        const pid = parseInt(d.portal_id);
+        if (!pid) return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'portal_id obrigatório' }) };
+        const value = d.value !== false; // true por omissão
+        await client.query(`UPDATE portals SET auto_receive_glass = $1 WHERE id = $2`, [value, pid]);
+        // Ao LIGAR, receber já as receções associadas dessa loja que estavam à espera
+        if (value) {
+          await client.query(
+            `UPDATE glass_receptions gr SET status = 'received', updated_at = NOW()
+             FROM appointments a
+             WHERE gr.appointment_id = a.id AND a.portal_id = $1 AND gr.status = 'confirmed'`,
+            [pid]
+          );
+        }
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, auto_receive_glass: value }) };
+      }
+
       // ── Criar pedido de fecho de ficha ────────────────────────────────────────
       if (d.action === 'close_request') {
         const { appointment_id, eurocode, plate, order_ref, n_obra, notes, portal_id, portal_name } = d;
@@ -453,27 +501,33 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
       }
 
-      // Quando a matrícula é detetada (associada a um agendamento) o vidro
-      // entra DIRETO como rececionado — não carece de confirmação do
-      // coordenador. Sem associação, fica 'pending' para tratamento manual.
-      const status = d.status === 'missing' ? 'missing' : (d.is_return ? 'return' : (d.appointment_id ? 'received' : 'pending'));
-
       // When linked to an appointment, always derive portal from the appointment
       // (the user's JWT portal may differ from the appointment's portal — e.g. bragaadmin
       // belongs to "Braga" loja but receives glass for "Braga SM" appointments)
       let resolvedPortalId = d.portal_id || user.portalId || null;
       let resolvedPortalName = d.portal_name || null;
+      let autoReceive = true; // por omissão, a loja tem receção automática
       let aptRow = null;
       if (d.appointment_id) {
         aptRow = await client.query(
-          `SELECT a.portal_id, a.car, a.service, p.name AS portal_name FROM appointments a LEFT JOIN portals p ON p.id = a.portal_id WHERE a.id = $1`,
+          `SELECT a.portal_id, a.car, a.service, p.name AS portal_name,
+                  COALESCE(p.auto_receive_glass, true) AS auto_receive
+           FROM appointments a LEFT JOIN portals p ON p.id = a.portal_id WHERE a.id = $1`,
           [d.appointment_id]
         );
         if (aptRow.rows.length) {
           resolvedPortalId = aptRow.rows[0].portal_id || resolvedPortalId;
           resolvedPortalName = aptRow.rows[0].portal_name || resolvedPortalName;
+          autoReceive = aptRow.rows[0].auto_receive !== false;
         }
       }
+
+      // Com matrícula detetada: se a loja tem receção automática ligada, entra
+      // direto como 'received' (sem confirmação); se desligada, fica 'confirmed'
+      // à espera do coordenador. Sem associação → 'pending'.
+      const status = d.status === 'missing' ? 'missing'
+        : (d.is_return ? 'return'
+          : (d.appointment_id ? (autoReceive ? 'received' : 'confirmed') : 'pending'));
 
       // Prevent duplicate reception of the same eurocode for the SAME appointment
       if (d.eurocode && !d.is_return && d.appointment_id) {

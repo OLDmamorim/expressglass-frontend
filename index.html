@@ -2455,6 +2455,10 @@
                 style="padding:10px 14px;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:600;cursor:pointer;color:#94a3b8;background:transparent;font-size:12px;white-space:nowrap;">
           🔒 Fichas a Fechar
         </button>
+        <button id="grTabSettings" onclick="window.glassReception._switchTab('settings')"
+                style="padding:10px 14px;border:none;border-bottom:3px solid transparent;margin-bottom:-2px;font-weight:600;cursor:pointer;color:#94a3b8;background:transparent;font-size:12px;white-space:nowrap;">
+          ⚙️ Definições
+        </button>
       </div>
       <div id="grTabContent" style="padding-top:12px;"></div>
     `;
@@ -2466,7 +2470,7 @@
   }
 
   async function _switchTab(tab) {
-    const tabs = { pending: 'grTabPending', history: 'grTabHistory', returns: 'grTabReturns', damaged: 'grTabDamaged', inventory: 'grTabInventory', closeReqs: 'grTabCloseReqs' };
+    const tabs = { pending: 'grTabPending', history: 'grTabHistory', returns: 'grTabReturns', damaged: 'grTabDamaged', inventory: 'grTabInventory', closeReqs: 'grTabCloseReqs', settings: 'grTabSettings' };
     Object.entries(tabs).forEach(([key, id]) => {
       const btn = document.getElementById(id);
       if (!btn) return;
@@ -2492,8 +2496,66 @@
     } else if (tab === 'closeReqs') {
       content.innerHTML = `<p style="text-align:center;padding:20px;color:#64748b;">A carregar fichas a fechar…</p>`;
       await _loadCloseRequests();
+    } else if (tab === 'settings') {
+      content.innerHTML = `<p style="text-align:center;padding:20px;color:#64748b;">A carregar definições…</p>`;
+      await _loadSettings();
     } else {
       await _openHistory();
+    }
+  }
+
+  // ── Definições: receção automática por loja ────────────────────────────────
+  async function _loadSettings() {
+    const content = document.getElementById('grTabContent');
+    try {
+      const res = await fetch(API + '/glass-reception?portal_settings=true', { headers: authHeaders() });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || `Erro HTTP ${res.status}`);
+      const portals = json.data || [];
+      if (!portals.length) {
+        content.innerHTML = `<p style="text-align:center;padding:20px;color:#64748b;">Sem lojas para configurar.</p>`;
+        return;
+      }
+      const rows = portals.map(p => {
+        const on = p.auto_receive_glass !== false;
+        return `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;">
+            <div style="min-width:0;">
+              <div style="font-weight:800;font-size:14px;color:#0f172a;">${p.name}</div>
+              <div style="font-size:11px;color:#64748b;">${on ? 'Vidros com matrícula entram direto em receção' : 'Vidros aguardam a tua confirmação'}</div>
+            </div>
+            <button onclick="window.glassReception._setAutoReceive(${p.id}, ${!on}, this)"
+              style="flex:0 0 auto;width:52px;height:30px;border-radius:16px;border:none;cursor:pointer;position:relative;transition:background .15s;background:${on ? '#16a34a' : '#cbd5e1'};">
+              <span style="position:absolute;top:3px;left:${on ? '25px' : '3px'};width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.3);"></span>
+            </button>
+          </div>`;
+      }).join('');
+      content.innerHTML = `
+        <div style="padding:4px 2px 10px;">
+          <div style="font-weight:800;font-size:14px;color:#0f172a;margin-bottom:2px;">Receção automática de vidros</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:14px;">Quando ligada, os vidros cuja matrícula é detetada entram logo em receção. Quando desligada, ficam à espera da tua confirmação.</div>
+          ${rows}
+        </div>`;
+    } catch (e) {
+      content.innerHTML = `<p style="text-align:center;padding:20px;color:#dc2626;">Erro: ${e.message}</p>`;
+    }
+  }
+
+  async function _setAutoReceive(portalId, value, btn) {
+    if (btn) btn.disabled = true;
+    try {
+      const res = await fetch(API + '/glass-reception', {
+        method: 'POST',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set_auto_receive', portal_id: portalId, value })
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || `Erro HTTP ${res.status}`);
+      if (typeof showToast === 'function') showToast(value ? '✅ Receção automática ligada' : '⏸️ Receção automática desligada', 'success');
+      await _loadSettings();
+    } catch (e) {
+      if (typeof showToast === 'function') showToast('Erro: ' + e.message, 'error');
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -3934,7 +3996,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
