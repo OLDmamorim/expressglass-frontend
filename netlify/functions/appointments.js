@@ -325,15 +325,21 @@ exports.handler = async (event) => {
         return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Campos obrigatórios: plate, car' }) };
       }
 
-      const dupCheck = await pool.query(
-        `SELECT id FROM appointments
-         WHERE portal_id = $1
-           AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
-         LIMIT 1`,
-        [portalId, String(data.plate).trim()]
-      );
-      if (dupCheck.rows.length > 0) {
-        return { statusCode: 409, headers, body: JSON.stringify({ success: false, error: 'Matrícula já existe', existingId: dupCheck.rows[0].id }) };
+      // Agendamentos genéricos (matrícula estrangeira / campo livre, ex.:
+      // "REC VIDRO", "APOIO SM", "AUTO RACING") NÃO são matrículas reais e
+      // podem repetir-se — não se aplica a verificação de duplicados.
+      if (data.foreign_plate !== true) {
+        const dupCheck = await pool.query(
+          `SELECT id FROM appointments
+           WHERE portal_id = $1
+             AND COALESCE(foreign_plate, false) = false
+             AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
+           LIMIT 1`,
+          [portalId, String(data.plate).trim()]
+        );
+        if (dupCheck.rows.length > 0) {
+          return { statusCode: 409, headers, body: JSON.stringify({ success: false, error: 'Matrícula já existe', existingId: dupCheck.rows[0].id }) };
+        }
       }
 
       const createdAt = data.createdAt ? new Date(data.createdAt).toISOString() : new Date().toISOString();
