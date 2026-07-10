@@ -66,21 +66,28 @@ class ApiClient {
         
         const response = await fetch(url, defaultOptions);
         const data = await response.json();
-        
+
         if (!response.ok) {
-          throw new Error(data.error || `HTTP ${response.status}`);
+          const err = new Error(data.error || `HTTP ${response.status}`);
+          err.httpStatus = response.status; // resposta do servidor (não é falha de rede)
+          throw err;
         }
-        
+
         console.log('✅ API Response:', data);
         return data;
-        
+
       } catch (error) {
         console.warn(`❌ API Error (tentativa ${attempt}):`, error.message);
-        
+
+        // Erros do cliente (4xx: duplicado, validação, etc.) não se repetem —
+        // o servidor respondeu e a repetição daria o mesmo resultado.
+        if (error.httpStatus && error.httpStatus >= 400 && error.httpStatus < 500) {
+          throw error;
+        }
         if (attempt === this.retryAttempts) {
           throw error;
         }
-        
+
         // Aguardar antes de tentar novamente
         await new Promise(resolve => setTimeout(resolve, this.retryDelay * attempt));
       }
@@ -126,10 +133,14 @@ class ApiClient {
       
     } catch (error) {
       console.error('❌ ERRO: Não foi possível criar na base de dados:', error.message);
-      throw new Error(`Falha ao criar agendamento: ${error.message}`);
+      // Preservar o estado HTTP (ex.: 409 matrícula duplicada) para quem chama
+      // poder distinguir um erro do servidor de uma falha de rede.
+      const wrapped = new Error(error.httpStatus ? error.message : `Falha ao criar agendamento: ${error.message}`);
+      if (error.httpStatus) wrapped.httpStatus = error.httpStatus;
+      throw wrapped;
     }
   }
-  
+
   async updateAppointment(id, appointmentData) {
     try {
       // Incluir _portalId para coordenadores/admin com múltiplos portais
@@ -149,7 +160,9 @@ class ApiClient {
       
     } catch (error) {
       console.error('❌ ERRO: Não foi possível atualizar na base de dados:', error.message);
-      throw new Error(`Falha ao atualizar agendamento: ${error.message}`);
+      const wrapped = new Error(error.httpStatus ? error.message : `Falha ao atualizar agendamento: ${error.message}`);
+      if (error.httpStatus) wrapped.httpStatus = error.httpStatus;
+      throw wrapped;
     }
   }
   
