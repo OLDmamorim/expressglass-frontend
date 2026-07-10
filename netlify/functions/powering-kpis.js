@@ -9,7 +9,7 @@ const { Pool } = require('pg');
 
 const JWT_SECRET    = process.env.JWT_SECRET    || 'expressglass-secret-key-change-in-production';
 const POWERING_KEY  = process.env.POWERING_EG_API_KEY;
-const POWERING_HOST = 'poweringeg-3c9mozlh.manus.space';
+const POWERING_HOST = process.env.POWERING_EG_HOST || 'poweringeg.pt';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
