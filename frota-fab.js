@@ -1,20 +1,31 @@
-// frota-fab.js - v1
+// frota-fab.js - v2
 // Botão flutuante (por cima do "+", canto inferior esquerdo) que abre o
 // portal da loja diretamente no menu Frota/Viatura da loja do serviço.
 // A loja é resolvida pelo proxy powering-kpis (action=portal-link) a partir
-// do portal ativo (powering_loja_id).
+// do portal ativo (powering_loja_id). Funciona para qualquer utilizador
+// (incluindo admin) — depende apenas da agenda/portal selecionado.
 
 (function () {
   var BTN_ID = 'frotaFab';
-  var _cache = {};          // { portalId: url|false }
+  var _cache = {};          // { portalId: url|false }  (resultado definitivo)
   var _resolving = {};      // { portalId: true } enquanto resolve
+  var _attempts = {};       // { portalId: n } tentativas com erro transitório
 
   function getActivePortalId() {
     var sel = document.getElementById('portalSwitcherSelect');
     if (sel && sel.value) return sel.value;
+    if (window.portalConfig && window.portalConfig.id) return window.portalConfig.id;
     return window.currentPortalId
       || (window.authClient && window.authClient.getUser && window.authClient.getUser() && window.authClient.getUser().portal_id)
       || null;
+  }
+
+  function isVisible(el) {
+    if (!el) return false;
+    var cs = window.getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden' || parseFloat(cs.opacity || '1') === 0) return false;
+    var r = el.getBoundingClientRect(); // funciona para position:fixed (offsetParent não)
+    return r.width > 1 && r.height > 1;
   }
 
   function ensureButton() {
@@ -52,7 +63,7 @@
     if (!btn) return;
     var pid = getActivePortalId();
     var addBtn = document.getElementById('addServiceMobile');
-    var addVisible = addBtn && addBtn.offsetParent !== null; // acompanha o "+" (mobile)
+    var addVisible = isVisible(addBtn); // acompanha o "+" (mobile)
     var url = pid && _cache[pid];
     btn.style.display = (addVisible && url) ? 'flex' : 'none';
   }
@@ -67,9 +78,18 @@
         '/.netlify/functions/powering-kpis?action=portal-link&portal_id=' + encodeURIComponent(portalId)
       );
       var d = await r.json();
-      _cache[portalId] = (d && d.success && d.url) ? d.url : false;
+      if (d && d.success && d.url) {
+        _cache[portalId] = d.url;                 // sucesso
+      } else if (d && d.reason === 'sem_portal') {
+        _cache[portalId] = false;                 // definitivo: loja sem portal
+      } else {
+        // erro transitório (ex.: deploy a decorrer / API key) — tentar de novo, com limite
+        _attempts[portalId] = (_attempts[portalId] || 0) + 1;
+        if (_attempts[portalId] >= 5) _cache[portalId] = false;
+      }
     } catch (e) {
-      _cache[portalId] = false;
+      _attempts[portalId] = (_attempts[portalId] || 0) + 1;
+      if (_attempts[portalId] >= 5) _cache[portalId] = false;
     } finally {
       delete _resolving[portalId];
       updateVisibility();
@@ -90,7 +110,15 @@
       sel._frotaHooked = true;
     }
     tick();
-    setInterval(tick, 2500);
+    setInterval(function () {
+      // (re)ligar o listener caso o switcher seja criado mais tarde
+      var s = document.getElementById('portalSwitcherSelect');
+      if (s && !s._frotaHooked) {
+        s.addEventListener('change', function () { setTimeout(tick, 200); });
+        s._frotaHooked = true;
+      }
+      tick();
+    }, 2500);
   }
 
   if (document.readyState === 'loading') {
