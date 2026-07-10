@@ -68,6 +68,26 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ total: lojas.length, lojas }) };
     }
 
+    // Link do portal da loja (abre no menu Viatura/Frota)
+    if (p.action === 'portal-link') {
+      let lojaId = p.loja_id ? parseInt(p.loja_id) : null;
+      if (!lojaId && p.portal_id) {
+        const { rows } = await pool.query(
+          'SELECT powering_loja_id FROM portals WHERE id = $1 LIMIT 1',
+          [parseInt(p.portal_id)]
+        );
+        lojaId = rows[0]?.powering_loja_id ?? null;
+      }
+      if (!lojaId) {
+        return {
+          statusCode: 200, headers,
+          body: JSON.stringify({ success: false, error: 'Portal sem powering_loja_id configurado', reason: 'sem_portal' })
+        };
+      }
+      const data = await fetchPowering(`/portal-link/${lojaId}`);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, url: data.url, lojaNome: data.lojaNome }) };
+    }
+
     // Vendas complementares — devolve TODAS as lojas + lojaId da loja atual
     // O frontend usa lojaId para filtrar a loja corrente e calcular a campeã nacional
     if (p.action === 'vendas-complementares') {
