@@ -1461,7 +1461,18 @@ function bootApp() {
       editingId = null;
 
     } catch (err) {
-      // fallback offline (caso a API falhe)
+      // Se o servidor RESPONDEU com erro (ex.: 409 matrícula já existe, 400
+      // validação) NÃO gravamos offline — isso mascarava o problema e o
+      // agendamento "desaparecia" no refresh. Mostramos o motivo real.
+      if (err && err.httpStatus) {
+        const msg = err.httpStatus === 409
+          ? (err.message || 'Já existe um agendamento com esta matrícula neste portal.')
+          : (err.message || 'Não foi possível gravar.');
+        showToast('⚠️ ' + msg, 'error');
+        window._pausePolling = false;
+        return;
+      }
+      // fallback offline apenas quando é MESMO falha de rede
       try {
         if (editingId) {
           const local = window.apiClient.updateAppointmentOffline(editingId, payload);
