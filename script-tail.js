@@ -1322,6 +1322,8 @@ function bootApp() {
       phone:  get('appointmentPhone'),
       extra:  (function() {
         const eurocode = get('appointmentExtra');
+        // Genéricos (matrícula estrangeira / campo livre): não gravar histórico
+        if (document.getElementById('foreignPlate')?.checked) return eurocode || null;
         const photo_url = (document.getElementById('appointmentPhoto')?.value || '').trim();
         // Build history entry
         const histEl = document.getElementById('appointmentHistory');
