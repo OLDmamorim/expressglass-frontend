@@ -1,4 +1,4 @@
-// frota-fab.js - v2
+// frota-fab.js - v3
 // Botão flutuante (por cima do "+", canto inferior esquerdo) que abre o
 // portal da loja diretamente no menu Frota/Viatura da loja do serviço.
 // A loja é resolvida pelo proxy powering-kpis (action=portal-link) a partir
@@ -62,10 +62,15 @@
     var btn = document.getElementById(BTN_ID);
     if (!btn) return;
     var pid = getActivePortalId();
-    var addBtn = document.getElementById('addServiceMobile');
-    var addVisible = isVisible(addBtn); // acompanha o "+" (mobile)
     var url = pid && _cache[pid];
-    btn.style.display = (addVisible && url) ? 'flex' : 'none';
+    // Mostrar em mobile sempre que haja link, INDEPENDENTEMENTE do "+".
+    // (O técnico não tem o botão "+", mas deve continuar a ver o atalho da Viatura.)
+    var isMobile = window.matchMedia('(max-width: 820px)').matches;
+    var addBtn = document.getElementById('addServiceMobile');
+    var addVisible = isVisible(addBtn); // "+" presente (coordenador)
+    btn.style.display = (isMobile && url) ? 'flex' : 'none';
+    // Se o "+" existe, o atalho fica por cima dele; senão ocupa o lugar do "+".
+    btn.style.bottom = addVisible ? '92px' : '24px';
   }
 
   // Resolve (uma vez por portal) o link do portal da loja.
