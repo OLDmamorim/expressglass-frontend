@@ -2240,6 +2240,16 @@
 
       _pollPendingBadge();
 
+      // Dados para a etiqueta de receção
+      window._grLastLabel = {
+        store: (window.portalConfig && window.portalConfig.name) || '',
+        plate: plate || '',
+        car: (apt && apt.car) || '',
+        eurocode: eurocode || '',
+        orderRef: orderRef || '',
+        date: _lblToday()
+      };
+
       const normEc = s => (s || '').toLowerCase().replace(/i/g, '1').replace(/o/g, '0');
       const receivedNorm = normEc(eurocode);
 
@@ -2333,6 +2343,9 @@
     const missingNote = missed && missed.length > 0
       ? `<div style="background:#fffbeb;border:1.5px solid #f59e0b;border-radius:8px;padding:10px 14px;margin-top:10px;text-align:left;font-size:12px;color:#92400e;">⚠️ Receção incompleta — não chegou: <strong>${missed.join(', ')}</strong><br>Coordenador notificado.</div>`
       : '';
+    const printBtn = window._grLastLabel
+      ? `<button onclick="window.glassReception._printLabel()" style="background:#0f766e;color:#fff;font-weight:800;font-size:15px;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;letter-spacing:.3px;">🖨️ Imprimir etiqueta</button>`
+      : '';
     document.getElementById('grScanBody').innerHTML = `
       <div style="text-align:center;padding:24px 0;">
         <div style="font-size:48px;margin-bottom:12px;">✅</div>
@@ -2340,11 +2353,74 @@
         <p style="font-size:13px;color:#64748b;margin-bottom:4px;">Matrícula <strong>${plate}</strong> — vidro rececionado.</p>
         ${missingNote}
         <div style="display:flex;flex-direction:column;gap:10px;margin-top:20px;">
+          ${printBtn}
           <button onclick="window.glassReception._step1()" style="background:#2563eb;color:#fff;font-weight:800;font-size:15px;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;letter-spacing:.3px;">📷 Nova Receção</button>
           <button onclick="window.glassReception.closeScan()" style="background:#e2e8f0;color:#374151;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
         </div>
       </div>
     `;
+  }
+
+  // ── ETIQUETA DE RECEÇÃO ────────────────────────────────────────────────────
+  function _lblEsc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+  function _lblToday() {
+    const d = new Date();
+    return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+  }
+  // Layout da etiqueta (~50mm de largura), reutilizado na pré-visualização e na impressão
+  function _labelHtml(L) {
+    L = L || {};
+    return `
+      <div style="width:50mm;padding:2mm 2.5mm;font-family:Arial,Helvetica,sans-serif;color:#000;box-sizing:border-box;line-height:1.15;">
+        <div style="font-size:9pt;font-weight:700;border-bottom:1px solid #000;padding-bottom:1mm;margin-bottom:1mm;">${_lblEsc(L.store) || '&nbsp;'}</div>
+        ${L.plate ? `<div style="font-size:17pt;font-weight:900;letter-spacing:1px;">${_lblEsc(L.plate)}</div>` : ''}
+        ${L.car ? `<div style="font-size:9pt;font-weight:600;">${_lblEsc(L.car)}</div>` : ''}
+        ${L.eurocode ? `<div style="font-size:12pt;font-weight:800;font-family:'Courier New',monospace;margin-top:1mm;">${_lblEsc(L.eurocode)}</div>` : ''}
+        ${L.orderRef ? `<div style="font-size:9pt;">Enc: ${_lblEsc(L.orderRef)}</div>` : ''}
+        <div style="font-size:8pt;color:#222;margin-top:1mm;">${_lblEsc(L.date)}</div>
+      </div>`;
+  }
+  // Pré-visualização (2) + botão de impressão (4)
+  function _printLabel() {
+    const L = window._grLastLabel;
+    if (!L) return;
+    let ov = document.getElementById('grLabelOverlay');
+    if (ov) ov.remove();
+    ov = document.createElement('div');
+    ov.id = 'grLabelOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+    ov.innerHTML = `
+      <div style="background:#fff;border-radius:16px;max-width:320px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.4);">
+        <div style="font-size:15px;font-weight:800;color:#0f172a;margin-bottom:12px;text-align:center;">Pré-visualização da etiqueta</div>
+        <div style="display:flex;justify-content:center;">
+          <div style="border:1px dashed #94a3b8;border-radius:6px;background:#fff;">${_labelHtml(L)}</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <button onclick="document.getElementById('grLabelOverlay').remove()" style="flex:1;background:#e2e8f0;color:#374151;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;">Fechar</button>
+          <button onclick="window.glassReception._doPrintLabel()" style="flex:1;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;">🖨️ Imprimir</button>
+        </div>
+      </div>`;
+    document.body.appendChild(ov);
+  }
+  function _doPrintLabel() {
+    const L = window._grLastLabel;
+    if (!L) return;
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(iframe);
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`<!doctype html><html><head><meta charset="utf-8"><style>
+      @page { size: 58mm auto; margin: 0; }
+      html,body { margin:0; padding:0; }
+    </style></head><body>${_labelHtml(L)}</body></html>`);
+    doc.close();
+    try { iframe.contentWindow.focus(); } catch (_) {}
+    setTimeout(() => {
+      try { iframe.contentWindow.print(); } catch (_) {}
+      setTimeout(() => iframe.remove(), 1500);
+    }, 300);
   }
 
   async function _showOrphanConfirm() {
@@ -2407,12 +2483,22 @@
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || json.message || "Erro desconhecido");
+      // Dados para a etiqueta (sem processo → sem matrícula/viatura)
+      window._grLastLabel = {
+        store: portalName || '',
+        plate: '',
+        car: '',
+        eurocode: eurocode || '',
+        orderRef: orderRef || '',
+        date: _lblToday()
+      };
       document.getElementById('grScanBody').innerHTML = `
         <div style="text-align:center;padding:24px 0;">
           <div style="font-size:48px;margin-bottom:12px;">📦</div>
           <p style="font-size:16px;font-weight:800;color:#f59e0b;margin-bottom:6px;">Vidro rececionado!</p>
           <p style="font-size:13px;color:#64748b;margin-bottom:20px;">Armazém: <strong>${portalName || '—'}</strong> · Sem processo associado.</p>
           <div style="display:flex;flex-direction:column;gap:10px;">
+            <button onclick="window.glassReception._printLabel()" style="background:#0f766e;color:#fff;font-weight:800;font-size:15px;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;">🖨️ Imprimir etiqueta</button>
             <button onclick="window.glassReception._step1()" style="background:#2563eb;color:#fff;font-weight:800;font-size:15px;padding:14px 28px;border-radius:10px;border:none;cursor:pointer;">📷 Nova Receção</button>
             <button onclick="window.glassReception.closeScan()" style="background:#e2e8f0;color:#374151;font-weight:700;padding:12px 28px;border-radius:10px;border:none;cursor:pointer;">Fechar</button>
           </div>
@@ -3997,7 +4083,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
