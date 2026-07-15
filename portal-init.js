@@ -132,17 +132,23 @@
 
   // === COORDENADOR: guardar lista de portais e montar switcher ===
   if (user.role === 'coordenador' && user.portals && user.portals.length > 0) {
-    window.coordPortals = user.portals;
+    // Portais próprios (editáveis) + portais de consulta (só leitura).
+    const ownPortals = user.portals.map(p => Object.assign({}, p, { _readonly: false }));
+    const consultOnly = (user.consultablePortals || [])
+      .filter(cp => !ownPortals.some(o => o.id === cp.id))
+      .map(p => Object.assign({}, p, { _readonly: true }));
+    window.coordPortals = ownPortals.concat(consultOnly);
 
     const savedPortalId = sessionStorage.getItem('eg_active_portal');
-    const activePortal = savedPortalId
-      ? user.portals.find(p => String(p.id) === savedPortalId) || user.portals[0]
-      : user.portals[0];
+    const activePortal = (savedPortalId
+      ? window.coordPortals.find(p => String(p.id) === savedPortalId)
+      : null) || ownPortals[0];
 
     window.activePortalId = activePortal.id;
     updateConsultablePortals(activePortal.id);
     applyPortalConfig(activePortal);
-    buildPortalSwitcher(user.portals, activePortal.id);
+    if (typeof applyReadOnlyMode === 'function') applyReadOnlyMode(!!activePortal._readonly);
+    buildPortalSwitcher(window.coordPortals, activePortal.id);
   } else {
     // Técnico: portal único
     applyPortalConfig(user.portal);
@@ -279,7 +285,7 @@ function buildPortalSwitcher(portals, activeId) {
     const opt = document.createElement('option');
     opt.value = p.id;
     const typeLabel = p.portalType === 'loja' ? ' (Loja)' : p.portalType === 'pesados' ? ' (Pesados)' : ' (SM)';
-    opt.textContent = p.name + typeLabel;
+    opt.textContent = p.name + typeLabel + (p._readonly ? ' 👁️ consulta' : '');
     opt.style.cssText = 'color:#1f2937;background:white;';
     if (p.id === activeId) opt.selected = true;
     select.appendChild(opt);
@@ -331,6 +337,47 @@ function updateConsultablePortals(activeId) {
     });
   }
 }
+
+// Modo só-leitura (portais de consulta): bloqueia edição e mostra aviso.
+function applyReadOnlyMode(on) {
+  window._readOnlyMode = !!on;
+  // CSS injetado uma vez — esconde os controlos de edição em modo consulta
+  if (!document.getElementById('readonlyModeCss')) {
+    var st = document.createElement('style');
+    st.id = 'readonlyModeCss';
+    st.textContent =
+      'body.readonly-mode #addServiceBtn,' +
+      'body.readonly-mode #addServiceMobile,' +
+      'body.readonly-mode #calculateRoutes,' +
+      'body.readonly-mode #btnRotaDoDiaDesk,' +
+      'body.readonly-mode .icon.delete,' +
+      'body.readonly-mode .action-btn-small.delete,' +
+      'body.readonly-mode .icon-btn[title="Editar"],' +
+      'body.readonly-mode .dc-exec-row,' +
+      'body.readonly-mode .m-status-row,' +
+      'body.readonly-mode .dc-confirm-btn,' +
+      'body.readonly-mode #deleteAppointment { display:none !important; }' +
+      '#readonlyBanner{background:#f59e0b;color:#fff;text-align:center;padding:6px 10px;font-weight:800;font-size:13px;letter-spacing:.3px;}';
+    document.head.appendChild(st);
+  }
+  document.body.classList.toggle('readonly-mode', !!on);
+
+  var banner = document.getElementById('readonlyBanner');
+  if (on) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'readonlyBanner';
+      banner.textContent = '👁️ Agenda de consulta — só leitura';
+      var sw = document.getElementById('portalSwitcher');
+      if (sw && sw.parentNode) sw.parentNode.insertBefore(banner, sw.nextSibling);
+      else document.body.insertBefore(banner, document.body.firstChild);
+    }
+    banner.style.display = '';
+  } else if (banner) {
+    banner.style.display = 'none';
+  }
+}
+window.applyReadOnlyMode = applyReadOnlyMode;
 
 async function switchPortal(newPortalId) {
   var portal = window.coordPortals.find(function(p) { return p.id === newPortalId; });
