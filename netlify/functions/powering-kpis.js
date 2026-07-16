@@ -162,10 +162,17 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ debug: true, raw: data, lojaId }) };
     }
 
-    // Pegar SEMPRE no último resultado disponível na lista
-    // (PoweringEG devolve histórico; o último é o mais recente com dados)
+    // Escolher o registo CORRETO do mês/ano pedido. A lista pode conter vários
+    // registos para o mesmo mês (ex.: um parcial e outro completo) — nesse caso
+    // fica-se com o mais COMPLETO (maior nº de serviços). Se não houver registo
+    // do mês pedido, usa-se o último da lista (mais recente com dados).
     const lista = data.resultados || [];
-    const r = lista[lista.length - 1] || {};
+    const doMes = lista.filter(x => Number(x.mes) === mesPedido && Number(x.ano) === anoPedido);
+    const candidatos = doMes.length ? doMes : lista;
+    const r = candidatos.reduce(
+      (best, x) => ((x.totalServicos ?? 0) >= (best && best.totalServicos != null ? best.totalServicos : -1) ? x : best),
+      null
+    ) || {};
 
     const servicos = r.totalServicos  ?? 0;
     const objetivo = r.objetivoMensal ?? 0;
