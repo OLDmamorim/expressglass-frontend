@@ -801,6 +801,7 @@
     </div>
   </div>
 
+  <script src="vendor-qrcode.js?v=1"></script>
   <script src="portal-init.js?v=2026-07-03a"></script>
   <script src="api.js?v=2026-07-03a"></script>
   <script src="script.js?v=2026-07-03a"></script>
@@ -2367,17 +2368,48 @@
     const d = new Date();
     return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
   }
+  // QR do eurocode (via vendor-qrcode.js) — devolve data URL ou null
+  function _qrDataUrl(text) {
+    try {
+      if (typeof qrcode !== 'function' || !text) return null;
+      const q = qrcode(0, 'M');
+      q.addData(String(text));
+      q.make();
+      return q.createDataURL(4, 0);
+    } catch (e) { return null; }
+  }
   // Layout da etiqueta (~50mm de largura), reutilizado na pré-visualização e na impressão
   function _labelHtml(L) {
     L = L || {};
+    const blank = 'display:inline-block;border-bottom:1px solid #000;min-width:26mm;height:4.5mm;vertical-align:bottom;';
+    // Matrícula: mostra a real, ou uma linha para escrever à mão (receção sem processo)
+    const plateBlock = L.plate
+      ? `<div style="font-size:17pt;font-weight:900;letter-spacing:1px;">${_lblEsc(L.plate)}</div>`
+      : `<div style="font-size:8pt;font-weight:700;margin-top:0.5mm;">Matrícula: <span style="${blank}"></span></div>`;
+    // Viatura: real, ou (quando também não há) uma linha para escrever à mão
+    const carBlock = L.car
+      ? `<div style="font-size:9pt;font-weight:600;">${_lblEsc(L.car)}</div>`
+      : (L.plate ? '' : `<div style="font-size:8pt;margin-top:1mm;">Viatura: <span style="${blank}"></span></div>`);
+    const qr = _qrDataUrl(L.eurocode);
+    // Eurocode ocupa a largura toda (maior); QR fica no canto inferior direito.
+    const euroBlock = L.eurocode
+      ? `<div style="font-size:14pt;font-weight:800;font-family:'Courier New',monospace;margin-top:1mm;word-break:break-all;">${_lblEsc(L.eurocode)}</div>`
+      : '';
+    const bottomRow = `
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:2mm;margin-top:1mm;">
+          <div style="min-width:0;">
+            ${L.orderRef ? `<div style="font-size:9pt;">Enc: ${_lblEsc(L.orderRef)}</div>` : ''}
+            <div style="font-size:8pt;color:#222;">${_lblEsc(L.date)}</div>
+          </div>
+          ${qr ? `<img src="${qr}" alt="QR" style="width:15mm;height:15mm;image-rendering:pixelated;flex:0 0 auto;">` : ''}
+        </div>`;
     return `
       <div style="width:50mm;padding:2mm 2.5mm;font-family:Arial,Helvetica,sans-serif;color:#000;box-sizing:border-box;line-height:1.15;">
         <div style="font-size:9pt;font-weight:700;border-bottom:1px solid #000;padding-bottom:1mm;margin-bottom:1mm;">${_lblEsc(L.store) || '&nbsp;'}</div>
-        ${L.plate ? `<div style="font-size:17pt;font-weight:900;letter-spacing:1px;">${_lblEsc(L.plate)}</div>` : ''}
-        ${L.car ? `<div style="font-size:9pt;font-weight:600;">${_lblEsc(L.car)}</div>` : ''}
-        ${L.eurocode ? `<div style="font-size:12pt;font-weight:800;font-family:'Courier New',monospace;margin-top:1mm;">${_lblEsc(L.eurocode)}</div>` : ''}
-        ${L.orderRef ? `<div style="font-size:9pt;">Enc: ${_lblEsc(L.orderRef)}</div>` : ''}
-        <div style="font-size:8pt;color:#222;margin-top:1mm;">${_lblEsc(L.date)}</div>
+        ${plateBlock}
+        ${carBlock}
+        ${euroBlock}
+        ${bottomRow}
       </div>`;
   }
   // Pré-visualização (2) + botão de impressão (4)
