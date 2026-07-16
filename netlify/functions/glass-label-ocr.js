@@ -27,24 +27,34 @@ function callVision(imageBase64, mediaType) {
           },
           {
             type: 'text',
-            text: `Analisa esta guia/etiqueta de entrega de vidro automóvel de um transportador português (ex: A Sua Pressa, Garland, etc.).
-A etiqueta pode estar rodada na imagem — tenta ler em todas as orientações.
+            text: `Analisa esta etiqueta de vidro automóvel. Pode ser de um TRANSPORTADOR
+português (ex: A Sua Pressa, Garland) OU de um FABRICANTE (ex: Pilkington, Saint-Gobain/
+SEKURIT, AGC, Guardian, XYG, Fuyao, NordGlass). A etiqueta pode estar rodada — lê em
+todas as orientações.
 
-Extrai APENAS estes dois campos:
+Extrai estes campos:
 
-1. Número de encomenda — procura nestas fontes POR ESTA ORDEM:
-   a) "CBS Encomendas" ou "Encomendas Cliente" seguido de "Cliente nº XXXXX" → order_ref = "XXXXX"
-   b) "PEDIDO:XXXXX" ou "PEDIDO nº XXXXX" → order_ref = "XXXXX"
+1. EUROCODE do vidro (o mais importante) — formato: 4 dígitos seguidos IMEDIATAMENTE de
+   3 ou mais caracteres alfanuméricos maiúsculos (ex: 6577AGACMVZ, 2474AGNMVZ6C,
+   8556AGNGYMVZ). Aparece frequentemente:
+   - ao lado da marca/modelo do carro (ex: "VW PASSAT (B5) ... 8556AGNGYMVZ"),
+   - por baixo de um código de barras,
+   - ou em campos PICK_LABELS / OBS / Observações.
+   Se estiver no formato "NNNN/DDDDLLLLL" (ex: "4370/2474AGNMVZ6C"), o número ANTES da
+   barra "/" NÃO é o eurocode — o eurocode é o código COMPLETO APÓS a "/".
+   ⚠️ Em eurocodes NÃO existem as letras 'I' nem 'O' — se vires 'I' é o dígito '1', se
+   vires 'O' é o dígito '0'.
+   ⚠️ NÃO confundas com "SAP Code" / "Batch number" (esses NÃO são o eurocode).
+
+2. NÚMERO DE ENCOMENDA (se existir) — procura POR ESTA ORDEM:
+   a) "CBS Encomendas"/"Encomendas Cliente" seguido de "Cliente nº XXXXX" → "XXXXX"
+   b) "PEDIDO:XXXXX" ou "PEDIDO nº XXXXX" → "XXXXX"
    c) "Enc. Cliente nº XXXXX" ou "N.º Enc: XXXXX"
-   ⚠️ Exclui "COD AT:XXXXX" — esse é um código fiscal, não é o número de encomenda.
-   Exemplos: "CBS Encomendas Cliente nº 68508" → "68508". "PEDIDO:68508" → "68508".
+   ⚠️ Exclui "COD AT:XXXXX" (código fiscal) e "SAP Code" (código do fabricante).
+   Numa etiqueta de fabricante pode não haver número de encomenda → coloca null.
 
-2. Eurocode do vidro — formato EXATO: 4 dígitos seguidos IMEDIATAMENTE de 3 ou mais caracteres alfanuméricos maiúsculos (ex: 6577AGACMVZ, 2474AGNMVZ6C).
-   Procura em campos como PICK_LABELS, OBS, Observações.
-   REGRA CRÍTICA para PICK_LABELS com formato "NNNN/DDDDLLLLL" (ex: "4370/2474AGNMVZ6C"):
-   - O número ANTES da barra "/" (ex: 4370) é uma sequência — NÃO é o eurocode
-   - O eurocode é o código COMPLETO APÓS a barra "/" (ex: 2474AGNMVZ6C)
-   ⚠️ Em eurocodes NÃO existem as letras 'I' nem 'O' — se vires 'I' é o dígito '1', se vires 'O' é o dígito '0'.
+IMPORTANTE: no campo "raw_text" devolve TODO o texto que consegues ler da etiqueta
+(mesmo o que não usaste), para garantir que o eurocode não se perde.
 
 Responde EXCLUSIVAMENTE em JSON válido, sem texto adicional:
 {"order_ref": "...", "eurocode": "...", "raw_text": "..."}
