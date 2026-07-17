@@ -2528,16 +2528,33 @@
       _btStatus('⚠️ Este dispositivo/browser não suporta Bluetooth. Usa um Android com Chrome.');
       return;
     }
+    // Serviços conhecidos das impressoras térmicas Bluetooth (Phomemo e afins).
+    // Têm de estar declarados para podermos aceder após ligar.
+    const CANDIDATE_SERVICES = [
+      0xff00, 0x18f0, 0xffe0,
+      '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+      'e7810a71-73ae-499d-8c15-faa9aef0c3f2'
+    ];
     try {
-      _btStatus('🔎 A procurar a impressora…');
+      _btStatus('🔎 Escolhe a impressora na lista…');
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [0xff00] }, { namePrefix: 'M110' }, { namePrefix: 'Phomemo' }, { namePrefix: 'PM' }],
-        optionalServices: [0xff00]
+        acceptAllDevices: true,
+        optionalServices: CANDIDATE_SERVICES
       });
       _btStatus('🔗 A ligar…');
       const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(0xff00);
-      const ch = await service.getCharacteristic(0xff02);
+      // Descobrir automaticamente a característica de escrita
+      let ch = null;
+      const services = await server.getPrimaryServices();
+      for (const s of services) {
+        let chars = [];
+        try { chars = await s.getCharacteristics(); } catch (_) { continue; }
+        for (const c of chars) {
+          if (c.properties && (c.properties.writeWithoutResponse || c.properties.write)) { ch = c; break; }
+        }
+        if (ch) break;
+      }
+      if (!ch) throw new Error('Impressora ligada mas sem canal de escrita reconhecido');
       _btStatus('🖨️ A imprimir…');
       const bytes = _phomemoBytes(_drawLabelCanvas(L));
       const CHUNK = 128;
