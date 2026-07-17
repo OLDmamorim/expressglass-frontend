@@ -2428,12 +2428,129 @@
         <div style="display:flex;justify-content:center;">
           <div style="border:1px dashed #94a3b8;border-radius:6px;background:#fff;">${_labelHtml(L)}</div>
         </div>
-        <div style="display:flex;gap:10px;margin-top:16px;">
+        <div id="grLabelBtStatus" style="display:none;font-size:12px;color:#64748b;text-align:center;margin-top:10px;"></div>
+        <button onclick="window.glassReception._printLabelBluetooth()" style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:14px;">📶 Imprimir na Phomemo (Bluetooth)</button>
+        <div style="display:flex;gap:10px;margin-top:10px;">
           <button onclick="document.getElementById('grLabelOverlay').remove()" style="flex:1;background:#e2e8f0;color:#374151;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;">Fechar</button>
-          <button onclick="window.glassReception._doPrintLabel()" style="flex:1;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;">🖨️ Imprimir</button>
+          <button onclick="window.glassReception._doPrintLabel()" style="flex:1;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;">🖨️ Impressão normal</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
+  }
+
+  // ── IMPRESSÃO BLUETOOTH (Phomemo M110, etiqueta 40×30mm, 203 dpi) ───────────
+  // Desenha a etiqueta num canvas monocromático e envia por Web Bluetooth.
+  function _btStatus(msg) {
+    const el = document.getElementById('grLabelBtStatus');
+    if (el) { el.style.display = ''; el.textContent = msg; }
+  }
+  // Canvas 40mm×30mm @ 8 dots/mm = 320×240 px, a preto sobre branco
+  function _drawLabelCanvas(L) {
+    L = L || {};
+    const W = 320, H = 240;
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#000'; ctx.textBaseline = 'alphabetic';
+    // Loja
+    ctx.font = 'bold 18px Arial';
+    ctx.fillText(_lblTrim(L.store, ctx, W - 12), 8, 20);
+    ctx.fillRect(8, 26, W - 16, 2);
+    // Matrícula (ou linha para escrever à mão)
+    if (L.plate) {
+      ctx.font = 'bold 34px Arial';
+      ctx.fillText(_lblTrim(L.plate, ctx, W - 12), 8, 64);
+    } else {
+      ctx.font = 'bold 14px Arial';
+      ctx.fillText('Matrícula:', 8, 58);
+      ctx.fillRect(90, 60, 200, 2);
+    }
+    // Viatura
+    let y = 84;
+    if (L.car) { ctx.font = '15px Arial'; ctx.fillText(_lblTrim(L.car, ctx, W - 12), 8, y); y += 4; }
+    else if (!L.plate) { ctx.font = '14px Arial'; ctx.fillText('Viatura:', 8, y); ctx.fillRect(70, y - 12, 220, 2); }
+    // Eurocode (grande)
+    if (L.eurocode) {
+      ctx.font = 'bold 26px "Courier New", monospace';
+      ctx.fillText(_lblTrim(L.eurocode, ctx, W - 12), 8, 118);
+    }
+    // QR (canto inferior direito) — desenhado célula a célula (nítido)
+    let qSide = 0;
+    if (L.eurocode && typeof qrcode === 'function') {
+      try {
+        const qr = qrcode(0, 'M'); qr.addData(String(L.eurocode)); qr.make();
+        const n = qr.getModuleCount();
+        const target = 96; const cell = Math.max(1, Math.floor(target / n)); qSide = cell * n;
+        const qx = W - qSide - 6, qy = H - qSide - 6;
+        ctx.fillStyle = '#000';
+        for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) ctx.fillRect(qx + c * cell, qy + r * cell, cell, cell);
+      } catch (e) { qSide = 0; }
+    }
+    // Nº encomenda + data (canto inferior esquerdo)
+    ctx.fillStyle = '#000';
+    const leftMax = W - qSide - 16;
+    ctx.font = '15px Arial';
+    if (L.orderRef) ctx.fillText(_lblTrim('Enc: ' + L.orderRef, ctx, leftMax), 8, H - 30);
+    ctx.font = '14px Arial';
+    ctx.fillText(_lblTrim(L.date || '', ctx, leftMax), 8, H - 10);
+    return cv;
+  }
+  function _lblTrim(text, ctx, maxW) {
+    text = String(text == null ? '' : text);
+    if (ctx.measureText(text).width <= maxW) return text;
+    while (text.length > 1 && ctx.measureText(text + '…').width > maxW) text = text.slice(0, -1);
+    return text + '…';
+  }
+  // Converte o canvas para o comando de impressão raster (ESC/POS GS v 0)
+  function _phomemoBytes(cv) {
+    const W = cv.width, H = cv.height;
+    const img = cv.getContext('2d').getImageData(0, 0, W, H).data;
+    const bpr = Math.ceil(W / 8);
+    const raster = new Uint8Array(bpr * H);
+    for (let yy = 0; yy < H; yy++) {
+      for (let xx = 0; xx < W; xx++) {
+        const i = (yy * W + xx) * 4;
+        const lum = 0.299 * img[i] + 0.587 * img[i + 1] + 0.114 * img[i + 2];
+        if (img[i + 3] > 128 && lum < 128) raster[yy * bpr + (xx >> 3)] |= (0x80 >> (xx & 7));
+      }
+    }
+    const header = [0x1b, 0x40, 0x1d, 0x76, 0x30, 0x00, bpr & 0xff, (bpr >> 8) & 0xff, H & 0xff, (H >> 8) & 0xff];
+    const footer = [0x1b, 0x64, 0x03]; // avança 3 linhas
+    const out = new Uint8Array(header.length + raster.length + footer.length);
+    out.set(header, 0); out.set(raster, header.length); out.set(footer, header.length + raster.length);
+    return out;
+  }
+  async function _printLabelBluetooth() {
+    const L = window._grLastLabel;
+    if (!L) return;
+    if (!navigator.bluetooth) {
+      _btStatus('⚠️ Este dispositivo/browser não suporta Bluetooth. Usa um Android com Chrome.');
+      return;
+    }
+    try {
+      _btStatus('🔎 A procurar a impressora…');
+      const device = await navigator.bluetooth.requestDevice({
+        filters: [{ services: [0xff00] }, { namePrefix: 'M110' }, { namePrefix: 'Phomemo' }, { namePrefix: 'PM' }],
+        optionalServices: [0xff00]
+      });
+      _btStatus('🔗 A ligar…');
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(0xff00);
+      const ch = await service.getCharacteristic(0xff02);
+      _btStatus('🖨️ A imprimir…');
+      const bytes = _phomemoBytes(_drawLabelCanvas(L));
+      const CHUNK = 128;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        const part = bytes.slice(i, i + CHUNK);
+        if (ch.writeValueWithoutResponse) await ch.writeValueWithoutResponse(part);
+        else await ch.writeValue(part);
+      }
+      _btStatus('✅ Enviado para a impressora.');
+      try { device.gatt.disconnect(); } catch (_) {}
+    } catch (e) {
+      _btStatus('❌ ' + (e && e.message ? e.message : 'Falha na impressão Bluetooth'));
+    }
   }
   function _doPrintLabel() {
     const L = window._grLastLabel;
@@ -4115,7 +4232,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
