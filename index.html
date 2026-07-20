@@ -2429,12 +2429,11 @@
           <div style="border:1px dashed #94a3b8;border-radius:6px;background:#fff;">${_labelHtml(L)}</div>
         </div>
         <div id="grLabelBtStatus" style="display:none;font-size:12px;color:#64748b;text-align:center;margin-top:10px;"></div>
-        <button onclick="window.glassReception._printLabelRawBT()" style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:14px;">🖨️ Imprimir na Phomemo (RawBT)</button>
+        <button onclick="window.glassReception._printLabelBluetooth()" style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:14px;">📶 Imprimir na Phomemo (Bluetooth)</button>
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button onclick="document.getElementById('grLabelOverlay').remove()" style="flex:1;background:#e2e8f0;color:#374151;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;">Fechar</button>
           <button onclick="window.glassReception._doPrintLabel()" style="flex:1;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;">🖨️ Impressão normal</button>
         </div>
-        <button onclick="window.glassReception._printLabelBluetooth()" style="width:100%;background:transparent;color:#94a3b8;border:none;padding:8px;font-size:11px;cursor:pointer;margin-top:6px;">experimental: ligar por Web Bluetooth (BLE)</button>
       </div>`;
     document.body.appendChild(ov);
   }
@@ -2568,37 +2567,6 @@
       try { device.gatt.disconnect(); } catch (_) {}
     } catch (e) {
       _btStatus('❌ ' + (e && e.message ? e.message : 'Falha na impressão Bluetooth'));
-    }
-  }
-  // ── IMPRESSÃO via RawBT (Android) ───────────────────────────────────────────
-  // A M110 é Bluetooth Clássico (não BLE), por isso o Web Bluetooth não a vê.
-  // A app grátis "RawBT" (Play Store) trata da ligação Bluetooth e recebe a
-  // etiqueta em ESC/POS. Enviamos os bytes em base64 pelo esquema rawbt:.
-  function _bytesToBase64(bytes) {
-    let bin = '';
-    const CH = 0x8000;
-    for (let i = 0; i < bytes.length; i += CH) {
-      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
-    }
-    return btoa(bin);
-  }
-  function _printLabelRawBT() {
-    const L = window._grLastLabel;
-    if (!L) return;
-    try {
-      const bytes = _phomemoBytes(_drawLabelCanvas(L));
-      const b64 = _bytesToBase64(bytes);
-      _btStatus('📲 A abrir a RawBT…');
-      // Esquema rawbt: — a app RawBT intercepta e imprime na impressora emparelhada.
-      const a = document.createElement('a');
-      a.href = 'rawbt:base64,' + b64;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => a.remove(), 1000);
-      _btStatus('✅ Enviado para a RawBT. Se nada acontecer, instala a app "RawBT" (grátis) e empelha a impressora nela.');
-    } catch (e) {
-      _btStatus('❌ ' + (e && e.message ? e.message : 'Falha ao enviar para a RawBT'));
     }
   }
   function _doPrintLabel() {
@@ -4281,7 +4249,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
