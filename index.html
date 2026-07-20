@@ -2041,8 +2041,8 @@
     const storeNames = [...new Set(appts.map(a => a.portal_name || window.portalConfig?.name || '—'))];
     const multiStore = storeNames.length > 1;
     window._grRawForCard = safeRawForCard;
-    window._grOrderRef = orderRef;
-    window._grEurocode = eurocode;
+    window._grOrderRef = _lblClean(orderRef);
+    window._grEurocode = _lblClean(eurocode);
     window._grRawText = rawText;
     window._grRecepMap = recepMap;
     window._grSelectedStores = new Set(); // empty = show all
@@ -2243,11 +2243,11 @@
 
       // Dados para a etiqueta de receção
       window._grLastLabel = {
-        store: (window.portalConfig && window.portalConfig.name) || '',
-        plate: plate || '',
-        car: (apt && apt.car) || '',
-        eurocode: eurocode || '',
-        orderRef: orderRef || '',
+        store: _lblClean((window.portalConfig && window.portalConfig.name) || ''),
+        plate: _lblClean(plate),
+        car: _lblClean(apt && apt.car),
+        eurocode: _lblClean(eurocode),
+        orderRef: _lblClean(orderRef),
         date: _lblToday()
       };
 
@@ -2363,6 +2363,12 @@
   }
 
   // ── ETIQUETA DE RECEÇÃO ────────────────────────────────────────────────────
+  // Normaliza valores: a IA por vezes devolve o texto "null"/"undefined" em vez
+  // de vazio — isso não pode ir para a etiqueta (ex.: "Enc: null").
+  function _lblClean(v) {
+    const s = (v == null ? '' : String(v)).trim();
+    return /^(null|undefined|none|n\/a)$/i.test(s) ? '' : s;
+  }
   function _lblEsc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
   function _lblToday() {
     const d = new Date();
@@ -2429,7 +2435,8 @@
           <div style="border:1px dashed #94a3b8;border-radius:6px;background:#fff;">${_labelHtml(L)}</div>
         </div>
         <div id="grLabelBtStatus" style="display:none;font-size:12px;color:#64748b;text-align:center;margin-top:10px;"></div>
-        <button onclick="window.glassReception._shareLabelImage()" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:14px;">🖨️ Enviar etiqueta para a impressora</button>
+        <button onclick="window.glassReception._saveLabelImage()" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:14px;">💾 Guardar etiqueta (imprimir na app Phomemo)</button>
+        <button onclick="window.glassReception._shareLabelImage()" style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;margin-top:10px;">📤 Partilhar imagem</button>
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button onclick="document.getElementById('grLabelOverlay').remove()" style="flex:1;background:#e2e8f0;color:#374151;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;">Fechar</button>
           <button onclick="window.glassReception._doPrintLabel()" style="flex:1;background:#334155;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;">🖨️ Impressão normal</button>
@@ -2570,6 +2577,28 @@
       _btStatus('❌ ' + (e && e.message ? e.message : 'Falha na impressão Bluetooth'));
     }
   }
+  // Guardar a etiqueta como imagem PNG (40×30mm) no telemóvel. Estas impressoras
+  // não aparecem na partilha nem como impressora do sistema — o fluxo fiável é
+  // guardar a imagem e depois, na app Phomemo, "importar foto" e imprimir.
+  function _saveLabelImage() {
+    const L = window._grLastLabel;
+    if (!L) return;
+    try {
+      const cv = _drawLabelCanvas(L);
+      cv.toBlob((blob) => {
+        if (!blob) { _btStatus('❌ Falha ao gerar a imagem da etiqueta.'); return; }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const nome = 'etiqueta-' + (L.plate || L.eurocode || 'vidro').replace(/[^A-Za-z0-9]/g, '') + '.png';
+        a.href = url; a.download = nome;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+        _btStatus('✅ Imagem guardada. Abre a app Phomemo → Foto/Importar imagem → escolhe esta etiqueta → imprimir.');
+      }, 'image/png');
+    } catch (e) {
+      _btStatus('❌ ' + (e && e.message ? e.message : 'Não foi possível guardar a imagem.'));
+    }
+  }
   // Enviar a etiqueta para a APP da impressora (Phomemo). Estas impressoras só
   // ligam ao telemóvel através da app própria — não aparecem como impressora do
   // sistema. Geramos a etiqueta em imagem (PNG, 40×30mm) e:
@@ -2695,11 +2724,11 @@
       if (!json.success) throw new Error(json.error || json.message || "Erro desconhecido");
       // Dados para a etiqueta (sem processo → sem matrícula/viatura)
       window._grLastLabel = {
-        store: portalName || '',
+        store: _lblClean(portalName),
         plate: '',
         car: '',
-        eurocode: eurocode || '',
-        orderRef: orderRef || '',
+        eurocode: _lblClean(eurocode),
+        orderRef: _lblClean(orderRef),
         date: _lblToday()
       };
       document.getElementById('grScanBody').innerHTML = `
@@ -4293,7 +4322,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _shareLabelImage };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _shareLabelImage, _saveLabelImage };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
