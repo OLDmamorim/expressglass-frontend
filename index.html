@@ -2460,27 +2460,30 @@
     const ctx = cv.getContext('2d');
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#000'; ctx.textBaseline = 'alphabetic';
+    // Margem de segurança no topo (~2mm): algumas impressoras cortam o início
+    // da etiqueta; assim a loja/matrícula nunca ficam cortadas.
+    const TOP = 16;
     // Loja
-    ctx.font = 'bold 18px Arial';
-    ctx.fillText(_lblTrim(L.store, ctx, W - 12), 8, 20);
-    ctx.fillRect(8, 26, W - 16, 2);
+    ctx.font = 'bold 17px Arial';
+    ctx.fillText(_lblTrim(L.store, ctx, W - 12), 8, TOP + 18);
+    ctx.fillRect(8, TOP + 24, W - 16, 2);
     // Matrícula (ou linha para escrever à mão)
     if (L.plate) {
-      ctx.font = 'bold 34px Arial';
-      ctx.fillText(_lblTrim(L.plate, ctx, W - 12), 8, 64);
+      ctx.font = 'bold 32px Arial';
+      ctx.fillText(_lblTrim(L.plate, ctx, W - 12), 8, TOP + 60);
     } else {
       ctx.font = 'bold 14px Arial';
-      ctx.fillText('Matrícula:', 8, 58);
-      ctx.fillRect(90, 60, 200, 2);
+      ctx.fillText('Matrícula:', 8, TOP + 54);
+      ctx.fillRect(90, TOP + 56, 200, 2);
     }
     // Viatura
-    let y = 84;
+    let y = TOP + 82;
     if (L.car) { ctx.font = '15px Arial'; ctx.fillText(_lblTrim(L.car, ctx, W - 12), 8, y); y += 4; }
     else if (!L.plate) { ctx.font = '14px Arial'; ctx.fillText('Viatura:', 8, y); ctx.fillRect(70, y - 12, 220, 2); }
     // Eurocode (grande)
     if (L.eurocode) {
-      ctx.font = 'bold 26px "Courier New", monospace';
-      ctx.fillText(_lblTrim(L.eurocode, ctx, W - 12), 8, 118);
+      ctx.font = 'bold 25px "Courier New", monospace';
+      ctx.fillText(_lblTrim(L.eurocode, ctx, W - 12), 8, TOP + 116);
     }
     // QR (canto inferior direito) — desenhado célula a célula (nítido)
     let qSide = 0;
