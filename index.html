@@ -2429,10 +2429,10 @@
           <div style="border:1px dashed #94a3b8;border-radius:6px;background:#fff;">${_labelHtml(L)}</div>
         </div>
         <div id="grLabelBtStatus" style="display:none;font-size:12px;color:#64748b;text-align:center;margin-top:10px;"></div>
-        <button onclick="window.glassReception._printLabelBluetooth()" style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:14px;">📶 Imprimir na Phomemo (Bluetooth)</button>
+        <button onclick="window.glassReception._doPrintLabel()" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:14px;">🖨️ Imprimir etiqueta (40×30mm)</button>
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button onclick="document.getElementById('grLabelOverlay').remove()" style="flex:1;background:#e2e8f0;color:#374151;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;">Fechar</button>
-          <button onclick="window.glassReception._doPrintLabel()" style="flex:1;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;">🖨️ Impressão normal</button>
+          <button onclick="window.glassReception._printLabelBluetooth()" style="flex:1;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;">📶 Bluetooth</button>
         </div>
       </div>`;
     document.body.appendChild(ov);
@@ -2569,24 +2569,30 @@
       _btStatus('❌ ' + (e && e.message ? e.message : 'Falha na impressão Bluetooth'));
     }
   }
+  // Impressão "normal": abre a janela de impressão do sistema com a etiqueta
+  // dimensionada EXACTAMENTE a 40×30mm (o formato das etiquetas da Phomemo M110).
+  // Escolhe-se a Phomemo na lista de impressoras e sai já com o tamanho certo.
   function _doPrintLabel() {
     const L = window._grLastLabel;
     if (!L) return;
+    // Reutiliza o desenho nítido do canvas (320×240 = 40×30mm @ 8 dots/mm)
+    const dataUrl = _drawLabelCanvas(L).toDataURL('image/png');
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
     document.body.appendChild(iframe);
     const doc = iframe.contentWindow.document;
     doc.open();
     doc.write(`<!doctype html><html><head><meta charset="utf-8"><style>
-      @page { size: 58mm auto; margin: 0; }
+      @page { size: 40mm 30mm; margin: 0; }
       html,body { margin:0; padding:0; }
-    </style></head><body>${_labelHtml(L)}</body></html>`);
+      img { display:block; width:40mm; height:30mm; }
+    </style></head><body><img src="${dataUrl}"></body></html>`);
     doc.close();
     try { iframe.contentWindow.focus(); } catch (_) {}
-    setTimeout(() => {
-      try { iframe.contentWindow.print(); } catch (_) {}
-      setTimeout(() => iframe.remove(), 1500);
-    }, 300);
+    const doPrint = () => { try { iframe.contentWindow.print(); } catch (_) {} setTimeout(() => iframe.remove(), 1500); };
+    const img = doc.images && doc.images[0];
+    if (img && !img.complete) { img.onload = doPrint; img.onerror = doPrint; }
+    else setTimeout(doPrint, 250);
   }
 
   async function _showOrphanConfirm() {
