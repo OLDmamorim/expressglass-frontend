@@ -2435,13 +2435,12 @@
           <div style="border:1px dashed #94a3b8;border-radius:6px;background:#fff;">${_labelHtml(L)}</div>
         </div>
         <div id="grLabelBtStatus" style="display:none;font-size:12px;color:#64748b;text-align:center;margin-top:10px;"></div>
-        <button onclick="window.glassReception._saveLabelImage()" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:14px;">💾 Guardar etiqueta (imprimir na app Phomemo)</button>
-        <button onclick="window.glassReception._shareLabelImage()" style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:700;cursor:pointer;margin-top:10px;">📤 Partilhar imagem</button>
+        <button onclick="window.glassReception._printLabelRawBT()" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:13px;font-weight:800;cursor:pointer;margin-top:14px;">🖨️ Imprimir na Phomemo</button>
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button onclick="document.getElementById('grLabelOverlay').remove()" style="flex:1;background:#e2e8f0;color:#374151;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;">Fechar</button>
           <button onclick="window.glassReception._doPrintLabel()" style="flex:1;background:#334155;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;">🖨️ Impressão normal</button>
         </div>
-        <button onclick="window.glassReception._printLabelBluetooth()" style="width:100%;background:transparent;color:#94a3b8;border:none;padding:8px;font-size:11px;cursor:pointer;margin-top:6px;">experimental: ligar por Bluetooth (BLE)</button>
+        <div style="font-size:11px;color:#94a3b8;text-align:center;margin-top:8px;line-height:1.4;">1ª vez: instala a app <b>RawBT</b> (grátis) e liga a M110 nela.</div>
       </div>`;
     document.body.appendChild(ov);
   }
@@ -2577,64 +2576,32 @@
       _btStatus('❌ ' + (e && e.message ? e.message : 'Falha na impressão Bluetooth'));
     }
   }
-  // Guardar a etiqueta como imagem PNG (40×30mm) no telemóvel. Estas impressoras
-  // não aparecem na partilha nem como impressora do sistema — o fluxo fiável é
-  // guardar a imagem e depois, na app Phomemo, "importar foto" e imprimir.
-  function _saveLabelImage() {
+  // Impressão direta na Phomemo M110 através da app-ponte RawBT (Android).
+  // A M110 é Bluetooth Clássico — um browser não lhe fala diretamente. A RawBT
+  // (grátis) trata da ligação e recebe a etiqueta em ESC/POS pelo esquema rawbt:.
+  // Depois da configuração inicial, é um toque → imprime.
+  function _bytesToBase64(bytes) {
+    let bin = '';
+    const CH = 0x8000;
+    for (let i = 0; i < bytes.length; i += CH) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+    }
+    return btoa(bin);
+  }
+  function _printLabelRawBT() {
     const L = window._grLastLabel;
     if (!L) return;
     try {
-      const cv = _drawLabelCanvas(L);
-      cv.toBlob((blob) => {
-        if (!blob) { _btStatus('❌ Falha ao gerar a imagem da etiqueta.'); return; }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const nome = 'etiqueta-' + (L.plate || L.eurocode || 'vidro').replace(/[^A-Za-z0-9]/g, '') + '.png';
-        a.href = url; a.download = nome;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
-        _btStatus('✅ Imagem guardada. Abre a app Phomemo → Foto/Importar imagem → escolhe esta etiqueta → imprimir.');
-      }, 'image/png');
+      const b64 = _bytesToBase64(_phomemoBytes(_drawLabelCanvas(L)));
+      _btStatus('🖨️ A enviar para a impressora…');
+      // Abre a RawBT com os bytes ESC/POS — imprime direto na M110 emparelhada.
+      window.location.href = 'rawbt:base64,' + b64;
+      setTimeout(() => {
+        _btStatus('Se não imprimiu: instala a app RawBT (grátis) e liga a M110 nela. Em alternativa usa "Impressão normal" e escolhe RawBT.');
+      }, 2500);
     } catch (e) {
-      _btStatus('❌ ' + (e && e.message ? e.message : 'Não foi possível guardar a imagem.'));
+      _btStatus('❌ ' + (e && e.message ? e.message : 'Falha ao enviar para a impressora'));
     }
-  }
-  // Enviar a etiqueta para a APP da impressora (Phomemo). Estas impressoras só
-  // ligam ao telemóvel através da app própria — não aparecem como impressora do
-  // sistema. Geramos a etiqueta em imagem (PNG, 40×30mm) e:
-  //  1) partilhamos o ficheiro (Android abre a folha de partilha → escolher Phomemo);
-  //  2) se não houver partilha de ficheiros, guardamos a imagem para importar na app.
-  function _shareLabelImage() {
-    const L = window._grLastLabel;
-    if (!L) return;
-    const cv = _drawLabelCanvas(L);
-    _btStatus('🖼️ A preparar a etiqueta…');
-    cv.toBlob(async (blob) => {
-      if (!blob) { _btStatus('❌ Falha ao gerar a imagem da etiqueta.'); return; }
-      const file = new File([blob], 'etiqueta.png', { type: 'image/png' });
-      // 1) Partilha do ficheiro (abre a app da impressora)
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: 'Etiqueta' });
-          _btStatus('✅ Escolhe a app da impressora (Phomemo) para imprimir.');
-          return;
-        } catch (e) {
-          if (e && e.name === 'AbortError') { _btStatus(''); return; } // cancelado pelo utilizador
-          // qualquer outro erro → cai para o download
-        }
-      }
-      // 2) Fallback: descarregar a imagem para importar na app
-      try {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'etiqueta.png';
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 3000);
-        _btStatus('✅ Imagem guardada. Abre a app Phomemo → importar imagem → imprimir.');
-      } catch (e) {
-        _btStatus('❌ ' + (e && e.message ? e.message : 'Não foi possível guardar a imagem.'));
-      }
-    }, 'image/png');
   }
   // Impressão "normal": abre a janela de impressão do sistema com a etiqueta
   // dimensionada EXACTAMENTE a 40×30mm (o formato das etiquetas da Phomemo M110).
@@ -4322,7 +4289,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _shareLabelImage, _saveLabelImage };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
