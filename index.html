@@ -2429,11 +2429,12 @@
           <div style="border:1px dashed #94a3b8;border-radius:6px;background:#fff;">${_labelHtml(L)}</div>
         </div>
         <div id="grLabelBtStatus" style="display:none;font-size:12px;color:#64748b;text-align:center;margin-top:10px;"></div>
-        <button onclick="window.glassReception._doPrintLabel()" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:14px;">🖨️ Imprimir etiqueta (40×30mm)</button>
+        <button onclick="window.glassReception._shareLabelImage()" style="width:100%;background:#0f766e;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;margin-top:14px;">🖨️ Enviar etiqueta para a impressora</button>
         <div style="display:flex;gap:10px;margin-top:10px;">
           <button onclick="document.getElementById('grLabelOverlay').remove()" style="flex:1;background:#e2e8f0;color:#374151;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;">Fechar</button>
-          <button onclick="window.glassReception._printLabelBluetooth()" style="flex:1;background:#2563eb;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:800;cursor:pointer;">📶 Bluetooth</button>
+          <button onclick="window.glassReception._doPrintLabel()" style="flex:1;background:#334155;color:#fff;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;">🖨️ Impressão normal</button>
         </div>
+        <button onclick="window.glassReception._printLabelBluetooth()" style="width:100%;background:transparent;color:#94a3b8;border:none;padding:8px;font-size:11px;cursor:pointer;margin-top:6px;">experimental: ligar por Bluetooth (BLE)</button>
       </div>`;
     document.body.appendChild(ov);
   }
@@ -2568,6 +2569,43 @@
     } catch (e) {
       _btStatus('❌ ' + (e && e.message ? e.message : 'Falha na impressão Bluetooth'));
     }
+  }
+  // Enviar a etiqueta para a APP da impressora (Phomemo). Estas impressoras só
+  // ligam ao telemóvel através da app própria — não aparecem como impressora do
+  // sistema. Geramos a etiqueta em imagem (PNG, 40×30mm) e:
+  //  1) partilhamos o ficheiro (Android abre a folha de partilha → escolher Phomemo);
+  //  2) se não houver partilha de ficheiros, guardamos a imagem para importar na app.
+  function _shareLabelImage() {
+    const L = window._grLastLabel;
+    if (!L) return;
+    const cv = _drawLabelCanvas(L);
+    _btStatus('🖼️ A preparar a etiqueta…');
+    cv.toBlob(async (blob) => {
+      if (!blob) { _btStatus('❌ Falha ao gerar a imagem da etiqueta.'); return; }
+      const file = new File([blob], 'etiqueta.png', { type: 'image/png' });
+      // 1) Partilha do ficheiro (abre a app da impressora)
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'Etiqueta' });
+          _btStatus('✅ Escolhe a app da impressora (Phomemo) para imprimir.');
+          return;
+        } catch (e) {
+          if (e && e.name === 'AbortError') { _btStatus(''); return; } // cancelado pelo utilizador
+          // qualquer outro erro → cai para o download
+        }
+      }
+      // 2) Fallback: descarregar a imagem para importar na app
+      try {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'etiqueta.png';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 3000);
+        _btStatus('✅ Imagem guardada. Abre a app Phomemo → importar imagem → imprimir.');
+      } catch (e) {
+        _btStatus('❌ ' + (e && e.message ? e.message : 'Não foi possível guardar a imagem.'));
+      }
+    }, 'image/png');
   }
   // Impressão "normal": abre a janela de impressão do sistema com a etiqueta
   // dimensionada EXACTAMENTE a 40×30mm (o formato das etiquetas da Phomemo M110).
@@ -4255,7 +4293,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _shareLabelImage };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
