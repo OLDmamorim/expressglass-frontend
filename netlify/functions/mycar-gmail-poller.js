@@ -16,6 +16,7 @@ const { Pool } = require('pg');
 const Imap = require('imap');
 const { simpleParser } = require('mailparser');
 const cheerio = require('cheerio');
+const https = require('https');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -24,6 +25,92 @@ const pool = new Pool({
 
 const GMAIL_USER     = process.env.MYCAR_GMAIL_USER;
 const GMAIL_PASSWORD = process.env.MYCAR_GMAIL_PASSWORD;
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+
+function callAnthropic(systemPrompt, userMsg) {
+  return new Promise((resolve, reject) => {
+    if (!ANTHROPIC_API_KEY) return reject(new Error('ANTHROPIC_API_KEY não configurada'));
+    const body = JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 400,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMsg }]
+    });
+    const options = {
+      hostname: 'api.anthropic.com',
+      path: '/v1/messages',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'Content-Length': Buffer.byteLength(body)
+      }
+    };
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
+        try { resolve(JSON.parse(data)); }
+        catch (e) { reject(new Error('Erro a parsear resposta da IA: ' + data)); }
+      });
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+// Um email de acompanhamento chegou com o MESMO assunto de uma entrada que já
+// tem descrição/valor/eurocode preenchidos. Pergunta à IA se isto é uma
+// alteração real do pedido (ex.: substituição passou a reparação, mudou o
+// valor) ou um cancelamento — em vez de simplesmente ignorar como "sem novidade".
+async function analyzeFollowupEmail({ existing, subject, body, tableRows }) {
+  const systemPrompt = `És um assistente que trata emails de acompanhamento de pedidos de serviço recebidos no Mural MyCar Center (oficina de reparação/substituição de vidros automóveis em Portugal).
+
+Já existe uma entrada registada para este assunto de email, com estes dados atuais:
+- Descrição: ${existing.descricao || '(vazia)'}
+- Valor: ${existing.valor != null ? existing.valor : '(vazio)'}
+- Eurocode: ${existing.eurocode || '(vazio)'}
+- Estado: ${existing.status}
+
+Chegou agora um NOVO email com o MESMO assunto (um email de acompanhamento/resposta na mesma conversa). A tua tarefa é perceber se este novo email traz uma alteração real ao pedido:
+- "cancelar" — o email diz que o serviço/encomenda foi cancelado, anulado ou já não é necessário.
+- "atualizar" — o email muda algo de facto (ex.: passou de substituição para reparação, mudou o valor, mudou o eurocode/peça, corrigiu a descrição).
+- "sem_alteracao" — o email não traz nenhuma alteração relevante ao pedido (ex.: agradecimento, confirmação de receção, resposta administrativa sem novos dados, assunto repetido por engano).
+
+Responde EXCLUSIVAMENTE em JSON válido, sem texto adicional:
+{"action": "cancelar" | "atualizar" | "sem_alteracao", "descricao": "..." ou null, "valor": number ou null, "eurocode": "..." ou null, "motivo": "resumo curto (1 frase, português) do que mudou ou da razão"}
+
+Em "atualizar", só preenche descricao/valor/eurocode quando o novo email realmente indicar esse novo valor — deixa a null o que não for mencionado (não repitas o valor antigo). Em "cancelar" ou "sem_alteracao", deixa descricao/valor/eurocode a null.`;
+
+  const tableStr = (tableRows || []).map(r =>
+    `- matrícula ${r.matricula || '?'} | serviço: ${r.descricao || '?'} | valor: ${r.valor != null ? r.valor : '?'} | eurocode: ${r.eurocode || '?'}`
+  ).join('\n');
+
+  const userMsg = `Assunto do email: ${subject}
+
+Corpo do email:
+${body || '(sem texto útil extraído)'}
+
+${tableStr ? `Tabela encontrada no email:\n${tableStr}` : ''}`;
+
+  const result = await callAnthropic(systemPrompt, userMsg);
+  if (result.error) throw new Error(result.error.message || 'Erro da API Anthropic');
+
+  const text = result.content?.[0]?.text || '';
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) throw new Error('Resposta da IA sem JSON: ' + text.slice(0, 200));
+  const parsed = JSON.parse(m[0]);
+
+  if (!['cancelar', 'atualizar', 'sem_alteracao'].includes(parsed.action)) {
+    parsed.action = 'sem_alteracao';
+  }
+  if (parsed.valor != null && typeof parsed.valor !== 'number') {
+    parsed.valor = parseValor(String(parsed.valor));
+  }
+  return parsed;
+}
 
 // Extrai o número WIP do assunto: "RE: BR-04-QA | SJNTAAJ12U2111980 | WIP: 61336" → "WIP: 61336"
 function extractWip(subject) {
@@ -179,6 +266,7 @@ async function ensureTable(client) {
   `);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_body TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS historico TEXT`);
   // Migrar constraint de status para incluir novos estados
   await client.query(`ALTER TABLE mycar_services DROP CONSTRAINT IF EXISTS mycar_services_status_check`);
   await client.query(`UPDATE mycar_services SET status = 'realizado' WHERE status = 'tratado'`);
@@ -343,7 +431,7 @@ async function runPoller() {
     }
 
     let totalImported = 0;
-    const stats = { withTable: 0, viaSubject: 0, noId: 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0 };
+    const stats = { withTable: 0, viaSubject: 0, noId: 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0, atualizadosIA: 0, cancelados: 0 };
 
     for (const email of emails) {
      try {
@@ -382,7 +470,7 @@ async function runPoller() {
         // Casar por ASSUNTO (um email = um orçamento) para atualizar a
         // entrada certa mesmo que a matrícula tenha entrado diferente antes.
         const { rows: existing } = await client.query(
-          `SELECT id, descricao, valor, eurocode FROM mycar_services WHERE email_subject = $1 LIMIT 1`,
+          `SELECT id, descricao, valor, eurocode, status FROM mycar_services WHERE email_subject = $1 LIMIT 1`,
           [subject]
         );
         if (existing.length > 0) {
@@ -404,7 +492,44 @@ async function runPoller() {
             totalImported++; stats.updated++;
             console.log(`🔧 Detalhes preenchidos: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
           } else {
-            stats.skipped++;
+            // A entrada já tem detalhes — este pode ser um email de
+            // acompanhamento com uma alteração real (troca de serviço,
+            // correção de valor, cancelamento). Usa IA para decidir.
+            let decision = null;
+            try {
+              decision = await analyzeFollowupEmail({ existing: e, subject, body, tableRows });
+            } catch (aiErr) {
+              console.error('⚠️ IA de acompanhamento falhou, a ignorar email:', aiErr.message);
+            }
+
+            if (decision?.action === 'cancelar') {
+              await client.query(
+                `UPDATE mycar_services
+                   SET status = 'rejeitado',
+                       historico = COALESCE(historico || E'\n', '') || $1,
+                       updated_at = NOW()
+                 WHERE id = $2`,
+                [`[${new Date().toLocaleString('pt-PT')}] Cancelado por email de acompanhamento: ${decision.motivo || subject}`, e.id]
+              );
+              totalImported++; stats.cancelados++;
+              console.log(`🚫 Cancelado por email: ${e.id} | ${decision.motivo || ''}`);
+            } else if (decision?.action === 'atualizar') {
+              await client.query(
+                `UPDATE mycar_services
+                   SET descricao = COALESCE($1, descricao),
+                       valor     = COALESCE($2, valor),
+                       eurocode  = COALESCE($3, eurocode),
+                       historico = COALESCE(historico || E'\n', '') || $4,
+                       updated_at = NOW()
+                 WHERE id = $5`,
+                [decision.descricao, decision.valor, decision.eurocode,
+                 `[${new Date().toLocaleString('pt-PT')}] Alterado por email de acompanhamento: ${decision.motivo || ''}`, e.id]
+              );
+              totalImported++; stats.atualizadosIA++;
+              console.log(`✏️ Atualizado por IA: ${e.id} | ${decision.motivo || ''}`);
+            } else {
+              stats.skipped++;
+            }
           }
           continue;
         }
