@@ -38,6 +38,7 @@ async function ensureTable(client) {
   `);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_body TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS historico TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS viewed_at TIMESTAMP`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS car TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
