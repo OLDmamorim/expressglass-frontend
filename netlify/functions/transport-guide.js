@@ -1,7 +1,7 @@
 const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
 const pdfParse = require('pdf-parse');
-const https = require('https');
+const { callAI } = require('../lib/ai');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
@@ -26,52 +26,24 @@ function extractEurocodes(text) {
   return [...codes];
 }
 
-function callAnthropicVision(imageBase64, mimeType) {
-  return new Promise((resolve, reject) => {
-    const key = process.env.ANTHROPIC_API_KEY;
-    if (!key) return reject(new Error('ANTHROPIC_API_KEY não configurada'));
-
-    const body = JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 400,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: { type: 'base64', media_type: mimeType, data: imageBase64 }
-          },
-          {
-            type: 'text',
-            text: 'Esta é uma Guia de Transporte AT portuguesa para vidros automóveis. Extrai todos os Eurocodes presentes na imagem. Os Eurocodes têm formato: 4 dígitos seguidos de letras maiúsculas e números (exemplos: 3739AB1C, 5385AGNVZPBL, 6564XY2Z). Lista apenas os códigos encontrados, um por linha, sem texto adicional. Se não encontrares nenhum, responde apenas: NENHUM'
-          }
-        ]
-      }]
-    });
-
-    const options = {
-      hostname: 'api.anthropic.com',
-      path: '/v1/messages',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'Content-Length': Buffer.byteLength(body)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch (e) { reject(new Error('Resposta inválida da API: ' + data.slice(0, 200))); }
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
+function readGuideWithAI(imageBase64, mimeType) {
+  return callAI({
+    max_tokens: 400,
+    model: 'gpt-4o-mini',
+    fallbackModel: 'claude-haiku-4-5-20251001',
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'image',
+          source: { type: 'base64', media_type: mimeType, data: imageBase64 }
+        },
+        {
+          type: 'text',
+          text: 'Esta é uma Guia de Transporte AT portuguesa para vidros automóveis. Extrai todos os Eurocodes presentes na imagem. Os Eurocodes têm formato: 4 dígitos seguidos de letras maiúsculas e números (exemplos: 3739AB1C, 5385AGNVZPBL, 6564XY2Z). Lista apenas os códigos encontrados, um por linha, sem texto adicional. Se não encontrares nenhum, responde apenas: NENHUM'
+        }
+      ]
+    }]
   });
 }
 
@@ -163,7 +135,7 @@ exports.handler = async (event) => {
         }
       } else if (isImage) {
         try {
-          const result = await callAnthropicVision(pdf_data, file_type);
+          const result = await readGuideWithAI(pdf_data, file_type);
           if (result.error) throw new Error(result.error.message || 'Erro API vision');
           const text = result.content?.[0]?.text || '';
           autoEurocodes = extractEurocodes(text);

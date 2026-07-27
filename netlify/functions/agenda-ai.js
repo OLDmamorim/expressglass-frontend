@@ -1,45 +1,11 @@
 // netlify/functions/agenda-ai.js
-const https = require('https');
 const jwt = require('jsonwebtoken');
+const { callAI } = require('../lib/ai');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-function callAnthropic(systemPrompt, messages) {
-  return new Promise((resolve, reject) => {
-    if (!ANTHROPIC_API_KEY) return reject(new Error('ANTHROPIC_API_KEY não configurada'));
-
-    const body = JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages
-    });
-
-    const options = {
-      hostname: 'api.anthropic.com',
-      path: '/v1/messages',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Length': Buffer.byteLength(body)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch(e) { reject(new Error('Erro a parsear resposta: ' + data)); }
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
+function askAI(systemPrompt, messages) {
+  return callAI({ system: systemPrompt, messages, max_tokens: 1000, model: 'gpt-4o' });
 }
 
 exports.handler = async (event) => {
@@ -250,7 +216,7 @@ ${diasCheios.length ? `DIAS CHEIOS (não sugerir): ${diasCheios.map(d => d.date)
 
 Responde em português europeu, de forma concisa (máximo 5 linhas). Sê direto: diz o dia, quantos serviços já tem, as localidades desse dia, e porque faz sentido geograficamente agrupar.`;
 
-    const result = await callAnthropic(systemPrompt, messages);
+    const result = await askAI(systemPrompt, messages);
 
     if (result.error) throw new Error(result.error.message || 'Erro da API');
 

@@ -16,7 +16,7 @@ const { Pool } = require('pg');
 const Imap = require('imap');
 const { simpleParser } = require('mailparser');
 const cheerio = require('cheerio');
-const https = require('https');
+const { callAI } = require('../lib/ai');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -25,39 +25,13 @@ const pool = new Pool({
 
 const GMAIL_USER     = process.env.MYCAR_GMAIL_USER;
 const GMAIL_PASSWORD = process.env.MYCAR_GMAIL_PASSWORD;
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
-function callAnthropic(systemPrompt, userMsg) {
-  return new Promise((resolve, reject) => {
-    if (!ANTHROPIC_API_KEY) return reject(new Error('ANTHROPIC_API_KEY não configurada'));
-    const body = JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 400,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userMsg }]
-    });
-    const options = {
-      hostname: 'api.anthropic.com',
-      path: '/v1/messages',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Length': Buffer.byteLength(body)
-      }
-    };
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', c => data += c);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch (e) { reject(new Error('Erro a parsear resposta da IA: ' + data)); }
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
+function askAI(systemPrompt, userMsg) {
+  return callAI({
+    system: systemPrompt,
+    messages: [{ role: 'user', content: userMsg }],
+    max_tokens: 400,
+    model: 'gpt-4o-mini'
   });
 }
 
@@ -95,7 +69,7 @@ ${body || '(sem texto útil extraído)'}
 
 ${tableStr ? `Tabela encontrada no email:\n${tableStr}` : ''}`;
 
-  const result = await callAnthropic(systemPrompt, userMsg);
+  const result = await askAI(systemPrompt, userMsg);
   if (result.error) throw new Error(result.error.message || 'Erro da API Anthropic');
 
   const text = result.content?.[0]?.text || '';
