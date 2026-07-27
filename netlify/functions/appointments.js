@@ -9,6 +9,24 @@ const pool = new Pool({
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
+// Nunca gravar o JSON interno ({"eurocode":…,"photo_url":…,"history":…}) no
+// campo do eurocode — chegou a ser reescrito a cada edição e aparecia em bruto
+// nos cards. Desembrulha o blob e devolve só o eurocode real (ou null).
+function cleanEurocode(v) {
+  let s = (v == null) ? '' : String(v).trim();
+  for (let i = 0; i < 5 && s; i++) {
+    if (s[0] !== '{' && s[0] !== '"') break;
+    let parsed, ok = true;
+    try { parsed = JSON.parse(s); } catch (e) { ok = false; }
+    if (!ok) break;
+    if (parsed && typeof parsed === 'object') { s = (parsed.eurocode == null) ? '' : String(parsed.eurocode).trim(); continue; }
+    if (typeof parsed === 'string') { s = parsed.trim(); continue; }
+    break;
+  }
+  if (!s || s.includes('"eurocode"') || s.includes('"photo_url"') || s.includes('"history"')) return null;
+  return s;
+}
+
 function normalizeOrderRef(v) {
   if (!v) return null;
   const s = String(v).trim();
@@ -314,6 +332,18 @@ exports.handler = async (event) => {
         [portalId]
       ).catch(() => {});
 
+      // O mesmo blob chegou a ficar gravado em glass_eurocode (editar um
+      // agendamento reescrevia-o), aparecendo em bruto nos cards.
+      pool.query(
+        `UPDATE appointments SET glass_eurocode = NULL
+         WHERE portal_id = $1
+           AND glass_eurocode IS NOT NULL
+           AND (glass_eurocode LIKE '%"eurocode":%'
+             OR glass_eurocode LIKE '%"photo_url":%'
+             OR glass_eurocode LIKE '%"history":%')`,
+        [portalId]
+      ).catch(() => {});
+
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
     }
 
@@ -386,7 +416,7 @@ exports.handler = async (event) => {
         data.extra_services ? JSON.stringify(data.extra_services) : null,
         data.n_obra || null,
         normalizeOrderRef(data.order_ref),
-        data.glass_eurocode || data.eurocode || null,
+        cleanEurocode(data.glass_eurocode || data.eurocode),
         portalId, createdAt, new Date().toISOString(),
         data.comp_sales_desc || null,
         data.comp_sales_nif || null,
@@ -504,7 +534,7 @@ exports.handler = async (event) => {
         data.comp_sales_name !== undefined ? (data.comp_sales_name || null) : null,
         data.comp_sales_faturado !== undefined ? (!!data.comp_sales_faturado) : false,
         data.order_ref !== undefined ? normalizeOrderRef(data.order_ref) : null,
-        data.glass_eurocode !== undefined ? (data.glass_eurocode || null) : null,
+        data.glass_eurocode !== undefined ? cleanEurocode(data.glass_eurocode) : null,
         // Preservar tempo personalizado: usar o valor enviado; se não vier no payload,
         // manter o que já está na BD (evita perder o tempo em updates parciais).
         data.custom_service_time !== undefined

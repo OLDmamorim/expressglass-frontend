@@ -1036,6 +1036,29 @@ function stripInternalJson(s) {
 }
 window.stripInternalJson = stripInternalJson;
 
+// Devolve o eurocode real de um valor que possa ter sido contaminado com o
+// JSON interno ({"eurocode":…,"photo_url":…,"history":…}). Edições sucessivas
+// chegaram a aninhar o blob dentro do próprio campo eurocode, por isso
+// desembrulha em ciclo. Devolve '' quando não sobra um eurocode legítimo.
+function cleanEurocode(v) {
+  let s = (v == null) ? '' : String(v).trim();
+  for (let i = 0; i < 5 && s; i++) {
+    // Se o valor é JSON (objeto ou string codificada), desembrulha uma camada
+    if (s[0] === '{' || s[0] === '"') {
+      let parsed, ok = true;
+      try { parsed = JSON.parse(s); } catch (e) { ok = false; }
+      if (ok && parsed && typeof parsed === 'object') { s = (parsed.eurocode == null) ? '' : String(parsed.eurocode).trim(); continue; }
+      if (ok && typeof parsed === 'string') { s = parsed.trim(); continue; }
+    }
+    // Caso contrário, tenta remover o blob de dentro do texto
+    const st = stripInternalJson(s);
+    if (st !== s) { s = String(st).trim(); continue; }
+    break;
+  }
+  return (s.indexOf('"eurocode"') !== -1 || s.indexOf('"photo_url"') !== -1 || s.indexOf('"history"') !== -1) ? '' : s;
+}
+window.cleanEurocode = cleanEurocode;
+
 // Limpa o blob interno de todos os campos de texto de um agendamento (mutação
 // no próprio objeto). Seguro chamar em qualquer path de carregamento/sync.
 function sanitizeAppointmentText(a) {
@@ -1990,6 +2013,7 @@ async function load(){
       return {
         ...a,
         notes: stripInternalJson(a.notes || ''),
+        glass_eurocode: cleanEurocode(a.glass_eurocode),
         client_name: stripInternalJson(a.client_name),
         car: stripInternalJson(a.car),
         locality: stripInternalJson(a.locality),
@@ -2622,7 +2646,9 @@ function editAppointment(id) {
   if (appointment.extra) {
     try { _extraParsed = JSON.parse(appointment.extra); } catch(e) { _extraParsed = null; }
   }
-  const _eurocode = _extraParsed ? (_extraParsed.eurocode || '') : (appointment.extra || '');
+  // Nunca cair para o `extra` em bruto: era assim que o JSON interno ia parar
+  // ao campo do eurocode e voltava a ser gravado na edição seguinte.
+  const _eurocode = cleanEurocode(_extraParsed ? _extraParsed.eurocode : appointment.extra);
   const _photoUrl = _extraParsed ? (_extraParsed.photo_url || '') : (appointment.photo_url || '');
   const _history = _extraParsed ? (_extraParsed.history || '') : '';
   document.getElementById('appointmentExtra').value = _eurocode;
@@ -2844,12 +2870,12 @@ function buildDesktopCard(a){
   const service = a.service || 'PB';
   const car = (a.car || '').toUpperCase();
   const clientNameStr = a.client_name ? a.client_name : '';
-  let _extraDisplay = a.glass_eurocode || '';
+  let _extraDisplay = cleanEurocode(a.glass_eurocode);
   if (!_extraDisplay && a.extra) {
     try {
       const _p = typeof a.extra === 'string' ? JSON.parse(a.extra) : a.extra;
-      _extraDisplay = (typeof _p === 'object' && _p !== null) ? (_p.eurocode || '') : (typeof _p === 'string' ? _p : '');
-    } catch(e) { _extraDisplay = typeof a.extra === 'string' ? a.extra : ''; }
+      _extraDisplay = (typeof _p === 'object' && _p !== null) ? cleanEurocode(_p.eurocode) : cleanEurocode(_p);
+    } catch(e) { _extraDisplay = cleanEurocode(a.extra); }
   }
   const userRole = window.authClient?.getUser()?.role;
   const canSeeUnconfirmed = userRole === 'admin' || userRole === 'coordenador';

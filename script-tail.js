@@ -92,8 +92,9 @@ const telBtn = phone ? `
     a.first_of_day ? `<span class="m-chip" style="background:#f59e0b;color:#fff;font-weight:700;">⭐ 1.º</span>` : '',
     a.second_of_day ? `<span class="m-chip" style="background:#f97316;color:#fff;font-weight:700;">⭐ 2.º</span>` : ''
   ].filter(Boolean).join('');
-  let _extraDisp = '';
-  if (a.extra) { try { const _p = typeof a.extra === 'string' ? JSON.parse(a.extra) : a.extra; _extraDisp = (typeof _p === 'object' && _p !== null) ? (_p.eurocode || '') : ''; } catch(e) { _extraDisp = ''; } }
+  const _clEc = window.cleanEurocode || function(v){ return v || ''; };
+  let _extraDisp = _clEc(a.glass_eurocode);
+  if (!_extraDisp && a.extra) { try { const _p = typeof a.extra === 'string' ? JSON.parse(a.extra) : a.extra; _extraDisp = (typeof _p === 'object' && _p !== null) ? _clEc(_p.eurocode) : ''; } catch(e) { _extraDisp = ''; } }
   const _mRole = window.authClient?.getUser?.()?.role;
   // Não mostrar notas que contenham o JSON interno (eurocode/photo_url/history)
   const _mNotesClean = (a.notes && /"eurocode"|"photo_url"|"history"/.test(a.notes)) ? null : a.notes;
@@ -1321,7 +1322,8 @@ function bootApp() {
       address:get('appointmentAddress'),
       phone:  get('appointmentPhone'),
       extra:  (function() {
-        const eurocode = get('appointmentExtra');
+        // Sanear: se o campo trouxer o JSON interno, guardar só o eurocode real
+        const eurocode = (window.cleanEurocode ? window.cleanEurocode(get('appointmentExtra')) : get('appointmentExtra')) || '';
         // Genéricos (matrícula estrangeira / campo livre): não gravar histórico
         if (document.getElementById('foreignPlate')?.checked) return eurocode || null;
         const photo_url = (document.getElementById('appointmentPhoto')?.value || '').trim();
@@ -1340,7 +1342,7 @@ function bootApp() {
         return JSON.stringify({ eurocode: eurocode, photo_url: photo_url, history: newHistory });
       })(),
       status: (document.getElementById('appointmentStatus')?.value || 'NE'),
-      glass_eurocode: (get('appointmentExtra') || null),
+      glass_eurocode: ((window.cleanEurocode ? window.cleanEurocode(get('appointmentExtra')) : get('appointmentExtra')) || null),
       vehicleType: (document.getElementById('appointmentVehicleType')?.value || localStorage.getItem('eg_last_vehicleType') || 'L'),
       calibration: document.getElementById('appointmentCalibration')?.checked || false,
       first_of_day: document.getElementById('appointmentFirstOfDay')?.checked || false,
