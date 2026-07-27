@@ -1,45 +1,10 @@
 // netlify/functions/report-ai.js
 // Analisa os resultados de um relatório operacional e produz um comentário
-// (o que está bem, o que está mal, o que melhorar). Usa a API da Anthropic.
-const https = require('https');
+// (o que está bem, o que está mal, o que melhorar). Usa a OpenAI.
 const jwt = require('jsonwebtoken');
+const { callAI } = require('../lib/ai');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-
-function callAnthropic(systemPrompt, messages) {
-  return new Promise((resolve, reject) => {
-    if (!ANTHROPIC_API_KEY) return reject(new Error('ANTHROPIC_API_KEY não configurada'));
-    const body = JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1200,
-      system: systemPrompt,
-      messages
-    });
-    const options = {
-      hostname: 'api.anthropic.com',
-      path: '/v1/messages',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Length': Buffer.byteLength(body)
-      }
-    };
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch(e) { reject(new Error('Erro a parsear resposta: ' + data)); }
-      });
-    });
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
 
 exports.handler = async (event) => {
   const headers = {
@@ -117,8 +82,12 @@ ${motivosStr}
 
 Analisa estes resultados.`;
 
-    const result = await callAnthropic(systemPrompt, [{ role: 'user', content: userMsg }]);
-    if (result.error) throw new Error(result.error.message || 'Erro da API');
+    const result = await callAI({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMsg }],
+      max_tokens: 1200,
+      model: 'gpt-4o'
+    });
 
     const reply = result.content?.[0]?.text || 'Sem resposta.';
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, analysis: reply }) };
