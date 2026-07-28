@@ -14,6 +14,7 @@ test('o Impacto carrega a estrada, oficina e controlos principais', () => {
   assert.equal(new Set(ids).size, ids.length, 'não deve haver IDs duplicados');
   assert.equal($('#gameCanvas').length, 1);
   assert.equal($('#startBtn').length, 1);
+  assert.equal($('#touchSteerHint').length, 1);
   assert.equal($('#leftBtn').length, 1);
   assert.equal($('#rightBtn').length, 1);
   assert.equal($('#useGlassBonusBtn').length, 1);
@@ -24,6 +25,18 @@ test('o Impacto carrega a estrada, oficina e controlos principais', () => {
   assert.equal($('script[src^="game-core.js"]').length, 1);
   assert.equal($('script[src^="jogo.js"]').length, 1);
   assert.equal($('link[href^="jogo.css"]').length, 1);
+});
+
+test('no telemóvel o carro acompanha o dedo sem esperar que o toque termine', () => {
+  const html = fs.readFileSync(path.join(root, 'jogo.html'), 'utf8');
+  const script = fs.readFileSync(path.join(root, 'jogo.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(root, 'jogo.css'), 'utf8');
+
+  assert.match(html, /Mantém o dedo e arrasta para conduzir/);
+  assert.match(script, /pointer\.touchSteering = event\.pointerType === 'touch'/);
+  assert.match(script, /function handlePointerMove[\s\S]*?steerWithPointer\(event\)/);
+  assert.match(script, /Core\.dragLane\(pointer\.startLane, dx, rect\.width\)/);
+  assert.match(styles, /@media \(max-width: 680px\), \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.lane-controls\s*\{\s*display: none;/);
 });
 
 test('a experiência é um endless runner ligado ao vidro e já não usa a oficina antiga', () => {
