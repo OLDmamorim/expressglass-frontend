@@ -6,7 +6,7 @@ const cheerio = require('cheerio');
 
 const root = path.resolve(__dirname, '..');
 
-test('a Oficina em Pressão carrega todos os recursos e controlos principais', () => {
+test('o Impacto carrega a estrada, oficina e controlos principais', () => {
   const html = fs.readFileSync(path.join(root, 'jogo.html'), 'utf8');
   const $ = cheerio.load(html);
   const ids = $('[id]').map((_, element) => $(element).attr('id')).get();
@@ -14,58 +14,64 @@ test('a Oficina em Pressão carrega todos os recursos e controlos principais', (
   assert.equal(new Set(ids).size, ids.length, 'não deve haver IDs duplicados');
   assert.equal($('#gameCanvas').length, 1);
   assert.equal($('#startBtn').length, 1);
+  assert.equal($('#leftBtn').length, 1);
+  assert.equal($('#rightBtn').length, 1);
+  assert.equal($('#useGlassBonusBtn').length, 1);
+  assert.equal($('#shopPrompt').length, 1);
+  assert.equal($('#repairBtn').length, 1);
+  assert.equal($('#replaceBtn').length, 1);
   assert.equal($('#rankModal').length, 1);
-  assert.equal($('.stage-track [data-stage-slot]').length, 4);
-  assert.equal($('#decisionPanel').length, 1);
-  assert.equal($('#rotateLeftBtn').length, 1);
-  assert.equal($('#rotateRightBtn').length, 1);
   assert.equal($('script[src^="game-core.js"]').length, 1);
   assert.equal($('script[src^="jogo.js"]').length, 1);
   assert.equal($('link[href^="jogo.css"]').length, 1);
 });
 
-test('a experiência tem duas rotas distintas e já não depende de seguir um traço', () => {
+test('a experiência é um endless runner ligado ao vidro e já não usa a oficina antiga', () => {
   const source = [
     fs.readFileSync(path.join(root, 'jogo.html'), 'utf8'),
     fs.readFileSync(path.join(root, 'jogo.js'), 'utf8')
   ].join('\n').toLowerCase();
 
   for (const legacyTerm of [
-    'tetris',
-    'próximo caco',
-    'encaixa os cacos',
-    'linha completa',
     'segue o fio de corte',
     'acompanha o ponto luminoso',
-    'updatetrace'
+    'escolhe o para-brisas',
+    'controla a pressão',
+    'sincroniza o scanner',
+    'updatetrace',
+    'createjob'
   ]) {
     assert.equal(source.includes(legacyTerm), false, 'encontrado termo antigo: ' + legacyTerm);
   }
+
   for (const mechanic of [
-    'reparar ou substituir',
-    'escolhe o para-brisas',
-    'controla a pressão',
-    'alinha posição e ângulo',
-    'sincroniza o scanner',
-    'teste de estanquidade'
+    'a estrada não perdoa',
+    'muda de faixa',
+    'pedra no para-brisas',
+    'parar na expressglass',
+    'reparar impacto',
+    'substituir vidro',
+    'vidro novo',
+    'pontos ×2'
   ]) {
     assert.equal(source.includes(mechanic), true, 'falta a mecânica: ' + mechanic);
   }
 });
 
-test('a entrada V3 abre diretamente o modo de teste sem passar pelo portal antigo', () => {
-  const entry = fs.readFileSync(path.join(root, 'oficina-v3.html'), 'utf8');
+test('a entrada Impacto abre diretamente o modo de teste sem login', () => {
+  const entry = fs.readFileSync(path.join(root, 'impacto.html'), 'utf8');
   const script = fs.readFileSync(path.join(root, 'jogo.js'), 'utf8');
 
-  assert.match(entry, /jogo\.html\?demo=1(?:&|&amp;)release=oficina-v3/);
+  assert.match(entry, /jogo\.html\?demo=1(?:&|&amp;)release=impacto-v4/);
   assert.match(script, /query\.get\('demo'\) === '1'/);
   assert.match(script, /if \(!token && !demoMode\)/);
-  assert.match(script, /Teste V3 · 90s/);
+  assert.match(script, /Teste Impacto V4/);
 });
 
-test('o endpoint ignora pontuações enviadas pelo navegador', () => {
+test('o endpoint calcula o tempo no servidor e ignora pontuações enviadas', () => {
   const source = fs.readFileSync(path.join(root, 'netlify/functions/game-scores.js'), 'utf8');
   assert.equal(/\bdata\.score\b/.test(source), false);
-  assert.match(source, /Core\.calculateScore\(jobs, session\.multiplier\)/);
+  assert.match(source, /Core\.calculateScore\(run\)/);
+  assert.match(source, /Core\.validateRun\(data\.run, wallElapsedMs\)/);
   assert.match(source, /verifyGameSession/);
 });

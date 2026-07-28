@@ -5,10 +5,13 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  const VERSION = 'oficina-pressao-v3';
-  const TOTAL_MS = 90000;
-  const MAX_JOBS = 10;
-  const MIN_JOB_MS = 5500;
+  const VERSION = 'expressglass-impacto-v4';
+  const MIN_RUN_MS = 3000;
+  const MAX_RUN_MS = 30 * 60 * 1000;
+  const REPAIR_COST = 45;
+  const REPAIR_POWER = 30;
+  const REPAIR_LIMIT = 75;
+  const REPLACE_COST = 150;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -19,107 +22,128 @@
     return Number.isFinite(parsed) ? Math.round(parsed) : fallback;
   }
 
-  function normalizeJobs(rawJobs) {
-    if (!Array.isArray(rawJobs)) return [];
-    return rawJobs.slice(0, MAX_JOBS).map(function (job) {
+  function normalizeRun(rawRun) {
+    const run = rawRun && typeof rawRun === 'object' ? rawRun : {};
+    return {
+      durationMs: clamp(integer(run.durationMs, 0), 0, MAX_RUN_MS),
+      distanceM: clamp(integer(run.distanceM, 0), 0, 1000000),
+      dodged: clamp(integer(run.dodged, 0), 0, 100000),
+      hits: clamp(integer(run.hits, 0), 0, 10000),
+      repairs: clamp(integer(run.repairs, 0), 0, 1000),
+      replacements: clamp(integer(run.replacements, 0), 0, 1000),
+      bonuses: clamp(integer(run.bonuses, 0), 0, 10000),
+      maxCombo: clamp(integer(run.maxCombo, 0), 0, 100000),
+      endingDamage: clamp(integer(run.endingDamage, 0), 0, 100)
+    };
+  }
+
+  function dodgeCredits(size, combo, doubled) {
+    const base = size === 'large' ? 18 : size === 'medium' ? 12 : 8;
+    const safeCombo = clamp(integer(combo, 0), 0, 1000);
+    const comboFactor = 1 + Math.min(1.5, Math.floor(safeCombo / 5) * 0.15);
+    return Math.round(base * comboFactor * (doubled ? 2 : 1));
+  }
+
+  function serviceQuote(type, damage) {
+    const safeDamage = clamp(integer(damage, 0), 0, 100);
+    if (type === 'repair') {
       return {
-        quality: clamp(integer(job && job.quality, 0), 0, 100),
-        durationMs: clamp(integer(job && job.durationMs, 0), 0, 180000),
-        mistakes: clamp(integer(job && job.mistakes, 0), 0, 30)
+        type,
+        cost: REPAIR_COST,
+        restore: REPAIR_POWER,
+        allowed: safeDamage > 0 && safeDamage < REPAIR_LIMIT,
+        reason: safeDamage >= REPAIR_LIMIT
+          ? 'O vidro está demasiado danificado para reparar'
+          : safeDamage === 0
+            ? 'O vidro não tem danos'
+            : ''
       };
-    });
-  }
-
-  function calculateJobPoints(job, index) {
-    const quality = clamp(integer(job.quality, 0), 0, 100);
-    const durationMs = clamp(integer(job.durationMs, 0), 0, 180000);
-    const mistakes = clamp(integer(job.mistakes, 0), 0, 30);
-    const base = 700;
-    const qualityPoints = quality * 14;
-    const speedBonus = clamp(Math.round((19000 - durationMs) / 18), 0, 650);
-    const cleanBonus = mistakes === 0 ? 250 : 0;
-    const comboBonus = clamp(index, 0, 5) * 180;
-    return Math.max(100, base + qualityPoints + speedBonus + cleanBonus + comboBonus - mistakes * 90);
-  }
-
-  function calculateScore(rawJobs, multiplier) {
-    const jobs = normalizeJobs(rawJobs);
-    const safeMultiplier = multiplier === 2 ? 2 : 1;
-    const subtotal = jobs.reduce(function (total, job, index) {
-      return total + calculateJobPoints(job, index);
-    }, 0);
-    return subtotal * safeMultiplier;
-  }
-
-  function averageQuality(rawJobs) {
-    const jobs = normalizeJobs(rawJobs);
-    if (!jobs.length) return 0;
-    return Math.round(jobs.reduce(function (total, job) {
-      return total + job.quality;
-    }, 0) / jobs.length);
-  }
-
-  function qualityLabel(value) {
-    const quality = clamp(integer(value, 0), 0, 100);
-    if (quality >= 96) return 'Serviço perfeito';
-    if (quality >= 88) return 'Excelente trabalho';
-    if (quality >= 76) return 'Bom serviço';
-    if (quality >= 60) return 'Serviço concluído';
-    return 'Precisa de afinação';
-  }
-
-  function isRepairable(damage) {
-    if (!damage || typeof damage !== 'object') return false;
-    const diameter = Number(damage.diameterMm);
-    const edge = Number(damage.edgeDistanceMm);
-    return Number.isFinite(diameter) &&
-      Number.isFinite(edge) &&
-      diameter <= 25 &&
-      edge >= 60 &&
-      damage.driverField === false;
-  }
-
-  function glassMatches(required, candidate) {
-    if (!required || !candidate) return false;
-    return ['camera', 'rainSensor', 'heated', 'hud'].every(function (feature) {
-      return Boolean(required[feature]) === Boolean(candidate[feature]);
-    });
-  }
-
-  function validateRun(rawJobs, durationMs, wallElapsedMs) {
-    if (!Array.isArray(rawJobs)) return 'Dados da partida inválidos';
-    if (rawJobs.length > MAX_JOBS) return 'Número de serviços inválido';
-
-    const jobs = normalizeJobs(rawJobs);
-    const duration = integer(durationMs, -1);
-    const wallElapsed = integer(wallElapsedMs, -1);
-
-    if (duration < 3000 || duration > 135000) return 'Duração da partida inválida';
-    if (wallElapsed >= 0 && duration > wallElapsed + 3000) return 'Duração inconsistente';
-    if (jobs.length > Math.floor((duration + 2500) / MIN_JOB_MS)) return 'Ritmo de jogo inválido';
-
-    let jobTime = 0;
-    for (const job of jobs) {
-      if (job.durationMs < MIN_JOB_MS || job.durationMs > 60000) return 'Duração de serviço inválida';
-      jobTime += job.durationMs;
     }
-    if (jobTime > duration + jobs.length * 1200) return 'Tempos de serviço inconsistentes';
+    if (type === 'replace') {
+      return {
+        type,
+        cost: REPLACE_COST,
+        restore: 100,
+        allowed: safeDamage > 0,
+        reason: safeDamage === 0 ? 'O vidro já está novo' : ''
+      };
+    }
+    return { type, cost: 0, restore: 0, allowed: false, reason: 'Serviço inválido' };
+  }
+
+  function applyService(state, type, free) {
+    const current = state && typeof state === 'object' ? state : {};
+    const damage = clamp(integer(current.damage, 0), 0, 100);
+    const credits = Math.max(0, integer(current.credits, 0));
+    const quote = serviceQuote(type, damage);
+    const cost = free ? 0 : quote.cost;
+
+    if (!quote.allowed) {
+      return { ok: false, damage, credits, reason: quote.reason };
+    }
+    if (credits < cost) {
+      return { ok: false, damage, credits, reason: 'Pontos insuficientes' };
+    }
+
+    return {
+      ok: true,
+      damage: type === 'replace' ? 0 : Math.max(0, damage - quote.restore),
+      credits: credits - cost,
+      cost
+    };
+  }
+
+  // O ranking é decidido pelo tempo sobrevivido. Os pontos recolhidos são
+  // moeda de oficina e nunca conseguem ultrapassar artificialmente o tempo.
+  function calculateScore(rawRun) {
+    return normalizeRun(rawRun).durationMs;
+  }
+
+  function validateRun(rawRun, wallElapsedMs) {
+    if (!rawRun || typeof rawRun !== 'object' || Array.isArray(rawRun)) {
+      return 'Dados da partida inválidos';
+    }
+
+    const run = normalizeRun(rawRun);
+    const wallElapsed = integer(wallElapsedMs, -1);
+    const seconds = run.durationMs / 1000;
+
+    if (run.durationMs < MIN_RUN_MS || run.durationMs > MAX_RUN_MS) {
+      return 'Duração da partida inválida';
+    }
+    if (wallElapsed >= 0 && run.durationMs > wallElapsed + 3500) {
+      return 'Duração inconsistente';
+    }
+    if (run.dodged > seconds * 4.5 + 14) return 'Número de desvios inválido';
+    if (run.hits > seconds * 1.25 + 6) return 'Número de impactos inválido';
+    if (run.bonuses > seconds / 2.5 + 5) return 'Número de bónus inválido';
+    if (run.repairs + run.replacements > seconds / 8 + 4) {
+      return 'Número de paragens inválido';
+    }
+    if (run.maxCombo > run.dodged) return 'Combo inválido';
+
+    const minDistance = Math.max(0, seconds * 10);
+    const maxDistance = seconds * 65 + 300;
+    if (run.distanceM < minDistance || run.distanceM > maxDistance) {
+      return 'Distância inconsistente';
+    }
     return null;
   }
 
   return Object.freeze({
     VERSION,
-    TOTAL_MS,
-    MAX_JOBS,
-    MIN_JOB_MS,
+    MIN_RUN_MS,
+    MAX_RUN_MS,
+    REPAIR_COST,
+    REPAIR_POWER,
+    REPAIR_LIMIT,
+    REPLACE_COST,
     clamp,
-    normalizeJobs,
-    calculateJobPoints,
+    normalizeRun,
+    dodgeCredits,
+    serviceQuote,
+    applyService,
     calculateScore,
-    averageQuality,
-    qualityLabel,
-    isRepairable,
-    glassMatches,
     validateRun
   });
 });

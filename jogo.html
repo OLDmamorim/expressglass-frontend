@@ -3,36 +3,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#07101f">
+  <meta name="theme-color" content="#07111f">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Oficina em Pressão · ExpressGlass</title>
+  <title>Impacto · ExpressGlass</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="/icon-192.png">
-  <link rel="stylesheet" href="jogo.css?v=2026-07-28-2">
+  <link rel="stylesheet" href="jogo.css?v=2026-07-28-impacto-1">
 </head>
 <body>
-  <div class="workshop" aria-hidden="true">
-    <div class="workshop__light workshop__light--left"></div>
-    <div class="workshop__light workshop__light--right"></div>
-    <div class="workshop__beam"></div>
-    <div class="workshop__wall"></div>
-    <div class="workshop__floor"></div>
+  <div class="page-atmosphere" aria-hidden="true">
+    <i></i><i></i><i></i>
   </div>
 
   <header class="topbar">
     <a class="brand" href="index.html" aria-label="Voltar ao portal">
       <img src="expressglass-logo.png" alt="ExpressGlass">
-      <span class="brand__mode"><i></i>Oficina em Pressão</span>
+      <span class="brand__mode"><i></i>Impacto</span>
     </a>
 
     <div class="topbar__live" id="liveBadge">
       <span class="live-dot"></span>
-      <span>Desafio 90s</span>
+      <span>Sobrevive à estrada</span>
     </div>
 
-    <div class="topbar__timer" aria-label="Tempo restante">
+    <div class="topbar__timer" aria-label="Tempo sobrevivido">
       <span>Tempo</span>
-      <strong id="mobileTimer">01:30</strong>
+      <strong id="mobileTimer">00:00.0</strong>
     </div>
 
     <div class="topbar__actions">
@@ -55,107 +51,152 @@
 
   <main class="game-layout">
     <section class="arena-card">
-      <div class="mission-strip">
-        <div class="mission-strip__car">
-          <span>Serviço</span>
-          <strong id="jobNumber">#01</strong>
+      <div class="route-strip">
+        <div>
+          <span>Distância</span>
+          <strong id="distance">0 m</strong>
         </div>
-        <ol class="stage-track" aria-label="Etapas do serviço">
-          <li data-stage-slot="0"><b>1</b><span>Diagnóstico</span></li>
-          <li data-stage-slot="1"><b>2</b><span>Decisão</span></li>
-          <li data-stage-slot="2"><b>3</b><span>Técnica</span></li>
-          <li data-stage-slot="3"><b>4</b><span>Controlo</span></li>
-        </ol>
+        <div class="route-strip__road" aria-hidden="true">
+          <i></i>
+          <span>EXPRESSGLASS ROAD CHALLENGE</span>
+          <i></i>
+        </div>
+        <div>
+          <span>Velocidade</span>
+          <strong id="speed">88 km/h</strong>
+        </div>
       </div>
 
       <div class="canvas-shell" id="canvasShell">
-        <canvas id="gameCanvas" aria-label="Área de jogo Oficina em Pressão ExpressGlass"></canvas>
+        <canvas id="gameCanvas" aria-label="Estrada vista do interior do automóvel"></canvas>
 
-        <section class="decision-panel" id="decisionPanel" aria-live="polite" aria-label="Decisão de oficina">
-          <div class="decision-panel__head">
-            <span id="decisionKicker">Ordem de serviço</span>
-            <strong id="decisionTitle">Analisa o dano</strong>
-          </div>
-          <p id="decisionText"></p>
-          <div class="decision-facts" id="decisionFacts"></div>
-          <div class="decision-choices" id="decisionChoices"></div>
-        </section>
-
-        <div class="fit-controls" id="fitControls" aria-label="Controlos de rotação do vidro">
-          <button id="rotateLeftBtn" type="button" aria-label="Rodar o vidro para a esquerda">↶</button>
-          <div>
-            <small>Ângulo</small>
-            <strong id="fitAngle">0°</strong>
-          </div>
-          <button id="rotateRightBtn" type="button" aria-label="Rodar o vidro para a direita">↷</button>
+        <div class="drive-hud drive-hud--left">
+          <span>Pontos EG</span>
+          <strong id="credits">0</strong>
         </div>
 
-        <div class="canvas-score" aria-live="polite">
-          <span>Pontos</span>
-          <strong id="score">0</strong>
+        <div class="drive-hud drive-hud--right">
+          <span>Combo</span>
+          <strong id="combo">×0</strong>
         </div>
 
-        <div class="combo-pill" id="comboPill">
-          <small>Combo</small>
-          <strong id="combo">×1</strong>
+        <div class="effect-pills" id="effectPills" aria-live="polite">
+          <span id="shieldPill">Escudo <b>1</b></span>
+          <span id="doublePill">Pontos ×2 <b>8s</b></span>
+          <span id="slowPill">Câmara lenta <b>6s</b></span>
+        </div>
+
+        <button class="glass-bonus" id="useGlassBonusBtn" type="button" aria-label="Usar bónus Vidro Novo">
+          <span class="glass-bonus__icon">
+            <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 8.5h20l2 16H4l2-16Z"/><path d="M10 12h12M16 8.5v16"/></svg>
+          </span>
+          <span>
+            <small>Bónus guardado</small>
+            <strong>Vidro Novo</strong>
+          </span>
+          <b id="glassBonusCount">0</b>
+        </button>
+
+        <button class="shop-prompt" id="shopPrompt" type="button">
+          <span>Saída disponível</span>
+          <strong>Parar na ExpressGlass</strong>
+          <small>Repara antes que seja tarde →</small>
+        </button>
+
+        <div class="damage-warning" id="damageWarning" aria-live="assertive">
+          <span>ATENÇÃO</span>
+          <strong>O vidro está a ceder</strong>
         </div>
 
         <div class="stage-flash" id="stageFlash" aria-live="assertive">
-          <span id="stageFlashKicker">Etapa concluída</span>
-          <strong id="stageFlashTitle">Vidro removido</strong>
+          <span id="stageFlashKicker">Desvio perfeito</span>
+          <strong id="stageFlashTitle">+12 pontos EG</strong>
         </div>
 
         <div class="countdown" id="countdown" aria-hidden="true">3</div>
 
+        <div class="lane-controls" aria-label="Controlos de direção">
+          <button id="leftBtn" type="button" aria-label="Mudar para a faixa da esquerda">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5-7 7 7 7"/></svg>
+          </button>
+          <span>Muda de faixa</span>
+          <button id="rightBtn" type="button" aria-label="Mudar para a faixa da direita">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+
         <div class="game-overlay game-overlay--start is-visible" id="startOverlay">
           <div class="hero-mark">
             <span class="hero-mark__line"></span>
-            <span>Oficina em Pressão</span>
+            <span>ExpressGlass apresenta</span>
             <span class="hero-mark__line"></span>
           </div>
           <img class="hero-logo" src="expressglass-logo.png" alt="ExpressGlass">
-          <h1>Pensa depressa.<br><em>Trabalha com precisão.</em></h1>
-          <p class="hero-copy">Tens 90 segundos para diagnosticar danos, escolher a solução certa e executar serviços de vidro sem margem para erro.</p>
+          <h1>A estrada não perdoa.<br><em>O teu vidro aguenta?</em></h1>
+          <p class="hero-copy">Desvia-te das pedras, protege o para-brisas e usa os teus pontos para chegar mais longe.</p>
 
-          <div class="mission-preview" aria-label="Etapas do jogo">
-            <div><b>01</b><span>Lê o dano e<br>decide a solução</span></div>
-            <div><b>02</b><span>Repara com<br>pressão controlada</span></div>
-            <div><b>03</b><span>Escolhe e monta<br>o vidro correto</span></div>
-            <div><b>04</b><span>Valida ADAS<br>ou estanquidade</span></div>
+          <div class="mission-preview" aria-label="Regras do jogo">
+            <div><b>01</b><span>Muda de faixa<br>e evita impactos</span></div>
+            <div><b>02</b><span>Apanha bónus<br>em plena estrada</span></div>
+            <div><b>03</b><span>Para na ExpressGlass<br>e repara o vidro</span></div>
           </div>
 
           <button class="primary-btn" id="startBtn" type="button">
-            <span id="startBtnText">Entrar na oficina</span>
+            <span id="startBtnText">Ligar o motor</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
           </button>
-          <p class="control-note">Rato ou toque · Teclas A/D ou botões para rodar o vidro</p>
+          <p class="control-note">Arrasta ou toca nos lados · Teclas A/D ou ←/→ · Espaço usa Vidro Novo</p>
         </div>
 
         <div class="game-overlay game-overlay--pause" id="pauseOverlay">
           <div class="overlay-icon">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
           </div>
-          <span class="overlay-kicker">Cronómetro parado</span>
-          <h2>Pausa técnica</h2>
-          <p>O carro fica exatamente onde o deixaste.</p>
-          <button class="primary-btn primary-btn--small" id="resumeBtn" type="button">Continuar serviço</button>
+          <span class="overlay-kicker">Viagem interrompida</span>
+          <h2>Carro em segurança</h2>
+          <p>O tempo e a estrada ficam parados.</p>
+          <button class="primary-btn primary-btn--small" id="resumeBtn" type="button">Voltar à estrada</button>
+        </div>
+
+        <div class="game-overlay game-overlay--shop" id="shopOverlay">
+          <div class="shop-brand">
+            <img src="expressglass-logo.png" alt="">
+            <span>Paragem rápida</span>
+          </div>
+          <span class="overlay-kicker">ExpressGlass na próxima saída</span>
+          <h2>O que fazemos ao vidro?</h2>
+          <p id="shopDamageText">Danos atuais: 0%</p>
+          <div class="shop-options">
+            <button id="repairBtn" type="button">
+              <span class="shop-option__icon">✦</span>
+              <span><strong>Reparar impacto</strong><small>Reduz 30% dos danos</small></span>
+              <b>45 EG</b>
+            </button>
+            <button id="replaceBtn" type="button">
+              <span class="shop-option__icon">◇</span>
+              <span><strong>Substituir vidro</strong><small>Para-brisas completamente novo</small></span>
+              <b>150 EG</b>
+            </button>
+          </div>
+          <button class="secondary-btn" id="continueBtn" type="button">Continuar viagem</button>
+          <small class="shop-note">O cronómetro está parado durante o serviço.</small>
         </div>
 
         <div class="game-overlay game-overlay--end" id="endOverlay">
-          <span class="overlay-kicker" id="endKicker">Turno terminado</span>
-          <h2 id="endTitle">Boa prestação!</h2>
+          <span class="overlay-kicker" id="endKicker">O para-brisas cedeu</span>
+          <h2 id="endTitle">Fim da viagem</h2>
           <div class="final-score">
-            <span>Pontuação final</span>
-            <strong id="finalScore">0</strong>
+            <span>Tempo sobrevivido</span>
+            <strong id="finalTime">00:00.0</strong>
             <small id="saveStatus">A validar resultado…</small>
           </div>
           <div class="final-grid">
-            <div><strong id="finalJobs">0</strong><span>Viaturas</span></div>
-            <div><strong id="finalQuality">0%</strong><span>Qualidade</span></div>
+            <div><strong id="finalDistance">0 m</strong><span>Distância</span></div>
+            <div><strong id="finalDodged">0</strong><span>Pedras evitadas</span></div>
             <div><strong id="finalCombo">×0</strong><span>Melhor combo</span></div>
           </div>
           <div class="end-actions">
-            <button class="primary-btn primary-btn--small" id="againBtn" type="button">Novo turno</button>
+            <button class="primary-btn primary-btn--small" id="againBtn" type="button">Nova viagem</button>
             <button class="secondary-btn" id="endRankBtn" type="button">Ver ranking</button>
           </div>
         </div>
@@ -163,55 +204,45 @@
     </section>
 
     <aside class="control-panel">
-      <section class="timer-card" id="timerCard">
-        <div class="timer-ring" id="timerRing">
+      <section class="glass-card" id="glassCard">
+        <div class="glass-card__head">
           <div>
-            <span>Tempo</span>
-            <strong id="timer">01:30</strong>
+            <small>Estado do para-brisas</small>
+            <strong id="damageLabel">Impecável</strong>
           </div>
+          <span id="damagePercent">0%</span>
         </div>
-        <p id="timeMessage">Cada segundo conta.</p>
+        <div class="damage-meter"><i id="damageBar"></i></div>
+        <p id="damageText">Sem impactos. Mantém os olhos na estrada.</p>
+        <div class="impact-dots" id="impactDots" aria-label="Impactos sofridos"></div>
       </section>
 
       <section class="brief-card">
-        <div class="brief-card__head">
-          <span class="brief-icon" id="briefIcon">01</span>
-          <div>
-            <small id="briefKicker">Primeira etapa</small>
-            <h2 id="briefTitle">Faz o diagnóstico</h2>
-          </div>
+        <span class="brief-icon">↔</span>
+        <div>
+          <small>Objetivo</small>
+          <h2>Sobrevive o máximo possível</h2>
+          <p>As pedras ficam mais rápidas e começam a ocupar várias faixas. Cada impacto permanece no teu campo de visão.</p>
         </div>
-        <p id="briefText">Observa o impacto, lê as medidas e decide se deves reparar ou substituir.</p>
-        <div class="progress">
-          <i id="stageProgress"></i>
+      </section>
+
+      <section class="bonus-card">
+        <div class="panel-title">
+          <span>Bónus de estrada</span>
+          <small>Apanha-os, não te desvies</small>
         </div>
-        <div class="quality-line">
-          <span>Precisão do serviço</span>
-          <strong id="liveQuality">100%</strong>
-        </div>
+        <ul>
+          <li><b class="bonus-symbol bonus-symbol--glass">◇</b><span><strong>Vidro Novo</strong><small>Guarda e usa quando quiseres</small></span></li>
+          <li><b class="bonus-symbol bonus-symbol--resin">✦</b><span><strong>Resina Express</strong><small>Remove 18% de dano</small></span></li>
+          <li><b class="bonus-symbol bonus-symbol--shield">⬡</b><span><strong>Proteção EG</strong><small>Absorve a próxima pedra</small></span></li>
+          <li><b class="bonus-symbol bonus-symbol--double">×2</b><span><strong>Pontos ×2</strong><small>Dura oito segundos</small></span></li>
+        </ul>
       </section>
 
       <section class="stats-card">
-        <div>
-          <span>Viaturas entregues</span>
-          <strong id="jobsDone">0</strong>
-        </div>
-        <div>
-          <span>Qualidade média</span>
-          <strong id="averageQuality">—</strong>
-        </div>
-        <div>
-          <span>Melhor resultado</span>
-          <strong id="personalBest">—</strong>
-        </div>
-      </section>
-
-      <section class="tournament-card" id="tournamentCard">
-        <span class="tournament-card__flare"></span>
-        <small>12:00 — 14:00</small>
-        <strong>Torneio do almoço</strong>
-        <p id="tournamentText">Durante o almoço, cada ponto vale a dobrar.</p>
-        <span class="tournament-card__multiplier" id="multiplierBadge">×2</span>
+        <div><span>Pedras evitadas</span><strong id="dodged">0</strong></div>
+        <div><span>Impactos</span><strong id="hits">0</strong></div>
+        <div><span>Melhor tempo</span><strong id="personalBest">—</strong></div>
       </section>
     </aside>
   </main>
@@ -220,8 +251,8 @@
     <div class="rank-modal__panel">
       <header>
         <div>
-          <span class="overlay-kicker">Competição ExpressGlass</span>
-          <h2 id="rankTitle">Ranking Oficina em Pressão</h2>
+          <span class="overlay-kicker">ExpressGlass Road Challenge</span>
+          <h2 id="rankTitle">Quem aguentou mais tempo?</h2>
         </div>
         <button class="icon-btn" id="closeRankBtn" type="button" aria-label="Fechar ranking">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
@@ -237,7 +268,7 @@
         <button type="button" data-view="stores">Por unidade</button>
       </div>
       <div class="my-best" id="myBest">
-        <span>O teu melhor resultado</span>
+        <span>O teu melhor tempo</span>
         <strong>—</strong>
       </div>
       <div class="rank-list" id="rankList">
@@ -248,7 +279,7 @@
 
   <div class="toast-layer" id="toastLayer" aria-live="polite"></div>
 
-  <script src="game-core.js?v=2026-07-28-2"></script>
-  <script src="jogo.js?v=2026-07-28-2"></script>
+  <script src="game-core.js?v=2026-07-28-impacto-1"></script>
+  <script src="jogo.js?v=2026-07-28-impacto-1"></script>
 </body>
 </html>
