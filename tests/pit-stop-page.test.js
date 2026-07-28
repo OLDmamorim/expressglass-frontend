@@ -53,6 +53,16 @@ test('a experiência tem duas rotas distintas e já não depende de seguir um tr
   }
 });
 
+test('a entrada V3 abre diretamente o modo de teste sem passar pelo portal antigo', () => {
+  const entry = fs.readFileSync(path.join(root, 'oficina-v3.html'), 'utf8');
+  const script = fs.readFileSync(path.join(root, 'jogo.js'), 'utf8');
+
+  assert.match(entry, /jogo\.html\?demo=1(?:&|&amp;)release=oficina-v3/);
+  assert.match(script, /query\.get\('demo'\) === '1'/);
+  assert.match(script, /if \(!token && !demoMode\)/);
+  assert.match(script, /Teste V3 · 90s/);
+});
+
 test('o endpoint ignora pontuações enviadas pelo navegador', () => {
   const source = fs.readFileSync(path.join(root, 'netlify/functions/game-scores.js'), 'utf8');
   assert.equal(/\bdata\.score\b/.test(source), false);

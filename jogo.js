@@ -4,8 +4,10 @@
   const Core = window.PitStopCore;
   if (!Core) throw new Error('Motor do jogo indisponível');
 
+  const query = new URLSearchParams(location.search);
+  const demoMode = query.get('demo') === '1';
   const token = localStorage.getItem('eg_auth_token');
-  if (!token) {
+  if (!token && !demoMode) {
     location.replace('login.html');
     return;
   }
@@ -287,7 +289,8 @@
   }
 
   function authHeaders(withJson) {
-    const headers = { Authorization: 'Bearer ' + token };
+    const headers = {};
+    if (token) headers.Authorization = 'Bearer ' + token;
     if (withJson) headers['Content-Type'] = 'application/json';
     return headers;
   }
@@ -1886,16 +1889,22 @@
     sound.unlock();
     els.startBtn.disabled = true;
     els.startBtnText.textContent = 'A abrir a oficina…';
-    try {
-      const session = await createServerSession();
-      game.sessionToken = session.sessionToken;
-      game.ranked = true;
-      applyTournament(session.multiplier);
-    } catch (_) {
+    if (demoMode) {
       game.sessionToken = null;
       game.ranked = false;
       applyTournament(1);
-      toast('Sem ligação ao ranking. Esta partida fica em modo treino.', 'warning');
+    } else {
+      try {
+        const session = await createServerSession();
+        game.sessionToken = session.sessionToken;
+        game.ranked = true;
+        applyTournament(session.multiplier);
+      } catch (_) {
+        game.sessionToken = null;
+        game.ranked = false;
+        applyTournament(1);
+        toast('Sem ligação ao ranking. Esta partida fica em modo treino.', 'warning');
+      }
     }
     resetRun();
     els.startOverlay.classList.remove('is-visible');
@@ -2365,10 +2374,15 @@
     };
   }
 
+  if (demoMode) {
+    const liveLabel = els.liveBadge.querySelector('span:last-child');
+    if (liveLabel) liveLabel.textContent = 'Teste V3 · 90s';
+  }
+
   syncSoundButton();
   applyTournament(1);
   resizeCanvas();
   updateHud(true);
-  loadRanking('all', true);
+  if (!demoMode) loadRanking('all', true);
   requestAnimationFrame(animationFrame);
 })();
