@@ -35,6 +35,15 @@
       overflow-x: hidden;
     }
 
+    /* Cenário de oficina, por trás de tudo */
+    .shop { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
+    .shop svg { width: 100%; height: 100%; display: block; }
+    .shop::after {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(120% 80% at 50% 45%, transparent 30%, rgba(4,8,16,.72) 100%);
+    }
+    .top, .wrap, .touch { position: relative; z-index: 2; }
+
     .top {
       display: flex; align-items: center; gap: 10px;
       padding: 12px 20px;
@@ -181,17 +190,148 @@
     .empty { text-align: center; color: var(--muted); padding: 28px 10px; font-size: .88rem; }
 
     @media (max-width: 860px) {
-      .wrap { grid-template-columns: 1fr; gap: 12px; padding: 10px; }
-      #board { height: min(58vh, 560px); margin: 0 auto; }
-      .side { flex-direction: row; flex-wrap: wrap; }
-      .side .card { flex: 1; min-width: 130px; }
-      .touch { display: flex; }
+      /* deixa espaço em baixo para a barra de comandos fixa */
+      .wrap { grid-template-columns: 1fr; gap: 8px; padding: 8px 8px 104px; }
+      #board { height: min(52vh, 470px); margin: 0 auto; }
+      .side { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+      .side .card { flex: 1 1 46%; min-width: 0; padding: 9px 11px; }
+      .side .card h3 { font-size: .62rem; margin-bottom: 4px; }
+      .stat-v { font-size: 1.35rem; }
+      .stat-s { font-size: 1.05rem; }
+      #next { max-height: 74px; object-fit: contain; }
+      #car { max-height: 84px; object-fit: contain; }
       .kbd-help { display: none; }
-      .stat-v { font-size: 1.5rem; }
+      /* Comandos sempre à mão — antes ficavam abaixo dos painéis, só com scroll */
+      .touch {
+        display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+        max-width: none; margin: 0; gap: 7px;
+        padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+        background: rgba(7,13,24,.94); backdrop-filter: blur(12px);
+        border-top: 1px solid var(--line);
+        box-shadow: 0 -8px 26px rgba(0,0,0,.45);
+      }
+      .touch button { padding: 14px 0; font-size: 1.2rem; border-radius: 11px; }
+      /* no telemóvel a cena aparece nas faixas ao lado do tabuleiro:
+         menos escurecimento e painéis mais translúcidos */
+      .shop::after { background: radial-gradient(140% 90% at 50% 45%, transparent 34%, rgba(4,8,16,.58) 100%); }
+      .card { background: rgba(21,32,52,.6); }
     }
   </style>
 </head>
 <body>
+  <!-- Cenário: o jogo decorre numa oficina de vidros -->
+  <div class="shop" aria-hidden="true">
+    <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
+      <defs>
+        <linearGradient id="gWall" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#101d33"/><stop offset="1" stop-color="#0a1322"/>
+        </linearGradient>
+        <linearGradient id="gFloor" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#132135"/><stop offset="1" stop-color="#060c16"/>
+        </linearGradient>
+        <linearGradient id="gMetal" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#22354f"/><stop offset="1" stop-color="#131f31"/>
+        </linearGradient>
+        <linearGradient id="gPane" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#5fb6d8" stop-opacity=".16"/>
+          <stop offset="1" stop-color="#8fd8f7" stop-opacity=".05"/>
+        </linearGradient>
+        <radialGradient id="gLamp">
+          <stop offset="0" stop-color="#ffdca8" stop-opacity=".30"/>
+          <stop offset="1" stop-color="#ffdca8" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <rect width="1600" height="640" fill="url(#gWall)"/>
+      <rect y="640" width="1600" height="260" fill="url(#gFloor)"/>
+
+      <!-- vigas do teto -->
+      <g stroke="#1a2b44" stroke-width="7" opacity=".75">
+        <line x1="0" y1="70" x2="1600" y2="70"/>
+        <line x1="240" y1="0" x2="240" y2="70"/><line x1="800" y1="0" x2="800" y2="70"/>
+        <line x1="1360" y1="0" x2="1360" y2="70"/>
+      </g>
+
+      <!-- candeeiros suspensos e cones de luz -->
+      <g>
+        <line x1="420" y1="70" x2="420" y2="120" stroke="#1a2b44" stroke-width="4"/>
+        <path d="M380 120 h80 l16 26 h-112 z" fill="#243a58"/>
+        <polygon points="396,146 444,146 620,640 220,640" fill="#ffdca8" opacity=".05"/>
+        <ellipse cx="420" cy="150" rx="150" ry="110" fill="url(#gLamp)"/>
+        <line x1="1180" y1="70" x2="1180" y2="120" stroke="#1a2b44" stroke-width="4"/>
+        <path d="M1140 120 h80 l16 26 h-112 z" fill="#243a58"/>
+        <polygon points="1156,146 1204,146 1380,640 980,640" fill="#ffdca8" opacity=".05"/>
+        <ellipse cx="1180" cy="150" rx="150" ry="110" fill="url(#gLamp)"/>
+      </g>
+
+      <!-- portão de correr -->
+      <g>
+        <rect x="40" y="190" width="290" height="450" fill="#0f1b2c"/>
+        <g stroke="#1c2d46" stroke-width="3">
+          <path d="M40 220h290M40 258h290M40 296h290M40 334h290M40 372h290M40 410h290M40 448h290M40 486h290M40 524h290M40 562h290M40 600h290"/>
+        </g>
+        <rect x="40" y="190" width="290" height="450" fill="none" stroke="#243a58" stroke-width="6"/>
+      </g>
+
+      <!-- bancada com ferramentas -->
+      <g>
+        <rect x="420" y="470" width="250" height="18" fill="url(#gMetal)"/>
+        <rect x="436" y="488" width="218" height="152" fill="#111e30"/>
+        <g stroke="#1e3149" stroke-width="3">
+          <path d="M436 536h218M436 584h218"/>
+        </g>
+        <g fill="#33507a">
+          <rect x="470" y="508" width="34" height="6" rx="3"/>
+          <rect x="470" y="556" width="34" height="6" rx="3"/>
+          <rect x="470" y="604" width="34" height="6" rx="3"/>
+        </g>
+        <!-- ferramentas penduradas no painel -->
+        <g stroke="#28405f" stroke-width="4" fill="none">
+          <path d="M560 380v70M600 380v54M540 434h40"/>
+          <circle cx="600" cy="444" r="10"/>
+        </g>
+        <rect x="510" y="356" width="140" height="8" fill="#22354f"/>
+      </g>
+
+      <!-- suporte de vidros com para-brisas encostados -->
+      <g>
+        <path d="M1120 640 L1180 380 L1200 380 L1150 640 Z" fill="#1b2c44"/>
+        <path d="M1420 640 L1360 380 L1380 380 L1440 640 Z" fill="#1b2c44"/>
+        <path d="M1170 400 L1360 400 L1330 632 L1198 632 Z" fill="url(#gPane)" stroke="#5fb6d8" stroke-opacity=".22" stroke-width="3"/>
+        <path d="M1196 412 L1338 412 L1312 620 L1218 620 Z" fill="url(#gPane)" stroke="#8fd8f7" stroke-opacity=".14" stroke-width="2"/>
+        <line x1="1120" y1="640" x2="1440" y2="640" stroke="#243a58" stroke-width="6"/>
+      </g>
+
+      <!-- pilha de pneus -->
+      <g fill="#0e1928" stroke="#1d2f47" stroke-width="4">
+        <ellipse cx="830" cy="616" rx="62" ry="20"/>
+        <ellipse cx="830" cy="580" rx="62" ry="20"/>
+        <ellipse cx="830" cy="544" rx="62" ry="20"/>
+      </g>
+
+      <!-- armário de ferramentas -->
+      <g>
+        <rect x="920" y="450" width="150" height="190" fill="#132133" stroke="#22364f" stroke-width="4"/>
+        <g stroke="#22364f" stroke-width="3">
+          <path d="M920 498h150M920 546h150M920 594h150"/>
+        </g>
+        <g fill="#33507a">
+          <rect x="975" y="472" width="40" height="6" rx="3"/>
+          <rect x="975" y="520" width="40" height="6" rx="3"/>
+          <rect x="975" y="568" width="40" height="6" rx="3"/>
+          <rect x="975" y="616" width="40" height="6" rx="3"/>
+        </g>
+      </g>
+
+      <!-- juntas do pavimento e reflexo -->
+      <g stroke="#16243a" stroke-width="2" opacity=".8">
+        <path d="M0 700h1600M0 780h1600M0 870h1600"/>
+        <path d="M300 640L180 900M700 640L640 900M1000 640L1030 900M1350 640L1470 900"/>
+      </g>
+      <ellipse cx="800" cy="700" rx="700" ry="90" fill="#4cc9f0" opacity=".05"/>
+    </svg>
+  </div>
+
   <div class="top">
     <h1>🔷 Vidro Perfeito</h1>
     <span class="lunch-badge" id="lunchBadge">🍽️ Torneio do almoço ×2</span>
