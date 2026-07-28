@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#07101f">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <title>Pit Stop ExpressGlass</title>
+  <title>Oficina em Pressão · ExpressGlass</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="/icon-192.png">
-  <link rel="stylesheet" href="jogo.css?v=2026-07-28-1">
+  <link rel="stylesheet" href="jogo.css?v=2026-07-28-2">
 </head>
 <body>
   <div class="workshop" aria-hidden="true">
@@ -22,17 +22,17 @@
   <header class="topbar">
     <a class="brand" href="index.html" aria-label="Voltar ao portal">
       <img src="expressglass-logo.png" alt="ExpressGlass">
-      <span class="brand__mode"><i></i>Pit Stop</span>
+      <span class="brand__mode"><i></i>Oficina em Pressão</span>
     </a>
 
     <div class="topbar__live" id="liveBadge">
       <span class="live-dot"></span>
-      <span>Desafio 75s</span>
+      <span>Desafio 90s</span>
     </div>
 
     <div class="topbar__timer" aria-label="Tempo restante">
       <span>Tempo</span>
-      <strong id="mobileTimer">01:15</strong>
+      <strong id="mobileTimer">01:30</strong>
     </div>
 
     <div class="topbar__actions">
@@ -61,15 +61,34 @@
           <strong id="jobNumber">#01</strong>
         </div>
         <ol class="stage-track" aria-label="Etapas do serviço">
-          <li data-stage="CUT"><b>1</b><span>Remover</span></li>
-          <li data-stage="GLUE"><b>2</b><span>Aplicar cola</span></li>
-          <li data-stage="FIT"><b>3</b><span>Encaixar</span></li>
-          <li data-stage="CALIBRATE"><b>4</b><span>Calibrar</span></li>
+          <li data-stage-slot="0"><b>1</b><span>Diagnóstico</span></li>
+          <li data-stage-slot="1"><b>2</b><span>Decisão</span></li>
+          <li data-stage-slot="2"><b>3</b><span>Técnica</span></li>
+          <li data-stage-slot="3"><b>4</b><span>Controlo</span></li>
         </ol>
       </div>
 
       <div class="canvas-shell" id="canvasShell">
-        <canvas id="gameCanvas" aria-label="Área de jogo Pit Stop ExpressGlass"></canvas>
+        <canvas id="gameCanvas" aria-label="Área de jogo Oficina em Pressão ExpressGlass"></canvas>
+
+        <section class="decision-panel" id="decisionPanel" aria-live="polite" aria-label="Decisão de oficina">
+          <div class="decision-panel__head">
+            <span id="decisionKicker">Ordem de serviço</span>
+            <strong id="decisionTitle">Analisa o dano</strong>
+          </div>
+          <p id="decisionText"></p>
+          <div class="decision-facts" id="decisionFacts"></div>
+          <div class="decision-choices" id="decisionChoices"></div>
+        </section>
+
+        <div class="fit-controls" id="fitControls" aria-label="Controlos de rotação do vidro">
+          <button id="rotateLeftBtn" type="button" aria-label="Rodar o vidro para a esquerda">↶</button>
+          <div>
+            <small>Ângulo</small>
+            <strong id="fitAngle">0°</strong>
+          </div>
+          <button id="rotateRightBtn" type="button" aria-label="Rodar o vidro para a direita">↷</button>
+        </div>
 
         <div class="canvas-score" aria-live="polite">
           <span>Pontos</span>
@@ -91,25 +110,25 @@
         <div class="game-overlay game-overlay--start is-visible" id="startOverlay">
           <div class="hero-mark">
             <span class="hero-mark__line"></span>
-            <span>Pit Stop</span>
+            <span>Oficina em Pressão</span>
             <span class="hero-mark__line"></span>
           </div>
           <img class="hero-logo" src="expressglass-logo.png" alt="ExpressGlass">
-          <h1>Domina o vidro.<br><em>Vence o relógio.</em></h1>
-          <p class="hero-copy">Tens 75 segundos para devolver o maior número de viaturas à estrada. A rapidez conta. A precisão decide.</p>
+          <h1>Pensa depressa.<br><em>Trabalha com precisão.</em></h1>
+          <p class="hero-copy">Tens 90 segundos para diagnosticar danos, escolher a solução certa e executar serviços de vidro sem margem para erro.</p>
 
           <div class="mission-preview" aria-label="Etapas do jogo">
-            <div><b>01</b><span>Remove o vidro<br>danificado</span></div>
-            <div><b>02</b><span>Aplica um cordão<br>perfeito</span></div>
-            <div><b>03</b><span>Encaixa sem<br>desvios</span></div>
-            <div><b>04</b><span>Calibra a<br>câmara ADAS</span></div>
+            <div><b>01</b><span>Lê o dano e<br>decide a solução</span></div>
+            <div><b>02</b><span>Repara com<br>pressão controlada</span></div>
+            <div><b>03</b><span>Escolhe e monta<br>o vidro correto</span></div>
+            <div><b>04</b><span>Valida ADAS<br>ou estanquidade</span></div>
           </div>
 
           <button class="primary-btn" id="startBtn" type="button">
             <span id="startBtnText">Entrar na oficina</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
           </button>
-          <p class="control-note">Rato ou toque · Segue as indicações no vidro</p>
+          <p class="control-note">Rato ou toque · Teclas A/D ou botões para rodar o vidro</p>
         </div>
 
         <div class="game-overlay game-overlay--pause" id="pauseOverlay">
@@ -148,7 +167,7 @@
         <div class="timer-ring" id="timerRing">
           <div>
             <span>Tempo</span>
-            <strong id="timer">01:15</strong>
+            <strong id="timer">01:30</strong>
           </div>
         </div>
         <p id="timeMessage">Cada segundo conta.</p>
@@ -159,10 +178,10 @@
           <span class="brief-icon" id="briefIcon">01</span>
           <div>
             <small id="briefKicker">Primeira etapa</small>
-            <h2 id="briefTitle">Segue o fio de corte</h2>
+            <h2 id="briefTitle">Faz o diagnóstico</h2>
           </div>
         </div>
-        <p id="briefText">Mantém pressionado e acompanha o ponto luminoso à volta do para-brisas.</p>
+        <p id="briefText">Observa o impacto, lê as medidas e decide se deves reparar ou substituir.</p>
         <div class="progress">
           <i id="stageProgress"></i>
         </div>
@@ -202,7 +221,7 @@
       <header>
         <div>
           <span class="overlay-kicker">Competição ExpressGlass</span>
-          <h2 id="rankTitle">Ranking Pit Stop</h2>
+          <h2 id="rankTitle">Ranking Oficina em Pressão</h2>
         </div>
         <button class="icon-btn" id="closeRankBtn" type="button" aria-label="Fechar ranking">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>
@@ -229,7 +248,7 @@
 
   <div class="toast-layer" id="toastLayer" aria-live="polite"></div>
 
-  <script src="game-core.js?v=2026-07-28-1"></script>
-  <script src="jogo.js?v=2026-07-28-1"></script>
+  <script src="game-core.js?v=2026-07-28-2"></script>
+  <script src="jogo.js?v=2026-07-28-2"></script>
 </body>
 </html>

@@ -33,16 +33,55 @@ test('a validação rejeita serviços fisicamente impossíveis', () => {
     { quality: 92, durationMs: 15000, mistakes: 0 },
     { quality: 84, durationMs: 16000, mistakes: 1 }
   ];
-  assert.equal(Core.validateRun(valid, 75000, 77000), null);
+  assert.equal(Core.validateRun(valid, 90000, 92000), null);
   assert.match(
     Core.validateRun([{ quality: 100, durationMs: 2000, mistakes: 0 }], 6000, 7000),
     /Duração de serviço/
   );
   assert.match(
-    Core.validateRun(Array(11).fill(valid[0]), 75000, 76000),
+    Core.validateRun(Array(11).fill(valid[0]), 90000, 91000),
     /Número de serviços/
   );
   assert.match(Core.validateRun(valid, 80000, 70000), /Duração inconsistente/);
+});
+
+test('o diagnóstico respeita os três limites de reparação', () => {
+  assert.equal(Core.isRepairable({
+    diameterMm: 25,
+    edgeDistanceMm: 60,
+    driverField: false
+  }), true);
+  assert.equal(Core.isRepairable({
+    diameterMm: 26,
+    edgeDistanceMm: 90,
+    driverField: false
+  }), false);
+  assert.equal(Core.isRepairable({
+    diameterMm: 18,
+    edgeDistanceMm: 59,
+    driverField: false
+  }), false);
+  assert.equal(Core.isRepairable({
+    diameterMm: 12,
+    edgeDistanceMm: 100,
+    driverField: true
+  }), false);
+});
+
+test('a referência do vidro tem de coincidir em todo o equipamento', () => {
+  const order = { camera: true, rainSensor: true, heated: false, hud: false };
+  assert.equal(Core.glassMatches(order, {
+    camera: true,
+    rainSensor: true,
+    heated: false,
+    hud: false
+  }), true);
+  assert.equal(Core.glassMatches(order, {
+    camera: true,
+    rainSensor: false,
+    heated: false,
+    hud: false
+  }), false);
 });
 
 test('o torneio do almoço usa a hora de Lisboa, incluindo horário de verão', () => {
