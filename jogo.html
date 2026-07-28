@@ -86,7 +86,7 @@
     #board {
       display: block;
       border-radius: 16px;
-      height: min(84vh, 800px); width: auto; aspect-ratio: 1 / 2;
+      height: min(84vh, 800px); width: auto; aspect-ratio: 392 / 732;
       touch-action: none;
       box-shadow:
         0 30px 70px rgba(0,0,0,.6),
@@ -220,115 +220,147 @@
 </head>
 <body>
   <!-- Cenário: o jogo decorre numa oficina de vidros -->
+  <!-- Cenário: oficina de vidro automóvel, com carro no elevador -->
   <div class="shop" aria-hidden="true">
     <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMax slice">
       <defs>
         <linearGradient id="gWall" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#101d33"/><stop offset="1" stop-color="#0a1322"/>
+          <stop offset="0" stop-color="#2a3346"/><stop offset=".55" stop-color="#1b2434"/><stop offset="1" stop-color="#141b28"/>
         </linearGradient>
         <linearGradient id="gFloor" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#132135"/><stop offset="1" stop-color="#060c16"/>
+          <stop offset="0" stop-color="#242c3a"/><stop offset="1" stop-color="#0d121b"/>
         </linearGradient>
-        <linearGradient id="gMetal" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#22354f"/><stop offset="1" stop-color="#131f31"/>
-        </linearGradient>
-        <linearGradient id="gPane" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#5fb6d8" stop-opacity=".16"/>
-          <stop offset="1" stop-color="#8fd8f7" stop-opacity=".05"/>
+        <linearGradient id="gCar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#3f6fb5"/><stop offset="1" stop-color="#1d3a63"/>
         </linearGradient>
         <radialGradient id="gLamp">
-          <stop offset="0" stop-color="#ffdca8" stop-opacity=".30"/>
-          <stop offset="1" stop-color="#ffdca8" stop-opacity="0"/>
+          <stop offset="0" stop-color="#ffd9a0" stop-opacity=".55"/>
+          <stop offset=".45" stop-color="#ffc78a" stop-opacity=".18"/>
+          <stop offset="1" stop-color="#ffb56b" stop-opacity="0"/>
         </radialGradient>
+        <radialGradient id="gPool">
+          <stop offset="0" stop-color="#ffca8a" stop-opacity=".22"/>
+          <stop offset="1" stop-color="#ffca8a" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="gHead">
+          <stop offset="0" stop-color="#fffdf0" stop-opacity=".95"/>
+          <stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="gPane" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#79d6f2" stop-opacity=".34"/>
+          <stop offset="1" stop-color="#bfeeff" stop-opacity=".12"/>
+        </linearGradient>
       </defs>
 
-      <rect width="1600" height="640" fill="url(#gWall)"/>
-      <rect y="640" width="1600" height="260" fill="url(#gFloor)"/>
+      <rect width="1600" height="620" fill="url(#gWall)"/>
+      <rect y="620" width="1600" height="280" fill="url(#gFloor)"/>
 
-      <!-- vigas do teto -->
-      <g stroke="#1a2b44" stroke-width="7" opacity=".75">
-        <line x1="0" y1="70" x2="1600" y2="70"/>
-        <line x1="240" y1="0" x2="240" y2="70"/><line x1="800" y1="0" x2="800" y2="70"/>
-        <line x1="1360" y1="0" x2="1360" y2="70"/>
+      <!-- painéis da parede -->
+      <g stroke="#38455c" stroke-width="2" opacity=".5">
+        <path d="M0 150h1600M0 330h1600M0 500h1600"/>
+        <path d="M200 0v620M600 0v620M1000 0v620M1400 0v620"/>
       </g>
 
-      <!-- candeeiros suspensos e cones de luz -->
+      <!-- viga e candeeiros industriais -->
+      <g stroke="#39465e" stroke-width="9"><line x1="0" y1="60" x2="1600" y2="60"/></g>
       <g>
-        <line x1="420" y1="70" x2="420" y2="120" stroke="#1a2b44" stroke-width="4"/>
-        <path d="M380 120 h80 l16 26 h-112 z" fill="#243a58"/>
-        <polygon points="396,146 444,146 620,640 220,640" fill="#ffdca8" opacity=".05"/>
-        <ellipse cx="420" cy="150" rx="150" ry="110" fill="url(#gLamp)"/>
-        <line x1="1180" y1="70" x2="1180" y2="120" stroke="#1a2b44" stroke-width="4"/>
-        <path d="M1140 120 h80 l16 26 h-112 z" fill="#243a58"/>
-        <polygon points="1156,146 1204,146 1380,640 980,640" fill="#ffdca8" opacity=".05"/>
-        <ellipse cx="1180" cy="150" rx="150" ry="110" fill="url(#gLamp)"/>
+        <line x1="330" y1="60" x2="330" y2="112" stroke="#39465e" stroke-width="5"/>
+        <path d="M282 112h96l20 30h-136z" fill="#4a5a76"/>
+        <ellipse cx="330" cy="146" rx="46" ry="9" fill="#ffe6b8"/>
+        <polygon points="300,150 360,150 560,620 100,620" fill="#ffca8a" opacity=".10"/>
+        <ellipse cx="330" cy="150" rx="230" ry="180" fill="url(#gLamp)"/>
+        <ellipse cx="330" cy="646" rx="210" ry="42" fill="url(#gPool)"/>
+      </g>
+      <g>
+        <line x1="1180" y1="60" x2="1180" y2="112" stroke="#39465e" stroke-width="5"/>
+        <path d="M1132 112h96l20 30h-136z" fill="#4a5a76"/>
+        <ellipse cx="1180" cy="146" rx="46" ry="9" fill="#ffe6b8"/>
+        <polygon points="1150,150 1210,150 1410,620 950,620" fill="#ffca8a" opacity=".10"/>
+        <ellipse cx="1180" cy="150" rx="230" ry="180" fill="url(#gLamp)"/>
+        <ellipse cx="1180" cy="646" rx="210" ry="42" fill="url(#gPool)"/>
       </g>
 
       <!-- portão de correr -->
-      <g>
-        <rect x="40" y="190" width="290" height="450" fill="#0f1b2c"/>
-        <g stroke="#1c2d46" stroke-width="3">
-          <path d="M40 220h290M40 258h290M40 296h290M40 334h290M40 372h290M40 410h290M40 448h290M40 486h290M40 524h290M40 562h290M40 600h290"/>
+      <g transform="translate(1120,0)">
+        <rect x="20" y="170" width="250" height="450" fill="#222c3e"/>
+        <g stroke="#38455c" stroke-width="4">
+          <path d="M20 212h250M20 254h250M20 296h250M20 338h250M20 380h250M20 422h250M20 464h250M20 506h250M20 548h250M20 590h250"/>
         </g>
-        <rect x="40" y="190" width="290" height="450" fill="none" stroke="#243a58" stroke-width="6"/>
+        <rect x="20" y="170" width="250" height="450" fill="none" stroke="#4a5a76" stroke-width="7"/>
       </g>
 
-      <!-- bancada com ferramentas -->
-      <g>
-        <rect x="420" y="470" width="250" height="18" fill="url(#gMetal)"/>
-        <rect x="436" y="488" width="218" height="152" fill="#111e30"/>
-        <g stroke="#1e3149" stroke-width="3">
-          <path d="M436 536h218M436 584h218"/>
-        </g>
-        <g fill="#33507a">
-          <rect x="470" y="508" width="34" height="6" rx="3"/>
-          <rect x="470" y="556" width="34" height="6" rx="3"/>
-          <rect x="470" y="604" width="34" height="6" rx="3"/>
-        </g>
-        <!-- ferramentas penduradas no painel -->
-        <g stroke="#28405f" stroke-width="4" fill="none">
-          <path d="M560 380v70M600 380v54M540 434h40"/>
-          <circle cx="600" cy="444" r="10"/>
-        </g>
-        <rect x="510" y="356" width="140" height="8" fill="#22354f"/>
-      </g>
+      <!-- CARRO no elevador de duas colunas -->
+      <g transform="translate(-460,0)">
+        <rect x="700" y="300" width="26" height="320" fill="#4d5c78"/>
+        <rect x="1080" y="300" width="26" height="320" fill="#4d5c78"/>
+        <rect x="690" y="600" width="46" height="24" rx="4" fill="#3c4a63"/>
+        <rect x="1070" y="600" width="46" height="24" rx="4" fill="#3c4a63"/>
+        <rect x="716" y="452" width="374" height="16" rx="6" fill="#5b6c8c"/>
 
-      <!-- suporte de vidros com para-brisas encostados -->
-      <g>
-        <path d="M1120 640 L1180 380 L1200 380 L1150 640 Z" fill="#1b2c44"/>
-        <path d="M1420 640 L1360 380 L1380 380 L1440 640 Z" fill="#1b2c44"/>
-        <path d="M1170 400 L1360 400 L1330 632 L1198 632 Z" fill="url(#gPane)" stroke="#5fb6d8" stroke-opacity=".22" stroke-width="3"/>
-        <path d="M1196 412 L1338 412 L1312 620 L1218 620 Z" fill="url(#gPane)" stroke="#8fd8f7" stroke-opacity=".14" stroke-width="2"/>
-        <line x1="1120" y1="640" x2="1440" y2="640" stroke="#243a58" stroke-width="6"/>
-      </g>
-
-      <!-- pilha de pneus -->
-      <g fill="#0e1928" stroke="#1d2f47" stroke-width="4">
-        <ellipse cx="830" cy="616" rx="62" ry="20"/>
-        <ellipse cx="830" cy="580" rx="62" ry="20"/>
-        <ellipse cx="830" cy="544" rx="62" ry="20"/>
-      </g>
-
-      <!-- armário de ferramentas -->
-      <g>
-        <rect x="920" y="450" width="150" height="190" fill="#132133" stroke="#22364f" stroke-width="4"/>
-        <g stroke="#22364f" stroke-width="3">
-          <path d="M920 498h150M920 546h150M920 594h150"/>
-        </g>
-        <g fill="#33507a">
-          <rect x="975" y="472" width="40" height="6" rx="3"/>
-          <rect x="975" y="520" width="40" height="6" rx="3"/>
-          <rect x="975" y="568" width="40" height="6" rx="3"/>
-          <rect x="975" y="616" width="40" height="6" rx="3"/>
+        <g transform="translate(0,-46)">
+          <!-- carroçaria -->
+          <path d="M742 452 q10-46 54-52 l40-58 q14-20 40-20 h150 q26 0 40 20 l40 58 q44 6 54 52 l6 34 q2 20-18 20 h-394 q-20 0-18-20 z"
+                fill="#37649f"/>
+          <path d="M742 486 h394 q20 0 18 20 l-4 22 q-2 14-18 14 h-386 q-16 0-18-14 l-4-22 q-2-20 18-20 z" fill="#274b78"/>
+          <!-- vidros -->
+          <path d="M846 344 q10-14 28-14 h60 v66 h-124 z" fill="url(#gPane)" stroke="#bfeeff" stroke-opacity=".45" stroke-width="3"/>
+          <path d="M948 330 h58 q18 0 28 14 l36 52 h-122 z" fill="url(#gPane)" stroke="#bfeeff" stroke-opacity=".45" stroke-width="3"/>
+          <!-- faróis -->
+          <ellipse cx="1128" cy="470" rx="20" ry="12" fill="#fff6cf"/>
+          <ellipse cx="1128" cy="470" rx="130" ry="80" fill="url(#gHead)" opacity=".5"/>
+          <polygon points="1148,452 1148,490 1470,570 1470,392" fill="#ffe9a8" opacity=".10"/>
+          <ellipse cx="752" cy="470" rx="16" ry="10" fill="#ff9a9a" opacity=".85"/>
+          <!-- rodas suspensas -->
+          <g fill="#12161f" stroke="#3a465c" stroke-width="5">
+            <circle cx="838" cy="546" r="42"/><circle cx="1046" cy="546" r="42"/>
+          </g>
+          <g fill="#7f8ea8"><circle cx="838" cy="546" r="15"/><circle cx="1046" cy="546" r="15"/></g>
         </g>
       </g>
 
-      <!-- juntas do pavimento e reflexo -->
-      <g stroke="#16243a" stroke-width="2" opacity=".8">
-        <path d="M0 700h1600M0 780h1600M0 870h1600"/>
-        <path d="M300 640L180 900M700 640L640 900M1000 640L1030 900M1350 640L1470 900"/>
+      <!-- carrinho de ferramentas vermelho -->
+      <g transform="translate(-360,0)">
+        <rect x="380" y="430" width="150" height="190" rx="8" fill="#a63a34"/>
+        <rect x="380" y="430" width="150" height="26" rx="8" fill="#c14b43"/>
+        <g stroke="#7c2a26" stroke-width="4"><path d="M380 496h150M380 552h150"/></g>
+        <g fill="#e8b4ae"><rect x="424" y="472" width="62" height="8" rx="4"/><rect x="424" y="528" width="62" height="8" rx="4"/><rect x="424" y="584" width="62" height="8" rx="4"/></g>
+        <g fill="#12161f"><circle cx="404" cy="626" r="12"/><circle cx="506" cy="626" r="12"/></g>
       </g>
-      <ellipse cx="800" cy="700" rx="700" ry="90" fill="#4cc9f0" opacity=".05"/>
+
+      <!-- cone de sinalização -->
+      <g transform="translate(224,0)">
+        <path d="M566 620 l30-96 h20 l30 96 z" fill="#e07a2f"/>
+        <rect x="576" y="560" width="60" height="16" fill="#f6e4cf"/>
+        <rect x="556" y="616" width="100" height="14" rx="5" fill="#c96a26"/>
+      </g>
+
+      <!-- pilha de pneus com piso -->
+      <g transform="translate(-630,0)">
+        <g fill="#161b25" stroke="#3a465c" stroke-width="4">
+          <ellipse cx="1330" cy="600" rx="70" ry="24"/>
+          <ellipse cx="1330" cy="558" rx="70" ry="24"/>
+          <ellipse cx="1330" cy="516" rx="70" ry="24"/>
+        </g>
+        <g stroke="#46536c" stroke-width="3">
+          <path d="M1275 596v-8M1300 604v-9M1330 606v-9M1360 604v-9M1385 596v-8"/>
+          <path d="M1275 554v-8M1300 562v-9M1330 564v-9M1360 562v-9M1385 554v-8"/>
+        </g>
+      </g>
+
+      <!-- suporte com para-brisas -->
+      <g transform="translate(-580,0)">
+        <path d="M1430 620 L1470 420 L1488 420 L1452 620 Z" fill="#3a465c"/>
+        <path d="M1590 620 L1560 420 L1578 420 L1600 620 Z" fill="#3a465c"/>
+        <path d="M1462 434 L1570 434 L1548 612 L1480 612 Z" fill="url(#gPane)" stroke="#79d6f2" stroke-opacity=".5" stroke-width="3"/>
+        <line x1="1430" y1="620" x2="1600" y2="620" stroke="#4a5a76" stroke-width="7"/>
+      </g>
+
+      <!-- pavimento -->
+      <g stroke="#2b3446" stroke-width="2" opacity=".85">
+        <path d="M0 690h1600M0 770h1600M0 860h1600"/>
+        <path d="M250 620L120 900M640 620L580 900M1080 620L1120 900M1450 620L1560 900"/>
+      </g>
+      <rect y="620" width="1600" height="6" fill="#3d4a62"/>
     </svg>
   </div>
 
@@ -343,7 +375,7 @@
 
   <div class="wrap">
     <div class="board-box">
-      <canvas id="board" width="340" height="680"></canvas>
+      <canvas id="board" width="392" height="732"></canvas>
 
       <div class="overlay show" id="startOverlay">
         <h2>🔷 Vidro Perfeito</h2>
@@ -439,6 +471,8 @@
 
   const COLS = 10, ROWS = 20, CELL = 34;
   const W = COLS * CELL, H = ROWS * CELL;
+  const PAD = 26;                       // moldura do para-brisas à volta do vidro
+  const CW = W + PAD * 2, CH = H + PAD * 2;
   const EMPTY = null, CRACK = 'X';
 
   const SHAPES = {
@@ -452,8 +486,8 @@
   };
   // Tons de vidro automóvel: incolor, verde, azul, bronze, privacidade…
   const TINT = {
-    I: '#7ee7f5', O: '#f6cf7a', T: '#c3aef7', S: '#7de6b0',
-    Z: '#f79ab0', J: '#8ab8f7', L: '#f7b183', X: '#9fb0c6'
+    I: '#4fd8ee', O: '#f5bf50', T: '#a98cf5', S: '#4fd99a',
+    Z: '#f57a95', J: '#5b9df5', L: '#f59440', X: '#9fb0c6'
   };
   const LINE_PTS = [0, 100, 300, 500, 800];
   const CAR_PARTS = 6, LINES_PER_PART = 7;
@@ -467,7 +501,7 @@
   let soundOn = localStorage.getItem('eg_game_sound') === '1';
 
   // Estado de animação
-  let particles = [], floaters = [], shake = 0, shine = -0.35;
+  let particles = [], floaters = [], shake = 0, shine = -0.35, wiperT = -1;
   let scoreShown = 0, lockFlash = 0, levelGlow = 0, crackT = 0, carPop = 0, carShine = -1;
   let lastCarParts = 0;
 
@@ -612,7 +646,7 @@
 
     if (!full.length) { spawn(); return; }
 
-    flashRows = full; flashT = 200;
+    flashRows = full; flashT = 200; wiperT = 0;   // o limpa-vidros varre o vidro colocado
     const n = full.length;
     for (const r of full) shatterRow(r);
     shake = n === 4 ? 14 : 6 + n * 1.5;
@@ -734,28 +768,28 @@
 
   // Moldura de para-brisas: faixa degradê no topo + vinheta, como um vidro a sério
   function drawFrame() {
-    const band = bd.createLinearGradient(0, 0, 0, H * 0.14);
-    band.addColorStop(0, 'rgba(56,132,220,.30)');
+    const band = bd.createLinearGradient(0, 0, 0, CH * 0.16);
+    band.addColorStop(0, 'rgba(56,132,220,.34)');
     band.addColorStop(1, 'rgba(56,132,220,0)');
-    bd.fillStyle = band; bd.fillRect(0, 0, W, H * 0.14);
+    bd.fillStyle = band; bd.fillRect(0, 0, CW, CH * 0.16);
 
-    const vig = bd.createRadialGradient(W / 2, H / 2, H * 0.18, W / 2, H / 2, H * 0.72);
+    const vig = bd.createRadialGradient(CW / 2, CH / 2, CH * 0.18, CW / 2, CH / 2, CH * 0.72);
     vig.addColorStop(0, 'rgba(0,0,0,0)');
     vig.addColorStop(1, 'rgba(0,0,0,.26)');
-    bd.fillStyle = vig; bd.fillRect(0, 0, W, H);
+    bd.fillStyle = vig; bd.fillRect(0, 0, CW, CH);
   }
 
   // Brilho que varre o vidro de tempos a tempos
   function drawShine() {
     if (shine > 1.5) return;
-    const x = shine * (W + H);
+    const x = shine * (CW + CH);
     bd.save();
     bd.globalCompositeOperation = 'lighter';
-    const g = bd.createLinearGradient(x - 90, 0, x + 90, H);
+    const g = bd.createLinearGradient(x - 90, 0, x + 90, CH);
     g.addColorStop(0, 'rgba(255,255,255,0)');
-    g.addColorStop(.5, 'rgba(190,230,255,.10)');
+    g.addColorStop(.5, 'rgba(190,230,255,.11)');
     g.addColorStop(1, 'rgba(255,255,255,0)');
-    bd.fillStyle = g; bd.fillRect(0, 0, W, H);
+    bd.fillStyle = g; bd.fillRect(0, 0, CW, CH);
     bd.restore();
   }
 
@@ -814,27 +848,105 @@
     bd.restore();
   }
 
+  // Serigrafia: a banda cerâmica preta com pontos que todo o para-brisas tem
+  function drawFrit() {
+    const b = PAD - 8;
+    bd.save();
+    bd.fillStyle = 'rgba(7,11,18,.95)';
+    bd.fillRect(0, 0, CW, b); bd.fillRect(0, CH - b, CW, b);
+    bd.fillRect(0, 0, b, CH); bd.fillRect(CW - b, 0, b, CH);
+    for (let i = 0; i < 3; i++) {
+      const ins = b + i * 6, r = 2.4 - i * 0.7, step = 8 + i * 3;
+      bd.fillStyle = 'rgba(7,11,18,' + (0.8 - i * 0.22) + ')';
+      for (let x = ins; x < CW - ins; x += step) {
+        bd.beginPath(); bd.arc(x, ins, r, 0, 6.283); bd.fill();
+        bd.beginPath(); bd.arc(x, CH - ins, r, 0, 6.283); bd.fill();
+      }
+      for (let y = ins; y < CH - ins; y += step) {
+        bd.beginPath(); bd.arc(ins, y, r, 0, 6.283); bd.fill();
+        bd.beginPath(); bd.arc(CW - ins, y, r, 0, 6.283); bd.fill();
+      }
+    }
+    bd.restore();
+  }
+
+  // Espelho retrovisor pendurado ao alto — desenhado ANTES das peças
+  function drawMirror() {
+    const cx = CW / 2;
+    bd.save();
+    bd.globalAlpha = .85;
+    bd.fillStyle = '#0b111c';
+    bd.fillRect(cx - 5, PAD - 14, 10, 16);
+    bd.beginPath();
+    bd.moveTo(cx - 44, PAD + 2); bd.lineTo(cx + 44, PAD + 2);
+    bd.quadraticCurveTo(cx + 52, PAD + 2, cx + 50, PAD + 12);
+    bd.lineTo(cx + 44, PAD + 26); bd.lineTo(cx - 44, PAD + 26);
+    bd.lineTo(cx - 50, PAD + 12);
+    bd.quadraticCurveTo(cx - 52, PAD + 2, cx - 44, PAD + 2);
+    bd.closePath(); bd.fill();
+    const g = bd.createLinearGradient(cx - 40, PAD + 6, cx + 40, PAD + 22);
+    g.addColorStop(0, 'rgba(150,195,235,.55)'); g.addColorStop(1, 'rgba(90,130,175,.35)');
+    bd.fillStyle = g;
+    bd.fillRect(cx - 40, PAD + 6, 80, 16);
+    bd.restore();
+  }
+
+  // Marcação de homologação gravada no canto, como no vidro verdadeiro
+  function drawMarking() {
+    bd.save();
+    bd.font = '600 9px "Courier New", monospace';
+    bd.fillStyle = 'rgba(190,215,240,.5)';
+    bd.textAlign = 'left';
+    bd.fillText('◆ EXPRESSGLASS  E4 43R-001234  AS/2', PAD - 14, CH - 7);
+    bd.restore();
+  }
+
+  // Limpa-vidros: varre o para-brisas depois de colocar vidro
+  function drawWiper() {
+    if (wiperT < 0 || wiperT > 1) return;
+    const k = wiperT < .5 ? wiperT * 2 : (1 - wiperT) * 2;
+    const a = -1.05 + k * 2.1;
+    const px = CW / 2, py = CH + 70, len = CH + 55;
+    bd.save();
+    bd.translate(px, py); bd.rotate(a);
+    bd.globalCompositeOperation = 'lighter';
+    bd.fillStyle = 'rgba(200,235,255,.05)';
+    bd.fillRect(-20, -len, 40, len);
+    bd.globalCompositeOperation = 'source-over';
+    bd.strokeStyle = 'rgba(10,16,26,.95)'; bd.lineWidth = 6; bd.lineCap = 'round';
+    bd.beginPath(); bd.moveTo(0, -20); bd.lineTo(0, -len + 95); bd.stroke();
+    bd.strokeStyle = 'rgba(16,24,36,.95)'; bd.lineWidth = 12;
+    bd.beginPath(); bd.moveTo(0, -len + 100); bd.lineTo(0, -len + 14); bd.stroke();
+    bd.strokeStyle = 'rgba(170,210,245,.55)'; bd.lineWidth = 2;
+    bd.beginPath(); bd.moveTo(0, -len + 100); bd.lineTo(0, -len + 14); bd.stroke();
+    bd.restore();
+  }
+
   function draw() {
     bd.save();
     if (shake > 0.3) bd.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
 
     // fundo do vidro
-    const bg = bd.createLinearGradient(0, 0, W, H);
+    const bg = bd.createLinearGradient(0, 0, CW, CH);
     bg.addColorStop(0, '#16273f'); bg.addColorStop(.5, '#101d31'); bg.addColorStop(1, '#152740');
-    bd.fillStyle = bg; bd.fillRect(-20, -20, W + 40, H + 40);
+    bd.fillStyle = bg; bd.fillRect(0, 0, CW, CH);
 
     // reflexos suaves, como luz numa superfície de vidro
     bd.save();
     bd.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 3; i++) {
-      const yy = H * (0.16 + i * 0.31);
-      const rg = bd.createLinearGradient(0, yy - 46, W, yy + 46);
+      const yy = CH * (0.16 + i * 0.31);
+      const rg = bd.createLinearGradient(0, yy - 46, CW, yy + 46);
       rg.addColorStop(0, 'rgba(120,190,255,0)');
       rg.addColorStop(.5, 'rgba(120,190,255,.055)');
       rg.addColorStop(1, 'rgba(120,190,255,0)');
-      bd.fillStyle = rg; bd.fillRect(0, yy - 46, W, 92);
+      bd.fillStyle = rg; bd.fillRect(0, yy - 46, CW, 92);
     }
     bd.restore();
+
+    drawMirror();          // fica atrás das peças
+    bd.save();
+    bd.translate(PAD, PAD);
 
     // grelha
     bd.strokeStyle = 'rgba(140,200,245,.10)'; bd.lineWidth = 1;
@@ -868,14 +980,19 @@
     }
 
     drawParticles();
-    drawFrame();
-    drawShine();
     if (levelGlow > 0) {
       bd.fillStyle = 'rgba(140,190,255,' + (levelGlow * 0.18) + ')';
       bd.fillRect(0, 0, W, H);
     }
     drawCracksOverlay();
     drawFloaters();
+    bd.restore();          // fim da área de jogo
+
+    drawFrame();
+    drawShine();
+    drawWiper();
+    drawFrit();
+    drawMarking();
     bd.restore();
   }
 
@@ -1002,6 +1119,7 @@
 
     shine += dt / 2600;
     if (shine > 2.6) shine = -0.35;
+    if (wiperT >= 0) { wiperT += dt / 1150; if (wiperT > 1) wiperT = -1; }
 
     // pontuação a subir suavemente
     if (scoreShown !== score) {
@@ -1030,7 +1148,7 @@
     board = newBoard(); bag = []; nextType = null;
     score = 0; scoreShown = 0; lines = 0; level = 1; carsDone = 0; lastCarParts = 0;
     dropMs = 800; dropAcc = 0; flashRows = []; flashT = 0;
-    particles = []; floaters = []; shake = 0; crackT = 0; carShine = -1;
+    particles = []; floaters = []; shake = 0; crackT = 0; carShine = -1; wiperT = 0;
     running = true; paused = false; over = false;
     $('score').textContent = '0';
     $('startOverlay').classList.remove('show');
