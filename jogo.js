@@ -53,7 +53,7 @@
     'finalDistance', 'finalDodged', 'finalCombo', 'againBtn', 'endRankBtn',
     'glassCard', 'damageLabel', 'damagePercent', 'damageBar', 'damageText',
     'impactDots', 'dodged', 'hits', 'personalBest', 'rankModal', 'closeRankBtn',
-    'periodTabs', 'viewTabs', 'myBest', 'rankList', 'toastLayer'
+    'periodTabs', 'viewTabs', 'myBest', 'rankList', 'toastLayer', 'touchSteerHint'
   ].forEach(function (id) {
     els[id] = document.getElementById(id);
   });
@@ -61,6 +61,7 @@
   const canvas = els.gameCanvas;
   const ctx = canvas.getContext('2d', { alpha: false });
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const coarsePointer = matchMedia('(hover: none) and (pointer: coarse)');
 
   let viewW = 1;
   let viewH = 1;
@@ -73,6 +74,7 @@
   let rankView = 'players';
   let rankData = null;
   let flashTimer = null;
+  let touchHintTimer = null;
   let objectSequence = 0;
 
   const pointer = {
@@ -81,7 +83,11 @@
     startX: 0,
     startY: 0,
     x: 0,
-    y: 0
+    y: 0,
+    startLane: 0,
+    feedbackLane: 0,
+    touchSteering: false,
+    moved: false
   };
 
   const particles = [];
@@ -581,13 +587,51 @@
 
   function changeLane(direction) {
     if (game.status !== 'playing' || game.paused) return;
-    const next = clamp(game.lane + direction, -1, 1);
-    if (next === game.lane) {
+    const current = Math.round(game.lane);
+    const next = clamp(current + direction, -1, 1);
+    if (next === current) {
+      game.lane = current;
       if (direction > 0 && game.shopAvailable) enterShop();
       return;
     }
     game.lane = next;
     sound.play('lane');
+  }
+
+  function hideTouchSteerHint() {
+    clearTimeout(touchHintTimer);
+    touchHintTimer = null;
+    els.touchSteerHint.classList.remove('is-visible');
+  }
+
+  function showTouchSteerHint() {
+    if (!coarsePointer.matches && innerWidth > 680) return;
+    hideTouchSteerHint();
+    els.touchSteerHint.classList.add('is-visible');
+    touchHintTimer = setTimeout(hideTouchSteerHint, 4800);
+  }
+
+  function resetPointer() {
+    pointer.down = false;
+    pointer.id = null;
+    pointer.touchSteering = false;
+    pointer.moved = false;
+    els.canvasShell.classList.remove('is-steering');
+  }
+
+  function steerWithPointer(event) {
+    const rect = canvas.getBoundingClientRect();
+    const dx = event.clientX - pointer.startX;
+    const next = Core.dragLane(pointer.startLane, dx, rect.width);
+    const nextFeedbackLane = Math.round(next);
+
+    pointer.moved = pointer.moved || Math.abs(dx) > 7;
+    game.lane = next;
+
+    if (nextFeedbackLane !== pointer.feedbackLane) {
+      pointer.feedbackLane = nextFeedbackLane;
+      sound.play('lane');
+    }
   }
 
   function updateGame(dt) {
@@ -665,7 +709,8 @@
     game.status = 'shattering';
     game.shatter = 1;
     game.shopAvailable = false;
-    pointer.down = false;
+    resetPointer();
+    hideTouchSteerHint();
     document.body.classList.remove('is-playing');
     sound.play('finish');
     addParticles(viewW * .5, viewH * .42, '#e9f7ff', 80, 3.6);
@@ -1347,7 +1392,8 @@
     game.sessionToken = sessionToken;
     game.ranked = ranked;
     particles.length = 0;
-    pointer.down = false;
+    resetPointer();
+    hideTouchSteerHint();
     els.startOverlay.classList.remove('is-visible');
     els.pauseOverlay.classList.remove('is-visible');
     els.shopOverlay.classList.remove('is-visible');
@@ -1397,6 +1443,7 @@
     game.activeMs = 0;
     game.spawnTimer = 1150;
     sound.play('go');
+    showTouchSteerHint();
     updateHud(true);
     els.startBtn.disabled = false;
     els.startBtnText.textContent = 'Ligar o motor';
@@ -1407,7 +1454,8 @@
     const next = typeof force === 'boolean' ? force : !game.paused;
     if (next === game.paused) return;
     game.paused = next;
-    pointer.down = false;
+    resetPointer();
+    if (next) hideTouchSteerHint();
     els.pauseOverlay.classList.toggle('is-visible', next);
     els.pauseBtn.setAttribute('aria-label', next ? 'Retomar o jogo' : 'Colocar em pausa');
   }
@@ -1420,7 +1468,8 @@
     const shop = game.objects.find(function (object) { return object.id === game.shopObjectId; });
     if (shop) shop.resolved = true;
     game.shopObjectId = null;
-    pointer.down = false;
+    resetPointer();
+    hideTouchSteerHint();
     sound.play('shop');
     refreshShop();
     els.shopOverlay.classList.add('is-visible');
@@ -1496,7 +1545,8 @@
     if (game.status === 'ended') return;
     game.status = 'ended';
     game.paused = false;
-    pointer.down = false;
+    resetPointer();
+    hideTouchSteerHint();
     document.body.classList.remove('is-playing', 'is-last-seconds');
     els.pauseOverlay.classList.remove('is-visible');
     els.shopOverlay.classList.remove('is-visible');
@@ -1633,12 +1683,22 @@
 
   function handlePointerDown(event) {
     if (game.status !== 'playing' || game.paused) return;
+    if (pointer.down || event.isPrimary === false) return;
     pointer.down = true;
     pointer.id = event.pointerId;
     pointer.startX = event.clientX;
     pointer.startY = event.clientY;
     pointer.x = event.clientX;
     pointer.y = event.clientY;
+    pointer.startLane = game.lane;
+    pointer.feedbackLane = Math.round(game.lane);
+    pointer.touchSteering = event.pointerType === 'touch';
+    pointer.moved = false;
+    if (pointer.touchSteering) {
+      event.preventDefault();
+      hideTouchSteerHint();
+      els.canvasShell.classList.add('is-steering');
+    }
     try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
   }
 
@@ -1646,6 +1706,10 @@
     if (!pointer.down || event.pointerId !== pointer.id) return;
     pointer.x = event.clientX;
     pointer.y = event.clientY;
+    if (pointer.touchSteering) {
+      event.preventDefault();
+      steerWithPointer(event);
+    }
   }
 
   function handlePointerUp(event) {
@@ -1653,16 +1717,33 @@
     const dx = event.clientX - pointer.startX;
     const dy = event.clientY - pointer.startY;
     const rect = canvas.getBoundingClientRect();
-    if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy) * .7) {
+
+    if (pointer.touchSteering) {
+      event.preventDefault();
+      steerWithPointer(event);
+      if (pointer.moved) {
+        game.lane = clamp(Math.round(game.lane), -1, 1);
+      } else {
+        const localX = event.clientX - rect.left;
+        if (localX < rect.width * .42) changeLane(-1);
+        else if (localX > rect.width * .58) changeLane(1);
+      }
+    } else if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy) * .7) {
       changeLane(dx > 0 ? 1 : -1);
     } else if (Math.hypot(dx, dy) < 20) {
       const localX = event.clientX - rect.left;
       if (localX < rect.width * .42) changeLane(-1);
       else if (localX > rect.width * .58) changeLane(1);
     }
-    pointer.down = false;
-    pointer.id = null;
     try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
+    resetPointer();
+  }
+
+  function handlePointerCancel(event) {
+    if (!pointer.down || event.pointerId !== pointer.id) return;
+    if (pointer.touchSteering) game.lane = clamp(Math.round(game.lane), -1, 1);
+    try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
+    resetPointer();
   }
 
   els.startBtn.addEventListener('click', startGame);
@@ -1710,7 +1791,7 @@
   canvas.addEventListener('pointerdown', handlePointerDown);
   canvas.addEventListener('pointermove', handlePointerMove);
   canvas.addEventListener('pointerup', handlePointerUp);
-  canvas.addEventListener('pointercancel', handlePointerUp);
+  canvas.addEventListener('pointercancel', handlePointerCancel);
 
   window.addEventListener('keydown', function (event) {
     const key = event.key.toLowerCase();

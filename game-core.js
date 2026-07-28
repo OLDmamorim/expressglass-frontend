@@ -44,6 +44,14 @@
     return Math.round(base * comboFactor * (doubled ? 2 : 1));
   }
 
+  function dragLane(startLane, deltaX, viewportWidth) {
+    const safeStart = Number.isFinite(Number(startLane)) ? Number(startLane) : 0;
+    const safeDelta = Number.isFinite(Number(deltaX)) ? Number(deltaX) : 0;
+    const safeWidth = clamp(Number(viewportWidth) || 1, 1, 10000);
+    const laneTravel = clamp(safeWidth * .18, 54, 96);
+    return clamp(safeStart + safeDelta / laneTravel, -1, 1);
+  }
+
   function serviceQuote(type, damage) {
     const safeDamage = clamp(integer(damage, 0), 0, 100);
     if (type === 'repair') {
@@ -141,6 +149,7 @@
     clamp,
     normalizeRun,
     dodgeCredits,
+    dragLane,
     serviceQuote,
     applyService,
     calculateScore,

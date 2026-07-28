@@ -29,6 +29,14 @@ test('os pontos por desvio premiam pedra, combo e bónus ×2', () => {
   assert.equal(Core.dodgeCredits('large', 10, true), 47);
 });
 
+test('o arrasto móvel atravessa as faixas com um movimento curto e contínuo', () => {
+  assert.equal(Core.dragLane(0, 0, 390), 0);
+  assert.ok(Core.dragLane(0, 70, 390) > .99);
+  assert.equal(Core.dragLane(0, -150, 390), -1);
+  assert.ok(Core.dragLane(1, -140, 390) < -.99);
+  assert.equal(Core.dragLane(-1, -500, 390), -1);
+});
+
 test('a reparação e substituição respeitam dano e saldo', () => {
   assert.deepEqual(Core.applyService({ damage: 62, credits: 90 }, 'repair', false), {
     ok: true,
