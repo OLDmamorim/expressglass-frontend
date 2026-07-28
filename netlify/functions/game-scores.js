@@ -1,5 +1,6 @@
-// Ranking do "Pit Stop ExpressGlass".
-// O servidor abre uma sessão curta, valida a telemetria e calcula a pontuação.
+// Ranking do "Impacto ExpressGlass".
+// O servidor abre uma sessão curta, valida a telemetria e usa o tempo
+// sobrevivido como resultado — os pontos EG servem apenas como moeda no jogo.
 const crypto = require('crypto');
 const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
@@ -12,7 +13,7 @@ const pool = new Pool({
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 const GAME_SESSION_SECRET = process.env.GAME_SESSION_SECRET || JWT_SECRET;
-const GAME_SESSION_ISSUER = 'expressglass-pit-stop';
+const GAME_SESSION_ISSUER = 'expressglass-impacto';
 const GAME_VERSION = Core.VERSION;
 const MAX_RUNS_PER_TEN_MINUTES = 12;
 
@@ -37,21 +38,6 @@ function getUserFromToken(event) {
 
 function userIdentity(user) {
   return String(user.userId || user.username || '');
-}
-
-function portugalHour(date) {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Lisbon',
-    hour: '2-digit',
-    hour12: false
-  }).formatToParts(date || new Date());
-  const hour = Number(parts.find((part) => part.type === 'hour')?.value);
-  return Number.isFinite(hour) ? hour % 24 : 0;
-}
-
-function tournamentMultiplier(date) {
-  const hour = portugalHour(date);
-  return hour >= 12 && hour < 14 ? 2 : 1;
 }
 
 async function migrate() {
@@ -103,24 +89,21 @@ function openSession(user) {
   const identity = userIdentity(user);
   if (!identity) throw new HttpError(400, 'Utilizador sem identificação');
   const now = Date.now();
-  const multiplier = tournamentMultiplier(new Date(now));
   const sessionId = crypto.randomUUID();
   const sessionToken = jwt.sign({
-    type: 'pit-stop-session',
+    type: 'impacto-session',
     uid: identity,
     startedAt: now,
-    multiplier,
     version: GAME_VERSION
   }, GAME_SESSION_SECRET, {
-    expiresIn: '4m',
+    expiresIn: '35m',
     issuer: GAME_SESSION_ISSUER,
     jwtid: sessionId
   });
   return {
     success: true,
     sessionToken,
-    multiplier,
-    durationMs: Core.TOTAL_MS,
+    maxDurationMs: Core.MAX_RUN_MS,
     version: GAME_VERSION
   };
 }
@@ -133,7 +116,7 @@ function verifyGameSession(token, user) {
   } catch (_) {
     throw new HttpError(400, 'Sessão de jogo inválida ou expirada');
   }
-  if (session.type !== 'pit-stop-session' ||
+  if (session.type !== 'impacto-session' ||
       session.uid !== userIdentity(user) ||
       session.version !== GAME_VERSION ||
       !session.jti ||
@@ -146,15 +129,15 @@ function verifyGameSession(token, user) {
 async function saveRun(data, user) {
   const session = verifyGameSession(data.sessionToken, user);
   const wallElapsedMs = Date.now() - session.startedAt;
-  const validationError = Core.validateRun(data.jobs, data.durationMs, wallElapsedMs);
+  const validationError = Core.validateRun(data.run, wallElapsedMs);
   if (validationError) throw new HttpError(400, validationError);
 
-  const jobs = Core.normalizeJobs(data.jobs);
-  const score = Core.calculateScore(jobs, session.multiplier);
-  const quality = Core.averageQuality(jobs);
-  const durationMs = Math.round(Number(data.durationMs));
+  const run = Core.normalizeRun(data.run);
+  const score = Core.calculateScore(run);
+  const quality = Math.max(0, 100 - run.endingDamage);
+  const durationMs = run.durationMs;
 
-  if (!jobs.length || score === 0) {
+  if (score === 0) {
     return { success: true, saved: false, score: 0 };
   }
 
@@ -193,8 +176,8 @@ async function saveRun(data, user) {
       user.portalId || null,
       user.portalName || null,
       score,
-      jobs.length,
-      Math.max(1, jobs.length),
+      run.dodged,
+      Math.max(1, Math.floor(run.durationMs / 45000) + 1),
       quality,
       durationMs,
       session.jti,
@@ -335,8 +318,6 @@ exports.handler = async (event) => {
 };
 
 exports.__test = {
-  portugalHour,
-  tournamentMultiplier,
   openSession,
   verifyGameSession
 };
