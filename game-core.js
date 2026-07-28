@@ -5,10 +5,10 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
 
-  const VERSION = 'pit-stop-v2';
-  const TOTAL_MS = 75000;
+  const VERSION = 'oficina-pressao-v3';
+  const TOTAL_MS = 90000;
   const MAX_JOBS = 10;
-  const MIN_JOB_MS = 4500;
+  const MIN_JOB_MS = 5500;
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
@@ -68,6 +68,24 @@
     return 'Precisa de afinação';
   }
 
+  function isRepairable(damage) {
+    if (!damage || typeof damage !== 'object') return false;
+    const diameter = Number(damage.diameterMm);
+    const edge = Number(damage.edgeDistanceMm);
+    return Number.isFinite(diameter) &&
+      Number.isFinite(edge) &&
+      diameter <= 25 &&
+      edge >= 60 &&
+      damage.driverField === false;
+  }
+
+  function glassMatches(required, candidate) {
+    if (!required || !candidate) return false;
+    return ['camera', 'rainSensor', 'heated', 'hud'].every(function (feature) {
+      return Boolean(required[feature]) === Boolean(candidate[feature]);
+    });
+  }
+
   function validateRun(rawJobs, durationMs, wallElapsedMs) {
     if (!Array.isArray(rawJobs)) return 'Dados da partida inválidos';
     if (rawJobs.length > MAX_JOBS) return 'Número de serviços inválido';
@@ -76,7 +94,7 @@
     const duration = integer(durationMs, -1);
     const wallElapsed = integer(wallElapsedMs, -1);
 
-    if (duration < 3000 || duration > 120000) return 'Duração da partida inválida';
+    if (duration < 3000 || duration > 135000) return 'Duração da partida inválida';
     if (wallElapsed >= 0 && duration > wallElapsed + 3000) return 'Duração inconsistente';
     if (jobs.length > Math.floor((duration + 2500) / MIN_JOB_MS)) return 'Ritmo de jogo inválido';
 
@@ -100,6 +118,8 @@
     calculateScore,
     averageQuality,
     qualityLabel,
+    isRepairable,
+    glassMatches,
     validateRun
   });
 });
