@@ -5,27 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Vidro Perfeito - Expressglass</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0b1220">
+  <meta name="theme-color" content="#070d18">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0b1220;
-      --panel: #131c2e;
+      --bg: #070d18;
+      --panel: rgba(21,32,52,.72);
       --panel-2: #1b2740;
-      --line: #24334f;
-      --txt: #e6edf7;
-      --muted: #8ea3c0;
-      --accent: #38bdf8;
+      --line: rgba(120,160,220,.16);
+      --txt: #eaf2ff;
+      --muted: #90a6c6;
+      --accent: #4cc9f0;
       --accent-2: #1e40af;
       --gold: #fbbf24;
     }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: radial-gradient(1200px 700px at 50% -10%, #16233b 0%, var(--bg) 60%);
+      background:
+        radial-gradient(900px 500px at 15% 0%, rgba(56,189,248,.10), transparent 60%),
+        radial-gradient(900px 600px at 85% 100%, rgba(99,102,241,.10), transparent 60%),
+        #070d18;
       color: var(--txt);
       min-height: 100vh;
       -webkit-tap-highlight-color: transparent;
@@ -34,149 +37,163 @@
 
     .top {
       display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px;
+      padding: 12px 20px;
       border-bottom: 1px solid var(--line);
-      background: rgba(11,18,32,0.8);
-      backdrop-filter: blur(8px);
+      background: rgba(7,13,24,.75);
+      backdrop-filter: blur(10px);
       position: sticky; top: 0; z-index: 20;
     }
     .top h1 {
-      font-size: 1.05rem; font-weight: 800; letter-spacing: .3px;
-      display: flex; align-items: center; gap: 8px;
+      font-size: 1.15rem; font-weight: 800; letter-spacing: .4px;
+      display: flex; align-items: center; gap: 9px;
     }
-    .top h1 span.ico { font-size: 1.2rem; }
     .top .spacer { margin-left: auto; }
     .tbtn {
-      background: var(--panel-2); color: var(--txt);
-      border: 1px solid var(--line); border-radius: 9px;
-      padding: 7px 11px; font-size: .82rem; font-weight: 700;
+      background: rgba(40,56,88,.7); color: var(--txt);
+      border: 1px solid var(--line); border-radius: 10px;
+      padding: 8px 13px; font-size: .85rem; font-weight: 700;
       cursor: pointer; transition: .15s;
     }
-    .tbtn:hover { background: #24304d; }
+    .tbtn:hover { background: rgba(60,82,128,.8); }
     .tbtn.on { background: var(--accent-2); border-color: var(--accent-2); }
 
     .lunch-badge {
-      background: linear-gradient(135deg, #f59e0b, #f97316);
-      color: #1a1205; font-weight: 800; font-size: .72rem;
-      padding: 5px 10px; border-radius: 999px;
+      background: linear-gradient(135deg, #fbbf24, #f97316);
+      color: #1a1205; font-weight: 800; font-size: .76rem;
+      padding: 6px 12px; border-radius: 999px;
       display: none; align-items: center; gap: 5px;
+      box-shadow: 0 0 18px rgba(251,146,60,.5);
       animation: pulse 2s ease-in-out infinite;
     }
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.75;transform:scale(.97)} }
 
     .wrap {
-      max-width: 900px; margin: 0 auto; padding: 14px;
-      display: grid; grid-template-columns: auto 220px; gap: 14px;
+      max-width: 1120px; margin: 0 auto; padding: 18px;
+      display: grid; grid-template-columns: auto 270px; gap: 20px;
       align-items: start; justify-content: center;
     }
 
     .board-box { position: relative; }
     #board {
       display: block;
-      background: linear-gradient(180deg, #0d1626, #0a1120);
-      border: 2px solid var(--line);
-      border-radius: 12px;
-      box-shadow: 0 18px 50px rgba(0,0,0,.5), inset 0 0 60px rgba(56,189,248,.05);
-      height: min(72vh, 620px); width: auto; aspect-ratio: 1 / 2;
+      border-radius: 16px;
+      height: min(84vh, 800px); width: auto; aspect-ratio: 1 / 2;
       touch-action: none;
+      box-shadow:
+        0 30px 70px rgba(0,0,0,.6),
+        0 0 0 1px rgba(120,170,230,.18),
+        0 0 60px rgba(76,201,240,.10);
     }
 
-    .side { display: flex; flex-direction: column; gap: 10px; }
+    .side { display: flex; flex-direction: column; gap: 12px; }
     .card {
       background: var(--panel); border: 1px solid var(--line);
-      border-radius: 12px; padding: 11px 12px;
+      border-radius: 14px; padding: 13px 15px;
+      backdrop-filter: blur(8px);
     }
     .card h3 {
-      font-size: .68rem; text-transform: uppercase; letter-spacing: .9px;
-      color: var(--muted); font-weight: 800; margin-bottom: 7px;
+      font-size: .68rem; text-transform: uppercase; letter-spacing: 1.1px;
+      color: var(--muted); font-weight: 800; margin-bottom: 8px;
     }
-    .stat-v { font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
-    .stat-row { display: flex; gap: 10px; }
+    .stat-v {
+      font-size: 2rem; font-weight: 800; line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+      text-shadow: 0 0 22px rgba(76,201,240,.35);
+    }
+    .stat-row { display: flex; gap: 12px; }
     .stat-row > div { flex: 1; }
-    .stat-s { font-size: 1.05rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+    .stat-s { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
     #next, #car { display: block; width: 100%; height: auto; }
-    .car-cap { font-size: .68rem; color: var(--muted); margin-top: 5px; text-align: center; }
-    .car-bar { height: 5px; background: var(--panel-2); border-radius: 99px; overflow: hidden; margin-top: 6px; }
-    .car-bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), #22d3ee); transition: width .25s; }
+    .car-cap { font-size: .72rem; color: var(--muted); margin-top: 6px; text-align: center; }
+    .car-bar { height: 6px; background: rgba(10,18,32,.8); border-radius: 99px; overflow: hidden; margin-top: 8px; }
+    .car-bar > i {
+      display: block; height: 100%; width: 0;
+      background: linear-gradient(90deg, #4cc9f0, #a78bfa);
+      box-shadow: 0 0 12px rgba(76,201,240,.7);
+      transition: width .3s;
+    }
 
-    /* Controlos táteis */
-    .touch { display: none; gap: 8px; padding: 10px 14px 20px; max-width: 460px; margin: 0 auto; }
+    .touch { display: none; gap: 8px; padding: 10px 14px 22px; max-width: 480px; margin: 0 auto; }
     .touch button {
-      flex: 1; background: var(--panel-2); color: var(--txt);
-      border: 1px solid var(--line); border-radius: 12px;
-      padding: 16px 0; font-size: 1.25rem; font-weight: 800;
+      flex: 1; background: rgba(40,56,88,.8); color: var(--txt);
+      border: 1px solid var(--line); border-radius: 13px;
+      padding: 17px 0; font-size: 1.3rem; font-weight: 800;
       cursor: pointer; user-select: none; touch-action: manipulation;
     }
-    .touch button:active { background: var(--accent-2); transform: scale(.96); }
+    .touch button:active { background: var(--accent-2); transform: scale(.95); }
 
-    /* Sobreposições */
     .overlay {
-      position: absolute; inset: 0; border-radius: 12px;
-      background: rgba(7,12,22,.9); backdrop-filter: blur(3px);
+      position: absolute; inset: 0; border-radius: 16px;
+      background: rgba(6,11,20,.88); backdrop-filter: blur(5px);
       display: none; flex-direction: column; align-items: center; justify-content: center;
-      gap: 12px; padding: 20px; text-align: center;
+      gap: 14px; padding: 24px; text-align: center;
     }
-    .overlay.show { display: flex; }
-    .overlay h2 { font-size: 1.35rem; font-weight: 800; }
-    .overlay p { color: var(--muted); font-size: .86rem; line-height: 1.5; }
-    .big-score { font-size: 2.4rem; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .overlay.show { display: flex; animation: fadeIn .25s ease; }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .overlay h2 { font-size: 1.5rem; font-weight: 800; }
+    .overlay p { color: var(--muted); font-size: .9rem; line-height: 1.6; }
+    .big-score {
+      font-size: 3rem; font-weight: 800; color: var(--accent);
+      font-variant-numeric: tabular-nums; text-shadow: 0 0 34px rgba(76,201,240,.6);
+    }
     .btn {
-      background: linear-gradient(135deg, var(--accent-2), #2563eb);
-      color: #fff; border: none; border-radius: 10px;
-      padding: 12px 22px; font-size: .95rem; font-weight: 800; cursor: pointer;
+      background: linear-gradient(135deg, #2563eb, #4cc9f0);
+      color: #04121e; border: none; border-radius: 11px;
+      padding: 13px 26px; font-size: 1rem; font-weight: 800; cursor: pointer;
+      box-shadow: 0 8px 26px rgba(37,99,235,.45);
     }
-    .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--txt); }
-    .kbd-help { font-size: .72rem; color: var(--muted); line-height: 1.8; }
-    .kbd { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-family: monospace; }
+    .btn.ghost { background: transparent; border: 1px solid var(--line); color: var(--txt); box-shadow: none; }
+    .kbd-help { font-size: .75rem; color: var(--muted); line-height: 1.9; }
+    .kbd { background: rgba(40,56,88,.8); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; font-family: monospace; }
 
-    /* Modal ranking */
     .modal {
       position: fixed; inset: 0; z-index: 50;
-      background: rgba(5,9,17,.82); backdrop-filter: blur(6px);
+      background: rgba(4,8,15,.85); backdrop-filter: blur(7px);
       display: none; align-items: center; justify-content: center; padding: 16px;
     }
     .modal.show { display: flex; }
     .modal-box {
-      background: var(--panel); border: 1px solid var(--line);
-      border-radius: 16px; width: 100%; max-width: 480px;
+      background: #101a2c; border: 1px solid var(--line);
+      border-radius: 18px; width: 100%; max-width: 500px;
       max-height: 88vh; overflow: hidden; display: flex; flex-direction: column;
     }
-    .modal-head { padding: 14px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
-    .modal-head h2 { font-size: 1rem; font-weight: 800; }
-    .tabs { display: flex; gap: 6px; padding: 10px 12px 0; }
+    .modal-head { padding: 15px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+    .modal-head h2 { font-size: 1.05rem; font-weight: 800; }
+    .tabs { display: flex; gap: 7px; padding: 11px 13px 0; }
     .tab {
-      flex: 1; background: var(--panel-2); border: 1px solid var(--line);
-      color: var(--muted); border-radius: 8px; padding: 8px 4px;
-      font-size: .78rem; font-weight: 700; cursor: pointer;
+      flex: 1; background: rgba(40,56,88,.6); border: 1px solid var(--line);
+      color: var(--muted); border-radius: 9px; padding: 9px 4px;
+      font-size: .8rem; font-weight: 700; cursor: pointer;
     }
     .tab.on { background: var(--accent-2); border-color: var(--accent-2); color: #fff; }
-    .rank-list { padding: 10px 12px 16px; overflow-y: auto; }
+    .rank-list { padding: 11px 13px 18px; overflow-y: auto; }
     .rank-row {
-      display: flex; align-items: center; gap: 10px;
-      padding: 9px 10px; border-radius: 9px; margin-bottom: 5px;
-      background: var(--panel-2); font-size: .85rem;
+      display: flex; align-items: center; gap: 11px;
+      padding: 10px 12px; border-radius: 10px; margin-bottom: 6px;
+      background: rgba(40,56,88,.45); font-size: .88rem;
     }
-    .rank-row.me { background: rgba(30,64,175,.35); border: 1px solid var(--accent-2); }
-    .rank-pos { width: 26px; font-weight: 800; color: var(--muted); text-align: center; flex-shrink: 0; }
+    .rank-row.me { background: rgba(37,99,235,.3); border: 1px solid rgba(76,201,240,.5); }
+    .rank-pos { width: 28px; font-weight: 800; color: var(--muted); text-align: center; flex-shrink: 0; }
     .rank-pos.p1 { color: var(--gold); } .rank-pos.p2 { color: #cbd5e1; } .rank-pos.p3 { color: #d97706; }
     .rank-name { flex: 1; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .rank-sub { font-size: .7rem; color: var(--muted); font-weight: 500; }
+    .rank-sub { font-size: .72rem; color: var(--muted); font-weight: 500; }
     .rank-val { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent); }
-    .empty { text-align: center; color: var(--muted); padding: 26px 10px; font-size: .85rem; }
+    .empty { text-align: center; color: var(--muted); padding: 28px 10px; font-size: .88rem; }
 
-    @media (max-width: 720px) {
-      .wrap { grid-template-columns: 1fr; gap: 10px; padding: 10px; }
-      #board { height: min(56vh, 520px); margin: 0 auto; }
+    @media (max-width: 860px) {
+      .wrap { grid-template-columns: 1fr; gap: 12px; padding: 10px; }
+      #board { height: min(58vh, 560px); margin: 0 auto; }
       .side { flex-direction: row; flex-wrap: wrap; }
-      .side .card { flex: 1; min-width: 120px; }
+      .side .card { flex: 1; min-width: 130px; }
       .touch { display: flex; }
       .kbd-help { display: none; }
+      .stat-v { font-size: 1.5rem; }
     }
   </style>
 </head>
 <body>
   <div class="top">
-    <h1><span class="ico">🔷</span> Vidro Perfeito</h1>
+    <h1>🔷 Vidro Perfeito</h1>
     <span class="lunch-badge" id="lunchBadge">🍽️ Torneio do almoço ×2</span>
     <div class="spacer"></div>
     <button class="tbtn" id="soundBtn" title="Som">🔇</button>
@@ -186,11 +203,11 @@
 
   <div class="wrap">
     <div class="board-box">
-      <canvas id="board" width="300" height="600"></canvas>
+      <canvas id="board" width="340" height="680"></canvas>
 
       <div class="overlay show" id="startOverlay">
         <h2>🔷 Vidro Perfeito</h2>
-        <p>Encaixa os cacos e monta o vidro.<br>Cada linha completa é um vidro colocado.</p>
+        <p>Encaixa os cacos e monta o para-brisas.<br>Cada linha completa é um vidro colocado.</p>
         <button class="btn" id="startBtn">Começar</button>
         <div class="kbd-help">
           <span class="kbd">←</span> <span class="kbd">→</span> mover &nbsp;·&nbsp;
@@ -222,23 +239,17 @@
       </div>
       <div class="card">
         <div class="stat-row">
-          <div>
-            <h3>Vidros</h3>
-            <div class="stat-s" id="lines">0</div>
-          </div>
-          <div>
-            <h3>Ritmo</h3>
-            <div class="stat-s" id="level">1</div>
-          </div>
+          <div><h3>Vidros</h3><div class="stat-s" id="lines">0</div></div>
+          <div><h3>Ritmo</h3><div class="stat-s" id="level">1</div></div>
         </div>
       </div>
       <div class="card">
         <h3>Próximo caco</h3>
-        <canvas id="next" width="150" height="110"></canvas>
+        <canvas id="next" width="220" height="150"></canvas>
       </div>
       <div class="card">
         <h3>Na oficina</h3>
-        <canvas id="car" width="220" height="120"></canvas>
+        <canvas id="car" width="260" height="150"></canvas>
         <div class="car-bar"><i id="carBar"></i></div>
         <div class="car-cap" id="carCap">Faltam 7 vidros</div>
       </div>
@@ -261,7 +272,7 @@
     <div class="modal-box">
       <div class="modal-head">
         <h2>🏆 Ranking</h2>
-        <div class="spacer" style="margin-left:auto"></div>
+        <div style="margin-left:auto"></div>
         <button class="tbtn" id="closeRank">✕</button>
       </div>
       <div class="tabs">
@@ -281,17 +292,15 @@
 (function () {
   'use strict';
 
-  // ===== Autenticação (mesma da plataforma) =====
   const token = localStorage.getItem('eg_auth_token');
   if (!token) { location.href = 'login.html'; return; }
   let me = null;
   try { me = JSON.parse(localStorage.getItem('eg_auth_user') || 'null'); } catch (e) { me = null; }
 
-  // ===== Constantes do jogo =====
-  const COLS = 10, ROWS = 20, CELL = 30;
+  const COLS = 10, ROWS = 20, CELL = 34;
+  const W = COLS * CELL, H = ROWS * CELL;
   const EMPTY = null, CRACK = 'X';
 
-  // Peças = cacos de vidro. As formas clássicas já são angulares como vidro partido.
   const SHAPES = {
     I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
     O: [[1,1],[1,1]],
@@ -301,28 +310,32 @@
     J: [[1,0,0],[1,1,1],[0,0,0]],
     L: [[0,0,1],[1,1,1],[0,0,0]]
   };
+  // Tons de vidro automóvel: incolor, verde, azul, bronze, privacidade…
   const TINT = {
-    I: '#22d3ee', O: '#fbbf24', T: '#a78bfa', S: '#34d399',
-    Z: '#fb7185', J: '#60a5fa', L: '#fb923c', X: '#64748b'
+    I: '#7ee7f5', O: '#f6cf7a', T: '#c3aef7', S: '#7de6b0',
+    Z: '#f79ab0', J: '#8ab8f7', L: '#f7b183', X: '#9fb0c6'
   };
   const LINE_PTS = [0, 100, 300, 500, 800];
-  const CAR_PARTS = 6, LINES_PER_PART = 7;      // carro completo a cada 42 vidros
+  const CAR_PARTS = 6, LINES_PER_PART = 7;
 
-  // ===== Estado =====
   let board, piece, nextType, bag = [];
   let score = 0, lines = 0, level = 1, carsDone = 0;
   let running = false, paused = false, over = false;
   let dropMs = 800, dropAcc = 0, lastT = 0, rafId = null;
   let flashRows = [], flashT = 0;
-  let restartAllowedAt = 0;   // evita que o espaço a largar peças reinicie logo o jogo
+  let restartAllowedAt = 0;
   let soundOn = localStorage.getItem('eg_game_sound') === '1';
+
+  // Estado de animação
+  let particles = [], floaters = [], shake = 0, shine = -0.35;
+  let scoreShown = 0, lockFlash = 0, levelGlow = 0, crackT = 0, carPop = 0, carShine = -1;
+  let lastCarParts = 0;
 
   const $ = (id) => document.getElementById(id);
   const bd = $('board').getContext('2d');
   const nx = $('next').getContext('2d');
   const cr = $('car').getContext('2d');
 
-  // ===== Som (WebAudio, desligado por omissão — estamos no trabalho) =====
   let actx = null;
   function beep(freq, dur, type, vol) {
     if (!soundOn) return;
@@ -337,16 +350,11 @@
     } catch (e) { /* som é acessório */ }
   }
 
-  // ===== Torneio do almoço: 12h–14h vale a dobrar =====
   function isLunchTime() { const h = new Date().getHours(); return h >= 12 && h < 14; }
   function refreshLunchBadge() { $('lunchBadge').style.display = isLunchTime() ? 'inline-flex' : 'none'; }
 
-  // ===== Tabuleiro =====
-  function newBoard() {
-    return Array.from({ length: ROWS }, () => Array(COLS).fill(EMPTY));
-  }
+  function newBoard() { return Array.from({ length: ROWS }, () => Array(COLS).fill(EMPTY)); }
 
-  // Saco de 7: garante que todas as peças saem antes de repetir
   function nextFromBag() {
     if (!bag.length) {
       bag = Object.keys(SHAPES);
@@ -367,7 +375,6 @@
     if (collides(piece.m, piece.x, piece.y)) gameOver();
   }
 
-  // Linhas vazias no topo da matriz — para a peça entrar colada ao teto
   function topOffset(m) {
     for (let r = 0; r < m.length; r++) if (m[r].some(v => v)) return r;
     return 0;
@@ -385,9 +392,7 @@
     return false;
   }
 
-  function rotate(m) {
-    return m[0].map((_, i) => m.map(row => row[i]).reverse());
-  }
+  function rotate(m) { return m[0].map((_, i) => m.map(row => row[i]).reverse()); }
 
   function tryRotate() {
     const m = rotate(piece.m);
@@ -415,20 +420,50 @@
     while (!collides(piece.m, piece.x, piece.y + 1)) { piece.y++; d++; }
     score += d * 2;
     updateHud();
+    shake = Math.min(9, 3 + d * 0.35);
     beep(150, 0.09, 'square', 0.05);
     lock();
   }
 
   function lock() {
+    lockFlash = 1;
     for (let r = 0; r < piece.m.length; r++) {
       for (let c = 0; c < piece.m[r].length; c++) {
         if (!piece.m[r][c]) continue;
         const x = piece.x + c, y = piece.y + r;
         if (y < 0) { gameOver(); return; }
         board[y][x] = piece.type;
+        // pó de vidro no impacto
+        if (r === piece.m.length - 1 || !piece.m[r + 1] || !piece.m[r + 1][c]) {
+          for (let k = 0; k < 3; k++) puff(x * CELL + CELL / 2, (y + 1) * CELL, TINT[piece.type]);
+        }
       }
     }
     clearLines();
+  }
+
+  // ===== Partículas =====
+  function shard(x, y, tint, power) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 9 * (power || 1),
+      vy: -Math.random() * 6 * (power || 1) - 1,
+      rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.5,
+      s: 3 + Math.random() * 8, life: 1, decay: 0.9 + Math.random() * 0.5, tint
+    });
+  }
+  function puff(x, y, tint) {
+    particles.push({ x, y, vx: (Math.random() - 0.5) * 2, vy: -Math.random() * 1.2,
+      rot: 0, vr: 0, s: 1.5 + Math.random() * 2, life: .6, decay: 1.6, tint });
+  }
+  function shatterRow(r) {
+    for (let c = 0; c < COLS; c++) {
+      const v = board[r][c]; if (v === EMPTY) continue;
+      for (let k = 0; k < 6; k++) shard(c * CELL + Math.random() * CELL, r * CELL + Math.random() * CELL, TINT[v] || '#9fb0c6', 1);
+    }
+  }
+  function floater(text, y, color, size) {
+    floaters.push({ text, x: W / 2, y: y == null ? H / 2 : y, life: 1, color: color || '#eaf2ff', size: size || 26 });
   }
 
   function clearLines() {
@@ -437,95 +472,235 @@
 
     if (!full.length) { spawn(); return; }
 
-    flashRows = full; flashT = 140;      // animação curta de estilhaço
+    flashRows = full; flashT = 200;
     const n = full.length;
+    for (const r of full) shatterRow(r);
+    shake = n === 4 ? 14 : 6 + n * 1.5;
+
     score += LINE_PTS[n] * level;
     lines += n;
+    updateHud();
+
+    const msg = n === 4 ? 'INSTALAÇÃO PERFEITA!' : (n === 1 ? 'Vidro colocado' : n + ' vidros!');
+    floater(msg, full[0] * CELL, n === 4 ? '#fbbf24' : '#7ee7f5', n === 4 ? 30 : 24);
+    floater('+' + (LINE_PTS[n] * level), full[0] * CELL + 34, '#a7f3d0', 20);
     beep(n === 4 ? 880 : 620, n === 4 ? 0.22 : 0.1, 'triangle', 0.06);
 
     setTimeout(() => {
       for (const r of full) { board.splice(r, 1); board.unshift(Array(COLS).fill(EMPTY)); }
       flashRows = [];
 
-      // Carro completo → bónus e sai da oficina
       const before = carsDone;
       carsDone = Math.floor(lines / (CAR_PARTS * LINES_PER_PART));
-      if (carsDone > before) { score += 2000; beep(1046, 0.3, 'triangle', 0.07); }
+      if (carsDone > before) {
+        score += 2000; carShine = 0;
+        floater('🚗 CARRO ENTREGUE  +2000', H / 2, '#fbbf24', 26);
+        beep(1046, 0.3, 'triangle', 0.07);
+      }
 
-      // Nível a cada 10 vidros
       const nl = Math.floor(lines / 10) + 1;
-      if (nl !== level) { level = nl; dropMs = Math.max(90, 800 - (level - 1) * 68); }
+      if (nl !== level) {
+        level = nl; dropMs = Math.max(90, 800 - (level - 1) * 68);
+        levelGlow = 1; floater('RITMO ' + level, H / 2 - 60, '#c3aef7', 28);
+      }
 
-      // Lasca de pedra: a partir do ritmo 3, de 12 em 12 vidros salta uma
-      // pedra e crava uma fiada de vidro rachado vinda de baixo.
       if (level >= 3 && n > 0 && Math.floor(lines / 12) > Math.floor((lines - n) / 12)) addCrackRow();
 
       updateHud(); drawCar(); spawn();
-    }, 140);
+    }, 200);
   }
 
   function addCrackRow() {
     const row = Array(COLS).fill(CRACK);
-    row[Math.floor(Math.random() * COLS)] = EMPTY;   // o furo por onde escapar
+    row[Math.floor(Math.random() * COLS)] = EMPTY;
     board.shift(); board.push(row);
     if (piece && collides(piece.m, piece.x, piece.y)) piece.y--;
+    shake = 10;
+    floater('⚠️ LASCA DE PEDRA', H - 120, '#f79ab0', 22);
     beep(110, 0.16, 'sawtooth', 0.05);
   }
 
-  // ===== Desenho =====
-  function glassCell(ctx, x, y, size, tint, ghost) {
-    const g = ctx.createLinearGradient(x, y, x + size, y + size);
-    if (ghost) {
-      ctx.strokeStyle = 'rgba(148,180,220,.4)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 2, y + 2, size - 4, size - 4);
+  // ===== Desenho de vidro =====
+  function hex(c, a) {
+    const r = parseInt(c.slice(1, 3), 16), g = parseInt(c.slice(3, 5), 16), b = parseInt(c.slice(5, 7), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+
+  // Caco de vidro: corpo translúcido, bisel, reflexo especular e aresta viva
+  function glassCell(ctx, x, y, size, tint, mode) {
+    if (mode === 'ghost') {
+      ctx.save();
+      ctx.strokeStyle = hex(tint, .35); ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.strokeRect(x + 3, y + 3, size - 6, size - 6);
+      ctx.restore();
       return;
     }
-    g.addColorStop(0, tint + 'ee');
-    g.addColorStop(0.45, tint + '99');
-    g.addColorStop(1, tint + 'dd');
+    const p = 1.5, s = size - p * 2;
+    // corpo
+    const g = ctx.createLinearGradient(x, y, x + size, y + size);
+    g.addColorStop(0, hex(tint, .92));
+    g.addColorStop(.5, hex(tint, .55));
+    g.addColorStop(1, hex(tint, .85));
     ctx.fillStyle = g;
-    ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
+    ctx.fillRect(x + p, y + p, s, s);
 
-    // brilho diagonal — dá o aspeto de vidro
-    ctx.fillStyle = 'rgba(255,255,255,.30)';
+    // bisel claro (topo/esquerda) e sombra (baixo/direita)
+    ctx.fillStyle = 'rgba(255,255,255,.42)';
     ctx.beginPath();
-    ctx.moveTo(x + 2, y + size - 4);
-    ctx.lineTo(x + size - 4, y + 2);
-    ctx.lineTo(x + size - 4, y + 7);
-    ctx.lineTo(x + 7, y + size - 4);
+    ctx.moveTo(x + p, y + p); ctx.lineTo(x + p + s, y + p);
+    ctx.lineTo(x + p + s - 4, y + p + 4); ctx.lineTo(x + p + 4, y + p + 4);
+    ctx.lineTo(x + p + 4, y + p + s - 4); ctx.lineTo(x + p, y + p + s);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(2,10,22,.30)';
+    ctx.beginPath();
+    ctx.moveTo(x + p + s, y + p); ctx.lineTo(x + p + s, y + p + s);
+    ctx.lineTo(x + p, y + p + s); ctx.lineTo(x + p + 4, y + p + s - 4);
+    ctx.lineTo(x + p + s - 4, y + p + s - 4); ctx.lineTo(x + p + s - 4, y + p + 4);
     ctx.closePath(); ctx.fill();
 
-    ctx.strokeStyle = 'rgba(255,255,255,.55)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x + 1.5, y + 1.5, size - 3, size - 3);
+    // reflexo especular
+    ctx.fillStyle = 'rgba(255,255,255,.5)';
+    ctx.beginPath();
+    ctx.moveTo(x + 5, y + s - 1); ctx.lineTo(x + s - 1, y + 5);
+    ctx.lineTo(x + s - 1, y + 11); ctx.lineTo(x + 11, y + s - 1);
+    ctx.closePath(); ctx.fill();
+
+    // aresta
+    ctx.strokeStyle = hex(tint, .95); ctx.lineWidth = 1;
+    ctx.strokeRect(x + p + .5, y + p + .5, s - 1, s - 1);
   }
 
   function crackCell(ctx, x, y, size) {
-    ctx.fillStyle = 'rgba(100,116,139,.85)';
-    ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
-    ctx.strokeStyle = 'rgba(226,232,240,.75)';
-    ctx.lineWidth = 1;
+    const p = 1.5, s = size - p * 2;
+    const g = ctx.createLinearGradient(x, y, x + size, y + size);
+    g.addColorStop(0, 'rgba(150,165,185,.85)');
+    g.addColorStop(1, 'rgba(90,105,128,.9)');
+    ctx.fillStyle = g; ctx.fillRect(x + p, y + p, s, s);
+    // teia de fissuras
+    ctx.strokeStyle = 'rgba(240,248,255,.85)'; ctx.lineWidth = 1.1;
+    const cx = x + size / 2, cy = y + size / 2;
     ctx.beginPath();
-    ctx.moveTo(x + size / 2, y + 2); ctx.lineTo(x + size / 2 - 4, y + size / 2);
-    ctx.lineTo(x + size / 2 + 5, y + size / 2 + 3); ctx.lineTo(x + size / 2 - 2, y + size - 3);
-    ctx.moveTo(x + 3, y + size - 5); ctx.lineTo(x + size / 2 - 4, y + size / 2);
-    ctx.moveTo(x + size - 3, y + 5); ctx.lineTo(x + size / 2 + 2, y + size / 2 - 2);
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2 + (x + y) * 0.01;
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + Math.cos(a) * (size / 2 - 2), cy + Math.sin(a) * (size / 2 - 2));
+    }
+    ctx.moveTo(cx + 5, cy); ctx.arc(cx, cy, 5, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(15,23,42,.6)';
-    ctx.strokeRect(x + 1.5, y + 1.5, size - 3, size - 3);
+    ctx.strokeStyle = 'rgba(10,18,32,.6)';
+    ctx.strokeRect(x + p + .5, y + p + .5, s - 1, s - 1);
+  }
+
+  // Moldura de para-brisas: faixa degradê no topo + vinheta, como um vidro a sério
+  function drawFrame() {
+    const band = bd.createLinearGradient(0, 0, 0, H * 0.14);
+    band.addColorStop(0, 'rgba(56,132,220,.30)');
+    band.addColorStop(1, 'rgba(56,132,220,0)');
+    bd.fillStyle = band; bd.fillRect(0, 0, W, H * 0.14);
+
+    const vig = bd.createRadialGradient(W / 2, H / 2, H * 0.18, W / 2, H / 2, H * 0.72);
+    vig.addColorStop(0, 'rgba(0,0,0,0)');
+    vig.addColorStop(1, 'rgba(0,0,0,.26)');
+    bd.fillStyle = vig; bd.fillRect(0, 0, W, H);
+  }
+
+  // Brilho que varre o vidro de tempos a tempos
+  function drawShine() {
+    if (shine > 1.5) return;
+    const x = shine * (W + H);
+    bd.save();
+    bd.globalCompositeOperation = 'lighter';
+    const g = bd.createLinearGradient(x - 90, 0, x + 90, H);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(.5, 'rgba(190,230,255,.10)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    bd.fillStyle = g; bd.fillRect(0, 0, W, H);
+    bd.restore();
+  }
+
+  function drawParticles() {
+    for (const p of particles) {
+      bd.save();
+      bd.globalAlpha = Math.max(0, p.life);
+      bd.translate(p.x, p.y); bd.rotate(p.rot);
+      bd.fillStyle = hex(p.tint, .9);
+      bd.beginPath();
+      bd.moveTo(-p.s, -p.s * .5); bd.lineTo(p.s * .8, -p.s); bd.lineTo(p.s, p.s * .6); bd.lineTo(-p.s * .4, p.s);
+      bd.closePath(); bd.fill();
+      bd.fillStyle = 'rgba(255,255,255,.6)';
+      bd.fillRect(-p.s * .3, -p.s * .3, p.s * .5, 1.5);
+      bd.restore();
+    }
+  }
+
+  function drawFloaters() {
+    for (const f of floaters) {
+      bd.save();
+      bd.globalAlpha = Math.min(1, f.life * 1.6);
+      const fam = 'px -apple-system, Segoe UI, Roboto, sans-serif';
+      bd.font = '800 ' + f.size + fam;
+      // encolher para nunca transbordar a moldura
+      const wMax = W - 18, wTxt = bd.measureText(f.text).width;
+      if (wTxt > wMax) bd.font = '800 ' + Math.max(11, Math.floor(f.size * wMax / wTxt)) + fam;
+      bd.textAlign = 'center';
+      bd.shadowColor = f.color; bd.shadowBlur = 18;
+      bd.fillStyle = f.color;
+      bd.fillText(f.text, f.x, f.y);
+      bd.restore();
+    }
+  }
+
+  function drawCracksOverlay() {
+    if (crackT <= 0) return;
+    const k = 1 - crackT;
+    bd.save();
+    bd.strokeStyle = 'rgba(226,240,255,' + (0.85 * crackT + 0.15) + ')';
+    bd.lineWidth = 2;
+    const cx = W / 2, cy = H / 2;
+    for (let i = 0; i < 14; i++) {
+      const a = (i / 14) * Math.PI * 2 + 0.3;
+      const len = (W + H) * 0.55 * k;
+      bd.beginPath(); bd.moveTo(cx, cy);
+      let px = cx, py = cy;
+      for (let seg = 1; seg <= 4; seg++) {
+        const t = (len / 4) * seg;
+        px = cx + Math.cos(a + Math.sin(seg * 2 + i) * 0.18) * t;
+        py = cy + Math.sin(a + Math.cos(seg * 3 + i) * 0.18) * t;
+        bd.lineTo(px, py);
+      }
+      bd.stroke();
+    }
+    bd.restore();
   }
 
   function draw() {
-    bd.clearRect(0, 0, COLS * CELL, ROWS * CELL);
+    bd.save();
+    if (shake > 0.3) bd.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
 
-    // grelha da moldura
-    bd.strokeStyle = 'rgba(56,189,248,.06)';
-    bd.lineWidth = 1;
-    for (let c = 1; c < COLS; c++) { bd.beginPath(); bd.moveTo(c * CELL, 0); bd.lineTo(c * CELL, ROWS * CELL); bd.stroke(); }
-    for (let r = 1; r < ROWS; r++) { bd.beginPath(); bd.moveTo(0, r * CELL); bd.lineTo(COLS * CELL, r * CELL); bd.stroke(); }
+    // fundo do vidro
+    const bg = bd.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, '#16273f'); bg.addColorStop(.5, '#101d31'); bg.addColorStop(1, '#152740');
+    bd.fillStyle = bg; bd.fillRect(-20, -20, W + 40, H + 40);
 
-    // pilha
+    // reflexos suaves, como luz numa superfície de vidro
+    bd.save();
+    bd.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 3; i++) {
+      const yy = H * (0.16 + i * 0.31);
+      const rg = bd.createLinearGradient(0, yy - 46, W, yy + 46);
+      rg.addColorStop(0, 'rgba(120,190,255,0)');
+      rg.addColorStop(.5, 'rgba(120,190,255,.055)');
+      rg.addColorStop(1, 'rgba(120,190,255,0)');
+      bd.fillStyle = rg; bd.fillRect(0, yy - 46, W, 92);
+    }
+    bd.restore();
+
+    // grelha
+    bd.strokeStyle = 'rgba(140,200,245,.10)'; bd.lineWidth = 1;
+    for (let c = 1; c < COLS; c++) { bd.beginPath(); bd.moveTo(c * CELL, 0); bd.lineTo(c * CELL, H); bd.stroke(); }
+    for (let r = 1; r < ROWS; r++) { bd.beginPath(); bd.moveTo(0, r * CELL); bd.lineTo(W, r * CELL); bd.stroke(); }
+
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const v = board[r][c];
@@ -535,130 +710,189 @@
       }
     }
 
-    // linhas a estilhaçar
     if (flashRows.length) {
-      bd.fillStyle = 'rgba(255,255,255,.75)';
-      for (const r of flashRows) bd.fillRect(0, r * CELL, COLS * CELL, CELL);
+      const a = Math.max(0, flashT / 200);
+      bd.fillStyle = 'rgba(255,255,255,' + (0.85 * a) + ')';
+      for (const r of flashRows) bd.fillRect(0, r * CELL, W, CELL);
     }
 
     if (piece && running) {
-      // sombra de aterragem
       let gy = piece.y;
       while (!collides(piece.m, piece.x, gy + 1)) gy++;
       for (let r = 0; r < piece.m.length; r++)
         for (let c = 0; c < piece.m[r].length; c++)
-          if (piece.m[r][c] && gy + r >= 0) glassCell(bd, (piece.x + c) * CELL, (gy + r) * CELL, CELL, TINT[piece.type], true);
-
+          if (piece.m[r][c] && gy + r >= 0) glassCell(bd, (piece.x + c) * CELL, (gy + r) * CELL, CELL, TINT[piece.type], 'ghost');
       for (let r = 0; r < piece.m.length; r++)
         for (let c = 0; c < piece.m[r].length; c++)
           if (piece.m[r][c] && piece.y + r >= 0) glassCell(bd, (piece.x + c) * CELL, (piece.y + r) * CELL, CELL, TINT[piece.type]);
     }
+
+    drawParticles();
+    drawFrame();
+    drawShine();
+    if (levelGlow > 0) {
+      bd.fillStyle = 'rgba(140,190,255,' + (levelGlow * 0.18) + ')';
+      bd.fillRect(0, 0, W, H);
+    }
+    drawCracksOverlay();
+    drawFloaters();
+    bd.restore();
   }
 
   function drawNext() {
-    nx.clearRect(0, 0, 150, 110);
+    nx.clearRect(0, 0, 220, 150);
     if (!nextType) return;
-    const m = SHAPES[nextType], s = 22;
+    const m = SHAPES[nextType], s = 30;
     const cells = [];
     for (let r = 0; r < m.length; r++) for (let c = 0; c < m[r].length; c++) if (m[r][c]) cells.push([r, c]);
     const minR = Math.min(...cells.map(a => a[0])), maxR = Math.max(...cells.map(a => a[0]));
     const minC = Math.min(...cells.map(a => a[1])), maxC = Math.max(...cells.map(a => a[1]));
-    const ox = (150 - (maxC - minC + 1) * s) / 2, oy = (110 - (maxR - minR + 1) * s) / 2;
+    const ox = (220 - (maxC - minC + 1) * s) / 2, oy = (150 - (maxR - minR + 1) * s) / 2;
     for (const [r, c] of cells) glassCell(nx, ox + (c - minC) * s, oy + (r - minR) * s, s, TINT[nextType]);
   }
 
-  // O carro monta-se à medida que colocas vidros — a recompensa visual
   function drawCar() {
-    const W = 220, H = 120;
-    cr.clearRect(0, 0, W, H);
+    const CW = 260, CH = 150;
+    cr.clearRect(0, 0, CW, CH);
     const inCar = lines % (CAR_PARTS * LINES_PER_PART);
-    const parts = Math.min(CAR_PARTS, Math.floor(inCar / LINES_PER_PART));
+    let parts = Math.min(CAR_PARTS, Math.floor(inCar / LINES_PER_PART));
+    // enquanto o carro entregue brilha, mantem-se inteiro no painel
+    if (carShine >= 0 && carShine <= 1.3) parts = CAR_PARTS;
+    if (parts > lastCarParts) { carPop = 1; }
+    lastCarParts = parts;
 
-    // contorno de referência
-    cr.strokeStyle = 'rgba(148,163,184,.18)';
-    cr.lineWidth = 1.5;
-    cr.setLineDash([4, 4]);
-    cr.strokeRect(18, 30, 184, 58);
-    cr.setLineDash([]);
+    cr.save();
+    if (carPop > 0) {
+      const k = 1 + carPop * 0.07;
+      cr.translate(CW / 2, CH / 2); cr.scale(k, k); cr.translate(-CW / 2, -CH / 2);
+    }
 
-    const body = '#1e40af', glass = '#7dd3fc';
-    // 1 · chassis
+    cr.strokeStyle = 'rgba(148,178,214,.16)'; cr.lineWidth = 1.5;
+    cr.setLineDash([5, 5]); cr.strokeRect(22, 36, 216, 76); cr.setLineDash([]);
+
+    const body = '#2350c8', glass = '#8fd8f7';
     if (parts >= 1) {
-      cr.fillStyle = body;
+      const g = cr.createLinearGradient(0, 80, 0, 112);
+      g.addColorStop(0, '#2f63e0'); g.addColorStop(1, '#17307a');
+      cr.fillStyle = g;
       cr.beginPath();
-      cr.moveTo(22, 84); cr.lineTo(30, 66); cr.lineTo(190, 66); cr.lineTo(198, 84);
-      cr.quadraticCurveTo(198, 90, 190, 90); cr.lineTo(30, 90); cr.quadraticCurveTo(22, 90, 22, 84);
+      cr.moveTo(26, 106); cr.lineTo(36, 82); cr.lineTo(224, 82); cr.lineTo(234, 106);
+      cr.quadraticCurveTo(234, 113, 224, 113); cr.lineTo(36, 113); cr.quadraticCurveTo(26, 113, 26, 106);
       cr.closePath(); cr.fill();
     }
-    // 2 · tejadilho
     if (parts >= 2) {
       cr.fillStyle = body;
-      cr.beginPath();
-      cr.moveTo(62, 66); cr.lineTo(80, 38); cr.lineTo(146, 38); cr.lineTo(163, 66);
+      cr.beginPath(); cr.moveTo(74, 82); cr.lineTo(96, 46); cr.lineTo(174, 46); cr.lineTo(194, 82);
       cr.closePath(); cr.fill();
     }
-    // 3 · rodas
     if (parts >= 3) {
-      cr.fillStyle = '#0f172a';
-      [66, 156].forEach(x => { cr.beginPath(); cr.arc(x, 90, 13, 0, Math.PI * 2); cr.fill(); });
-      cr.fillStyle = '#94a3b8';
-      [66, 156].forEach(x => { cr.beginPath(); cr.arc(x, 90, 5, 0, Math.PI * 2); cr.fill(); });
+      cr.fillStyle = '#0b1220';
+      [78, 186].forEach(x => { cr.beginPath(); cr.arc(x, 113, 16, 0, Math.PI * 2); cr.fill(); });
+      cr.fillStyle = '#9db4d0';
+      [78, 186].forEach(x => { cr.beginPath(); cr.arc(x, 113, 6, 0, Math.PI * 2); cr.fill(); });
     }
-    // 4 · vidros laterais
     if (parts >= 4) {
-      cr.fillStyle = glass;
-      cr.globalAlpha = .8;
-      cr.beginPath(); cr.moveTo(86, 62); cr.lineTo(98, 43); cr.lineTo(120, 43); cr.lineTo(120, 62); cr.closePath(); cr.fill();
-      cr.beginPath(); cr.moveTo(126, 43); cr.lineTo(142, 43); cr.lineTo(154, 62); cr.lineTo(126, 62); cr.closePath(); cr.fill();
+      cr.fillStyle = glass; cr.globalAlpha = .85;
+      cr.beginPath(); cr.moveTo(102, 78); cr.lineTo(116, 51); cr.lineTo(142, 51); cr.lineTo(142, 78); cr.closePath(); cr.fill();
+      cr.beginPath(); cr.moveTo(149, 51); cr.lineTo(170, 51); cr.lineTo(184, 78); cr.lineTo(149, 78); cr.closePath(); cr.fill();
       cr.globalAlpha = 1;
     }
-    // 5 · para-brisas (o nosso!)
     if (parts >= 5) {
-      const g = cr.createLinearGradient(62, 38, 86, 66);
-      g.addColorStop(0, '#e0f2fe'); g.addColorStop(1, '#38bdf8');
+      const g = cr.createLinearGradient(74, 46, 104, 82);
+      g.addColorStop(0, '#eaf7ff'); g.addColorStop(1, '#4cc9f0');
       cr.fillStyle = g;
-      cr.beginPath(); cr.moveTo(66, 62); cr.lineTo(80, 41); cr.lineTo(92, 41); cr.lineTo(80, 62); cr.closePath(); cr.fill();
-      cr.strokeStyle = 'rgba(255,255,255,.9)'; cr.lineWidth = 1.5; cr.stroke();
+      cr.beginPath(); cr.moveTo(78, 78); cr.lineTo(96, 49); cr.lineTo(110, 49); cr.lineTo(95, 78); cr.closePath(); cr.fill();
+      cr.strokeStyle = 'rgba(255,255,255,.95)'; cr.lineWidth = 1.8; cr.stroke();
     }
-    // 6 · faróis e brilho — carro pronto a entregar
     if (parts >= 6) {
-      cr.fillStyle = '#fde68a';
-      cr.beginPath(); cr.ellipse(26, 76, 5, 4, 0, 0, Math.PI * 2); cr.fill();
-      cr.fillStyle = '#fca5a5';
-      cr.beginPath(); cr.ellipse(194, 76, 4, 4, 0, 0, Math.PI * 2); cr.fill();
-      cr.fillStyle = 'rgba(255,255,255,.55)';
-      cr.beginPath(); cr.moveTo(40, 70); cr.lineTo(58, 70); cr.lineTo(50, 74); cr.lineTo(32, 74); cr.closePath(); cr.fill();
+      cr.fillStyle = '#ffe9a3'; cr.shadowColor = '#ffd166'; cr.shadowBlur = 14;
+      cr.beginPath(); cr.ellipse(31, 95, 6, 5, 0, 0, Math.PI * 2); cr.fill();
+      cr.shadowBlur = 0;
+      cr.fillStyle = '#ff9a9a';
+      cr.beginPath(); cr.ellipse(229, 95, 5, 5, 0, 0, Math.PI * 2); cr.fill();
     }
+
+    // brilho a percorrer o carro acabado
+    if (carShine >= 0 && carShine <= 1.3) {
+      const x = carShine * (CW + 80) - 40;
+      cr.save();
+      cr.beginPath(); cr.rect(24, 44, 212, 72); cr.clip();   // só sobre a carroçaria
+      cr.globalCompositeOperation = 'lighter';
+      const g = cr.createLinearGradient(x - 26, 0, x + 26, CH);
+      g.addColorStop(0, 'rgba(255,255,255,0)');
+      g.addColorStop(.5, 'rgba(255,255,255,.38)');
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      cr.fillStyle = g; cr.fillRect(0, 0, CW, CH);
+      cr.restore();
+    }
+    cr.restore();
 
     $('carBar').style.width = Math.round((inCar / (CAR_PARTS * LINES_PER_PART)) * 100) + '%';
     const falta = (CAR_PARTS * LINES_PER_PART) - inCar;
     $('carCap').textContent = parts >= CAR_PARTS
       ? '✅ Pronto a entregar!'
-      : (carsDone > 0 ? `${carsDone} entregue(s) · faltam ${falta}` : `Faltam ${falta} vidros`);
+      : (carsDone > 0 ? carsDone + ' entregue(s) · faltam ' + falta : 'Faltam ' + falta + ' vidros');
   }
 
   function updateHud() {
-    $('score').textContent = score.toLocaleString('pt-PT');
     $('lines').textContent = lines;
     $('level').textContent = level;
   }
 
   // ===== Ciclo =====
+  function animate(dt) {
+    const f = dt / 16.7;
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.vy += 0.42 * f; p.x += p.vx * f; p.y += p.vy * f; p.rot += p.vr * f;
+      p.life -= (p.decay * dt) / 1000;
+      if (p.life <= 0 || p.y > H + 60) particles.splice(i, 1);
+    }
+    for (let i = floaters.length - 1; i >= 0; i--) {
+      const fl = floaters[i];
+      fl.y -= 0.45 * f; fl.life -= dt / 1100;
+      if (fl.life <= 0) floaters.splice(i, 1);
+    }
+    if (shake > 0) shake *= Math.pow(0.86, f);
+    if (lockFlash > 0) lockFlash -= dt / 200;
+    if (levelGlow > 0) levelGlow -= dt / 700;
+    if (carPop > 0) { carPop -= dt / 400; drawCar(); }
+    if (carShine >= 0 && carShine <= 1.3) { carShine += dt / 900; drawCar(); }
+    if (crackT > 0) crackT -= dt / 900;
+
+    shine += dt / 2600;
+    if (shine > 2.6) shine = -0.35;
+
+    // pontuação a subir suavemente
+    if (scoreShown !== score) {
+      const diff = score - scoreShown;
+      scoreShown += Math.sign(diff) * Math.max(1, Math.ceil(Math.abs(diff) * 0.18));
+      if ((diff > 0 && scoreShown > score) || (diff < 0 && scoreShown < score)) scoreShown = score;
+      $('score').textContent = scoreShown.toLocaleString('pt-PT');
+    }
+  }
+
   function loop(t) {
     rafId = requestAnimationFrame(loop);
-    if (!running || paused) { lastT = t; return; }
-    const dt = t - lastT; lastT = t;
-    if (flashT > 0) { flashT -= dt; draw(); return; }
-    dropAcc += dt;
-    if (dropAcc >= dropMs) { dropAcc = 0; if (!collides(piece.m, piece.x, piece.y + 1)) piece.y++; else lock(); }
+    const dt = Math.min(60, t - lastT); lastT = t;
+    animate(dt);
+    if (running && !paused) {
+      if (flashT > 0) { flashT -= dt; }
+      else {
+        dropAcc += dt;
+        if (dropAcc >= dropMs) { dropAcc = 0; if (!collides(piece.m, piece.x, piece.y + 1)) piece.y++; else lock(); }
+      }
+    }
     draw();
   }
 
   function start() {
     board = newBoard(); bag = []; nextType = null;
-    score = 0; lines = 0; level = 1; carsDone = 0;
+    score = 0; scoreShown = 0; lines = 0; level = 1; carsDone = 0; lastCarParts = 0;
     dropMs = 800; dropAcc = 0; flashRows = []; flashT = 0;
+    particles = []; floaters = []; shake = 0; crackT = 0; carShine = -1;
     running = true; paused = false; over = false;
+    $('score').textContent = '0';
     $('startOverlay').classList.remove('show');
     $('overOverlay').classList.remove('show');
     $('pauseOverlay').classList.remove('show');
@@ -677,6 +911,8 @@
     if (over) return;
     running = false; over = true;
     restartAllowedAt = performance.now() + 900;
+    crackT = 1; shake = 16;
+    for (let i = 0; i < 40; i++) shard(Math.random() * W, Math.random() * H * .7, '#9fb0c6', 1.2);
     beep(180, 0.4, 'sawtooth', 0.06);
 
     const lunch = isLunchTime();
@@ -684,9 +920,9 @@
     $('overTitle').textContent = lines >= 40 ? '🏁 Grande turno!' : 'Fim de jogo';
     $('overScore').textContent = final.toLocaleString('pt-PT');
     $('overMsg').textContent = lunch
-      ? `${lines} vidros colocados · pontuação a dobrar (torneio do almoço)`
-      : `${lines} vidros colocados · ritmo ${level}`;
-    $('overOverlay').classList.add('show');
+      ? lines + ' vidros colocados · pontuação a dobrar (torneio do almoço)'
+      : lines + ' vidros colocados · ritmo ' + level;
+    setTimeout(() => $('overOverlay').classList.add('show'), 700);
 
     try {
       const r = await fetch('/.netlify/functions/game-scores', {
@@ -714,7 +950,6 @@
       });
       const j = await r.json();
       if (!j.success) throw new Error(j.error || 'erro');
-
       if (j.me && j.me.allTimeBest) $('best').textContent = j.me.allTimeBest.toLocaleString('pt-PT');
 
       const rows = rankView === 'players' ? j.players : j.stores;
@@ -728,22 +963,18 @@
         const medal = pos === 1 ? '🥇' : pos === 2 ? '🥈' : pos === 3 ? '🥉' : pos;
         if (rankView === 'players') {
           const isMe = j.me && row.username === j.me.username;
-          return `<div class="rank-row${isMe ? ' me' : ''}">
-            <div class="rank-pos${posCls}">${medal}</div>
-            <div class="rank-name">${esc(row.username)}
-              <div class="rank-sub">${esc(row.portal_name || '—')} · ${row.games} jogo(s)</div>
-            </div>
-            <div class="rank-val">${Number(row.best).toLocaleString('pt-PT')}</div>
-          </div>`;
+          return '<div class="rank-row' + (isMe ? ' me' : '') + '">' +
+            '<div class="rank-pos' + posCls + '">' + medal + '</div>' +
+            '<div class="rank-name">' + esc(row.username) +
+              '<div class="rank-sub">' + esc(row.portal_name || '—') + ' · ' + row.games + ' jogo(s)</div></div>' +
+            '<div class="rank-val">' + Number(row.best).toLocaleString('pt-PT') + '</div></div>';
         }
         const isMine = j.me && row.portal_name === j.me.portalName;
-        return `<div class="rank-row${isMine ? ' me' : ''}">
-          <div class="rank-pos${posCls}">${medal}</div>
-          <div class="rank-name">${esc(row.portal_name || '—')}
-            <div class="rank-sub">${row.players} jogador(es) · melhor ${Number(row.top).toLocaleString('pt-PT')}</div>
-          </div>
-          <div class="rank-val">${Number(row.total).toLocaleString('pt-PT')}</div>
-        </div>`;
+        return '<div class="rank-row' + (isMine ? ' me' : '') + '">' +
+          '<div class="rank-pos' + posCls + '">' + medal + '</div>' +
+          '<div class="rank-name">' + esc(row.portal_name || '—') +
+            '<div class="rank-sub">' + row.players + ' jogador(es) · melhor ' + Number(row.top).toLocaleString('pt-PT') + '</div></div>' +
+          '<div class="rank-val">' + Number(row.total).toLocaleString('pt-PT') + '</div></div>';
       }).join('');
     } catch (e) {
       list.innerHTML = '<div class="empty">Não foi possível carregar o ranking.</div>';
@@ -757,7 +988,6 @@
   function openRank() { $('rankModal').classList.add('show'); togglePause(true); loadRank(); }
   function closeRank() { $('rankModal').classList.remove('show'); }
 
-  // ===== Ligações =====
   $('startBtn').onclick = start;
   $('againBtn').onclick = start;
   $('resumeBtn').onclick = () => togglePause(false);
@@ -801,7 +1031,6 @@
     }
   });
 
-  // Toque: repetição enquanto se mantém premido (mover e descer)
   function holdBtn(id, fn, repeat) {
     const el = $(id);
     let timer = null, iv = null;
@@ -825,14 +1054,13 @@
   holdBtn('tRot', () => tryRotate(), false);
   holdBtn('tDrop', () => hardDrop(), false);
 
-  // Pausa automática ao sair do separador
   document.addEventListener('visibilitychange', () => { if (document.hidden) togglePause(true); });
 
-  // ===== Arranque =====
   board = newBoard();
-  draw(); drawCar(); updateHud(); refreshLunchBadge();
+  updateHud(); drawCar(); refreshLunchBadge();
   setInterval(refreshLunchBadge, 60000);
   loadRank();
+  lastT = performance.now();
   rafId = requestAnimationFrame(loop);
 })();
 </script>
