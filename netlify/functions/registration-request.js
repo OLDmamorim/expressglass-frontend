@@ -2,13 +2,11 @@
 
 const { Pool }   = require('pg');
 const jwt        = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const { normalizeEmail, isValidEmail } = require('../lib/account-access');
+const { sendTransactionalEmail } = require('../lib/email-service');
 
 const JWT_SECRET  = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
-const GMAIL_USER  = process.env.GMAIL_USER;
-const GMAIL_PASS  = process.env.GMAIL_APP_PASSWORD;
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || GMAIL_USER;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || process.env.GMAIL_USER;
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
@@ -27,13 +25,6 @@ function verifyAdmin(event) {
   return decoded;
 }
 
-function createTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: { user: GMAIL_USER, pass: GMAIL_PASS },
-  });
-}
-
 function escapeHtml(value) {
   return String(value || '')
     .replace(/&/g, '&amp;')
@@ -44,14 +35,11 @@ function escapeHtml(value) {
 }
 
 async function sendEmail({ to, subject, html }) {
-  if (!GMAIL_USER || !GMAIL_PASS) {
-    console.warn('[email] credenciais Gmail não configuradas');
-    return;
+  if (!to) {
+    console.warn('[email] ADMIN_EMAIL não configurado');
+    return { sent: false, error: 'Destinatário não configurado' };
   }
-  await createTransporter().sendMail({
-    from: `"ExpressGlass Agendamentos" <${GMAIL_USER}>`,
-    to, subject, html,
-  });
+  return sendTransactionalEmail({ to, subject, html });
 }
 
 async function emailNovoPedido({ name, email, portal_name, role }) {
@@ -60,7 +48,7 @@ async function emailNovoPedido({ name, email, portal_name, role }) {
   const safeEmail = escapeHtml(email);
   const safePortal = escapeHtml(portal_name || '—');
   const safeRole = escapeHtml(roleLabel);
-  await sendEmail({
+  const result = await sendEmail({
     to: ADMIN_EMAIL,
     subject: `Novo pedido de acesso — ${String(name || '').replace(/[\r\n]/g, ' ')}`,
     html: `
@@ -82,6 +70,7 @@ async function emailNovoPedido({ name, email, portal_name, role }) {
         </div>
       </div>`,
   });
+  if (!result.sent) throw new Error(result.error);
 }
 
 async function ensureTable() {

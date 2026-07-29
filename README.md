@@ -70,6 +70,15 @@ Este frontend requer o backend API para funcionar completamente:
 - Configuração da variável `DATABASE_URL` no Netlify
 - Base de dados PostgreSQL configurada no Neon
 
+### **Email transacional**
+Os convites de conta e as notificações de pedidos de acesso são enviados pela API do Resend.
+
+- `RESEND_API_KEY` — chave do projeto que tem o domínio `poweringeg.pt` verificado
+- `EMAIL_FROM` — opcional; por omissão usa `PoweringEG Platform <noreply@poweringeg.pt>`
+- `ADMIN_EMAIL` — destinatário das notificações de novos pedidos de acesso
+
+Enquanto `RESEND_API_KEY` não estiver configurada, as credenciais Gmail existentes continuam a ser usadas como fallback para não interromper o serviço.
+
 ### **2. URL da API**
 O cliente API detecta automaticamente a URL:
 - **Desenvolvimento**: `http://localhost:8888/api`
@@ -146,4 +155,3 @@ O cliente API detecta automaticamente a URL:
 
 **Desenvolvido para Expressglass** 🚗💎  
 **Versão API com sincronização multi-dispositivo** 🌐
-
