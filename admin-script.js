@@ -442,6 +442,17 @@ document.getElementById('portalForm').addEventListener('submit', async (e) => {
 // ===== GESTÃO DE UTILIZADORES =====
 let users = [];
 let editingUserId = null;
+let registrationRequests = [];
+let pendingRegistrationRequestId = null;
+
+function escapeUserHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 async function loadUsers() {
   try {
@@ -451,6 +462,7 @@ async function loadUsers() {
     if (data.success) {
       users = data.data;
       renderUsers();
+      loadRegistrationRequests();
     } else {
       showToast('Erro ao carregar utilizadores', 'error');
     }
@@ -464,24 +476,37 @@ function renderUsers() {
   const tbody = document.getElementById('usersTableBody');
   
   if (users.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="loading">Nenhum utilizador criado</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">Nenhum utilizador criado</td></tr>';
     return;
   }
 
   const sorted = [...users].sort((a, b) => (a.username || '').localeCompare(b.username || '', 'pt'));
   
-  tbody.innerHTML = sorted.map(user => `
+  tbody.innerHTML = sorted.map(user => {
+    const pending = user.accountStatus === 'invited';
+    const access = pending
+      ? `<span class="access-state pending">Convite pendente</span>
+         <small>${user.inviteExpiresAt ? 'Expira ' + new Date(user.inviteExpiresAt).toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' }) : 'A aguardar ativação'}</small>`
+      : user.plain_password
+        ? `<code style="background:#f3f4f6;padding:2px 8px;border-radius:4px;font-size:13px;user-select:all;">${escapeUserHtml(user.plain_password)}</code>
+           <small>Username e password</small>`
+      : user.email
+        ? '<span class="access-state">Conta ativa</span><small>Email ou username</small>'
+        : '<span class="access-state">Conta ativa</span><small>Username e password</small>';
+    return `
     <tr>
-      <td><strong>${user.username}</strong></td>
-      <td><code style="background:#f3f4f6;padding:2px 8px;border-radius:4px;font-size:13px;user-select:all;">${user.plain_password || '••••••'}</code></td>
-      <td>${user.portalName || '-'}</td>
-      <td><span class="badge ${user.role}">${user.role === 'admin' ? 'Admin' : user.role === 'coordenador' ? 'Coordenador' : user.role === 'comercial' ? 'Comercial' : 'Técnico'}</span></td>
+      <td class="user-identity"><strong>${escapeUserHtml(user.username)}</strong>${user.email ? `<small>${escapeUserHtml(user.email)}</small>` : ''}</td>
+      <td>${access}</td>
+      <td>${escapeUserHtml(user.portalName || '-')}</td>
+      <td><span class="badge ${escapeUserHtml(user.role)}">${user.role === 'admin' ? 'Admin' : user.role === 'coordenador' ? 'Coordenador' : user.role === 'comercial' ? 'Comercial' : 'Técnico'}</span></td>
       <td class="table-actions">
+        ${pending ? `<button class="btn-secondary" onclick="resendUserInvite(${user.id})">Reenviar</button>` : ''}
         <button class="btn-edit" onclick="editUser(${user.id})">Editar</button>
         <button class="btn-danger" onclick="deleteUser(${user.id})">Eliminar</button>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function updatePortalSelect() {
@@ -491,30 +516,55 @@ function updatePortalSelect() {
 }
 
 document.getElementById('addUserBtn').addEventListener('click', () => {
+  prepareNewUserForm();
+});
+
+function prepareNewUserForm(prefill = null) {
   editingUserId = null;
+  window.editingUserId = null;
+  pendingRegistrationRequestId = prefill?.id || null;
   document.getElementById('userModalTitle').textContent = 'Novo Utilizador';
   document.getElementById('userForm').reset();
-  document.getElementById('passwordHint').style.display = 'none';
-  document.getElementById('userPassword').required = true;
-  document.getElementById('userPassword').placeholder = 'Mínimo 6 caracteres';
+  document.querySelector('input[name="userAccessMethod"][value="email"]').checked = true;
+  document.getElementById('userEmail').value = prefill?.email || '';
+  document.getElementById('userUsername').value = prefill?.name || '';
+  if (prefill?.role) document.getElementById('userRole').value = prefill.role;
+  toggleUserAccessMethod();
   togglePortalSelect();
+  if (prefill?.role === 'user' && prefill.portal_name) {
+    const portal = portals.find(item =>
+      String(item.name || '').toLowerCase().includes(String(prefill.portal_name).toLowerCase()) ||
+      String(prefill.portal_name).toLowerCase().includes(String(item.name || '').toLowerCase())
+    );
+    if (portal) document.getElementById('userPortal').value = String(portal.id);
+  }
   openModal('userModal');
-});
+}
+window.prepareNewUserForm = prepareNewUserForm;
 
 function editUser(id) {
   const user = users.find(u => u.id === id);
   if (!user) return;
   
   editingUserId = id;
+  window.editingUserId = id;
+  pendingRegistrationRequestId = null;
   document.getElementById('userModalTitle').textContent = 'Editar Utilizador';
   document.getElementById('userUsername').value = user.username;
+  document.getElementById('userEmail').value = user.email || '';
   document.getElementById('userPassword').value = '';
   document.getElementById('userPassword').required = false;
   document.getElementById('userPassword').placeholder = 'Deixe em branco para manter';
   document.getElementById('passwordHint').style.display = 'block';
   document.getElementById('userRole').value = user.role;
   document.getElementById('userPortal').value = user.portalId || '';
-  
+  toggleUserAccessMethod();
+  if (user.accountStatus === 'invited') {
+    document.getElementById('userEmail').required = true;
+    document.getElementById('userEmailLabel').textContent = 'Email *';
+    document.getElementById('userEmailHint').textContent =
+      'Se alterares o email, será enviado automaticamente um novo convite.';
+  }
   togglePortalSelect();
   
   // Se coordenador, carregar portais atribuídos
@@ -526,12 +576,164 @@ function editUser(id) {
   // Se comercial, carregar SMs atribuídos
   if (user.role === 'comercial') {
     setTimeout(() => {
-      populateComercialPortalCheckboxes(user.assigned_portal_ids || []);
+      populateComercialPortalCheckboxes(user.portalIds || user.assigned_portal_ids || []);
     }, 50);
   }
+  const telegramInput = document.getElementById('userTelegramChatId');
+  const telegramInput2 = document.getElementById('userTelegramChatId2');
+  if (telegramInput) telegramInput.value = user.telegramChatId || '';
+  if (telegramInput2) telegramInput2.value = user.telegramChatId2 || '';
   
   openModal('userModal');
 }
+
+function toggleUserAccessMethod() {
+  const currentId = editingUserId || window.editingUserId;
+  const editing = Boolean(currentId);
+  const methodGroup = document.getElementById('userAccessMethodGroup');
+  const emailInput = document.getElementById('userEmail');
+  const emailLabel = document.getElementById('userEmailLabel');
+  const emailHint = document.getElementById('userEmailHint');
+  const usernameInput = document.getElementById('userUsername');
+  const usernameLabel = document.getElementById('userUsernameLabel');
+  const passwordInput = document.getElementById('userPassword');
+  const passwordGroup = document.getElementById('userPasswordGroup');
+  const passwordHint = document.getElementById('passwordHint');
+  const submitButton = document.getElementById('userSubmitBtn');
+  const method = document.querySelector('input[name="userAccessMethod"]:checked')?.value || 'email';
+
+  if (editing) {
+    methodGroup.style.display = 'none';
+    emailInput.required = false;
+    emailLabel.textContent = 'Email (opcional)';
+    emailHint.textContent = 'Permite também entrar com email. O username atual mantém-se.';
+    usernameInput.required = true;
+    usernameLabel.textContent = 'Username *';
+    passwordGroup.style.display = 'block';
+    passwordInput.required = false;
+    passwordInput.placeholder = 'Deixe em branco para manter';
+    passwordHint.style.display = 'block';
+    submitButton.textContent = 'Guardar';
+    return;
+  }
+
+  methodGroup.style.display = 'block';
+  const emailInvite = method === 'email';
+  emailInput.required = emailInvite;
+  emailLabel.textContent = emailInvite ? 'Email *' : 'Email (opcional)';
+  emailHint.textContent = emailInvite
+    ? 'Será enviado um convite válido durante 48 horas.'
+    : 'Se preenchido, também poderá ser usado para entrar.';
+  usernameInput.required = !emailInvite;
+  usernameLabel.textContent = emailInvite ? 'Username (opcional)' : 'Username *';
+  usernameInput.placeholder = emailInvite
+    ? 'Gerado automaticamente a partir do email'
+    : 'Ex: joao.silva';
+  passwordGroup.style.display = emailInvite ? 'none' : 'block';
+  passwordInput.required = !emailInvite;
+  passwordHint.style.display = 'none';
+  submitButton.textContent = emailInvite ? 'Enviar convite' : 'Criar utilizador';
+}
+window.toggleUserAccessMethod = toggleUserAccessMethod;
+
+document.addEventListener('change', event => {
+  if (event.target.matches('input[name="userAccessMethod"]')) toggleUserAccessMethod();
+});
+
+async function loadRegistrationRequests() {
+  const section = document.getElementById('registrationRequestsSection');
+  const badge = document.getElementById('requestsBadge');
+  if (!section) return;
+  try {
+    const response = await authClient.authenticatedFetch('/.netlify/functions/registration-request');
+    const data = await response.json();
+    registrationRequests = data.success ? data.requests || [] : [];
+  } catch (error) {
+    console.warn('[registration-requests]', error.message);
+    registrationRequests = [];
+  }
+
+  if (registrationRequests.length === 0) {
+    section.style.display = 'none';
+    section.innerHTML = '';
+    if (badge) badge.style.display = 'none';
+    return;
+  }
+
+  if (badge) {
+    badge.textContent = String(registrationRequests.length);
+    badge.style.display = 'inline-block';
+  }
+  const roleLabels = { user: 'Técnico', coordenador: 'Coordenador', comercial: 'Comercial' };
+  section.className = 'registration-requests';
+  section.style.display = 'block';
+  section.innerHTML = `
+    <div class="registration-requests__title">
+      <h3>Pedidos de acesso</h3>
+      <span>${registrationRequests.length} pendente${registrationRequests.length === 1 ? '' : 's'}</span>
+    </div>
+    ${registrationRequests.map(request => `
+      <div class="registration-request">
+        <div>
+          <strong>${escapeUserHtml(request.name)}</strong>
+          <small>${escapeUserHtml(request.email)}</small>
+        </div>
+        <div>
+          <span>${escapeUserHtml(roleLabels[request.role] || request.role)}</span>
+          <small>${escapeUserHtml(request.portal_name || 'Loja/região não indicada')}</small>
+        </div>
+        <div class="registration-request__actions">
+          <button class="btn-primary" type="button" onclick="openRegistrationInvite(${Number(request.id)})">Criar convite</button>
+          <button class="btn-danger" type="button" onclick="rejectRegistrationRequest(${Number(request.id)})">Recusar</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+function openRegistrationInvite(id) {
+  const request = registrationRequests.find(item => Number(item.id) === Number(id));
+  if (!request) return;
+  prepareNewUserForm(request);
+  showToast('Confirma o portal e envia o convite', 'success');
+}
+window.openRegistrationInvite = openRegistrationInvite;
+
+async function rejectRegistrationRequest(id) {
+  const request = registrationRequests.find(item => Number(item.id) === Number(id));
+  if (!request || !confirm(`Recusar o pedido de acesso de "${request.name}"?`)) return;
+  try {
+    const response = await authClient.authenticatedFetch('/.netlify/functions/registration-request', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status: 'rejected' })
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'Não foi possível recusar o pedido');
+    showToast('Pedido recusado', 'success');
+    loadRegistrationRequests();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+window.rejectRegistrationRequest = rejectRegistrationRequest;
+
+async function resendUserInvite(id) {
+  try {
+    const response = await authClient.authenticatedFetch('/.netlify/functions/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'resend_invite', user_id: id })
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'Não foi possível reenviar o convite');
+    showToast(data.emailSent ? 'Convite reenviado' : (data.warning || 'Convite criado, mas o email falhou'), data.emailSent ? 'success' : 'error');
+    loadUsers();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+window.resendUserInvite = resendUserInvite;
 
 async function deleteUser(id) {
   const user = users.find(u => u.id === id);
@@ -670,32 +872,51 @@ function togglePortalSelect() {
   }
 }
 
-document.getElementById('userForm').addEventListener('submit', async (e) => {
+async function handleUserFormSubmit(e) {
   e.preventDefault();
-  
+
+  const currentId = editingUserId || window.editingUserId;
+  const isNew = !currentId;
+  const method = document.querySelector('input[name="userAccessMethod"]:checked')?.value || 'email';
+  const inviteByEmail = isNew && method === 'email';
+  const email = document.getElementById('userEmail').value.trim();
   const username = document.getElementById('userUsername').value.trim();
   const password = document.getElementById('userPassword').value;
   const role = document.getElementById('userRole').value;
   const portalId = document.getElementById('userPortal').value;
-  
-  // Validar password (apenas se estiver preenchida)
+
+  if (inviteByEmail && !email) {
+    showToast('Indica o email para enviar o convite', 'error');
+    return;
+  }
+  if (!inviteByEmail && isNew && (!username || !password)) {
+    showToast('Preenche o username e a password', 'error');
+    return;
+  }
   if (password && password.length < 6) {
     showToast('Password deve ter no mínimo 6 caracteres', 'error');
     return;
   }
-  
-  const userData = { username, role };
-  
+
+  const userData = { username, email, role };
+  if (inviteByEmail) userData.invite_by_email = true;
   if (password) {
     userData.password = password;
   }
-  
+
+  const pendingRequest = registrationRequests.find(item =>
+    Number(item.id) === Number(pendingRegistrationRequestId)
+  );
+  if (pendingRequest) {
+    userData.name = pendingRequest.name;
+    userData.registration_request_id = pendingRequest.id;
+  }
+
   if (role === 'user' && portalId) {
     userData.portal_id = parseInt(portalId);
   }
-  
+
   if (role === 'coordenador') {
-    // Recolher portais selecionados
     const checked = document.querySelectorAll('.coord-portal-cb:checked');
     const portalIds = Array.from(checked).map(cb => parseInt(cb.value));
     if (portalIds.length === 0) {
@@ -705,44 +926,54 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
     userData.portal_id = portalIds[0]; // Portal principal (primeiro)
     userData.portal_ids = portalIds;   // Todos os portais
 
-    // Recolher portais de consulta (read-only)
-    const consultChecked = document.querySelectorAll('.consult-portal-cb:checked');
+    const consultChecked = document.querySelectorAll('.consult-portal-cb:checked, .consultable-portal-cb:checked');
     const consultIds = Array.from(consultChecked).map(cb => parseInt(cb.value));
-    // Filtrar IDs que já estão na lista de coordenados (evitar duplicação no servidor)
     const coordSet = new Set(portalIds);
     userData.consultable_portal_ids = consultIds.filter(id => !coordSet.has(id));
-    console.log('[admin] coordenador portalIds:', portalIds, 'consultableIds:', userData.consultable_portal_ids);
   }
 
   if (role === 'comercial') {
-    // Ler TODOS os checkboxes (incluindo os fora do viewport por causa do scroll)
     const allCbs = Array.from(document.querySelectorAll('.comercial-portal-cb'));
     const smIds = allCbs.filter(cb => cb.checked).map(cb => parseInt(cb.value));
-    console.log('[admin] comercial smIds:', smIds, 'total cbs:', allCbs.length);
     if (smIds.length === 0) {
       showToast('Selecione pelo menos um SM para o comercial', 'error');
       return;
     }
     userData.assigned_portal_ids = smIds;
+    userData.portal_ids = smIds;
+    userData.portal_id = smIds[0];
+    const telegram = document.getElementById('userTelegramChatId')?.value.trim();
+    const telegram2 = document.getElementById('userTelegramChatId2')?.value.trim();
+    userData.telegram_chat_id = telegram || null;
+    userData.telegram_chat_id_2 = telegram2 || null;
   }
-  
+
+  const submitButton = document.getElementById('userSubmitBtn');
+  submitButton.disabled = true;
   try {
-    const url = editingUserId 
-      ? `/.netlify/functions/users/${editingUserId}`
+    const url = currentId
+      ? `/.netlify/functions/users/${currentId}`
       : '/.netlify/functions/users';
-    
-    const method = editingUserId ? 'PUT' : 'POST';
-    
+    const requestMethod = currentId ? 'PUT' : 'POST';
     const response = await authClient.authenticatedFetch(url, {
-      method,
+      method: requestMethod,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(userData)
     });
-    
     const data = await response.json();
-    
+
     if (data.success) {
-      showToast(editingUserId ? 'Utilizador atualizado' : 'Utilizador criado', 'success');
+      if (data.invited) {
+        showToast(
+          data.emailSent ? 'Convite enviado por email' : (data.warning || 'Conta criada, mas o email não foi enviado'),
+          data.emailSent ? 'success' : 'error'
+        );
+      } else {
+        showToast(currentId ? 'Utilizador atualizado' : 'Utilizador criado', 'success');
+      }
+      editingUserId = null;
+      window.editingUserId = null;
+      pendingRegistrationRequestId = null;
       closeModal('userModal');
       loadUsers();
     } else {
@@ -751,8 +982,13 @@ document.getElementById('userForm').addEventListener('submit', async (e) => {
   } catch (error) {
     console.error('Erro ao guardar utilizador:', error);
     showToast('Erro ao guardar utilizador', 'error');
+  } finally {
+    submitButton.disabled = false;
+    toggleUserAccessMethod();
   }
-});
+}
+window.handleUserFormSubmit = handleUserFormSubmit;
+document.getElementById('userForm').addEventListener('submit', handleUserFormSubmit);
 
 // ===== MODAL =====
 function openModal(modalId) {

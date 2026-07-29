@@ -1,6 +1,7 @@
 // netlify/functions/auth-verify.js
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
+const { ensureAccountSchema } = require('../lib/account-access');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -30,9 +31,10 @@ exports.handler = async (event) => {
 
     const token = authHeader.substring(7);
     const decoded = jwt.verify(token, JWT_SECRET);
+    await ensureAccountSchema(pool);
 
     const query = `
-      SELECT u.id, u.username, u.portal_id, u.role,
+      SELECT u.id, u.username, u.email, u.account_status, u.portal_id, u.role,
              p.name as portal_name, p.departure_address, p.localities, p.portal_type, p.vehicle_plate
       FROM users u
       LEFT JOIN portals p ON u.portal_id = p.id
@@ -45,6 +47,9 @@ exports.handler = async (event) => {
     }
 
     const user = rows[0];
+    if (user.account_status !== 'active') {
+      return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Conta ainda não ativada' }) };
+    }
 
     // Coordenador E Comercial: buscar portais atribuídos
     let multiPortals = [];
@@ -70,6 +75,7 @@ exports.handler = async (event) => {
     const userData = {
       id: user.id,
       username: user.username,
+      email: user.email || null,
       role: user.role,
       portal: user.portal_id ? {
         id: user.portal_id,

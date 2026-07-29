@@ -2,6 +2,7 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { ensureAccountSchema } = require('../lib/account-access');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -87,41 +88,68 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { username, password } = JSON.parse(event.body || '{}');
+    const data = JSON.parse(event.body || '{}');
+    const identifier = String(data.identifier || data.username || '').trim();
+    const password = data.password;
 
-    if (!username || !password) {
-      return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Username e password são obrigatórios' }) };
+    if (!identifier || !password) {
+      return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Email/username e password são obrigatórios' }) };
     }
+
+    await ensureAccountSchema(pool);
+    const rateIdentifier = identifier.toLowerCase();
 
     // Verificar rate limit antes de consultar a DB
     try {
-      await checkRateLimit(username, event);
+      await checkRateLimit(rateIdentifier, event);
     } catch (rateLimitError) {
-      await auditLog({ username, action: 'login_blocked', details: { reason: rateLimitError.message }, event });
+      await auditLog({ username: identifier, action: 'login_blocked', details: { reason: rateLimitError.message }, event });
       return { statusCode: 429, headers, body: JSON.stringify({ success: false, error: rateLimitError.message }) };
     }
 
     const query = `
-      SELECT u.id, u.username, u.password_hash, u.portal_id, u.role,
+      SELECT u.id, u.username, u.email, u.account_status, u.password_hash, u.portal_id, u.role,
              p.name as portal_name, p.departure_address, p.localities, p.portal_type, p.vehicle_plate
       FROM users u
       LEFT JOIN portals p ON u.portal_id = p.id
-      WHERE u.username = $1
+      WHERE LOWER(u.username) = LOWER($1)
+         OR LOWER(u.email) = LOWER($1)
+      ORDER BY CASE WHEN LOWER(u.username) = LOWER($1) THEN 0 ELSE 1 END
+      LIMIT 1
     `;
-    const { rows } = await pool.query(query, [username]);
+    const { rows } = await pool.query(query, [identifier]);
 
     if (rows.length === 0) {
       // Log tentativa falhada (utilizador inexistente)
-      await recordFailedAttempt(username, event);
-      await auditLog({ action: 'login_failed', username, details: { reason: 'user_not_found' }, event });
+      await recordFailedAttempt(rateIdentifier, event);
+      await auditLog({ action: 'login_failed', username: identifier, details: { reason: 'user_not_found' }, event });
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Credenciais inválidas' }) };
     }
 
     const user = rows[0];
+    if (user.account_status !== 'active') {
+      await auditLog({
+        user_id: user.id,
+        username: user.username,
+        action: 'login_failed',
+        details: { reason: user.account_status === 'invited' ? 'invite_pending' : 'account_inactive' },
+        event
+      });
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({
+          success: false,
+          error: user.account_status === 'invited'
+            ? 'Ativa primeiro a conta através do email de convite.'
+            : 'Esta conta não está ativa.'
+        })
+      };
+    }
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       // Log tentativa falhada (password errada)
-      await recordFailedAttempt(username, event);
+      await recordFailedAttempt(rateIdentifier, event);
       await auditLog({ user_id: user.id, username: user.username, action: 'login_failed', details: { reason: 'wrong_password' }, event });
       return { statusCode: 401, headers, body: JSON.stringify({ success: false, error: 'Credenciais inválidas' }) };
     }
@@ -129,6 +157,7 @@ exports.handler = async (event) => {
     const tokenPayload = {
       userId: user.id,
       username: user.username,
+      email: user.email || null,
       portalId: user.portal_id,
       portalName: user.portal_name,
       role: user.role
@@ -188,6 +217,7 @@ exports.handler = async (event) => {
     const userData = {
       id: user.id,
       username: user.username,
+      email: user.email || null,
       role: user.role,
       portal: user.portal_id ? {
         id: user.portal_id,
@@ -208,7 +238,7 @@ exports.handler = async (event) => {
     }
 
     // Limpar tentativas após login bem-sucedido
-    await clearAttempts(username, event);
+    await clearAttempts(rateIdentifier, event);
 
     // Log login bem-sucedido
     await auditLog({
@@ -223,7 +253,7 @@ exports.handler = async (event) => {
       event
     });
 
-    console.log(`✅ Login bem-sucedido: ${username} (${user.role})${consultablePortals.length > 0 ? ' [+' + consultablePortals.length + ' consulta]' : ''}`);
+    console.log(`✅ Login bem-sucedido: ${user.username} (${user.role})${consultablePortals.length > 0 ? ' [+' + consultablePortals.length + ' consulta]' : ''}`);
 
     return {
       statusCode: 200,

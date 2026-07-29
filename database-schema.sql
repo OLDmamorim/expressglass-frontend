@@ -16,11 +16,50 @@ CREATE TABLE IF NOT EXISTS portals (
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   username VARCHAR(50) NOT NULL UNIQUE,
+  email TEXT,
   password_hash TEXT NOT NULL,
+  account_status TEXT NOT NULL DEFAULT 'active',
+  email_verified_at TIMESTAMPTZ,
+  password_set_at TIMESTAMPTZ,
   portal_id INTEGER REFERENCES portals(id) ON DELETE CASCADE,
-  role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
+  role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user', 'coordenador', 'comercial')),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS account_status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_set_at TIMESTAMPTZ;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_unique
+ON users (LOWER(email))
+WHERE email IS NOT NULL AND email <> '';
+
+CREATE TABLE IF NOT EXISTS account_invites (
+  id BIGSERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  accepted_at TIMESTAMPTZ,
+  revoked_at TIMESTAMPTZ,
+  created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Relação entre coordenadores/comerciais e os seus Serviços Móveis
+CREATE TABLE IF NOT EXISTS coordinator_portals (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  portal_id INTEGER NOT NULL REFERENCES portals(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, portal_id)
+);
+
+-- Serviços Móveis adicionais que um coordenador pode apenas consultar
+CREATE TABLE IF NOT EXISTS consultable_portals (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  portal_id INTEGER NOT NULL REFERENCES portals(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, portal_id)
 );
 
 -- Modificar tabela de agendamentos para incluir portal_id
@@ -60,17 +99,8 @@ VALUES (
 )
 ON CONFLICT (name) DO NOTHING;
 
--- Criar utilizador admin master
--- Password: admin123 (deve ser alterada após primeiro login)
--- Hash gerado com bcrypt (10 rounds)
-INSERT INTO users (username, password_hash, portal_id, role)
-VALUES (
-  'admin',
-  '$2b$10$rZ5FQjxKw.V8qN3xGx3xZeYvJ5YqK5qK5qK5qK5qK5qK5qK5qK5qK',
-  NULL,
-  'admin'
-)
-ON CONFLICT (username) DO NOTHING;
+-- Por segurança, não são criadas credenciais de administrador predefinidas.
+-- O primeiro administrador deve ser provisionado por um processo seguro.
 
 -- Associar agendamentos existentes ao portal SM Braga
 UPDATE appointments 

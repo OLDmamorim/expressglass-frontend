@@ -2,6 +2,8 @@
 // Adicionar ao admin.html DEPOIS de admin-script.js
 
 (function() {
+  var baseRenderUsers = window.renderUsers;
+  var baseEditUser = window.editUser;
 
   function injectComercialRole() {
     var sel = document.getElementById('userRole');
@@ -34,7 +36,7 @@
   }
 
   function injectConsultableGroup() {
-    if (document.getElementById('consultableGroup')) return; // já existe (Parte 1 injetou)
+    if (document.getElementById('consultablePortalGroup') || document.getElementById('consultableGroup')) return;
     var multiGroup = document.getElementById('multiPortalGroup');
     if (!multiGroup) return;
     var div = document.createElement('div');
@@ -104,7 +106,7 @@
     var portalGroup      = document.getElementById('portalSelectGroup');
     var multiGroup       = document.getElementById('multiPortalGroup');
     var comGroup         = document.getElementById('comercialPortalGroup');
-    var consultableGroup = document.getElementById('consultableGroup');
+    var consultableGroup = document.getElementById('consultablePortalGroup') || document.getElementById('consultableGroup');
     var portalSelect     = document.getElementById('userPortal');
 
     if (portalGroup)      portalGroup.style.display      = 'none';
@@ -126,7 +128,7 @@
         document.querySelectorAll('.coord-portal-cb').forEach(function(cb) {
           cb.addEventListener('change', function() {
             // Preservar seleções actuais de consulta antes de re-renderizar
-            var currentConsultable = Array.from(document.querySelectorAll('.consultable-portal-cb:checked'))
+            var currentConsultable = Array.from(document.querySelectorAll('.consult-portal-cb:checked, .consultable-portal-cb:checked'))
               .map(function(c) { return parseInt(c.value); });
             populateConsultablePortalCheckboxes(currentConsultable);
           });
@@ -151,6 +153,10 @@
     var newBtn = btn.cloneNode(true);
     btn.parentNode.replaceChild(newBtn, btn);
     newBtn.addEventListener('click', function() {
+      if (typeof window.prepareNewUserForm === 'function') {
+        window.prepareNewUserForm();
+        return;
+      }
       window.editingUserId = null;
       var form = document.getElementById('userForm');
       if (form) form.reset();
@@ -166,55 +172,11 @@
   }
 
   window.renderUsers = function() {
-    var tbody = document.getElementById('usersTableBody');
-    if (!users || !users.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="loading">Nenhum utilizador criado</td></tr>';
-      return;
-    }
-    var labels = { admin:'Admin', coordenador:'Coordenador', comercial:'Comercial', user:'Tecnico' };
-    var sorted = users.slice().sort(function(a,b) {
-      return (a.username||'').localeCompare(b.username||'','pt');
-    });
-    tbody.innerHTML = sorted.map(function(u) {
-      return '<tr>' +
-        '<td><strong>' + u.username + '</strong></td>' +
-        '<td><code style="background:#f3f4f6;padding:2px 8px;border-radius:4px;font-size:13px;user-select:all;">' + (u.plain_password||'••••••') + '</code></td>' +
-        '<td>' + (u.portalName||'-') + '</td>' +
-        '<td><span class="badge ' + u.role + '">' + (labels[u.role]||u.role) + '</span></td>' +
-        '<td class="table-actions">' +
-          '<button class="btn-edit" onclick="editUser(' + u.id + ')">Editar</button>' +
-          '<button class="btn-danger" onclick="deleteUser(' + u.id + ')">Eliminar</button>' +
-        '</td></tr>';
-    }).join('');
+    if (typeof baseRenderUsers === 'function') return baseRenderUsers();
   };
 
   window.editUser = function(id) {
-    var user = (users||[]).find(function(u){ return u.id === id; });
-    if (!user) return;
-    window.editingUserId = id;
-    document.getElementById('userModalTitle').textContent = 'Editar Utilizador';
-    document.getElementById('userUsername').value = user.username;
-    document.getElementById('userPassword').value = '';
-    document.getElementById('userPassword').required = false;
-    document.getElementById('userPassword').placeholder = 'Deixe em branco para manter';
-    document.getElementById('passwordHint').style.display = 'block';
-    document.getElementById('userRole').value = user.role;
-    document.getElementById('userPortal').value = user.portalId || '';
-    togglePortalSelectPatched();
-    if (user.role === 'coordenador') {
-      if (user.portalIds && typeof populateMultiPortalCheckboxes === 'function')
-        populateMultiPortalCheckboxes(user.portalIds);
-      // Preencher portais de consulta ao editar coordenador
-      if (typeof populateConsultablePortalCheckboxes === 'function')
-        populateConsultablePortalCheckboxes(user.consultablePortalIds || []);
-    }
-    if (user.role === 'comercial' && user.portalIds)
-      populateComercialPortalCheckboxes(user.portalIds);
-    var tgInput = document.getElementById('userTelegramChatId');
-    if (tgInput) tgInput.value = user.telegramChatId || '';
-    var tgInput2 = document.getElementById('userTelegramChatId2');
-    if (tgInput2) tgInput2.value = user.telegramChatId2 || '';
-    if (typeof openModal === 'function') openModal('userModal');
+    if (typeof baseEditUser === 'function') return baseEditUser(id);
   };
 
   function patchForm() {
@@ -223,63 +185,9 @@
     var clone = form.cloneNode(true);
     form.parentNode.replaceChild(clone, form);
 
-    clone.addEventListener('submit', async function(e) {
-      e.preventDefault();
-      var username = document.getElementById('userUsername').value.trim();
-      var password = document.getElementById('userPassword').value;
-      var role     = document.getElementById('userRole').value;
-      var portalId = document.getElementById('userPortal').value;
-
-      if (password && password.length < 6) {
-        if (typeof showToast==='function') showToast('Password deve ter no minimo 6 caracteres','error');
-        return;
-      }
-
-      var userData = { username: username, role: role };
-      if (password) userData.password = password;
-
-      if (role === 'user' && portalId) {
-        userData.portal_id = parseInt(portalId);
-      }
-      if (role === 'coordenador') {
-        var ids = Array.from(document.querySelectorAll('.coord-portal-cb:checked')).map(function(cb){ return parseInt(cb.value); });
-        if (!ids.length) { if (typeof showToast==='function') showToast('Selecione pelo menos um portal','error'); return; }
-        userData.portal_id  = ids[0];
-        userData.portal_ids = ids;
-        // Recolher portais de consulta (opcional — pode ser 0)
-        var consultableIds = Array.from(document.querySelectorAll('.consultable-portal-cb:checked')).map(function(cb){ return parseInt(cb.value); });
-        userData.consultable_portal_ids = consultableIds;
-      }
-      if (role === 'comercial') {
-        var ids = Array.from(document.querySelectorAll('.comercial-portal-cb:checked')).map(function(cb){ return parseInt(cb.value); });
-        if (!ids.length) { if (typeof showToast==='function') showToast('Selecione pelo menos um SM','error'); return; }
-        userData.assigned_portal_ids = ids;
-        var tgVal = (document.getElementById('userTelegramChatId') || {}).value;
-        userData.telegram_chat_id = tgVal ? tgVal.trim() : null;
-        var tgVal2 = (document.getElementById('userTelegramChatId2') || {}).value;
-        userData.telegram_chat_id_2 = tgVal2 ? tgVal2.trim() : null;
-      }
-
-      try {
-        var url    = window.editingUserId ? ('/.netlify/functions/users/' + window.editingUserId) : '/.netlify/functions/users';
-        var method = window.editingUserId ? 'PUT' : 'POST';
-        var resp   = await authClient.authenticatedFetch(url, {
-          method: method,
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify(userData)
-        });
-        var data = await resp.json();
-        if (data.success) {
-          if (typeof showToast==='function') showToast(window.editingUserId ? 'Utilizador atualizado':'Utilizador criado','success');
-          if (typeof closeModal==='function') closeModal('userModal');
-          if (typeof loadUsers==='function') loadUsers();
-        } else {
-          if (typeof showToast==='function') showToast(data.error||'Erro ao guardar','error');
-        }
-      } catch(err) {
-        if (typeof showToast==='function') showToast('Erro: '+err.message,'error');
-      }
-    });
+    if (typeof window.handleUserFormSubmit === 'function') {
+      clone.addEventListener('submit', window.handleUserFormSubmit);
+    }
   }
 
   function init() {
@@ -294,6 +202,9 @@
       var newRoleSel = roleSel.cloneNode(true);
       roleSel.parentNode.replaceChild(newRoleSel, roleSel);
       newRoleSel.addEventListener('change', togglePortalSelectPatched);
+    }
+    if (typeof window.toggleUserAccessMethod === 'function') {
+      window.toggleUserAccessMethod();
     }
     console.log('Patch comercial v6 OK');
   }

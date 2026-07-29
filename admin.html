@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel Administrativo - Expressglass</title>
-  <link rel="stylesheet" href="admin-style.css">
+  <link rel="stylesheet" href="admin-style.css?v=2026-07-29-email">
 
 </head>
 <body>
@@ -76,8 +76,8 @@
         <table class="data-table">
           <thead>
             <tr>
-              <th>Username</th>
-              <th>Password</th>
+              <th>Utilizador</th>
+              <th>Acesso</th>
               <th>Portal</th>
               <th>Role</th>
               <th>Ações</th>
@@ -565,12 +565,32 @@
         <button class="modal-close">&times;</button>
       </div>
       <form id="userForm">
-        <div class="form-group">
-          <label for="userUsername">Username *</label>
-          <input type="text" id="userUsername" required placeholder="Ex: joao.silva">
+        <div class="form-group" id="userAccessMethodGroup">
+          <label>Método de criação</label>
+          <div class="account-access-options">
+            <label>
+              <input type="radio" name="userAccessMethod" value="email" checked>
+              <span><strong>Convite por email</strong><small>O utilizador define a própria password</small></span>
+            </label>
+            <label>
+              <input type="radio" name="userAccessMethod" value="manual">
+              <span><strong>Username e password</strong><small>Mantém o método atual</small></span>
+            </label>
+          </div>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" id="userEmailGroup">
+          <label for="userEmail" id="userEmailLabel">Email *</label>
+          <input type="email" id="userEmail" placeholder="joao.silva@expressglass.pt" autocomplete="email">
+          <small id="userEmailHint">Será enviado um convite válido durante 48 horas.</small>
+        </div>
+
+        <div class="form-group" id="userUsernameGroup">
+          <label for="userUsername" id="userUsernameLabel">Username (opcional)</label>
+          <input type="text" id="userUsername" placeholder="Gerado automaticamente a partir do email" autocomplete="username">
+        </div>
+
+        <div class="form-group" id="userPasswordGroup">
           <label for="userPassword">Password *</label>
           <div style="display:flex;gap:8px;align-items:center;">
             <input type="text" id="userPassword" placeholder="Mínimo 6 caracteres" style="flex:1;" autocomplete="off">
@@ -632,7 +652,7 @@
 
         <div class="form-actions">
           <button type="button" class="btn-secondary modal-close">Cancelar</button>
-          <button type="submit" class="btn-primary">Guardar</button>
+          <button type="submit" class="btn-primary" id="userSubmitBtn">Enviar convite</button>
         </div>
       </form>
     </div>
@@ -685,6 +705,9 @@
     login:          { label: '✅ Login',              color: '#16a34a', bg: '#dcfce7' },
     login_failed:   { label: '❌ Login falhado',      color: '#dc2626', bg: '#fee2e2' },
     user_created:   { label: '➕ Utilizador criado',  color: '#2563eb', bg: '#dbeafe' },
+    user_invited:   { label: '✉️ Convite enviado',    color: '#2563eb', bg: '#dbeafe' },
+    account_invite_resent: { label: '🔁 Convite reenviado', color: '#7c3aed', bg: '#ede9fe' },
+    account_activated: { label: '✅ Conta ativada',    color: '#047857', bg: '#d1fae5' },
     user_updated:   { label: '✏️ Utilizador editado', color: '#d97706', bg: '#fef3c7' },
     user_deleted:   { label: '🗑️ Utilizador apagado', color: '#dc2626', bg: '#fee2e2' },
     appt_created:   { label: '📅 Agendamento criado',  color: '#16a34a', bg: '#dcfce7' },
@@ -754,7 +777,7 @@
     });
   });
   </script>
-  <script src="admin-comercial-patch.js"></script>
+  <script src="admin-comercial-patch.js?v=2026-07-29-email"></script>
   <script src="admin-coord-only.js?v=2026-05-01"></script>
   <script>
   // ── Check-in Monitor ──────────────────────────────────────────────────────

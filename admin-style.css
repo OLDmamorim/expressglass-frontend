@@ -351,6 +351,131 @@ body {
   resize: vertical;
 }
 
+.account-access-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.account-access-options > label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 74px;
+  margin: 0;
+  padding: 13px;
+  border: 1px solid #d9e2ec;
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.account-access-options > label:has(input:checked) {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, .08);
+}
+
+.account-access-options input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex: 0 0 auto;
+}
+
+.account-access-options span,
+.account-access-options strong,
+.account-access-options small {
+  display: block;
+}
+
+.account-access-options strong {
+  color: #1e293b;
+  font-size: 13px;
+}
+
+.account-access-options small {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.registration-requests {
+  margin-bottom: 22px;
+  padding: 18px;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  background: #fffbeb;
+}
+
+.registration-requests__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.registration-requests__title h3 {
+  margin: 0;
+  color: #92400e;
+  font-size: 16px;
+}
+
+.registration-request {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(170px, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid #fde68a;
+}
+
+.registration-request strong,
+.registration-request span,
+.registration-request small {
+  display: block;
+}
+
+.registration-request small {
+  margin-top: 3px;
+  color: #78716c;
+}
+
+.registration-request__actions {
+  display: flex;
+  gap: 7px;
+}
+
+.user-identity strong,
+.user-identity small {
+  display: block;
+}
+
+.user-identity small {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.access-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ecfdf5;
+  color: #047857;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.access-state.pending {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
 .form-actions {
   display: flex;
   gap: 12px;
@@ -607,6 +732,18 @@ body {
     margin-bottom: 16px;
   }
 
+  .account-access-options {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-request {
+    grid-template-columns: 1fr;
+  }
+
+  .registration-request__actions {
+    justify-content: flex-start;
+  }
+
   .form-actions {
     margin-top: 20px;
     flex-direction: column;
@@ -746,4 +883,3 @@ body {
   white-space: nowrap;
   border-left: 1px solid #d1d5db;
 }
-
