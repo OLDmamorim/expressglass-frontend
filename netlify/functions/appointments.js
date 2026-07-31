@@ -121,6 +121,10 @@ exports.handler = async (event) => {
   } catch(migErr) { console.warn('Migration reception_ref warning:', migErr.message); }
 
   try {
+    await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS claim_ref TEXT`);
+  } catch(migErr) { console.warn('Migration claim_ref warning:', migErr.message); }
+
+  try {
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reception_date DATE`);
   } catch(migErr) { console.warn('Migration reception_date warning:', migErr.message); }
 
@@ -146,7 +150,7 @@ exports.handler = async (event) => {
   // Migração: actualizar constraint de service para incluir RV e OUT
   try {
     await pool.query(`ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_service_check`);
-    await pool.query(`ALTER TABLE appointments ADD CONSTRAINT appointments_service_check CHECK (service IS NULL OR service IN ('PB', 'LT', 'OC', 'REP', 'POL', 'RV', 'OUT', 'CAL'))`);
+    await pool.query(`ALTER TABLE appointments ADD CONSTRAINT appointments_service_check CHECK (service IS NULL OR service IN ('PB', 'LT', 'OC', 'REP', 'POL', 'RV', 'OUT', 'CAL', 'RECL'))`);
   } catch(migErr) { console.warn('Migration service_check warning:', migErr.message); }
 
   // Migração: permitir hora (HH:MM) no period, além de Manhã/Tarde (Recalibra usa hora)
@@ -268,7 +272,7 @@ exports.handler = async (event) => {
                  a.vehicle_type, a.travel_time, a.auto_imported, a.executed, a.confirmed,
                  a.calibration, a.first_of_day, a.second_of_day, a.not_done_reason, a.commercial_user_id,
                  a.return_km, a.return_time, a.client_name, a.damage_details, a.glass_removed, a.glass_removed_date,
-                 a.custom_service_time, a.foreign_plate, a.extra_services, a.n_obra,
+                 a.custom_service_time, a.foreign_plate, a.extra_services, a.n_obra, a.claim_ref,
                  a.order_ref, a.glass_eurocode, a.reception_ref, a.reception_date,
                  a.comp_sales_desc, a.comp_sales_nif, a.comp_sales_name, a.comp_sales_faturado,
                  a.created_at, a.updated_at, a.not_done_at, a.portal_id,
@@ -311,7 +315,7 @@ exports.handler = async (event) => {
                a.vehicle_type, a.travel_time, a.auto_imported, a.executed, a.confirmed,
                a.calibration, a.first_of_day, a.second_of_day, a.not_done_reason, a.commercial_user_id,
                a.return_km, a.return_time, a.client_name, a.damage_details, a.glass_removed, a.glass_removed_date,
-               a.custom_service_time, a.foreign_plate, a.extra_services, a.n_obra,
+               a.custom_service_time, a.foreign_plate, a.extra_services, a.n_obra, a.claim_ref,
                a.order_ref, a.glass_eurocode, a.reception_ref, a.reception_date,
                a.comp_sales_desc, a.comp_sales_nif, a.comp_sales_name, a.comp_sales_faturado,
                a.created_at, a.updated_at, a.not_done_at, a.portal_id,
@@ -381,9 +385,9 @@ exports.handler = async (event) => {
           not_done_reason, commercial_user_id, return_km, return_time, client_name, damage_details,
           glass_removed_date, custom_service_time, foreign_plate, extra_services, n_obra,
           order_ref, glass_eurocode, portal_id, created_at, updated_at,
-          comp_sales_desc, comp_sales_nif, comp_sales_name, comp_sales_faturado
+          comp_sales_desc, comp_sales_nif, comp_sales_name, comp_sales_faturado, claim_ref
         ) VALUES (
-          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41
         ) RETURNING *
       `;
       // Nunca gravar o JSON interno (eurocode/photo_url/history) no campo notas
@@ -421,7 +425,9 @@ exports.handler = async (event) => {
         data.comp_sales_desc || null,
         data.comp_sales_nif || null,
         data.comp_sales_name || null,
-        data.comp_sales_faturado === true
+        data.comp_sales_faturado === true,
+        // Nº da FS de reclamação — só faz sentido no serviço RECL
+        data.service === 'RECL' ? (data.claim_ref ? String(data.claim_ref).trim() : null) : null
       ];
       const { rows } = await pool.query(q, v);
       await auditLog({
@@ -446,7 +452,7 @@ exports.handler = async (event) => {
       const isAdmin = user.role === 'admin';
       const isCoord = user.role === 'coordinator' || user.role === 'coordenador';
       const checkResult = await pool.query(
-        'SELECT id, portal_id, executed, not_done_reason, not_done_at, glass_removed, glass_removed_date, date, custom_service_time FROM appointments WHERE id = $1',
+        'SELECT id, portal_id, executed, not_done_reason, not_done_at, glass_removed, glass_removed_date, date, custom_service_time, service, claim_ref FROM appointments WHERE id = $1',
         [id]
       );
       if (checkResult.rows.length === 0) {
@@ -490,7 +496,7 @@ exports.handler = async (event) => {
           return_km = $25, return_time = $26, client_name = $27, damage_details = $28, glass_removed = $29, extra_services = $30,
           glass_removed_date = $31, n_obra = $32, updated_at = $33, not_done_at = $36, reception_ref = $37,
           comp_sales_desc = $38, comp_sales_nif = $39, comp_sales_name = $40, comp_sales_faturado = $41,
-          order_ref = $42, glass_eurocode = $43, custom_service_time = $44
+          order_ref = $42, glass_eurocode = $43, custom_service_time = $44, claim_ref = $45
         WHERE id = $34 AND portal_id = $35
         RETURNING *
       `;
@@ -539,7 +545,14 @@ exports.handler = async (event) => {
         // manter o que já está na BD (evita perder o tempo em updates parciais).
         data.custom_service_time !== undefined
           ? (data.custom_service_time ? parseInt(data.custom_service_time) : null)
-          : (existing.custom_service_time || null)
+          : (existing.custom_service_time || null),
+        // Nº da FS de reclamação: limpa-se quando o serviço deixa de ser RECL
+        (function() {
+          const svc = data.service !== undefined ? data.service : existing.service;
+          if (svc !== 'RECL') return null;
+          if (data.claim_ref !== undefined) return data.claim_ref ? String(data.claim_ref).trim() : null;
+          return existing.claim_ref || null;
+        })()
       ];
       const { rows } = await pool.query(q, v);
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
