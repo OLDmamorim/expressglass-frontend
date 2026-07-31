@@ -513,9 +513,9 @@
                 <option value="RECL">RECL - Reclamação</option>
                 <option value="CAL" style="display:none">CAL - Calibragem</option>
               </select>
-              <!-- Reclamação: exige ficha aberta e o respetivo nº de FS -->
-              <div id="claimGroup" style="display:none;margin-top:8px;padding:10px 12px;border:1.5px solid #fca5a5;background:#fef2f2;border-radius:8px;">
-                <label style="font-size:12px;font-weight:700;color:#991b1b;display:block;margin-bottom:6px;">Já foi aberta ficha de reclamação? *</label>
+              <!-- Reclamação: pede (sem obrigar) o nº da FS da ficha aberta -->
+              <div id="claimGroup" style="display:none;margin-top:8px;padding:10px 12px;border:1.5px solid #fcd34d;background:#fffbeb;border-radius:8px;">
+                <label style="font-size:12px;font-weight:700;color:#92400e;display:block;margin-bottom:6px;">Já foi aberta ficha de reclamação?</label>
                 <div style="display:flex;gap:14px;margin-bottom:8px;">
                   <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:#374151;cursor:pointer;">
                     <input type="radio" name="claimOpened" id="claimOpenedYes" value="sim"> Sim
@@ -525,11 +525,11 @@
                   </label>
                 </div>
                 <div id="claimRefWrap" style="display:none;">
-                  <label for="appointmentClaimRef" style="font-size:12px;color:#6b7280;">Nº da FS de reclamação *</label>
+                  <label for="appointmentClaimRef" style="font-size:12px;color:#6b7280;">Nº da FS de reclamação <span style="color:#92400e;font-weight:600;">(recomendado)</span></label>
                   <input type="text" id="appointmentClaimRef" placeholder="Ex: 12345" autocomplete="off" style="width:100%;padding:8px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:14px;margin-top:4px;">
                 </div>
-                <div id="claimWarn" style="display:none;font-size:12px;font-weight:600;color:#991b1b;line-height:1.45;">
-                  ⚠️ Abre primeiro a ficha de reclamação e volta aqui com o nº da FS — sem esse número o agendamento não pode ser gravado.
+                <div id="claimWarn" style="display:none;font-size:12px;font-weight:600;color:#92400e;line-height:1.45;">
+                  💡 Recomendado: abre a ficha de reclamação e volta aqui para registar o nº da FS. Podes gravar já e preencher depois.
                 </div>
               </div>
               <!-- Campo de tempo personalizado para "Outros" -->
