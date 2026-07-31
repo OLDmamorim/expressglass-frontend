@@ -1391,12 +1391,6 @@ function bootApp() {
     // defaults mínimos
     if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
     if (!payload.service) { showToast('Tipo de serviço é obrigatório', 'error'); return; }
-    if (payload.service === 'RECL') {
-      var _claimOpened = document.querySelector('input[name="claimOpened"]:checked')?.value;
-      if (!_claimOpened) { showToast('Indica se já foi aberta ficha de reclamação', 'error'); return; }
-      if (_claimOpened === 'nao') { showToast('Abre primeiro a ficha de reclamação e volta com o nº da FS', 'error'); return; }
-      if (!payload.claim_ref) { showToast('Nº da FS de reclamação é obrigatório', 'error'); return; }
-    }
     if (!payload.locality && !isLoja() && window.portalConfig?.portalType !== 'recalibra') { showToast('Localidade é obrigatória', 'error'); return; }
 
     try {
