@@ -568,7 +568,6 @@ class ExcelImporter {
 
     return results;
   }
-}
 
   // Importar APENAS encomendas — nunca cria nem apaga, só actualiza campos de encomenda
   async importOrdersData(processedData) {
