@@ -46,7 +46,8 @@ function resetImportModal() {
 // Configurar drag & drop
 function setupDragAndDrop() {
   const uploadArea = document.getElementById('uploadArea');
-  
+  if (!uploadArea) return;
+
   uploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
     uploadArea.classList.add('dragover');
@@ -69,7 +70,9 @@ function setupDragAndDrop() {
 
 // Configurar input de ficheiro
 function setupFileInput() {
-  document.getElementById('excelFile').addEventListener('change', (e) => {
+  const fileInput = document.getElementById('excelFile');
+  if (!fileInput) return;
+  fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
       handleFileSelect(e.target.files[0]);
     }
@@ -744,7 +747,10 @@ function cancelTemplateForm() {
 
 // Configurar formulário de template
 function setupTemplateForm() {
-  document.getElementById('templateForm').addEventListener('submit', (e) => {
+  // O formulário de templates vive no modal e pode não estar na página
+  const templateForm = document.getElementById('templateForm');
+  if (!templateForm) return;
+  templateForm.addEventListener('submit', (e) => {
     e.preventDefault();
     
     const name = document.getElementById('templateName').value;
