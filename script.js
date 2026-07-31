@@ -2728,6 +2728,20 @@ function editAppointment(id) {
   var fp2 = document.getElementById('foreignPlate');
   if (fp2) { fp2.checked = !!(appointment.foreign_plate); window.toggleForeignPlate && window.toggleForeignPlate(fp2.checked); }
   var svcSel = document.getElementById('appointmentService');
+  // Reclamação: repor a resposta e o nº da FS já gravados
+  (function() {
+    var claim = document.getElementById('claimGroup');
+    if (!claim) return;
+    var isRecl = appointment.service === 'RECL';
+    claim.style.display = isRecl ? 'block' : 'none';
+    window.resetClaimFields && window.resetClaimFields();
+    if (isRecl && appointment.claim_ref) {
+      var y = document.getElementById('claimOpenedYes'); if (y) y.checked = true;
+      var wrap = document.getElementById('claimRefWrap'); if (wrap) wrap.style.display = 'block';
+      var ref = document.getElementById('appointmentClaimRef'); if (ref) ref.value = appointment.claim_ref;
+    }
+  })();
+
   var ctg2 = document.getElementById('customServiceTimeGroup');
   if (ctg2) ctg2.style.display = (appointment.service === 'OUT') ? 'block' : 'none';
   var ct2 = document.getElementById('appointmentCustomTime');
@@ -2823,6 +2837,9 @@ function cancelEdit() {
   if (ct) ct.value = '';
   var ctg = document.getElementById('customServiceTimeGroup');
   if (ctg) ctg.style.display = 'none';
+  var clg = document.getElementById('claimGroup');
+  if (clg) clg.style.display = 'none';
+  window.resetClaimFields && window.resetClaimFields();
   var extraCont = document.getElementById('extraServicesContainer');
   if (extraCont) extraCont.innerHTML = '';
   
@@ -2882,9 +2899,11 @@ function buildDesktopCard(a){
   const isRecalibra = window.portalConfig?.portalType === 'recalibra';
   // Não mostrar notas que contenham o JSON interno (eurocode/photo_url/history)
   const _notesClean = (a.notes && /"eurocode"|"photo_url"|"history"/.test(a.notes)) ? null : a.notes;
+  // Reclamação: mostrar sempre o nº da FS aberta
+  const _claimTag = (a.service === 'RECL' && a.claim_ref) ? `⚠️ Recl. FS${a.claim_ref}` : null;
   const sub = loja
-    ? [clientNameStr, _extraDisplay, _notesClean, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ')
-    : [isRecalibra ? null : a.locality, clientNameStr, _extraDisplay, _notesClean, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
+    ? [clientNameStr, _extraDisplay, _notesClean, _claimTag, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ')
+    : [isRecalibra ? null : a.locality, clientNameStr, _extraDisplay, _notesClean, _claimTag, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).join(' | ');
   const _recDateFmt = a.reception_date ? new Date(String(a.reception_date).slice(0,10)+'T12:00:00').toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'2-digit'}) : null;
   const encRecFooter = (a.order_ref || a.reception_ref || a.reception_date) ? `
     <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-size:10px;font-weight:700;color:rgba(255,255,255,0.85);">

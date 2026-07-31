@@ -98,7 +98,8 @@ const telBtn = phone ? `
   const _mRole = window.authClient?.getUser?.()?.role;
   // Não mostrar notas que contenham o JSON interno (eurocode/photo_url/history)
   const _mNotesClean = (a.notes && /"eurocode"|"photo_url"|"history"/.test(a.notes)) ? null : a.notes;
-  const notes = [a.client_name, _extraDisp, _mNotesClean, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
+  const _mClaimTag = (a.service === 'RECL' && a.claim_ref) ? `⚠️ Recl. FS${a.claim_ref}` : null;
+  const notes = [a.client_name, _extraDisp, _mNotesClean, _mClaimTag, a.n_obra ? `FS${a.n_obra}` : null].filter(Boolean).map(t => `<div class="m-info">${t}</div>`).join('');
   const mEncRecFooter = ''; // movido para o semáforo de stock (coluna direita)
   const damageRow = a.damage_details ? `<div class="m-info" style="font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : '';
   const compSalesBadge = a.comp_sales_desc
@@ -1359,6 +1360,9 @@ function bootApp() {
       custom_service_time: document.getElementById('appointmentService')?.value === 'OUT'
         ? (parseInt(document.getElementById('appointmentCustomTime')?.value) || null)
         : null,
+      claim_ref: document.getElementById('appointmentService')?.value === 'RECL'
+        ? ((document.getElementById('appointmentClaimRef')?.value || '').trim() || null)
+        : null,
       foreign_plate: document.getElementById('foreignPlate')?.checked || false,
       extra_services: typeof _readExtraServices === 'function' ? _readExtraServices() : [],
       comp_sales_desc: document.getElementById('hasCompSales')?.checked
@@ -1387,6 +1391,12 @@ function bootApp() {
     // defaults mínimos
     if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
     if (!payload.service) { showToast('Tipo de serviço é obrigatório', 'error'); return; }
+    if (payload.service === 'RECL') {
+      var _claimOpened = document.querySelector('input[name="claimOpened"]:checked')?.value;
+      if (!_claimOpened) { showToast('Indica se já foi aberta ficha de reclamação', 'error'); return; }
+      if (_claimOpened === 'nao') { showToast('Abre primeiro a ficha de reclamação e volta com o nº da FS', 'error'); return; }
+      if (!payload.claim_ref) { showToast('Nº da FS de reclamação é obrigatório', 'error'); return; }
+    }
     if (!payload.locality && !isLoja() && window.portalConfig?.portalType !== 'recalibra') { showToast('Localidade é obrigatória', 'error'); return; }
 
     try {
@@ -2217,8 +2227,32 @@ document.addEventListener('change', function(e) {
   if (e.target.id === 'appointmentService') {
     var grp = document.getElementById('customServiceTimeGroup');
     if (grp) grp.style.display = e.target.value === 'OUT' ? 'block' : 'none';
+    var claim = document.getElementById('claimGroup');
+    if (claim) {
+      claim.style.display = e.target.value === 'RECL' ? 'block' : 'none';
+      if (e.target.value !== 'RECL') window.resetClaimFields && window.resetClaimFields();
+    }
+  }
+  // Só depois de confirmar que a ficha foi aberta é que se pede o nº da FS
+  if (e.target.name === 'claimOpened') {
+    var wrap = document.getElementById('claimRefWrap');
+    var warn = document.getElementById('claimWarn');
+    var sim = e.target.value === 'sim';
+    if (wrap) wrap.style.display = sim ? 'block' : 'none';
+    if (warn) warn.style.display = sim ? 'none' : 'block';
+    if (!sim) { var ref = document.getElementById('appointmentClaimRef'); if (ref) ref.value = ''; }
   }
 });
+
+// Limpa a secção de reclamação (usada ao trocar de serviço e ao fechar o modal)
+window.resetClaimFields = function() {
+  var y = document.getElementById('claimOpenedYes'), n = document.getElementById('claimOpenedNo');
+  if (y) y.checked = false;
+  if (n) n.checked = false;
+  var ref = document.getElementById('appointmentClaimRef'); if (ref) ref.value = '';
+  var wrap = document.getElementById('claimRefWrap'); if (wrap) wrap.style.display = 'none';
+  var warn = document.getElementById('claimWarn'); if (warn) warn.style.display = 'none';
+};
 
 // Toggle matrícula estrangeira
 window.toggleForeignPlate = function(isForign) {
