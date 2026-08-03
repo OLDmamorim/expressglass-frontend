@@ -1,6 +1,10 @@
 // netlify/functions/appointments.js
 const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
+const {
+  normalizeEurocode: normalizeEurocodeMatch,
+  normalizeOrderRef: normalizeOrderRefMatch
+} = require('../lib/glass-reception-match');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -226,14 +230,32 @@ exports.handler = async (event) => {
       }
 
       // Cross-portal search for glass reception matching
-      if (params.search_eurocode || params.search_order_ref) {
+      if (params.search_eurocode || params.search_order_ref || params.search_plate) {
         let allowedPortalIds;
         if (user.role === 'admin') {
           const { rows: allPortals } = await pool.query('SELECT id FROM portals');
           allowedPortalIds = allPortals.map(r => r.id);
         } else {
-          const ids = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
-          allowedPortalIds = ids;
+          // Reception searches are read-only and must cover every agenda the
+          // coordinator can consult, not only the agendas they manage.
+          const uid = Number(user.userId || user.id);
+          if (uid) {
+            const { rows: accessRows } = await pool.query(`
+              SELECT DISTINCT portal_id FROM (
+                SELECT portal_id FROM coordinator_portals WHERE user_id = $1
+                UNION SELECT portal_id FROM consultable_portals WHERE user_id = $1
+                UNION SELECT portal_id FROM users WHERE id = $1 AND portal_id IS NOT NULL
+              ) accessible
+              WHERE portal_id IS NOT NULL
+            `, [uid]);
+            allowedPortalIds = accessRows.map(row => Number(row.portal_id)).filter(Boolean);
+          } else {
+            allowedPortalIds = [...new Set([
+              ...(user.portalIds || []),
+              ...(user.consultablePortalIds || []),
+              ...(user.portalId ? [user.portalId] : [])
+            ].map(Number).filter(Boolean))];
+          }
         }
         if (!allowedPortalIds.length) {
           return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: [] }) };
@@ -244,20 +266,39 @@ exports.handler = async (event) => {
         let idx = 2;
 
         if (params.search_eurocode) {
-          // Normalize I↔1 and O↔0 to handle OCR character confusion.
-          // Use word-boundary regex (^|space) so #3750... does NOT match a search for 3750...
-          conditions.push(`(
-            REPLACE(REPLACE(LOWER(glass_eurocode), 'i', '1'), 'o', '0') = REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0')
-            OR REPLACE(REPLACE(LOWER(notes), 'i', '1'), 'o', '0') ~ ('(^|[[:space:]])' || REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0'))
-            OR REPLACE(REPLACE(LOWER(extra::text), 'i', '1'), 'o', '0') ~ ('(^|[[:space:]"])' || REPLACE(REPLACE(LOWER($${idx}), 'i', '1'), 'o', '0'))
-          )`);
-          vals.push(params.search_eurocode.trim());
-          idx++;
+          const normalizedEurocode = normalizeEurocodeMatch(params.search_eurocode);
+          if (!normalizedEurocode) {
+            conditions.push('FALSE');
+          } else {
+            const escapedEurocode = normalizedEurocode.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const eurocodePattern = `(^|[^a-z0-9#*])${escapedEurocode}($|[^a-z0-9])`;
+
+            // Normalize I↔1 and O↔0 to handle OCR character confusion. The
+            // boundary deliberately excludes #/* so supplier-prefixed codes do
+            // not match an ordinary Eurocode with the same body.
+            conditions.push(`(
+              REPLACE(REPLACE(LOWER(REGEXP_REPLACE(COALESCE(a.glass_eurocode, ''), '[[:space:]-]', '', 'g')), 'i', '1'), 'o', '0') = $${idx}
+              OR REPLACE(REPLACE(LOWER(COALESCE(a.notes, '')), 'i', '1'), 'o', '0') ~ $${idx + 1}
+              OR REPLACE(REPLACE(LOWER(COALESCE(a.extra::text, '')), 'i', '1'), 'o', '0') ~ $${idx + 1}
+            )`);
+            vals.push(normalizedEurocode.toLowerCase(), eurocodePattern.toLowerCase());
+            idx += 2;
+          }
         }
         if (params.search_order_ref) {
-          conditions.push(`(LOWER(order_ref) = LOWER($${idx}) OR notes ILIKE '%' || $${idx} || '%' OR n_obra ILIKE '%' || $${idx} || '%')`);
-          vals.push(params.search_order_ref.trim());
-          idx++;
+          const normalizedOrder = normalizeOrderRefMatch(params.search_order_ref);
+          if (!normalizedOrder) {
+            conditions.push('FALSE');
+          } else {
+            conditions.push(`(
+              REGEXP_REPLACE(REGEXP_REPLACE(LOWER(COALESCE(a.order_ref, '')), '[^a-z0-9]', '', 'g'), '^(encomendaaxial|encaxial|encomenda|enc)', '') = $${idx}
+              OR REGEXP_REPLACE(REGEXP_REPLACE(LOWER(COALESCE(a.n_obra, '')), '[^a-z0-9]', '', 'g'), '^(encomendaaxial|encaxial|encomenda|enc)', '') = $${idx}
+              OR REGEXP_REPLACE(LOWER(COALESCE(a.notes, '')), '[^a-z0-9]', '', 'g') LIKE '%' || $${idx} || '%'
+              OR REGEXP_REPLACE(LOWER(COALESCE(a.extra::text, '')), '[^a-z0-9]', '', 'g') LIKE '%' || $${idx} || '%'
+            )`);
+            vals.push(normalizedOrder);
+            idx++;
+          }
         }
         if (params.search_plate) {
           // Normalize plate for comparison (remove dashes/spaces)

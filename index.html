@@ -1506,6 +1506,15 @@
     return new Date(iso + (iso.includes('T') ? '' : 'T00:00:00')).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
+  function _grEscapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   // ── SCAN MODAL (técnico) ──────────────────────────────────────────────────
   function openScan() {
     document.getElementById('grScanModal').style.display = 'flex';
@@ -1877,6 +1886,7 @@
   function _step1() { renderStep1(); }
 
   async function _doSearch(orderRef, eurocode, rawText, photoBase64, plate, allEurocodes, skipEcSelection) {
+    window._grLastSearchArgs = { orderRef, eurocode, rawText, photoBase64, plate, allEurocodes, skipEcSelection: true };
     if (!skipEcSelection) window._grLabelSelectedEurocodes = null;
     eurocode = _prefixedEurocode(eurocode);
     const allPrefixed = [...new Set((allEurocodes || []).map(_prefixedEurocode).filter(Boolean))];
@@ -1925,20 +1935,31 @@
 
     // Normalize I↔1 and O↔0 to handle OCR character confusion
     const normEc = s => (s || '').toLowerCase().replace(/i/g, '1').replace(/o/g, '0');
+    const normOrder = s => {
+      let key = (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      for (const prefix of ['encomendaaxial', 'encaxial', 'encomenda', 'enc']) {
+        if (key.startsWith(prefix) && key.length > prefix.length) { key = key.slice(prefix.length); break; }
+      }
+      return key;
+    };
     const ecNorm = eurocode ? normEc(eurocode.trim()) : null;
+    const orderNorm = normOrder(orderRef);
+    const orderPattern = orderNorm
+      ? new RegExp(`(^|[^a-z0-9])(?:enc(?:omenda)?[.\\s-]*axial[.\\s-]*)?${orderNorm}(?=$|[^a-z0-9])`, 'i')
+      : null;
     const allEcNorms = [ecNorm, ...extraEurocodes.map(e => normEc(e.trim()))].filter(Boolean);
     const plateNorm = p => (p || '').replace(/[-\s]/g, '').toLowerCase();
     const pNorm = plate ? plateNorm(plate) : null;
 
     // Local search first (active portal appointments already loaded)
     const localResults = (window.appointments || []).filter(a => {
-      if (a.executed === true) return false;
-      const matchOrder = orderRef && a.order_ref && a.order_ref.trim().toLowerCase() === orderRef.trim().toLowerCase();
-      const matchOrderNotes = orderRef && (
-        (a.notes || '').includes(orderRef) ||
-        (a.n_obra || '').includes(orderRef) ||
-        ((a.extra || '').includes && (a.extra || '').includes(orderRef))
+      const matchOrder = orderNorm && (
+        normOrder(a.order_ref) === orderNorm ||
+        normOrder(a.n_obra) === orderNorm
       );
+      const matchOrderNotes = orderPattern && [a.notes, a.extra].some(value => orderPattern.test(
+        (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      ));
       let extraEuro = '';
       if (a.extra) { try { extraEuro = (JSON.parse(a.extra).eurocode || ''); } catch(e) { extraEuro = (a.extra || ''); } }
       const aptEcNorm = a.glass_eurocode ? normEc(a.glass_eurocode) : null;
@@ -1961,20 +1982,40 @@
         const qp = new URLSearchParams({ search_eurocode: ec.trim() });
         if (orderRef) qp.set('search_order_ref', orderRef.trim());
         if (plate) qp.set('search_plate', plate.trim());
+        qp.set('include_executed', 'true');
         return fetch(API + '/appointments?' + qp.toString(), { headers: authHeaders() })
-          .then(r => r.json()).then(j => j.success ? (j.data || []) : []).catch(() => []);
+          .then(async r => {
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok || !j.success) throw new Error(j.error || j.message || `Erro HTTP ${r.status}`);
+            return j.data || [];
+          });
       });
       if (!eurosToSearch.length && (orderRef || plate)) {
         const qp = new URLSearchParams();
         if (orderRef) qp.set('search_order_ref', orderRef.trim());
         if (plate) qp.set('search_plate', plate.trim());
+        qp.set('include_executed', 'true');
         searches.push(fetch(API + '/appointments?' + qp.toString(), { headers: authHeaders() })
-          .then(r => r.json()).then(j => j.success ? (j.data || []) : []).catch(() => []));
+          .then(async r => {
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok || !j.success) throw new Error(j.error || j.message || `Erro HTTP ${r.status}`);
+            return j.data || [];
+          }));
       }
       const results = await Promise.all(searches);
       const seenApi = new Set();
       results.flat().forEach(a => { if (!seenApi.has(a.id)) { seenApi.add(a.id); apiResults.push(a); } });
-    } catch (e) { console.warn('Cross-portal search failed:', e); }
+    } catch (e) {
+      console.warn('Cross-portal search failed:', e);
+      if (body) body.innerHTML = `
+        <div style="background:#fef2f2;border:2px solid #ef4444;border-radius:12px;padding:18px;text-align:center;">
+          <div style="font-size:30px;margin-bottom:8px;">⚠️</div>
+          <p style="font-size:14px;font-weight:800;color:#991b1b;margin:0 0 6px;">A pesquisa falhou</p>
+          <p style="font-size:12px;color:#b91c1c;margin:0 0 14px;">${_grEscapeHtml(e.message || 'Erro desconhecido')}</p>
+          <button onclick="window.glassReception._retryLastSearch()" style="background:#dc2626;color:#fff;border:none;border-radius:9px;padding:11px 18px;font-size:13px;font-weight:800;cursor:pointer;width:100%;">🔄 Tentar novamente</button>
+        </div>`;
+      return;
+    }
 
     // Merge: local results + API results (deduplicate by id)
     const seen = new Set(localResults.map(a => a.id));
@@ -1994,6 +2035,12 @@
     }
 
     renderMatches(merged, orderRef, eurocode, rawText, photoBase64, plate, recepMap);
+  }
+
+  function _retryLastSearch() {
+    const args = window._grLastSearchArgs;
+    if (!args) return _step1();
+    _doSearch(args.orderRef, args.eurocode, args.rawText, args.photoBase64, args.plate, args.allEurocodes, args.skipEcSelection);
   }
 
   function renderMatches(appts, orderRef, eurocode, rawText, photoBase64, plate, recepMap) {
@@ -2880,8 +2927,40 @@
     }
   }
 
-  async function _loadCoordList() {
+  async function _loadCoordList(receptionIds) {
     try {
+      const reanalyseRes = await fetch(API + '/glass-reception', {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          action: 'reanalyse_pending',
+          reception_ids: Array.isArray(receptionIds) ? receptionIds : undefined
+        })
+      });
+      const reanalyseJson = await reanalyseRes.json().catch(() => ({}));
+      if (!reanalyseRes.ok || !reanalyseJson.success) {
+        throw new Error(reanalyseJson.error || reanalyseJson.message || `Erro HTTP ${reanalyseRes.status}`);
+      }
+      const reanalysis = reanalyseJson.data || {};
+      const pendingMatches = Array.isArray(receptionIds) && window._grPendingMatches instanceof Map
+        ? new Map(window._grPendingMatches)
+        : new Map();
+      (reanalysis.linked || []).forEach(item => pendingMatches.delete(String(item.id)));
+      (reanalysis.unresolved || []).forEach(item => pendingMatches.set(String(item.reception_id), item));
+      window._grPendingMatches = pendingMatches;
+      if ((reanalysis.linked || []).length && window.appointments) {
+        (reanalysis.linked || []).forEach(item => {
+          const apt = window.appointments.find(candidate => String(candidate.id) === String(item.appointment_id));
+          if (!apt) return;
+          apt.status = 'ST';
+          apt.glass_eurocode = item.eurocode || apt.glass_eurocode;
+          apt.order_ref = item.order_ref || apt.order_ref;
+          apt.reception_date = item.created_at ? String(item.created_at).slice(0, 10) : apt.reception_date;
+        });
+        if (typeof renderAll === 'function') renderAll();
+        window.guiaAT?.injectBadges();
+      }
+
       const [resConf, resMiss, resPend] = await Promise.all([
         fetch(API + '/glass-reception?status=confirmed', { headers: authHeaders() }),
         fetch(API + '/glass-reception?status=missing', { headers: authHeaders() }),
@@ -2889,13 +2968,24 @@
       ]);
       const [jsonConf, jsonMiss, jsonPend] = await Promise.all([resConf.json(), resMiss.json(), resPend.json()]);
       if (!jsonConf.success) throw new Error(jsonConf.error || jsonConf.message || `Erro HTTP ${resConf.status}`);
+      if (!jsonMiss.success) throw new Error(jsonMiss.error || jsonMiss.message || `Erro HTTP ${resMiss.status}`);
+      if (!jsonPend.success) throw new Error(jsonPend.error || jsonPend.message || `Erro HTTP ${resPend.status}`);
       const confirmed = jsonConf.data || [];
-      const missing = jsonMiss.success ? (jsonMiss.data || []) : [];
-      const pending = jsonPend.success ? (jsonPend.data || []) : [];
+      const missing = jsonMiss.data || [];
+      const pending = jsonPend.data || [];
       _renderCoordList(confirmed, missing, pending);
+      if ((reanalysis.linked || []).length && typeof showToast === 'function') {
+        const count = reanalysis.linked.length;
+        showToast(`✅ ${count} receção${count === 1 ? '' : 'ões'} associada${count === 1 ? '' : 's'} automaticamente`, 'success');
+      }
     } catch (e) {
       const el = document.getElementById('grTabContent');
-      if (el) el.innerHTML = `<p style="color:#dc2626;text-align:center;padding:20px;">Erro: ${e.message}</p>`;
+      if (el) el.innerHTML = `
+        <div style="background:#fef2f2;border:2px solid #ef4444;border-radius:12px;padding:18px;text-align:center;">
+          <p style="color:#991b1b;font-weight:800;margin:0 0 6px;">Não foi possível reanalisar as receções</p>
+          <p style="color:#b91c1c;font-size:12px;margin:0 0 14px;">${_grEscapeHtml(e.message)}</p>
+          <button onclick="window.glassReception._loadCoordList()" style="background:#dc2626;color:#fff;border:none;border-radius:9px;padding:10px 18px;font-weight:800;cursor:pointer;">🔄 Tentar novamente</button>
+        </div>`;
     }
   }
 
@@ -2920,24 +3010,44 @@
 
     const pendingHtml = pending.length === 0 ? '' : `
       <div style="margin-bottom:6px;font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.5px;">🔍 Por associar a agendamento</div>
-      ${pending.map(r => `
-        <div id="grRow${r.id}" style="border:2px solid #3b82f6;border-radius:12px;padding:14px;margin-bottom:10px;background:#eff6ff;">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-            <span style="font-family:monospace;font-weight:800;font-size:14px;background:#94a3b8;color:#fff;padding:3px 10px;border-radius:6px;">— — —</span>
-            <span style="font-size:11px;color:#1d4ed8;margin-left:auto;">${fmtDate(r.created_at)}</span>
-          </div>
-          <div style="display:flex;gap:14px;font-size:12px;color:#1e40af;flex-wrap:wrap;margin-bottom:10px;">
-            <span>🏪 ${r.portal_label || r.portal_name || '—'}</span>
-            <span>👤 ${r.technician_name || '—'}</span>
-            <span>📦 ${r.order_ref || '—'}</span>
-            <span>🔢 ${r.eurocode || '—'}</span>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button onclick="window.glassReception._markReceived(${r.id})" style="background:#16a34a;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">✅ Rececionado</button>
-            <button onclick="window.glassReception._rejectReception(${r.id},'${(r.order_ref||r.eurocode||'').replace(/'/g,"\\'")}')" style="background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">❌ Rejeitar</button>
-          </div>
-        </div>
-      `).join('')}
+      ${pending.map(r => {
+        const match = window._grPendingMatches?.get(String(r.id)) || { candidates: [], reason: 'Ainda sem correspondência.' };
+        const candidates = match.candidates || [];
+        const options = candidates.map(a => {
+          const status = a.executed ? ' · realizado' : '';
+          const label = `${(a.plate || 'Sem matrícula').toUpperCase()} · ${a.car || '—'} · ${a.portal_name || '—'}${a.date ? ' · ' + fmtDate(a.date) : ''}${status}`;
+          return `<option value="${Number(a.id)}">${_grEscapeHtml(label)}</option>`;
+        }).join('');
+        const matchControls = candidates.length ? `
+          <div style="background:#fff;border:1px solid #bfdbfe;border-radius:9px;padding:10px;margin-bottom:10px;">
+            <label for="grPendingMatch${r.id}" style="font-size:11px;font-weight:800;color:#1e40af;display:block;margin-bottom:6px;">
+              ${candidates.length === 1 ? 'Correspondência encontrada' : `${candidates.length} agendamentos possíveis — escolhe o correto`}
+            </label>
+            <select id="grPendingMatch${r.id}" style="width:100%;box-sizing:border-box;padding:9px;border:1px solid #93c5fd;border-radius:7px;background:#fff;font-size:12px;margin-bottom:8px;">${options}</select>
+            <button onclick="window.glassReception._associatePending(${r.id})" style="width:100%;background:#2563eb;color:#fff;font-weight:800;font-size:13px;padding:9px 14px;border-radius:8px;border:none;cursor:pointer;">🔗 Associar ao agendamento</button>
+          </div>` : `
+          <div style="background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:9px 11px;margin-bottom:10px;color:#9a3412;font-size:12px;font-weight:600;">
+            ${_grEscapeHtml(match.reason || 'Não foi encontrado um agendamento correspondente.')}
+          </div>`;
+        return `
+          <div id="grRow${r.id}" style="border:2px solid #3b82f6;border-radius:12px;padding:14px;margin-bottom:10px;background:#eff6ff;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              <span style="font-family:monospace;font-weight:800;font-size:14px;background:#1d4ed8;color:#fff;padding:3px 10px;border-radius:6px;">POR ASSOCIAR</span>
+              <span style="font-size:11px;color:#1d4ed8;margin-left:auto;">${fmtDate(r.created_at)}</span>
+            </div>
+            <div style="display:flex;gap:14px;font-size:12px;color:#1e40af;flex-wrap:wrap;margin-bottom:10px;">
+              <span>🏪 ${_grEscapeHtml(r.portal_label || r.portal_name || '—')}</span>
+              <span>👤 ${_grEscapeHtml(r.technician_name || '—')}</span>
+              <span>📦 ${_grEscapeHtml(r.order_ref || '—')}</span>
+              <span>🔢 ${_grEscapeHtml(r.eurocode || '—')}</span>
+            </div>
+            ${matchControls}
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button onclick="window.glassReception._reanalysePending(${r.id})" style="background:#0f172a;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">🔄 Reanalisar</button>
+              <button onclick="window.glassReception._rejectReception(${r.id},'${(r.order_ref||r.eurocode||'').replace(/'/g,"\\'")}')" style="background:#dc2626;color:#fff;font-weight:700;font-size:13px;padding:8px 18px;border-radius:8px;border:none;cursor:pointer;">❌ Rejeitar</button>
+            </div>
+          </div>`;
+      }).join('')}
     `;
 
     const confirmedHtml = items.map(r => `
@@ -4005,6 +4115,49 @@
     w.document.close(); w.print();
   }
 
+  async function _associatePending(id) {
+    const select = document.getElementById('grPendingMatch' + id);
+    const appointmentId = Number(select?.value);
+    if (!appointmentId) {
+      alert('Seleciona o agendamento correto.');
+      return;
+    }
+
+    const button = document.querySelector(`#grRow${id} button[onclick*="_associatePending"]`);
+    if (button) { button.disabled = true; button.textContent = 'A associar…'; }
+    try {
+      const res = await fetch(API + '/glass-reception', {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'associate_reception', id, appointment_id: appointmentId })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) throw new Error(json.error || json.message || `Erro HTTP ${res.status}`);
+
+      const apt = (window.appointments || []).find(item => String(item.id) === String(appointmentId));
+      if (apt) {
+        apt.status = 'ST';
+        apt.glass_eurocode = json.data?.eurocode || apt.glass_eurocode;
+        apt.order_ref = json.data?.order_ref || apt.order_ref;
+        if (typeof renderAll === 'function') renderAll();
+        window.guiaAT?.injectBadges();
+      }
+
+      if (typeof showToast === 'function') showToast(`✅ Associado a ${(json.data?.apt_plate || 'matrícula').toUpperCase()}`, 'success');
+      await _loadCoordList();
+      _pollPendingBadge();
+    } catch (e) {
+      if (button) { button.disabled = false; button.textContent = '🔗 Associar ao agendamento'; }
+      alert('Erro: ' + e.message);
+    }
+  }
+
+  async function _reanalysePending(id) {
+    const row = document.getElementById('grRow' + id);
+    if (row) row.style.opacity = '.55';
+    await _loadCoordList([id]);
+  }
+
   async function _markReceived(id) {
     const btn = document.querySelector(`#grRow${id} button`);
     if (btn) { btn.disabled = true; btn.textContent = 'A registar…'; }
@@ -4220,14 +4373,16 @@
   // ── BADGE POLLING ────────────────────────────────────────────────────────
   async function _pollPendingBadge() {
     try {
-      const [resConf, resMiss] = await Promise.all([
+      const [resConf, resMiss, resPend] = await Promise.all([
         fetch(API + '/glass-reception?status=confirmed', { headers: authHeaders() }),
-        fetch(API + '/glass-reception?status=missing', { headers: authHeaders() })
+        fetch(API + '/glass-reception?status=missing', { headers: authHeaders() }),
+        fetch(API + '/glass-reception?status=pending', { headers: authHeaders() })
       ]);
-      const [jsonConf, jsonMiss] = await Promise.all([resConf.json(), resMiss.json()]);
+      const [jsonConf, jsonMiss, jsonPend] = await Promise.all([resConf.json(), resMiss.json(), resPend.json()]);
       const nConf = jsonConf.success ? (jsonConf.data || []).length : 0;
       const nMiss = jsonMiss.success ? (jsonMiss.data || []).length : 0;
-      const n = nConf + nMiss;
+      const nPend = jsonPend.success ? (jsonPend.data || []).length : 0;
+      const n = nConf + nMiss + nPend;
       const btn = document.getElementById('btnRececaoVidros');
       if (btn) {
         if (n > 0) {
@@ -4317,7 +4472,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _retryLastSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _loadCoordList, _associatePending, _reanalysePending, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);

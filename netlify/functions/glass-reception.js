@@ -1,6 +1,11 @@
 // netlify/functions/glass-reception.js
 const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
+const {
+  createCandidateIndex,
+  findCandidates,
+  normalizeEurocode: normalizeEurocodeMatch
+} = require('../lib/glass-reception-match');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
@@ -35,6 +40,229 @@ function parseEurocode(raw) {
   if (s.startsWith('#')) return { canonical: s.slice(1).toUpperCase(), glassType: 'complementar' };
   if (s.startsWith('*')) return { canonical: s.slice(1).toUpperCase(), glassType: 'oem' };
   return { canonical: s.toUpperCase(), glassType: 'rede' };
+}
+
+function httpError(message, statusCode) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
+function canCoordinate(user) {
+  return ['admin', 'coordenador', 'coordinator'].includes(user.role);
+}
+
+async function getAccessiblePortalIds(client, user, includeConsultable = true) {
+  if (user.role === 'admin') {
+    const { rows } = await client.query('SELECT id FROM portals');
+    return rows.map(row => Number(row.id)).filter(Boolean);
+  }
+
+  const uid = Number(user.userId || user.id);
+  if (!uid) {
+    return [...new Set([
+      ...(user.portalIds || []),
+      ...(includeConsultable ? (user.consultablePortalIds || []) : []),
+      ...(user.portalId ? [user.portalId] : [])
+    ].map(Number).filter(Boolean))];
+  }
+
+  const consultableUnion = includeConsultable
+    ? 'UNION SELECT portal_id FROM consultable_portals WHERE user_id = $1'
+    : '';
+  const { rows } = await client.query(`
+    SELECT DISTINCT portal_id FROM (
+      SELECT portal_id FROM coordinator_portals WHERE user_id = $1
+      ${consultableUnion}
+      UNION SELECT portal_id FROM users WHERE id = $1 AND portal_id IS NOT NULL
+    ) accessible
+    WHERE portal_id IS NOT NULL
+  `, [uid]);
+
+  return rows.map(row => Number(row.portal_id)).filter(Boolean);
+}
+
+function publicCandidate(candidate) {
+  return {
+    id: candidate.id,
+    date: candidate.date,
+    period: candidate.period,
+    plate: candidate.plate,
+    car: candidate.car,
+    service: candidate.service,
+    executed: candidate.executed,
+    portal_id: candidate.portal_id,
+    portal_name: candidate.portal_name,
+    eurocode_match: candidate.eurocode_match,
+    order_match: candidate.order_match,
+    match_score: candidate.match_score
+  };
+}
+
+async function associateReception(client, user, receptionId, appointmentId, allowedPortalIds) {
+  await client.query('BEGIN');
+  try {
+    const { rows: receptionRows } = await client.query(
+      `SELECT * FROM glass_receptions WHERE id = $1 FOR UPDATE`,
+      [receptionId]
+    );
+    if (!receptionRows.length) throw httpError('Receção não encontrada', 404);
+    const reception = receptionRows[0];
+    if (reception.status !== 'pending') {
+      throw httpError('Esta receção já foi tratada entretanto', 409);
+    }
+    if (user.role !== 'admin' && !allowedPortalIds.includes(Number(reception.portal_id))) {
+      throw httpError('Sem acesso a esta receção', 403);
+    }
+
+    const { rows: appointmentRows } = await client.query(`
+      SELECT a.id, a.portal_id, a.plate, a.car, a.service, a.date, a.executed,
+             a.order_ref, a.glass_eurocode, a.n_obra, a.notes, a.extra,
+             p.name AS portal_name,
+             COALESCE(p.auto_receive_glass, true) AS auto_receive
+      FROM appointments a
+      LEFT JOIN portals p ON p.id = a.portal_id
+      WHERE a.id = $1
+      FOR UPDATE OF a
+    `, [appointmentId]);
+    if (!appointmentRows.length) throw httpError('Agendamento não encontrado', 404);
+    const appointment = appointmentRows[0];
+
+    if (!allowedPortalIds.includes(Number(appointment.portal_id))) {
+      throw httpError('Sem acesso ao portal deste agendamento', 403);
+    }
+    if (!findCandidates(reception, [appointment]).length) {
+      throw httpError('Este agendamento não corresponde ao Eurocode ou à encomenda desta receção', 409);
+    }
+
+    if (reception.eurocode) {
+      const { rows: existingRows } = await client.query(`
+        SELECT id, eurocode FROM glass_receptions
+        WHERE appointment_id = $1
+          AND id != $2
+          AND is_return = false
+          AND status != 'return'
+      `, [appointment.id, reception.id]);
+      const eurocode = normalizeEurocodeMatch(reception.eurocode);
+      if (existingRows.some(row => normalizeEurocodeMatch(row.eurocode) === eurocode)) {
+        throw httpError(`Este Eurocode já está associado à matrícula ${appointment.plate || ''}`.trim(), 409);
+      }
+    }
+
+    const nextStatus = appointment.auto_receive === false ? 'confirmed' : 'received';
+    const { rows: updatedRows } = await client.query(`
+      UPDATE glass_receptions
+      SET appointment_id = $1,
+          portal_id = $2,
+          portal_name = $3,
+          status = $4,
+          updated_at = NOW()
+      WHERE id = $5
+      RETURNING *
+    `, [appointment.id, appointment.portal_id, appointment.portal_name, nextStatus, reception.id]);
+
+    await client.query(`
+      UPDATE appointments
+      SET status = 'ST',
+          reception_date = COALESCE(reception_date, $2::timestamptz::date),
+          order_ref = CASE
+            WHEN order_ref IS NULL OR TRIM(order_ref) = '' THEN $3
+            ELSE order_ref
+          END,
+          glass_eurocode = CASE
+            WHEN glass_eurocode IS NULL OR TRIM(glass_eurocode) = '' THEN $4
+            ELSE glass_eurocode
+          END,
+          updated_at = NOW()
+      WHERE id = $1
+    `, [appointment.id, reception.created_at, normalizeOrderRef(reception.order_ref), reception.eurocode || null]);
+
+    await client.query('COMMIT');
+    return {
+      ...updatedRows[0],
+      apt_plate: appointment.plate,
+      apt_car: appointment.car,
+      apt_service: appointment.service,
+      apt_date: appointment.date,
+      portal_label: appointment.portal_name
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  }
+}
+
+async function reanalysePendingReceptions(client, user, receptionIds) {
+  if (!canCoordinate(user)) throw httpError('Sem permissão', 403);
+
+  const allowedPortalIds = await getAccessiblePortalIds(client, user, true);
+  if (!allowedPortalIds.length) return { linked: [], unresolved: [], total: 0 };
+
+  const requestedIds = (receptionIds || []).map(Number).filter(Boolean);
+  const idFilter = requestedIds.length ? 'AND gr.id = ANY($2)' : '';
+  const values = requestedIds.length ? [allowedPortalIds, requestedIds] : [allowedPortalIds];
+  const { rows: pendingRows } = await client.query(`
+    SELECT gr.*
+    FROM glass_receptions gr
+    WHERE gr.status = 'pending'
+      AND gr.is_return = false
+      AND gr.portal_id = ANY($1)
+      ${idFilter}
+    ORDER BY gr.created_at ASC
+    LIMIT 300
+  `, values);
+
+  if (!pendingRows.length) return { linked: [], unresolved: [], total: 0 };
+
+  const { rows: appointments } = await client.query(`
+    SELECT a.id, a.date, a.period, a.plate, a.car, a.service, a.executed,
+           a.portal_id, a.order_ref, a.glass_eurocode, a.n_obra, a.notes, a.extra,
+           p.name AS portal_name
+    FROM appointments a
+    LEFT JOIN portals p ON p.id = a.portal_id
+    WHERE a.portal_id = ANY($1)
+      AND (a.date IS NULL OR a.date >= CURRENT_DATE - INTERVAL '365 days')
+    ORDER BY a.date DESC NULLS LAST, a.created_at DESC
+  `, [allowedPortalIds]);
+  const appointmentIndex = createCandidateIndex(appointments);
+
+  const linked = [];
+  const unresolved = [];
+
+  for (const reception of pendingRows) {
+    const candidates = findCandidates(reception, appointmentIndex);
+    if (candidates.length === 1) {
+      try {
+        const updated = await associateReception(
+          client,
+          user,
+          reception.id,
+          candidates[0].id,
+          allowedPortalIds
+        );
+        linked.push(updated);
+        continue;
+      } catch (error) {
+        if (![403, 404, 409].includes(error.statusCode)) throw error;
+        unresolved.push({
+          reception_id: reception.id,
+          reason: error.message,
+          candidates: candidates.map(publicCandidate)
+        });
+        continue;
+      }
+    }
+
+    unresolved.push({
+      reception_id: reception.id,
+      reason: candidates.length > 1
+        ? 'Foram encontrados vários agendamentos possíveis.'
+        : 'Não foi encontrado um agendamento correspondente.',
+      candidates: candidates.slice(0, 25).map(publicCandidate)
+    });
+  }
+
+  return { linked, unresolved, total: pendingRows.length };
 }
 
 async function ensureTable(client) {
@@ -414,7 +642,7 @@ exports.handler = async (event) => {
       if (user.role === 'user') {
         q += ` AND gr.portal_id = $${idx++}`; vals.push(user.portalId);
       } else if (user.role !== 'admin') {
-        const ids = user.portalIds?.length ? user.portalIds : (user.portalId ? [user.portalId] : []);
+        const ids = await getAccessiblePortalIds(client, user, true);
         if (ids.length) { q += ` AND gr.portal_id = ANY($${idx++})`; vals.push(ids); }
       }
 
@@ -622,6 +850,28 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'PUT') {
       const d = JSON.parse(event.body || '{}');
 
+      // Revisit historical orphan receptions using the current portal access
+      // rules and matching normalisation. Unique matches are linked now;
+      // ambiguous matches are returned to the coordinator for selection.
+      if (d.action === 'reanalyse_pending') {
+        const result = await reanalysePendingReceptions(client, user, d.reception_ids);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: result }) };
+      }
+
+      if (d.action === 'associate_reception') {
+        if (!canCoordinate(user)) {
+          return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Sem permissão' }) };
+        }
+        const receptionId = Number(d.id);
+        const appointmentId = Number(d.appointment_id);
+        if (!receptionId || !appointmentId) {
+          return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Receção e agendamento são obrigatórios' }) };
+        }
+        const allowedPortalIds = await getAccessiblePortalIds(client, user, true);
+        const updated = await associateReception(client, user, receptionId, appointmentId, allowedPortalIds);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: updated }) };
+      }
+
       // Backfill eurocode_cache from existing glass_receptions + appointments
       if (d.action === 'backfill_cache') {
         const { rows: bRows } = await client.query(`
@@ -714,6 +964,19 @@ exports.handler = async (event) => {
 
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Não encontrado' }) };
 
+      // An orphan reception cannot be silently closed: it must first be tied
+      // to the correct appointment so the plate/card are updated as well.
+      if (d.status === 'received' && !rows[0].appointment_id) {
+        await client.query(
+          `UPDATE glass_receptions SET status = 'pending', updated_at = NOW() WHERE id = $1`,
+          [rows[0].id]
+        );
+        return { statusCode: 409, headers, body: JSON.stringify({
+          success: false,
+          error: 'Associa primeiro esta receção ao agendamento correto.'
+        }) };
+      }
+
       // Ao marcar como received → muda status do agendamento para ST
       if (d.status === 'received' && rows[0].appointment_id) {
         await client.query(
@@ -742,7 +1005,7 @@ exports.handler = async (event) => {
   } catch (err) {
     console.error('glass-reception:', err);
     const msg = (err && err.message) ? err.message : String(err || 'Erro interno');
-    const code = msg.includes('autenticado') ? 401 : 500;
+    const code = err?.statusCode || (msg.includes('autenticado') ? 401 : 500);
     return { statusCode: code, headers, body: JSON.stringify({ success: false, error: msg }) };
   } finally {
     if (client) client.release();
