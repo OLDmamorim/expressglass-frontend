@@ -111,6 +111,15 @@
     const grid = document.getElementById('pegGrid');
     if (!grid) return;
 
+    const month = Number(kpis.mes);
+    const year = Number(kpis.ano);
+    const monthLabel = document.querySelector(`#${BANNER_ID} .peg-month`);
+    if (monthLabel && Number.isInteger(month) && month >= 1 && month <= 12 && Number.isInteger(year)) {
+      monthLabel.textContent = new Date(year, month - 1, 1)
+        .toLocaleDateString('pt-PT', { month: 'short', year: 'numeric' })
+        .replace(/^\w/, c => c.toUpperCase());
+    }
+
     const servicos   = kpis.servicos   ?? 0;
     const objetivo   = kpis.objetivo   ?? '—';
     const taxa       = kpis.taxa       ?? 0;   // taxa de reparação (%)
@@ -185,7 +194,7 @@
     );
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'PoweringEG sem dados');
-    return d.kpis;
+    return { ...d.kpis, mes: d.mes ?? d.kpis.mes, ano: d.ano ?? d.kpis.ano };
   }
 
   // ── Init principal ─────────────────────────────────────────────────────
