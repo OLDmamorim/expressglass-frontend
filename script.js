@@ -2229,6 +2229,7 @@ function fireEmojis(emojis, baseDur) {
   const base = baseDur || 2800;
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
+  const finishedAnimations = [];
   for (let i = 0; i < count; i++) {
     const el = document.createElement('div');
     el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
@@ -2240,24 +2241,25 @@ function fireEmojis(emojis, baseDur) {
     const dx = Math.cos(angle) * dist;
     const dy = Math.sin(angle) * dist - 80;
     const dur = base + Math.random() * 1200;
-    el.animate([
+    const animation = el.animate([
       { transform:'translate(-50%,-50%) scale(0.2)', opacity:1 },
       { transform:`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px)) scale(1.4)`, opacity:1, offset:0.5 },
       { transform:`translate(calc(-50% + ${dx*1.05}px),calc(-50% + ${dy+40}px)) scale(1.2)`, opacity:1, offset:0.75 },
       { transform:`translate(calc(-50% + ${dx*1.15}px),calc(-50% + ${dy+160}px)) scale(0.8)`, opacity:0 }
-    ], { duration:dur, easing:'cubic-bezier(0.22,1,0.36,1)', fill:'forwards' })
-      .finished.then(() => el.remove());
+    ], { duration:dur, easing:'cubic-bezier(0.22,1,0.36,1)', fill:'forwards' });
+    finishedAnimations.push(animation.finished.catch(() => {}).then(() => el.remove()));
   }
+  return Promise.all(finishedAnimations);
 }
 function fireRealizadoEmojis() {
-  fireEmojis(['✅','🎉','⭐','💪','🙌','🏆','👏','✨','🔥','🥳']);
+  return fireEmojis(['✅','🎉','⭐','💪','🙌','🏆','👏','✨','🔥','🥳']);
 }
 function fireNaoRealizadoEmojis() {
-  fireEmojis(['😢','😔','💔','😞','🥺','😿','💧','😩','😭','🫤']);
+  return fireEmojis(['😢','😔','💔','😞','🥺','😿','💧','😩','😭','🫤']);
 }
 function fireVidroRetiradoEmojis() {
   // Emojis: carro, ferramenta, espera — duração mais longa (5s base)
-  fireEmojis(['🚗','🔧','🛠️','⏳','🚘','⚙️','🔩','🪟','🚙','⌛'], 5000);
+  return fireEmojis(['🚗','🔧','🛠️','⏳','🚘','⚙️','🔩','🪟','🚙','⌛'], 5000);
 }
 // Expor globalmente para uso em outros scripts (ex: glass-removed-patch.js)
 window.fireEmojis = fireEmojis;
@@ -2300,6 +2302,9 @@ async function enforceSingleSecondOfDay(newId, date) {
 async function _doSaveExecuted(id, executed, reason, sadEmojis) {
   const i = appointments.findIndex(a => String(a.id) === String(id));
   if (i < 0) return;
+  const nextCallContext = (executed === true || executed === false)
+    ? window.nextClientCall?.capture(appointments[i])
+    : null;
   const prev = { executed: appointments[i].executed, not_done_reason: appointments[i].not_done_reason, glass_removed: appointments[i].glass_removed, glass_removed_date: appointments[i].glass_removed_date };
   appointments[i].executed = executed;
   appointments[i].not_done_reason = reason || null;
@@ -2309,10 +2314,15 @@ async function _doSaveExecuted(id, executed, reason, sadEmojis) {
     appointments[i].glass_removed_date = null;
   }
   renderAll();
-  if (executed === true) { sadEmojis ? fireNaoRealizadoEmojis() : fireRealizadoEmojis(); }
-  else if (executed === false) fireNaoRealizadoEmojis();
+  let emojiPromise = null;
+  if (executed === true) { emojiPromise = sadEmojis ? fireNaoRealizadoEmojis() : fireRealizadoEmojis(); }
+  else if (executed === false) emojiPromise = fireNaoRealizadoEmojis();
   try {
     await window.apiClient.updateAppointment(id, { ...appointments[i], executed, not_done_reason: reason || null });
+
+    if (emojiPromise && nextCallContext) {
+      window.nextClientCall?.afterAnimation(nextCallContext, emojiPromise);
+    }
 
     // Notificar comercial via Telegram se estiver atribuído
     if (appointments[i].commercial_user_id) {
@@ -3238,4 +3248,3 @@ function ensureServicesHeader(){
     ).join('')
   }</tr>`;
 }
- 
