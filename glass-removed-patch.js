@@ -61,6 +61,7 @@
     const i = appts.findIndex(a => String(a.id) === String(id));
     if (i < 0) return;
     const apptSnapshot = { ...appts[i] };
+    const nextCallContext = window.nextClientCall?.capture(apptSnapshot);
     const prev = { glass_removed: appts[i].glass_removed, glass_removed_date: appts[i].glass_removed_date, date: appts[i].date, confirmed: appts[i].confirmed, executed: appts[i].executed, not_done_reason: appts[i].not_done_reason };
     appts[i].glass_removed = true;
     appts[i].glass_removed_date = new Date().toISOString().slice(0, 10);
@@ -71,7 +72,12 @@
       await window.apiClient.updateAppointment(id, { ...appts[i] });
       if (typeof renderAll === 'function') renderAll(); else window.reloadAppointments?.();
       if (typeof window.showToast === 'function') window.showToast('Vidro retirado registado', 'success');
-      if (typeof window.fireVidroRetiradoEmojis === 'function') window.fireVidroRetiradoEmojis();
+      const emojiPromise = typeof window.fireVidroRetiradoEmojis === 'function'
+        ? window.fireVidroRetiradoEmojis()
+        : null;
+      if (emojiPromise && nextCallContext) {
+        window.nextClientCall?.afterAnimation(nextCallContext, emojiPromise);
+      }
       // Auto-reschedule suggestion
       if (dateVal) {
         _showReagendamentoPrompt(apptSnapshot, dateVal);
