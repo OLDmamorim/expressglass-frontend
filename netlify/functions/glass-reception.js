@@ -6,6 +6,10 @@ const {
   findCandidates,
   normalizeEurocode: normalizeEurocodeMatch
 } = require('../lib/glass-reception-match');
+const {
+  normalizeReceptionIds,
+  assertBulkDeleteTargets
+} = require('../lib/glass-reception-bulk-delete');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
@@ -991,11 +995,49 @@ exports.handler = async (event) => {
     // ── DELETE ─────────────────────────────────────────────────────────────────
     if (event.httpMethod === 'DELETE') {
       const body = JSON.parse(event.body || '{}');
-      const id = body.id || (event.path || '').split('/').filter(Boolean).pop();
-      if (!id) return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'ID obrigatório' }) };
       if (!['admin', 'coordenador', 'coordinator'].includes(user.role)) {
         return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Sem permissão' }) };
       }
+
+      if (Array.isArray(body.ids)) {
+        const ids = normalizeReceptionIds(body.ids);
+        let transactionOpen = false;
+        try {
+          await client.query('BEGIN');
+          transactionOpen = true;
+
+          const { rows: targets } = await client.query(`
+            SELECT id, portal_id, status, is_return
+            FROM glass_receptions
+            WHERE id = ANY($1::int[])
+            FOR UPDATE
+          `, [ids]);
+          const allowedPortalIds = user.role === 'admin'
+            ? []
+            : await getAccessiblePortalIds(client, user, true);
+          assertBulkDeleteTargets(ids, targets, allowedPortalIds, user.role === 'admin');
+
+          const { rows: deleted } = await client.query(`
+            DELETE FROM glass_receptions
+            WHERE id = ANY($1::int[])
+            RETURNING id
+          `, [ids]);
+          await client.query('COMMIT');
+          transactionOpen = false;
+
+          return { statusCode: 200, headers, body: JSON.stringify({
+            success: true,
+            count: deleted.length,
+            deleted_ids: deleted.map(row => Number(row.id))
+          }) };
+        } catch (error) {
+          if (transactionOpen) await client.query('ROLLBACK').catch(() => {});
+          throw error;
+        }
+      }
+
+      const id = body.id || (event.path || '').split('/').filter(Boolean).pop();
+      if (!id) return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'ID obrigatório' }) };
       await client.query(`DELETE FROM glass_receptions WHERE id = $1`, [parseInt(id)]);
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
     }
