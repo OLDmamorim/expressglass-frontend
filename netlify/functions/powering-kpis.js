@@ -6,6 +6,7 @@
 const https = require('https');
 const jwt   = require('jsonwebtoken');
 const { Pool } = require('pg');
+const { selectPoweringResult } = require('../lib/powering-kpis-select');
 
 const JWT_SECRET    = process.env.JWT_SECRET    || 'expressglass-secret-key-change-in-production';
 const POWERING_KEY  = process.env.POWERING_EG_API_KEY;
@@ -165,14 +166,9 @@ exports.handler = async (event) => {
     // Escolher o registo CORRETO do mês/ano pedido. A lista pode conter vários
     // registos para o mesmo mês (ex.: um parcial e outro completo) — nesse caso
     // fica-se com o mais COMPLETO (maior nº de serviços). Se não houver registo
-    // do mês pedido, usa-se o último da lista (mais recente com dados).
+    // do mês pedido, usa-se o mês cronologicamente mais recente com dados.
     const lista = data.resultados || [];
-    const doMes = lista.filter(x => Number(x.mes) === mesPedido && Number(x.ano) === anoPedido);
-    const candidatos = doMes.length ? doMes : lista;
-    const r = candidatos.reduce(
-      (best, x) => ((x.totalServicos ?? 0) >= (best && best.totalServicos != null ? best.totalServicos : -1) ? x : best),
-      null
-    ) || {};
+    const r = selectPoweringResult(lista, mesPedido, anoPedido) || {};
 
     const servicos = r.totalServicos  ?? 0;
     const objetivo = r.objetivoMensal ?? 0;
@@ -217,7 +213,7 @@ exports.handler = async (event) => {
       ? Math.round(((servicos / esperado) - 1) * 1000) / 10
       : 0;
 
-    const kpis = { servicos, objetivo, taxa, desvioPercent };
+    const kpis = { servicos, objetivo, taxa, desvioPercent, mes: mesEfetivo, ano: anoEfetivo };
 
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, kpis, mes: mesEfetivo, ano: anoEfetivo, lojaId }) };
 
