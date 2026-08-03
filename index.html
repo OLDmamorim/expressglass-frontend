@@ -2989,6 +2989,76 @@
     }
   }
 
+  function _renderEmptyCoordList() {
+    const content = document.getElementById('grTabContent');
+    const badge = document.getElementById('grCoordBadge');
+    if (badge) badge.style.display = 'none';
+    if (!content) return;
+    content.innerHTML = `
+      <div style="text-align:center;padding:40px;color:#94a3b8;">
+        <div style="font-size:40px;margin-bottom:12px;">✅</div>
+        <p style="font-size:14px;font-weight:600;">Sem vidros pendentes de receção.</p>
+      </div>`;
+  }
+
+  function _grReceptionCheckbox(id) {
+    const safeId = Number(id);
+    if (!Number.isSafeInteger(safeId) || safeId <= 0) return '';
+    return `
+      <label title="Retira o visto para manter este registo"
+        style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #cbd5e1;border-radius:7px;padding:4px 8px;cursor:pointer;color:#334155;font-size:11px;font-weight:800;white-space:nowrap;">
+        <input class="gr-reception-select" type="checkbox" value="${safeId}" checked
+          onchange="window.glassReception._updateBulkSelection()"
+          style="width:18px;height:18px;margin:0;accent-color:#dc2626;cursor:pointer;">
+        Eliminar
+      </label>`;
+  }
+
+  function _getReceptionSelectionBoxes() {
+    return Array.from(document.querySelectorAll('#grTabContent .gr-reception-select'));
+  }
+
+  function _updateBulkSelection() {
+    const toolbar = document.getElementById('grBulkToolbar');
+    if (!toolbar) return;
+    const boxes = _getReceptionSelectionBoxes();
+    const selected = boxes.filter(box => box.checked).length;
+    const master = document.getElementById('grSelectAllReceptions');
+    const count = document.getElementById('grBulkSelectedCount');
+    const button = document.getElementById('grBulkDeleteBtn');
+    const badge = document.getElementById('grCoordBadge');
+
+    if (master) {
+      master.checked = boxes.length > 0 && selected === boxes.length;
+      master.indeterminate = selected > 0 && selected < boxes.length;
+    }
+    if (count) count.textContent = `${selected} selecionado${selected === 1 ? '' : 's'} de ${boxes.length}`;
+    if (button) {
+      button.disabled = selected === 0;
+      button.textContent = `🗑️ Eliminar selecionado${selected === 1 ? '' : 's'} (${selected})`;
+      button.style.opacity = selected === 0 ? '.45' : '1';
+      button.style.cursor = selected === 0 ? 'not-allowed' : 'pointer';
+    }
+    if (badge) {
+      badge.textContent = boxes.length + ' pendente' + (boxes.length !== 1 ? 's' : '');
+      badge.style.display = boxes.length ? '' : 'none';
+    }
+  }
+
+  function _toggleAllReceptionSelection(checked) {
+    _getReceptionSelectionBoxes().forEach(box => { box.checked = checked; });
+    _updateBulkSelection();
+  }
+
+  function _refreshReceptionSelectionAfterRemoval() {
+    if (!document.getElementById('grBulkToolbar')) return;
+    if (!_getReceptionSelectionBoxes().length) {
+      _renderEmptyCoordList();
+      return;
+    }
+    _updateBulkSelection();
+  }
+
   function _renderCoordList(items, missing, pending) {
     missing = missing || [];
     pending = pending || [];
@@ -3000,13 +3070,24 @@
     if (!content) return;
 
     if (total === 0) {
-      content.innerHTML = `
-        <div style="text-align:center;padding:40px;color:#94a3b8;">
-          <div style="font-size:40px;margin-bottom:12px;">✅</div>
-          <p style="font-size:14px;font-weight:600;">Sem vidros pendentes de receção.</p>
-        </div>`;
+      _renderEmptyCoordList();
       return;
     }
+
+    const bulkToolbar = `
+      <div id="grBulkToolbar" style="position:sticky;top:-1px;z-index:5;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff;border:1px solid #fecaca;border-radius:11px;padding:10px 12px;margin-bottom:12px;box-shadow:0 3px 10px rgba(15,23,42,.08);">
+        <label style="display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:#334155;cursor:pointer;white-space:nowrap;">
+          <input id="grSelectAllReceptions" type="checkbox" checked
+            onchange="window.glassReception._toggleAllReceptionSelection(this.checked)"
+            style="width:19px;height:19px;margin:0;accent-color:#dc2626;cursor:pointer;">
+          Selecionar todos
+        </label>
+        <span id="grBulkSelectedCount" style="font-size:11px;color:#64748b;font-weight:700;">${total} selecionados de ${total}</span>
+        <button id="grBulkDeleteBtn" onclick="window.glassReception._deleteSelectedReceptions()"
+          style="margin-left:auto;background:#dc2626;color:#fff;font-weight:800;font-size:12px;padding:9px 14px;border-radius:8px;border:none;cursor:pointer;white-space:nowrap;">
+          🗑️ Eliminar selecionados (${total})
+        </button>
+      </div>`;
 
     const pendingHtml = pending.length === 0 ? '' : `
       <div style="margin-bottom:6px;font-size:12px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:.5px;">🔍 Por associar a agendamento</div>
@@ -3032,6 +3113,7 @@
         return `
           <div id="grRow${r.id}" style="border:2px solid #3b82f6;border-radius:12px;padding:14px;margin-bottom:10px;background:#eff6ff;">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+              ${_grReceptionCheckbox(r.id)}
               <span style="font-family:monospace;font-weight:800;font-size:14px;background:#1d4ed8;color:#fff;padding:3px 10px;border-radius:6px;">POR ASSOCIAR</span>
               <span style="font-size:11px;color:#1d4ed8;margin-left:auto;">${fmtDate(r.created_at)}</span>
             </div>
@@ -3053,6 +3135,7 @@
     const confirmedHtml = items.map(r => `
       <div id="grRow${r.id}" style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;background:#fff;">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          ${_grReceptionCheckbox(r.id)}
           <span style="font-family:monospace;font-weight:800;font-size:14px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${(r.apt_plate || r.order_ref || '—').toUpperCase()}</span>
           <span style="font-size:13px;font-weight:600;color:#374151;">${r.apt_car || '—'}</span>
           <span style="font-size:11px;color:#64748b;margin-left:auto;">${fmtDate(r.created_at)}</span>
@@ -3075,6 +3158,7 @@
       ${missing.map(r => `
         <div id="grRow${r.id}" style="border:2px solid #f59e0b;border-radius:12px;padding:14px;margin-bottom:10px;background:#fffbeb;">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            ${_grReceptionCheckbox(r.id)}
             <span style="font-family:monospace;font-weight:800;font-size:14px;background:#92400e;color:#fff;padding:3px 10px;border-radius:6px;">${(r.apt_plate || r.order_ref || '—').toUpperCase()}</span>
             <span style="font-size:13px;font-weight:600;color:#374151;">${r.apt_car || '—'}</span>
             <span style="font-size:11px;color:#92400e;margin-left:auto;">${fmtDate(r.created_at)}</span>
@@ -3092,7 +3176,8 @@
       `).join('')}
     `;
 
-    content.innerHTML = pendingHtml + confirmedHtml + missingHtml;
+    content.innerHTML = bulkToolbar + pendingHtml + confirmedHtml + missingHtml;
+    _updateBulkSelection();
   }
 
   // ── RETURNS / DAMAGED ────────────────────────────────────────────────────
@@ -3951,8 +4036,11 @@
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || json.message || "Erro desconhecido");
-      // Remove the row from the DOM without full reload
-      btnEl.closest('tr').remove();
+      // Remove table rows (history) or cards (pending/incomplete) without a full reload
+      const row = btnEl.closest('tr') || btnEl.closest('[id^="grRow"]');
+      if (row) row.remove();
+      _refreshReceptionSelectionAfterRemoval();
+      _pollPendingBadge();
     } catch (e) {
       alert('Erro: ' + e.message);
       btnEl.disabled = false;
@@ -4204,8 +4292,53 @@
       const json = await res.json();
       if (!json.success) throw new Error(json.error || json.message || "Erro desconhecido");
       document.getElementById('grRow' + id)?.remove();
+      _refreshReceptionSelectionAfterRemoval();
       _pollPendingBadge();
     } catch (e) {
+      alert('Erro: ' + e.message);
+    }
+  }
+
+  async function _deleteSelectedReceptions() {
+    const selectedBoxes = _getReceptionSelectionBoxes().filter(box => box.checked);
+    const ids = [...new Set(selectedBoxes.map(box => Number(box.value)).filter(Number.isSafeInteger))];
+    if (!ids.length) return;
+
+    const noun = ids.length === 1 ? 'esta receção selecionada' : `as ${ids.length} receções selecionadas`;
+    if (!confirm(`Eliminar ${noun}?\n\nOs agendamentos e os respetivos cards não serão apagados.\nEsta ação não pode ser desfeita.`)) return;
+
+    const button = document.getElementById('grBulkDeleteBtn');
+    const affectedRows = ids.map(id => document.getElementById('grRow' + id)).filter(Boolean);
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'A eliminar…';
+      button.style.opacity = '.65';
+      button.style.cursor = 'wait';
+    }
+    affectedRows.forEach(row => { row.style.opacity = '.5'; row.style.pointerEvents = 'none'; });
+
+    try {
+      const res = await fetch(API + '/glass-reception', {
+        method: 'DELETE',
+        headers: authHeaders(),
+        body: JSON.stringify({ ids })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success) throw new Error(json.error || json.message || `Erro HTTP ${res.status}`);
+      if (Number(json.count) !== ids.length) {
+        throw new Error('Nem todas as receções selecionadas foram eliminadas. Atualiza a lista e confirma o resultado.');
+      }
+
+      const deletedIds = Array.isArray(json.deleted_ids) ? json.deleted_ids : ids;
+      deletedIds.forEach(id => document.getElementById('grRow' + id)?.remove());
+      _refreshReceptionSelectionAfterRemoval();
+      await _pollPendingBadge();
+      if (typeof showToast === 'function') {
+        showToast(`🗑️ ${ids.length} receção${ids.length === 1 ? '' : 'ões'} eliminada${ids.length === 1 ? '' : 's'}`, 'success');
+      }
+    } catch (e) {
+      affectedRows.forEach(row => { row.style.opacity = ''; row.style.pointerEvents = ''; });
+      _updateBulkSelection();
       alert('Erro: ' + e.message);
     }
   }
@@ -4472,7 +4605,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _retryLastSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _loadCoordList, _associatePending, _reanalysePending, _markReceived, _rejectReception, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _retryLastSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _loadCoordList, _associatePending, _reanalysePending, _markReceived, _rejectReception, _updateBulkSelection, _toggleAllReceptionSelection, _deleteSelectedReceptions, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
