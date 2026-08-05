@@ -55,24 +55,35 @@ function buildMessageKey(meta = {}) {
   return null;
 }
 
+// Os emails chegam muitas vezes reencaminhados por uma conta ExpressGlass.
+// Nesse caso, o remetente real da mensagem nova é o primeiro cabeçalho
+// "De:"/"From:" existente no corpo reencaminhado, não o remetente exterior.
+function isMyCarMessage(email = {}) {
+  const body = String(email.text || '');
+  const forwardedFrom = body.match(/^\s*(?:De|From):\s*(.+)$/im)?.[1] || '';
+  const sender = String(email.from?.text || '');
+  const myCarSender = /(?:@(?:mycarcenter|carby)\.pt\b|\bmy\s*car\s*center\b|\bmycarcenter\b)/i;
+  return myCarSender.test(sender) || myCarSender.test(forwardedFrom);
+}
+
 function stripAccents(value) {
   return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-// Fallback conservador para quando a IA estiver temporariamente indisponível.
-// Só aceita ordens explícitas; frases como "aguardar autorização" não contam.
-function hasExplicitAdvanceAuthorization(body) {
+// Decisão determinística para mensagens curtas e inequívocas. A recusa/espera
+// tem prioridade para que texto como "não podem avançar" nunca fique verde.
+function classifyExplicitAdvanceInstruction(body) {
   const text = stripAccents(body).toLowerCase().replace(/\s+/g, ' ').trim();
-  if (!text) return false;
+  if (!text) return null;
 
-  const negative = [
+  const blocked = [
     /\bnao\s+(?:podem?|devem?|e\s+para)\s+(?:ja\s+)?(?:avancar|proceder|executar)\b/,
     /\bnao\s+avanc(?:ar|em)\b/,
     /\bnao\s+autorizad[oa]s?\b/,
     /\bsem\s+autorizacao\b/,
-    /\b(?:aguardar|aguardem|pendente)\s+(?:a\s+)?autorizacao\b/
+    /\b(?:aguardar|aguardem|pendente)\s+(?:(?:a|de)\s+)?autorizacao\b/
   ];
-  if (negative.some(rx => rx.test(text))) return false;
+  if (blocked.some(rx => rx.test(text))) return 'bloquear';
 
   const positive = [
     /\bpodem?\s+(?:ja\s+)?(?:avancar|proceder|executar)\b/,
@@ -82,7 +93,38 @@ function hasExplicitAdvanceAuthorization(body) {
     /\bautorizamos\s+(?:o\s+)?(?:servico|orcamento|a\s+intervencao|a\s+reparacao|a\s+substituicao)\b/,
     /\bautorizad[oa]s?\s+(?:a\s+)?(?:avancar|proceder|executar)\b/
   ];
-  return positive.some(rx => rx.test(text));
+  return positive.some(rx => rx.test(text)) ? 'autorizar' : null;
+}
+
+// Fallback conservador para quando a IA estiver temporariamente indisponível.
+// Só aceita ordens explícitas; frases como "aguardar autorização" não contam.
+function hasExplicitAdvanceAuthorization(body) {
+  return classifyExplicitAdvanceInstruction(body) === 'autorizar';
+}
+
+// Escolhe a instrução explícita mais recente depois do email que originou o
+// processo. É usada pela recuperação dirigida aos processos ainda pendentes.
+function latestExplicitAdvanceInstruction(messages = [], afterDate = null) {
+  const afterMs = afterDate ? new Date(afterDate).getTime() : NaN;
+
+  return messages
+    .map(message => {
+      const timestamp = new Date(message?.date).getTime();
+      return {
+        action: classifyExplicitAdvanceInstruction(message?.body),
+        date: message?.date,
+        body: message?.body || null,
+        timestamp,
+        meta: message?.meta || null
+      };
+    })
+    .filter(item =>
+      item.action &&
+      Number.isFinite(item.timestamp) &&
+      (!Number.isFinite(afterMs) || item.timestamp > afterMs + 60_000)
+    )
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .at(-1) || null;
 }
 
 function isAuthorizationActive(service = {}) {
@@ -115,7 +157,10 @@ module.exports = {
   isReplySubject,
   extractThreadMeta,
   buildMessageKey,
+  isMyCarMessage,
+  classifyExplicitAdvanceInstruction,
   hasExplicitAdvanceAuthorization,
+  latestExplicitAdvanceInstruction,
   isAuthorizationActive,
   shouldAnalyzeAsFollowup
 };
