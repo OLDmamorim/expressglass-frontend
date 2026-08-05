@@ -44,6 +44,13 @@ async function ensureTable(client) {
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS work_type VARCHAR(20)`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS in_treatment BOOLEAN DEFAULT FALSE`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_subject_normalized TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_thread_id VARCHAR(64)`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_message_id VARCHAR(500)`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS last_reply_at TIMESTAMP`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS last_reply_body TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS advance_authorized_at TIMESTAMP`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS advance_authorized_reason TEXT`);
   await client.query(`ALTER TABLE mycar_services DROP CONSTRAINT IF EXISTS mycar_services_status_check`);
   await client.query(`UPDATE mycar_services SET status = 'realizado' WHERE status = 'tratado'`);
   await client.query(`ALTER TABLE mycar_services ADD CONSTRAINT mycar_services_status_check CHECK (status IN ('pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado'))`);
