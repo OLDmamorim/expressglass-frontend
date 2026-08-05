@@ -246,8 +246,11 @@
     .badge-reject  { background: var(--red-l);    color: var(--red); }
     .badge-neutral { background: var(--gray-l);   color: var(--gray); }
     .badge-new     { background: #dbeafe; color: #1d4ed8; font-size:.65rem; padding:2px 6px; }
+    .badge-authorized { background: #bbf7d0; color: #166534; border: 1px solid #86efac; }
     tr.row-new { background: #eff6ff; }
     tr.row-new td { font-weight: 600; }
+    tr.row-authorized { background: #ecfdf5; box-shadow: inset 4px 0 0 var(--green); }
+    tr.row-authorized:hover { background: #dcfce7; }
 
     .empty-state {
       text-align: center;
@@ -335,6 +338,7 @@
     .service-card.status-realizado   { border-left: 4px solid var(--green); }
     .service-card.status-faturado    { border-left: 4px solid #0891b2; }
     .service-card.status-rejeitado   { border-left: 4px solid var(--red); }
+    .service-card.advance-authorized { border: 2px solid #86efac; border-left: 5px solid var(--green); background: #f0fdf4; }
     .service-card-header {
       display: flex;
       align-items: center;
@@ -381,6 +385,7 @@
     .status-badge.realizado   { background: var(--green-l);  color: var(--green); }
     .status-badge.faturado    { background: #cffafe; color: #0891b2; }
     .status-badge.rejeitado   { background: var(--red-l);    color: var(--red); }
+    .status-badge.autorizado  { background: #bbf7d0; color: #166534; border: 1px solid #86efac; }
 
     /* ─── IMPORT MODAL ─── */
     .import-modal .modal { max-width: 700px; }
@@ -457,6 +462,8 @@
     }
     tr.in-treatment { background: #eff6ff; }
     tr.in-treatment:hover { background: #dbeafe; }
+    tr.in-treatment.row-authorized { background: #ecfdf5; }
+    tr.in-treatment.row-authorized:hover { background: #dcfce7; }
 
     /* ─── TOAST ─── */
     .toast-container {
@@ -567,10 +574,10 @@
     <select class="filter-select" id="filter-status" onchange="filterTable()">
       <option value="">Todos os estados</option>
       <option value="pendente">Pendente</option>
+      <option value="autorizado">✓ Autorizado para avançar</option>
       <option value="encomendado">Encomendado</option>
       <option value="realizado">Realizado</option>
       <option value="faturado">Faturado</option>
-      <option value="rejeitado">Rejeitado</option>
       <option value="rejeitado">Rejeitado</option>
     </select>
     <button class="btn btn-secondary" id="check-email-btn" onclick="checkEmail()">
@@ -800,13 +807,29 @@ async function loadServices() {
 }
 
 // ─── GROUP BY PLATE ───────────────────────────────────────────────────────────
+function isAdvanceAuthorized(svc) {
+  return Boolean(
+    svc.advance_authorized_at &&
+    !['realizado', 'faturado', 'rejeitado'].includes(svc.status)
+  );
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function buildGroups(services) {
   const map = {};
   for (const svc of services) {
     const key = svc.matricula.toUpperCase();
-    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null, in_treatment: false };
+    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null, in_treatment: false, authorizedCount: 0 };
     map[key].services.push(svc);
-    const d = svc.email_received_at || svc.created_at;
+    const d = svc.last_reply_at || svc.email_received_at || svc.created_at;
     if (d && (!map[key].lastDate || d > map[key].lastDate)) map[key].lastDate = d;
     if (!svc.viewed_at) map[key].isNew = true;
     if (svc.car && !map[key].car) map[key].car = svc.car;
@@ -814,6 +837,7 @@ function buildGroups(services) {
     if (svc.glass_status && !map[key].glass_status) map[key].glass_status = svc.glass_status;
     if (svc.apt_order_ref && !map[key].apt_order_ref) map[key].apt_order_ref = svc.apt_order_ref;
     if (svc.in_treatment) map[key].in_treatment = true;
+    if (isAdvanceAuthorized(svc)) map[key].authorizedCount++;
   }
   return Object.values(map).sort((a, b) =>
     (b.lastDate || '').localeCompare(a.lastDate || '')
@@ -854,10 +878,11 @@ function renderTable(groups) {
     const rej  = g.services.filter(s => s.status === 'rejeitado').length;
     const last = g.lastDate ? fmtDate(g.lastDate) : '—';
     return `
-      <tr class="${g.isNew ? 'row-new' : ''}${g.in_treatment ? ' in-treatment' : ''}" onclick="openDetail('${g.matricula}')">
+      <tr class="${g.isNew ? 'row-new' : ''}${g.in_treatment ? ' in-treatment' : ''}${g.authorizedCount ? ' row-authorized' : ''}" onclick="openDetail('${g.matricula}')">
         <td class="plate-cell">
           <span class="plate-badge"><span class="plate-badge-text">${g.matricula}</span></span>
           ${g.isNew ? '<span class="count-badge badge-new" style="margin-left:6px">Novo</span>' : ''}
+          ${g.authorizedCount ? `<span class="count-badge badge-authorized" style="margin-left:6px" title="${g.authorizedCount} serviço(s) autorizado(s) pela MyCar">✓ Avançar</span>` : ''}
           ${g.car ? `<div style="font-size:.82rem;color:#374151;font-weight:600;margin-top:5px">${g.car}</div>` : ''}
           ${g.n_obra ? `<div style="font-size:.8rem;color:#2563eb;font-weight:700;margin-top:2px">FS${g.n_obra}</div>` : ''}
         </td>
@@ -890,7 +915,9 @@ function filterTable() {
   const status = document.getElementById('filter-status').value;
 
   let filtered = allServices;
-  if (status) {
+  if (status === 'autorizado') {
+    filtered = filtered.filter(isAdvanceAuthorized);
+  } else if (status) {
     filtered = filtered.filter(s => s.status === status);
   } else {
     filtered = filtered.filter(s => s.status !== 'rejeitado');
@@ -935,12 +962,13 @@ function renderDetailBody(plate) {
   }
 
   body.innerHTML = services.map(svc => `
-    <div class="service-card status-${svc.status}" id="svc-card-${svc.id}">
+    <div class="service-card status-${svc.status}${isAdvanceAuthorized(svc) ? ' advance-authorized' : ''}" id="svc-card-${svc.id}">
       <div class="service-card-header">
         <span style="font-weight:700;font-size:.9rem">#${svc.id}</span>
         <div style="display:flex;align-items:center;gap:6px">
           ${svc.work_type === 'substituicao' ? '<span style="background:#dcfce7;color:#166534;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:10px">🔧 Substituição</span>' : ''}
           ${svc.work_type === 'reparacao' ? '<span style="background:#ede9fe;color:#5b21b6;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:10px">🛠️ Reparação</span>' : ''}
+          ${isAdvanceAuthorized(svc) ? '<span class="status-badge autorizado">✓ Avançar</span>' : ''}
           <span class="status-badge ${svc.status}">${svc.status}</span>
         </div>
       </div>
@@ -973,6 +1001,13 @@ function renderDetailBody(plate) {
           <div class="meta-label">OBS</div>
           <div class="meta-value" style="font-family:monospace;font-size:.82rem">${svc.notas}</div>
         </div>` : '<div class="meta-item"></div>'}
+        ${isAdvanceAuthorized(svc) ? `<div class="meta-item" style="grid-column:1/-1">
+          <div class="meta-label">Autorização MyCar</div>
+          <div class="meta-value" style="background:#dcfce7;border:1px solid #86efac;border-radius:7px;padding:9px;color:#166534">
+            <strong>✓ Autorizado para avançar</strong> · ${fmtDate(svc.advance_authorized_at)}
+            ${svc.advance_authorized_reason ? `<div style="font-size:.78rem;margin-top:3px">${escapeHtml(svc.advance_authorized_reason)}</div>` : ''}
+          </div>
+        </div>` : ''}
         ${svc.historico ? `<div class="meta-item" style="grid-column:1/-1">
           <div class="meta-label">🤖 Histórico de alterações (IA)</div>
           <div class="meta-value" style="font-size:.78rem;white-space:pre-wrap;background:#fef9c3;border:1px solid #fde68a;border-radius:6px;padding:8px;max-height:160px;overflow-y:auto;color:#78350f">${svc.historico.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
@@ -1108,7 +1143,10 @@ async function checkEmail() {
     const data = await safeJson(res);
     if (!data.success) { toast('❌ ' + (data.error || 'Erro ao verificar email'), 'error'); return; }
     if (data.processed > 0) await loadServices();
-    if (data.processed > 0) {
+    if ((data.stats?.autorizados || 0) > 0) {
+      const n = data.stats.autorizados;
+      toast(`✅ ${n} ${n === 1 ? 'autorização' : 'autorizações'} para avançar ${n === 1 ? 'detetada' : 'detetadas'}${data.remaining ? ` · faltam ${data.remaining}` : ''}`, 'success');
+    } else if (data.processed > 0) {
       toast(`✅ ${data.processed} serviço(s) importado(s)${data.remaining ? ` · faltam ${data.remaining}` : ''}`);
     } else if (data.remaining > 0) {
       toast(`📭 Nada novo neste lote · faltam ${data.remaining} (importa sozinho a cada 15 min)`, 'info');
