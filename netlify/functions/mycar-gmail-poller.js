@@ -22,7 +22,9 @@ const {
   isReplySubject,
   extractThreadMeta,
   buildMessageKey,
+  isMyCarMessage,
   hasExplicitAdvanceAuthorization,
+  latestExplicitAdvanceInstruction,
   shouldAnalyzeAsFollowup
 } = require('./lib/mycar-email-thread');
 
@@ -46,6 +48,18 @@ function askAI(systemPrompt, userMsg) {
 // Analisa uma nova mensagem da mesma conversa. Além de alterações e
 // cancelamentos, reconhece a autorização da MyCar para executar o serviço.
 async function analyzeFollowupEmail({ existing, subject, body, tableRows }) {
+  // Uma ordem inequívoca não deve depender da disponibilidade nem da
+  // interpretação da IA. Este é precisamente o caso "Podem avançar".
+  if (hasExplicitAdvanceAuthorization(body)) {
+    return {
+      action: 'autorizar',
+      descricao: null,
+      valor: null,
+      eurocode: null,
+      motivo: 'A MyCar deu autorização explícita para avançar.'
+    };
+  }
+
   const systemPrompt = `És um assistente que trata emails de acompanhamento de pedidos de serviço recebidos no Mural MyCar Center (oficina de reparação/substituição de vidros automóveis em Portugal).
 
 Já existe uma entrada registada para este assunto de email, com estes dados atuais:
@@ -307,6 +321,19 @@ async function setCursor(client, uid) {
   );
 }
 
+async function getStateInt(client, key) {
+  const { rows } = await client.query(`SELECT v FROM mycar_poller_state WHERE k = $1`, [key]);
+  return rows.length ? (parseInt(rows[0].v, 10) || 0) : 0;
+}
+
+async function setState(client, key, value) {
+  await client.query(
+    `INSERT INTO mycar_poller_state (k, v) VALUES ($1, $2)
+     ON CONFLICT (k) DO UPDATE SET v = $2`,
+    [key, String(value)]
+  );
+}
+
 async function startThreadReplayOnce(client) {
   const { rows } = await client.query(
     `INSERT INTO mycar_poller_state (k, v)
@@ -399,6 +426,168 @@ async function findExistingService(client, svc, meta, subject, wip) {
 const SEARCH_DAYS   = 40;   // janela de pesquisa
 const SCAN_PER_RUN  = 25;   // quantos emails analisamos (cabeçalho) por execução
 const BODY_PER_RUN  = 6;    // quantos corpos descarregamos por execução
+const PENDING_REPLY_SWEEP_PER_RUN = 5;
+const THREAD_MESSAGES_PER_SERVICE = 12;
+
+// O replay geral percorre milhares de mensagens por cursor e pode demorar
+// horas. Esta ronda vai diretamente aos processos ainda pendentes, pesquisa a
+// respetiva matrícula no Gmail e recupera ordens explícitas sem esperar que o
+// cursor histórico chegue à data da resposta.
+async function getPendingReplySweepCandidates(client, limit) {
+  const stateKey = 'pending_reply_sweep_cursor_v1';
+  const cursor = await getStateInt(client, stateKey);
+  const fields = `id, matricula, email_received_at, advance_authorized_at`;
+  const active = `status IN ('pendente', 'encomendado')
+    AND advance_authorized_at IS NULL
+    AND matricula IS NOT NULL
+    AND email_received_at IS NOT NULL
+    AND email_received_at >= NOW() - INTERVAL '45 days'`;
+
+  const { rows: after } = await client.query(
+    `SELECT ${fields} FROM mycar_services
+      WHERE ${active} AND id > $1
+      ORDER BY id ASC LIMIT $2`,
+    [cursor, limit]
+  );
+
+  let rows = after;
+  if (rows.length < limit && cursor > 0) {
+    const { rows: wrapped } = await client.query(
+      `SELECT ${fields} FROM mycar_services
+        WHERE ${active} AND id <= $1
+        ORDER BY id ASC LIMIT $2`,
+      [cursor, limit - rows.length]
+    );
+    rows = rows.concat(wrapped);
+  }
+
+  if (rows.length > 0) await setState(client, stateKey, rows[rows.length - 1].id);
+  return rows;
+}
+
+function connectReadOnlyInbox() {
+  return new Promise((resolve, reject) => {
+    if (!GMAIL_USER || !GMAIL_PASSWORD) {
+      reject(new Error('MYCAR_GMAIL_USER ou MYCAR_GMAIL_PASSWORD não configurados'));
+      return;
+    }
+    const imap = new Imap({
+      user: GMAIL_USER, password: GMAIL_PASSWORD, host: 'imap.gmail.com',
+      port: 993, tls: true, tlsOptions: { rejectUnauthorized: false },
+      connTimeout: 20000, authTimeout: 10000
+    });
+    imap.once('ready', () => {
+      imap.openBox('INBOX', true, (err) => {
+        if (err) { try { imap.end(); } catch (_) {} reject(err); return; }
+        resolve(imap);
+      });
+    });
+    imap.once('error', reject);
+    imap.connect();
+  });
+}
+
+function fetchMessagesForPendingService(imap, service) {
+  return new Promise((resolve, reject) => {
+    const since = new Date(service.email_received_at);
+    since.setDate(since.getDate() - 1);
+    imap.search([['SINCE', since], ['HEADER', 'SUBJECT', service.matricula]], (err, uids) => {
+      if (err) { reject(err); return; }
+      const selected = (uids || [])
+        .sort((a, b) => b - a)
+        .slice(0, THREAD_MESSAGES_PER_SERVICE);
+      if (selected.length === 0) { resolve([]); return; }
+
+      const pending = [];
+      const fetcher = imap.fetch(selected, { bodies: '', markSeen: false });
+      fetcher.on('message', (msg) => {
+        const chunks = [];
+        let attrs = {};
+        pending.push(new Promise((done) => {
+          msg.on('body', stream => stream.on('data', chunk => chunks.push(chunk)));
+          msg.once('attributes', value => { attrs = value || {}; });
+          msg.once('end', async () => {
+            try {
+              const parsed = await simpleParser(Buffer.concat(chunks));
+              parsed._imapAttrs = attrs;
+              parsed._imapUid = attrs?.uid;
+              done(parsed);
+            } catch (error) {
+              console.error(`⚠️ Resposta ${service.matricula} inválida:`, error.message);
+              done(null);
+            }
+          });
+        }));
+      });
+      fetcher.once('error', reject);
+      fetcher.once('end', async () => resolve((await Promise.all(pending)).filter(Boolean)));
+    });
+  });
+}
+
+async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN) {
+  const candidates = await getPendingReplySweepCandidates(client, limit);
+  const stats = { scanned: 0, authorized: 0, blocked: 0, errors: 0 };
+  if (candidates.length === 0) return stats;
+
+  const imap = await connectReadOnlyInbox();
+  try {
+    for (const service of candidates) {
+      try {
+        const target = String(service.matricula).toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const emails = await fetchMessagesForPendingService(imap, service);
+        const messages = emails
+          .filter(email =>
+            isMyCarMessage(email) &&
+            String(email.subject || '').toUpperCase().replace(/[^A-Z0-9]/g, '').includes(target)
+          )
+          .map(email => ({
+            date: email.date,
+            body: cleanEmailBody(email.text || ''),
+            meta: extractThreadMeta(email, email._imapAttrs || {}, email._imapUid)
+          }));
+        const decision = latestExplicitAdvanceInstruction(messages, service.email_received_at);
+        stats.scanned++;
+
+        if (decision?.action === 'bloquear') {
+          stats.blocked++;
+          continue;
+        }
+        if (decision?.action !== 'autorizar') continue;
+
+        const reason = 'A MyCar deu autorização explícita para avançar.';
+        const stamp = new Date(decision.date).toLocaleString('pt-PT');
+        const meta = decision.meta || {};
+        const { rows } = await client.query(
+          `UPDATE mycar_services
+              SET email_thread_id = COALESCE(email_thread_id, $1),
+                  email_message_id = COALESCE(email_message_id, $2),
+                  last_reply_at = $3,
+                  last_reply_body = $4,
+                  advance_authorized_at = $3,
+                  advance_authorized_reason = $5,
+                  historico = COALESCE(NULLIF(historico, '') || E'\n', '') || $6,
+                  updated_at = NOW()
+            WHERE id = $7 AND advance_authorized_at IS NULL
+            RETURNING id`,
+          [meta.gmailThreadId || null, meta.messageId || null, decision.date,
+           decision.body, reason, `[${stamp}] ✅ Autorizado pela MyCar: ${reason}`, service.id]
+        );
+        if (rows.length > 0) {
+          await markMessageProcessed(client, buildMessageKey(meta), meta);
+          stats.authorized++;
+          console.log(`✅ Autorização recuperada diretamente: ${service.matricula}`);
+        }
+      } catch (error) {
+        stats.errors++;
+        console.error(`⚠️ Reanálise direta ${service.matricula} falhou:`, error.message);
+      }
+    }
+  } finally {
+    try { imap.end(); } catch (_) {}
+  }
+  return stats;
+}
 
 // Determinístico via CURSOR (último UID processado). Não depende de marcar
 // como lido, por isso nunca fica preso a reler os mesmos emails.
@@ -554,20 +743,45 @@ async function runPoller() {
     const cursor = await getCursor(client);
     const knownThreadIds = await getKnownThreadIds(client);
 
+    // Prioridade aos processos que o técnico ainda vê como pendentes. Assim,
+    // uma resposta antiga como a do BU-23-JN é encontrada pelo assunto da
+    // própria matrícula, sem ficar à espera do replay geral de toda a caixa.
+    let replySweep = { scanned: 0, authorized: 0, blocked: 0, errors: 0 };
+    try {
+      replySweep = await runPendingReplySweep(client);
+    } catch (error) {
+      replySweep.errors++;
+      console.error('⚠️ Reanálise direta dos pendentes falhou:', error.message);
+    }
+
     const { emails, nextCursor, remaining, scanned } = await fetchBatch(cursor, knownThreadIds);
 
     if (emails.length === 0) {
       // Janela só com ruído: pode avançar imediatamente.
       if (nextCursor > cursor) await setCursor(client, nextCursor);
       console.log(`📭 Nada de serviço nesta janela (analisados ${scanned || 0})`);
-      return { processed: 0, emails: 0, remaining, stats: { withTable: 0, viaSubject: 0, noId: scanned || 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0 } };
+      return {
+        processed: replySweep.authorized,
+        emails: 0,
+        remaining,
+        stats: {
+          withTable: 0, viaSubject: 0, noId: scanned || 0,
+          inserted: 0, updated: 0, skipped: 0, htmlVazio: 0,
+          autorizados: replySweep.authorized,
+          pendentesReanalisados: replySweep.scanned,
+          errosReanalise: replySweep.errors
+        }
+      };
     }
 
-    let totalImported = 0;
+    let totalImported = replySweep.authorized;
     const stats = {
       withTable: 0, viaSubject: 0, viaThread: 0, noId: 0,
       inserted: 0, updated: 0, skipped: 0, duplicated: 0,
-      htmlVazio: 0, atualizadosIA: 0, autorizados: 0, cancelados: 0, erros: 0
+      htmlVazio: 0, atualizadosIA: 0, autorizados: replySweep.authorized,
+      cancelados: 0, erros: 0,
+      pendentesReanalisados: replySweep.scanned,
+      errosReanalise: replySweep.errors
     };
 
     for (const email of emails) {
@@ -578,6 +792,7 @@ async function runPoller() {
       const html     = email.html || '';
       const wip      = extractWip(subject);
       const body     = cleanEmailBody(email.text || '');
+      const fromMyCar = isMyCarMessage(email);
       const meta     = extractThreadMeta(email, email._imapAttrs || {}, email._imapUid);
       const messageKey = buildMessageKey(meta);
 
@@ -669,7 +884,7 @@ async function runPoller() {
           // original citada. A mensagem inicial, quando relida na recuperação,
           // serve apenas para aprender os IDs da conversa.
           let decision = null;
-          if (isFollowupMessage) {
+          if (isFollowupMessage && fromMyCar) {
             try {
               decision = await analyzeFollowupEmail({ existing: e, subject, body, tableRows });
             } catch (aiErr) {
