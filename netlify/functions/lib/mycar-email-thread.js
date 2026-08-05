@@ -2,6 +2,8 @@
 
 const REPLY_PREFIX = /^\s*(?:(?:re|res|fw|fwd|enc|rv|wg|aw)\s*:\s*)+/i;
 const RESPONSE_PREFIX = /^\s*(?:(?:re|res|aw)\s*:\s*)+/i;
+const MYCAR_SENDER = /(?:@(?:mycarcenter|carby)\.pt\b|\bmy\s*car\s*center\b|\bmycarcenter\b)/i;
+const SENDER_LINE = /^\s*(?:De|From):\s*(.+)$/gim;
 
 function normalizeSubject(subject) {
   return String(subject || '')
@@ -55,15 +57,65 @@ function buildMessageKey(meta = {}) {
   return null;
 }
 
-// Os emails chegam muitas vezes reencaminhados por uma conta ExpressGlass.
-// Nesse caso, o remetente real da mensagem nova é o primeiro cabeçalho
-// "De:"/"From:" existente no corpo reencaminhado, não o remetente exterior.
-function isMyCarMessage(email = {}) {
+function isMyCarSender(value) {
+  return MYCAR_SENDER.test(String(value || ''));
+}
+
+// Retira apenas cabeçalhos/avisos do bloco para perceber se uma camada interna
+// da ExpressGlass tem conteúdo próprio ou se é só mais um reencaminhamento.
+function stripRoutingNoise(value) {
+  return String(value || '')
+    .split(/\r?\n/)
+    .filter(line => {
+      const text = line.trim();
+      if (!text) return false;
+      if (/^(?:De|From|Enviado|Sent|Data|Date|Para|To|Cc|Assunto|Subject):/i.test(text)) return false;
+      if (/^-{3,}\s*(?:Forwarded message|Mensagem encaminhada|Original Message)?\s*-*$/i.test(text)) return false;
+      if (/^_{5,}$/.test(text)) return false;
+      if (/seguran[cç]a.*email|email.*nossa.*organiza[cç][aã]o|email externo|confirme a identidade/i.test(text)) return false;
+      return true;
+    })
+    .join('\n')
+    .trim();
+}
+
+function senderSections(body) {
+  const text = String(body || '');
+  const matches = [...text.matchAll(SENDER_LINE)];
+  return matches.map((match, index) => ({
+    sender: match[1] || '',
+    text: text.slice(match.index, matches[index + 1]?.index ?? text.length)
+  }));
+}
+
+// Devolve apenas a mensagem nova atribuída à MyCar. Há emails que chegam com
+// duas camadas de reencaminhamento ExpressGlass antes do bloco real da MyCar.
+// Atravessamos essas camadas quando estão vazias, mas paramos se uma mensagem
+// interna tiver texto próprio para não interpretar como nova uma citação antiga.
+function extractMyCarMessageBody(email = {}) {
   const body = String(email.text || '');
-  const forwardedFrom = body.match(/^\s*(?:De|From):\s*(.+)$/im)?.[1] || '';
-  const sender = String(email.from?.text || '');
-  const myCarSender = /(?:@(?:mycarcenter|carby)\.pt\b|\bmy\s*car\s*center\b|\bmycarcenter\b)/i;
-  return myCarSender.test(sender) || myCarSender.test(forwardedFrom);
+  const envelopeSender = String(email.from?.text || '');
+
+  if (isMyCarSender(envelopeSender)) {
+    const firstQuotedSender = body.search(/^\s*(?:De|From):\s*.+$/im);
+    const newestBody = firstQuotedSender > 0 ? body.slice(0, firstQuotedSender) : body;
+    return stripRoutingNoise(newestBody) || stripRoutingNoise(body) || body.trim() || null;
+  }
+
+  let internalContentSeen = false;
+  for (const section of senderSections(body)) {
+    const content = stripRoutingNoise(section.text);
+    if (isMyCarSender(section.sender)) {
+      return internalContentSeen ? null : (content || section.text.trim() || null);
+    }
+    if (content) internalContentSeen = true;
+  }
+
+  return null;
+}
+
+function isMyCarMessage(email = {}) {
+  return extractMyCarMessageBody(email) !== null;
 }
 
 function stripAccents(value) {
@@ -157,6 +209,7 @@ module.exports = {
   isReplySubject,
   extractThreadMeta,
   buildMessageKey,
+  extractMyCarMessageBody,
   isMyCarMessage,
   classifyExplicitAdvanceInstruction,
   hasExplicitAdvanceAuthorization,

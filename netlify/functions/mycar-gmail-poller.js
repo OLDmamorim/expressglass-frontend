@@ -22,6 +22,7 @@ const {
   isReplySubject,
   extractThreadMeta,
   buildMessageKey,
+  extractMyCarMessageBody,
   isMyCarMessage,
   hasExplicitAdvanceAuthorization,
   latestExplicitAdvanceInstruction,
@@ -249,6 +250,14 @@ function cleanEmailBody(text) {
   }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 
   return cleaned.slice(0, 1000) || null;
+}
+
+function emailText(email = {}) {
+  const plain = String(email.text || '').trim();
+  if (plain) return plain;
+  if (!email.html) return '';
+  try { return cheerio.load(email.html).text().trim(); }
+  catch (_) { return ''; }
 }
 
 // Lookup do portal Mycar Center na DB
@@ -537,13 +546,19 @@ async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN)
         const target = String(service.matricula).toUpperCase().replace(/[^A-Z0-9]/g, '');
         const emails = await fetchMessagesForPendingService(imap, service);
         const messages = emails
-          .filter(email =>
-            isMyCarMessage(email) &&
-            String(email.subject || '').toUpperCase().replace(/[^A-Z0-9]/g, '').includes(target)
-          )
-          .map(email => ({
+          .map(email => {
+            const text = emailText(email);
+            const myCarBody = extractMyCarMessageBody({ ...email, text });
+            return {
+              email,
+              myCarBody,
+              subjectMatches: String(email.subject || '').toUpperCase().replace(/[^A-Z0-9]/g, '').includes(target)
+            };
+          })
+          .filter(item => item.myCarBody && item.subjectMatches)
+          .map(({ email, myCarBody }) => ({
             date: email.date,
-            body: cleanEmailBody(email.text || ''),
+            body: cleanEmailBody(myCarBody),
             meta: extractThreadMeta(email, email._imapAttrs || {}, email._imapUid)
           }));
         const decision = latestExplicitAdvanceInstruction(messages, service.email_received_at);
@@ -791,8 +806,10 @@ async function runPoller() {
       const date     = email.date || new Date();
       const html     = email.html || '';
       const wip      = extractWip(subject);
-      const body     = cleanEmailBody(email.text || '');
-      const fromMyCar = isMyCarMessage(email);
+      const rawText  = emailText(email);
+      const myCarBody = extractMyCarMessageBody({ ...email, text: rawText });
+      const body     = cleanEmailBody(myCarBody || rawText);
+      const fromMyCar = Boolean(myCarBody) || isMyCarMessage({ ...email, text: rawText });
       const meta     = extractThreadMeta(email, email._imapAttrs || {}, email._imapUid);
       const messageKey = buildMessageKey(meta);
 

@@ -9,6 +9,7 @@ const {
   isReplySubject,
   extractThreadMeta,
   buildMessageKey,
+  extractMyCarMessageBody,
   isMyCarMessage,
   classifyExplicitAdvanceInstruction,
   hasExplicitAdvanceAuthorization,
@@ -64,6 +65,56 @@ test('identifica o remetente real num email MyCar reencaminhado', () => {
     from: { text: 'ExpressGlass <gestaoclientes@expressglass.pt>' },
     text: 'De: ExpressGlass.Gestao Clientes <gestaoclientes@expressglass.pt>\nEnviado: 7 de julho\n\nAguardamos resposta.\nDe: Orçamentação Mycarcenter <orcamentacao@mycarcenter.pt>'
   }), false);
+});
+
+test('atravessa uma camada ExpressGlass vazia e lê a resposta MyCar do BU-23-JN', () => {
+  const text = `---------- Forwarded message ---------
+From: ExpressGlass.Gestao Clientes <gestaoclientes@expressglass.pt>
+Date: quarta-feira, 8 de julho de 2026
+Subject: FW: BU-23-JN | WP0ZZZ995SS233043
+To: Marco
+
+De: Orçamentação Mycarcenter <orcamentacao@mycarcenter.pt>
+Enviado: quarta-feira, 8 de julho de 2026 12:07:28
+Para: ExpressGlass.Gestao Clientes <gestaoclientes@expressglass.pt>
+Assunto: RE: BU-23-JN | WP0ZZZ995SS233043
+
+Segurança: Este email não é da nossa organização. Confirme a identidade do remetente.
+Bom dia,
+Podem avançar com o pedido.
+Serviço a ser realizado no Mycarcenter.
+Obrigada.
+
+De: ExpressGlass.Gestao Clientes <gestaoclientes@expressglass.pt>
+Enviada: 7 de julho de 2026 17:55
+Para: Orçamentação Mycarcenter <orcamentacao@mycarcenter.pt>
+Assunto: RE: BU-23-JN | WP0ZZZ995SS233043`;
+
+  const body = extractMyCarMessageBody({
+    from: { text: 'ExpressGlass <gestaoclientes@expressglass.pt>' },
+    text
+  });
+
+  assert.match(body, /Podem avançar com o pedido/i);
+  assert.equal(hasExplicitAdvanceAuthorization(body), true);
+  assert.equal(isMyCarMessage({ from: { text: 'ExpressGlass <gestaoclientes@expressglass.pt>' }, text }), true);
+});
+
+test('não atravessa uma resposta interna com texto para autorizar por uma citação antiga', () => {
+  const text = `De: ExpressGlass.Gestao Clientes <gestaoclientes@expressglass.pt>
+Enviado: 9 de julho de 2026
+
+Aguardamos a vossa confirmação.
+
+De: Orçamentação Mycarcenter <orcamentacao@mycarcenter.pt>
+Enviado: 8 de julho de 2026
+
+Podem avançar com o pedido.`;
+
+  assert.equal(extractMyCarMessageBody({
+    from: { text: 'ExpressGlass <gestaoclientes@expressglass.pt>' },
+    text
+  }), null);
 });
 
 test('deteta ordens explícitas para avançar', () => {
