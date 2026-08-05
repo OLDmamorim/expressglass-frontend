@@ -17,6 +17,14 @@ const Imap = require('imap');
 const { simpleParser } = require('mailparser');
 const cheerio = require('cheerio');
 const { callAI } = require('../lib/ai');
+const {
+  normalizeSubject,
+  isReplySubject,
+  extractThreadMeta,
+  buildMessageKey,
+  hasExplicitAdvanceAuthorization,
+  shouldAnalyzeAsFollowup
+} = require('./lib/mycar-email-thread');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -35,10 +43,8 @@ function askAI(systemPrompt, userMsg) {
   });
 }
 
-// Um email de acompanhamento chegou com o MESMO assunto de uma entrada que já
-// tem descrição/valor/eurocode preenchidos. Pergunta à IA se isto é uma
-// alteração real do pedido (ex.: substituição passou a reparação, mudou o
-// valor) ou um cancelamento — em vez de simplesmente ignorar como "sem novidade".
+// Analisa uma nova mensagem da mesma conversa. Além de alterações e
+// cancelamentos, reconhece a autorização da MyCar para executar o serviço.
 async function analyzeFollowupEmail({ existing, subject, body, tableRows }) {
   const systemPrompt = `És um assistente que trata emails de acompanhamento de pedidos de serviço recebidos no Mural MyCar Center (oficina de reparação/substituição de vidros automóveis em Portugal).
 
@@ -48,15 +54,16 @@ Já existe uma entrada registada para este assunto de email, com estes dados atu
 - Eurocode: ${existing.eurocode || '(vazio)'}
 - Estado: ${existing.status}
 
-Chegou agora um NOVO email com o MESMO assunto (um email de acompanhamento/resposta na mesma conversa). A tua tarefa é perceber se este novo email traz uma alteração real ao pedido:
+Chegou agora uma NOVA mensagem da mesma conversa. Analisa apenas a resposta nova e ignora texto antigo citado. A tua tarefa é perceber o que a MyCar está a comunicar:
+- "autorizar" — a MyCar autoriza, aprova ou dá ordem explícita para avançar/proceder com o serviço. "Pedido enviado para autorização", "aguardar autorização" ou simples confirmação de receção NÃO são autorização.
 - "cancelar" — o email diz que o serviço/encomenda foi cancelado, anulado ou já não é necessário.
 - "atualizar" — o email muda algo de facto (ex.: passou de substituição para reparação, mudou o valor, mudou o eurocode/peça, corrigiu a descrição).
 - "sem_alteracao" — o email não traz nenhuma alteração relevante ao pedido (ex.: agradecimento, confirmação de receção, resposta administrativa sem novos dados, assunto repetido por engano).
 
 Responde EXCLUSIVAMENTE em JSON válido, sem texto adicional:
-{"action": "cancelar" | "atualizar" | "sem_alteracao", "descricao": "..." ou null, "valor": number ou null, "eurocode": "..." ou null, "motivo": "resumo curto (1 frase, português) do que mudou ou da razão"}
+{"action": "autorizar" | "cancelar" | "atualizar" | "sem_alteracao", "descricao": "..." ou null, "valor": number ou null, "eurocode": "..." ou null, "motivo": "resumo curto (1 frase, português) do que mudou ou da razão"}
 
-Em "atualizar", só preenche descricao/valor/eurocode quando o novo email realmente indicar esse novo valor — deixa a null o que não for mencionado (não repitas o valor antigo). Em "cancelar" ou "sem_alteracao", deixa descricao/valor/eurocode a null.`;
+Em "atualizar", só preenche descricao/valor/eurocode quando a nova mensagem realmente indicar esse novo valor — deixa a null o que não for mencionado (não repitas o valor antigo). Nas restantes ações, deixa descricao/valor/eurocode a null.`;
 
   const tableStr = (tableRows || []).map(r =>
     `- matrícula ${r.matricula || '?'} | serviço: ${r.descricao || '?'} | valor: ${r.valor != null ? r.valor : '?'} | eurocode: ${r.eurocode || '?'}`
@@ -70,18 +77,23 @@ ${body || '(sem texto útil extraído)'}
 ${tableStr ? `Tabela encontrada no email:\n${tableStr}` : ''}`;
 
   const result = await askAI(systemPrompt, userMsg);
-  if (result.error) throw new Error(result.error.message || 'Erro da API Anthropic');
+  if (result.error) throw new Error(result.error.message || 'Erro da IA');
 
   const text = result.content?.[0]?.text || '';
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) throw new Error('Resposta da IA sem JSON: ' + text.slice(0, 200));
   const parsed = JSON.parse(m[0]);
 
-  if (!['cancelar', 'atualizar', 'sem_alteracao'].includes(parsed.action)) {
+  if (!['autorizar', 'cancelar', 'atualizar', 'sem_alteracao'].includes(parsed.action)) {
     parsed.action = 'sem_alteracao';
   }
   if (parsed.valor != null && typeof parsed.valor !== 'number') {
     parsed.valor = parseValor(String(parsed.valor));
+  }
+  // Salvaguarda para respostas muito curtas e inequívocas, como "Podem avançar".
+  if (parsed.action === 'sem_alteracao' && hasExplicitAdvanceAuthorization(body)) {
+    parsed.action = 'autorizar';
+    parsed.motivo = parsed.motivo || 'A MyCar deu autorização explícita para avançar.';
   }
   return parsed;
 }
@@ -181,6 +193,21 @@ function cleanEmailBody(text) {
     text = lines.slice(bodyStart).join('\n');
   }
 
+  // Nas respostas, conservar apenas a mensagem nova. O texto citado pode
+  // conter uma ordem antiga e não deve influenciar a decisão atual.
+  const replySeparators = [
+    /^\s*(?:Em|No dia)\s+.+\s+escreveu:\s*$/im,
+    /^\s*On\s+.+\s+wrote:\s*$/im,
+    /^\s*-{2,}\s*(?:Original Message|Mensagem original)\s*-{2,}\s*$/im,
+    /^\s*(?:De|From):[^\n]+\n\s*(?:Enviado|Sent|Data|Date):/im,
+    /^\s*_{5,}\s*$/m
+  ];
+  const replyCut = replySeparators
+    .map(rx => text.search(rx))
+    .filter(idx => idx > 0)
+    .sort((a, b) => a - b)[0];
+  if (replyCut !== undefined) text = text.slice(0, replyCut);
+
   // Cortar na palavra de fecho — assinatura começa depois
   const closingRx = /^(Obrigad[ao][\.\!,]?|Cumprimentos[\.\!]?|Com os melhores cumprimentos|Atenciosamente[\.\!]?|Com estima|Regards|Best regards|Abraços)/im;
   const closingMatch = text.match(closingRx);
@@ -207,7 +234,7 @@ function cleanEmailBody(text) {
     return true;
   }).join('\n').replace(/\n{3,}/g, '\n\n').trim();
 
-  return cleaned.slice(0, 600) || null;
+  return cleaned.slice(0, 1000) || null;
 }
 
 // Lookup do portal Mycar Center na DB
@@ -241,12 +268,31 @@ async function ensureTable(client) {
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS obs_tecnico TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_body TEXT`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS historico TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_subject_normalized TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_thread_id VARCHAR(64)`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS email_message_id VARCHAR(500)`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS last_reply_at TIMESTAMP`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS last_reply_body TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS advance_authorized_at TIMESTAMP`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS advance_authorized_reason TEXT`);
   // Migrar constraint de status para incluir novos estados
   await client.query(`ALTER TABLE mycar_services DROP CONSTRAINT IF EXISTS mycar_services_status_check`);
   await client.query(`UPDATE mycar_services SET status = 'realizado' WHERE status = 'tratado'`);
   await client.query(`ALTER TABLE mycar_services ADD CONSTRAINT mycar_services_status_check CHECK (status IN ('pendente', 'encomendado', 'realizado', 'faturado', 'rejeitado'))`);
   // Estado do poller (cursor = último UID processado)
   await client.query(`CREATE TABLE IF NOT EXISTS mycar_poller_state (k TEXT PRIMARY KEY, v TEXT)`);
+  // Deduplicação independente do cursor. Permite repetir um lote após erro sem
+  // voltar a aplicar respostas que já foram tratadas.
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS mycar_processed_emails (
+      message_key TEXT PRIMARY KEY,
+      gmail_message_id VARCHAR(64),
+      rfc_message_id VARCHAR(500),
+      processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_email_thread ON mycar_services(email_thread_id)`);
+  await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_email_subject_norm ON mycar_services(email_subject_normalized)`);
 }
 
 async function getCursor(client) {
@@ -261,6 +307,92 @@ async function setCursor(client, uid) {
   );
 }
 
+async function startThreadReplayOnce(client) {
+  const { rows } = await client.query(
+    `INSERT INTO mycar_poller_state (k, v)
+     VALUES ('thread_reply_replay_v1', NOW()::text)
+     ON CONFLICT (k) DO NOTHING
+     RETURNING k`
+  );
+  if (rows.length === 0) return false;
+  await setCursor(client, 0);
+  return true;
+}
+
+async function getKnownThreadIds(client) {
+  const { rows } = await client.query(
+    `SELECT DISTINCT email_thread_id FROM mycar_services WHERE email_thread_id IS NOT NULL`
+  );
+  return new Set(rows.map(r => String(r.email_thread_id)));
+}
+
+async function wasMessageProcessed(client, messageKey) {
+  if (!messageKey) return false;
+  const { rows } = await client.query(
+    `SELECT 1 FROM mycar_processed_emails WHERE message_key = $1 LIMIT 1`,
+    [messageKey]
+  );
+  return rows.length > 0;
+}
+
+async function markMessageProcessed(client, messageKey, meta) {
+  if (!messageKey) return;
+  await client.query(
+    `INSERT INTO mycar_processed_emails (message_key, gmail_message_id, rfc_message_id)
+     VALUES ($1,$2,$3) ON CONFLICT (message_key) DO NOTHING`,
+    [messageKey, meta.gmailMessageId, meta.messageId]
+  );
+}
+
+function samePlate(a, b) {
+  const norm = value => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return Boolean(norm(a) && norm(a) === norm(b));
+}
+
+async function findExistingService(client, svc, meta, subject, wip) {
+  const refs = [...new Set([meta.messageId, ...meta.references].filter(Boolean))];
+
+  // Primeiro, identificadores fortes da conversa. Funcionam mesmo que o
+  // assunto seja alterado numa resposta.
+  if (meta.gmailThreadId || refs.length || wip) {
+    const { rows } = await client.query(
+      `SELECT id, matricula, descricao, valor, eurocode, status,
+              email_subject, email_subject_normalized, email_thread_id,
+              email_message_id, email_received_at, advance_authorized_at
+         FROM mycar_services
+        WHERE ($1::text IS NOT NULL AND email_thread_id = $1)
+           OR (CARDINALITY($2::text[]) > 0 AND email_message_id = ANY($2::text[]))
+           OR ($3::text IS NOT NULL AND notas = $3)
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 50`,
+      [meta.gmailThreadId, refs, wip]
+    );
+    const byPlate = svc?.matricula ? rows.find(r => samePlate(r.matricula, svc.matricula)) : null;
+    if (byPlate) return byPlate;
+    if (!svc?.matricula && rows.length === 1) return rows[0];
+  }
+
+  if (!svc?.matricula) return null;
+
+  // Compatibilidade com os registos antigos, que ainda não têm IDs Gmail:
+  // restringir à matrícula e comparar o assunto sem RE:/FW:/ENC:.
+  const { rows } = await client.query(
+    `SELECT id, matricula, descricao, valor, eurocode, status,
+            email_subject, email_subject_normalized, email_thread_id,
+            email_message_id, email_received_at, advance_authorized_at
+       FROM mycar_services
+      WHERE REGEXP_REPLACE(UPPER(matricula), '[^A-Z0-9]', '', 'g') = $1
+      ORDER BY updated_at DESC, id DESC
+      LIMIT 50`,
+    [String(svc.matricula).toUpperCase().replace(/[^A-Z0-9]/g, '')]
+  );
+  const normalized = meta.normalizedSubject || normalizeSubject(subject);
+  return rows.find(r =>
+    r.email_subject === subject ||
+    (r.email_subject_normalized || normalizeSubject(r.email_subject)) === normalized
+  ) || null;
+}
+
 // Janela de leitura e limites por execução. Lemos CABEÇALHOS de muitos
 // emails (barato) mas só descarregamos o CORPO dos que são mesmo de
 // serviço (matrícula no assunto), para não esgotar o tempo.
@@ -271,7 +403,7 @@ const BODY_PER_RUN  = 6;    // quantos corpos descarregamos por execução
 // Determinístico via CURSOR (último UID processado). Não depende de marcar
 // como lido, por isso nunca fica preso a reler os mesmos emails.
 // Devolve { emails, nextCursor, remaining, scanned }.
-function fetchBatch(cursor) {
+function fetchBatch(cursor, knownThreadIds = new Set()) {
   return new Promise((resolve, reject) => {
     if (!GMAIL_USER || !GMAIL_PASSWORD) {
       reject(new Error('MYCAR_GMAIL_USER ou MYCAR_GMAIL_PASSWORD não configurados'));
@@ -297,16 +429,34 @@ function fetchBatch(cursor) {
 
           // Fase 1 — cabeçalhos (assunto) para saber quais são de serviço
           const subjOf = {};
-          const hf = imap.fetch(scanBatch, { bodies: 'HEADER.FIELDS (SUBJECT)', markSeen: false });
+          const replyHeaderOf = {};
+          const attrsOf = {};
+          const hf = imap.fetch(scanBatch, { bodies: 'HEADER.FIELDS (SUBJECT IN-REPLY-TO REFERENCES)', markSeen: false });
           hf.on('message', (msg) => {
             let uid = null; const chunks = [];
             msg.on('body', (stream) => { stream.on('data', c => chunks.push(c)); });
-            msg.once('attributes', (a) => { uid = a.uid; });
-            msg.once('end', () => { const h = Imap.parseHeader(Buffer.concat(chunks).toString('utf8')); subjOf[uid] = (h.subject && h.subject[0]) || ''; });
+            msg.once('attributes', (a) => { uid = a.uid; attrsOf[a.uid] = a; });
+            msg.once('end', () => {
+              const h = Imap.parseHeader(Buffer.concat(chunks).toString('utf8'));
+              subjOf[uid] = (h.subject && h.subject[0]) || '';
+              replyHeaderOf[uid] = Boolean(
+                (h['in-reply-to'] && h['in-reply-to'].length) ||
+                (h.references && h.references.length)
+              );
+            });
           });
           hf.once('error', fail);
           hf.once('end', () => {
-            const relevant = scanBatch.filter(u => extractIdFromSubject(subjOf[u] || ''));
+            const relevant = scanBatch.filter(u => {
+              const subject = subjOf[u] || '';
+              const threadId = attrsOf[u]?.['x-gm-thrid'];
+              return Boolean(
+                extractIdFromSubject(subject) ||
+                (threadId != null && knownThreadIds.has(String(threadId))) ||
+                isReplySubject(subject) ||
+                replyHeaderOf[u]
+              );
+            });
             // Cursor: se todos os relevantes cabem no limite de corpos, avança
             // por toda a janela analisada; senão pára no último corpo lido.
             let bodyUids, nextCursor;
@@ -328,18 +478,24 @@ function fetchBatch(cursor) {
             const pending = [];
             bf.on('message', (msg) => {
               const chunks = [];
+              let attrs = {};
               const p = new Promise((res) => {
                 msg.on('body', (stream) => { stream.on('data', c => chunks.push(c)); });
-                msg.once('attributes', () => {});
-                msg.once('end', () => res(Buffer.concat(chunks)));
+                msg.once('attributes', a => { attrs = a || {}; });
+                msg.once('end', () => res({ raw: Buffer.concat(chunks), attrs }));
               });
               pending.push(p);
             });
             bf.once('error', fail);
             bf.once('end', async () => {
               // Um email problemático não pode travar o lote — salta-o.
-              for (const raw of await Promise.all(pending)) {
-                try { emails.push(await simpleParser(raw)); }
+              for (const item of await Promise.all(pending)) {
+                try {
+                  const parsed = await simpleParser(item.raw);
+                  parsed._imapAttrs = item.attrs;
+                  parsed._imapUid = item.attrs?.uid;
+                  emails.push(parsed);
+                }
                 catch (e) { console.error('⚠️ simpleParser falhou, email ignorado:', e.message); }
               }
               imap.end();
@@ -393,19 +549,26 @@ async function runPoller() {
   try {
     await ensureTable(client);
     const portalId = await getMycaPortalId(client);
+    const replayStarted = await startThreadReplayOnce(client);
+    if (replayStarted) console.log('↩️ Reanálise única das respostas MyCar dos últimos 40 dias iniciada');
     const cursor = await getCursor(client);
+    const knownThreadIds = await getKnownThreadIds(client);
 
-    const { emails, nextCursor, remaining, scanned } = await fetchBatch(cursor);
-    // Avança sempre o cursor (mesmo que a janela só tenha ruído)
-    if (nextCursor > cursor) await setCursor(client, nextCursor);
+    const { emails, nextCursor, remaining, scanned } = await fetchBatch(cursor, knownThreadIds);
 
     if (emails.length === 0) {
+      // Janela só com ruído: pode avançar imediatamente.
+      if (nextCursor > cursor) await setCursor(client, nextCursor);
       console.log(`📭 Nada de serviço nesta janela (analisados ${scanned || 0})`);
       return { processed: 0, emails: 0, remaining, stats: { withTable: 0, viaSubject: 0, noId: scanned || 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0 } };
     }
 
     let totalImported = 0;
-    const stats = { withTable: 0, viaSubject: 0, noId: 0, inserted: 0, updated: 0, skipped: 0, htmlVazio: 0, atualizadosIA: 0, cancelados: 0 };
+    const stats = {
+      withTable: 0, viaSubject: 0, viaThread: 0, noId: 0,
+      inserted: 0, updated: 0, skipped: 0, duplicated: 0,
+      htmlVazio: 0, atualizadosIA: 0, autorizados: 0, cancelados: 0, erros: 0
+    };
 
     for (const email of emails) {
      try {
@@ -415,6 +578,13 @@ async function runPoller() {
       const html     = email.html || '';
       const wip      = extractWip(subject);
       const body     = cleanEmailBody(email.text || '');
+      const meta     = extractThreadMeta(email, email._imapAttrs || {}, email._imapUid);
+      const messageKey = buildMessageKey(meta);
+
+      if (await wasMessageProcessed(client, messageKey)) {
+        stats.duplicated++;
+        continue;
+      }
 
       if (!html) stats.htmlVazio++;
 
@@ -434,21 +604,49 @@ async function runPoller() {
         services = [{ matricula: subjId, descricao: null, valor: null, eurocode: null, ne: null }];
         stats.viaSubject++;
       } else {
-        stats.noId++;
-        continue; // não é um email de serviço MyCar
+        // O assunto pode ter sido alterado na resposta. Recuperar o processo
+        // pelo ID da conversa, In-Reply-To/References ou WIP.
+        const existingByThread = await findExistingService(client, null, meta, subject, wip);
+        if (existingByThread) {
+          services = [{
+            matricula: existingByThread.matricula,
+            descricao: null, valor: null, eurocode: null, ne: null,
+            _existing: existingByThread
+          }];
+          stats.viaThread++;
+        } else {
+          stats.noId++;
+          await markMessageProcessed(client, messageKey, meta);
+          continue; // não pertence a um processo MyCar conhecido
+        }
       }
-      if (services.length === 0) { stats.noId++; continue; }
+      if (services.length === 0) {
+        stats.noId++;
+        await markMessageProcessed(client, messageKey, meta);
+        continue;
+      }
       console.log(`📧 "${subject}" | tabela:${tableRows.length} | serviços:${services.length}`);
 
       for (const svc of services) {
-        // Casar por ASSUNTO (um email = um orçamento) para atualizar a
-        // entrada certa mesmo que a matrícula tenha entrado diferente antes.
-        const { rows: existing } = await client.query(
-          `SELECT id, descricao, valor, eurocode, status FROM mycar_services WHERE email_subject = $1 LIMIT 1`,
-          [subject]
-        );
-        if (existing.length > 0) {
-          const e = existing[0];
+        const e = svc._existing || await findExistingService(client, svc, meta, subject, wip);
+        if (e) {
+          let serviceChanged = false;
+          const isFollowupMessage = shouldAnalyzeAsFollowup(e, { subject, date, meta });
+
+          // Aprender os identificadores desta conversa para que as próximas
+          // respostas sejam associadas mesmo que o assunto mude por completo.
+          await client.query(
+            `UPDATE mycar_services
+                SET email_thread_id = COALESCE(email_thread_id, $1),
+                    email_message_id = COALESCE(email_message_id, $2),
+                    email_subject_normalized = COALESCE(NULLIF(email_subject_normalized, ''), $3),
+                    last_reply_at = $4,
+                    last_reply_body = $5,
+                    updated_at = NOW()
+              WHERE id = $6`,
+            [meta.gmailThreadId, meta.messageId, meta.normalizedSubject, date, body, e.id]
+          );
+
           const temNovos = svc.descricao || svc.valor != null || svc.eurocode;
           const faltava  = !e.descricao && e.valor == null && !e.eurocode;
           if (temNovos && faltava) {
@@ -463,67 +661,102 @@ async function runPoller() {
                WHERE id = $6`,
               [svc.matricula, svc.descricao, svc.valor, svc.eurocode, wip, e.id]
             );
-            totalImported++; stats.updated++;
+            serviceChanged = true; stats.updated++;
             console.log(`🔧 Detalhes preenchidos: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
-          } else {
-            // A entrada já tem detalhes — este pode ser um email de
-            // acompanhamento com uma alteração real (troca de serviço,
-            // correção de valor, cancelamento). Usa IA para decidir.
-            let decision = null;
+          }
+
+          // Uma resposta é analisada mesmo que traga novamente a tabela
+          // original citada. A mensagem inicial, quando relida na recuperação,
+          // serve apenas para aprender os IDs da conversa.
+          let decision = null;
+          if (isFollowupMessage) {
             try {
               decision = await analyzeFollowupEmail({ existing: e, subject, body, tableRows });
             } catch (aiErr) {
-              console.error('⚠️ IA de acompanhamento falhou, a ignorar email:', aiErr.message);
-            }
-
-            if (decision?.action === 'cancelar') {
-              await client.query(
-                `UPDATE mycar_services
-                   SET status = 'rejeitado',
-                       historico = COALESCE(historico || E'\n', '') || $1,
-                       updated_at = NOW()
-                 WHERE id = $2`,
-                [`[${new Date().toLocaleString('pt-PT')}] Cancelado por email de acompanhamento: ${decision.motivo || subject}`, e.id]
-              );
-              totalImported++; stats.cancelados++;
-              console.log(`🚫 Cancelado por email: ${e.id} | ${decision.motivo || ''}`);
-            } else if (decision?.action === 'atualizar') {
-              await client.query(
-                `UPDATE mycar_services
-                   SET descricao = COALESCE($1, descricao),
-                       valor     = COALESCE($2, valor),
-                       eurocode  = COALESCE($3, eurocode),
-                       historico = COALESCE(historico || E'\n', '') || $4,
-                       updated_at = NOW()
-                 WHERE id = $5`,
-                [decision.descricao, decision.valor, decision.eurocode,
-                 `[${new Date().toLocaleString('pt-PT')}] Alterado por email de acompanhamento: ${decision.motivo || ''}`, e.id]
-              );
-              totalImported++; stats.atualizadosIA++;
-              console.log(`✏️ Atualizado por IA: ${e.id} | ${decision.motivo || ''}`);
-            } else {
-              stats.skipped++;
+              if (hasExplicitAdvanceAuthorization(body)) {
+                decision = { action: 'autorizar', motivo: 'A MyCar deu autorização explícita para avançar.' };
+              } else {
+                console.error('⚠️ IA de acompanhamento falhou:', aiErr.message);
+              }
             }
           }
+
+          const stamp = new Date(date).toLocaleString('pt-PT');
+          if (decision?.action === 'autorizar') {
+            const reason = decision.motivo || 'A MyCar autorizou o avanço do serviço.';
+            await client.query(
+              `UPDATE mycar_services
+                  SET status = CASE WHEN status = 'rejeitado' THEN 'pendente' ELSE status END,
+                      advance_authorized_at = $1,
+                      advance_authorized_reason = $2,
+                      historico = COALESCE(NULLIF(historico, '') || E'\n', '') || $3,
+                      updated_at = NOW()
+                WHERE id = $4`,
+              [date, reason, `[${stamp}] ✅ Autorizado pela MyCar: ${reason}`, e.id]
+            );
+            serviceChanged = true; stats.autorizados++;
+            console.log(`✅ Autorizado para avançar: ${e.id} | ${reason}`);
+          } else if (decision?.action === 'cancelar') {
+            await client.query(
+              `UPDATE mycar_services
+                  SET status = 'rejeitado',
+                      advance_authorized_at = NULL,
+                      advance_authorized_reason = NULL,
+                      historico = COALESCE(NULLIF(historico, '') || E'\n', '') || $1,
+                      updated_at = NOW()
+                WHERE id = $2`,
+              [`[${stamp}] Cancelado por email de acompanhamento: ${decision.motivo || subject}`, e.id]
+            );
+            serviceChanged = true; stats.cancelados++;
+            console.log(`🚫 Cancelado por email: ${e.id} | ${decision.motivo || ''}`);
+          } else if (decision?.action === 'atualizar') {
+            await client.query(
+              `UPDATE mycar_services
+                  SET descricao = COALESCE($1, descricao),
+                      valor     = COALESCE($2, valor),
+                      eurocode  = COALESCE($3, eurocode),
+                      historico = COALESCE(NULLIF(historico, '') || E'\n', '') || $4,
+                      updated_at = NOW()
+                WHERE id = $5`,
+              [decision.descricao, decision.valor, decision.eurocode,
+               `[${stamp}] Alterado por email de acompanhamento: ${decision.motivo || ''}`, e.id]
+            );
+            serviceChanged = true; stats.atualizadosIA++;
+            console.log(`✏️ Atualizado por IA: ${e.id} | ${decision.motivo || ''}`);
+          } else if (!serviceChanged) {
+            stats.skipped++;
+          }
+
+          if (serviceChanged) totalImported++;
           continue;
         }
 
         await client.query(
           `INSERT INTO mycar_services
              (matricula, descricao, valor, eurocode, status,
-              email_from, email_subject, email_received_at, portal_id, notas, email_body)
-           VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9,$10)`,
+              email_from, email_subject, email_subject_normalized,
+              email_thread_id, email_message_id, email_received_at,
+              portal_id, notas, email_body)
+           VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
           [svc.matricula, svc.descricao, svc.valor, svc.eurocode,
-           from, subject, date, portalId, wip, body || null]
+           from, subject, meta.normalizedSubject, meta.gmailThreadId, meta.messageId,
+           date, portalId, wip, body || null]
         );
         totalImported++; stats.inserted++;
         console.log(`✅ Importado: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
       }
+
+      await markMessageProcessed(client, messageKey, meta);
      } catch (emailErr) {
-       stats.erros = (stats.erros || 0) + 1;
+       stats.erros++;
        console.error('⚠️ Erro a processar email:', emailErr.message);
      }
     }
+
+    // Só avançar a janela quando todas as mensagens foram tratadas. Em caso de
+    // erro, a próxima execução repete o lote; as mensagens concluídas são
+    // ignoradas pela tabela de deduplicação.
+    if (stats.erros === 0 && nextCursor > cursor) await setCursor(client, nextCursor);
 
     console.log(`📊 Total: ${totalImported} | lidos:${emails.length} | ${JSON.stringify(stats)} | ${remaining} por processar`);
     return { processed: totalImported, emails: emails.length, remaining, stats };
