@@ -9,7 +9,10 @@ const {
   isReplySubject,
   extractThreadMeta,
   buildMessageKey,
+  isMyCarMessage,
+  classifyExplicitAdvanceInstruction,
   hasExplicitAdvanceAuthorization,
+  latestExplicitAdvanceInstruction,
   isAuthorizationActive,
   shouldAnalyzeAsFollowup
 } = require('../netlify/functions/lib/mycar-email-thread');
@@ -48,8 +51,24 @@ test('normaliza referências e elimina duplicados', () => {
   assert.deepEqual(normalizeReferences('<A@x.pt> <a@x.pt> <B@x.pt>'), ['a@x.pt', 'b@x.pt']);
 });
 
+test('identifica o remetente real num email MyCar reencaminhado', () => {
+  assert.equal(isMyCarMessage({
+    from: { text: 'Orçamentação Mycarcenter <orcamentacao@mycarcenter.pt>' },
+    text: 'Bom dia, podem avançar.\n\nDe: ExpressGlass <gestaoclientes@expressglass.pt>'
+  }), true);
+  assert.equal(isMyCarMessage({
+    from: { text: 'ExpressGlass <gestaoclientes@expressglass.pt>' },
+    text: 'De: Orçamentação Mycarcenter <orcamentacao@mycarcenter.pt>\nEnviado: 8 de julho\n\nPodem avançar.'
+  }), true);
+  assert.equal(isMyCarMessage({
+    from: { text: 'ExpressGlass <gestaoclientes@expressglass.pt>' },
+    text: 'De: ExpressGlass.Gestao Clientes <gestaoclientes@expressglass.pt>\nEnviado: 7 de julho\n\nAguardamos resposta.\nDe: Orçamentação Mycarcenter <orcamentacao@mycarcenter.pt>'
+  }), false);
+});
+
 test('deteta ordens explícitas para avançar', () => {
   assert.equal(hasExplicitAdvanceAuthorization('Bom dia, podem avançar com o serviço.'), true);
+  assert.equal(hasExplicitAdvanceAuthorization('Bom dia,\nPodem avançar com o pedido.\nServiço a ser realizado no Mycarcenter.\nObrigada.'), true);
   assert.equal(hasExplicitAdvanceAuthorization('O orçamento está aprovado. Podem proceder.'), true);
   assert.equal(hasExplicitAdvanceAuthorization('Serviço autorizado.'), true);
 });
@@ -58,6 +77,29 @@ test('não confunde espera ou recusa com autorização', () => {
   assert.equal(hasExplicitAdvanceAuthorization('Não podem avançar. Aguardem autorização.'), false);
   assert.equal(hasExplicitAdvanceAuthorization('Pedido pendente de autorização.'), false);
   assert.equal(hasExplicitAdvanceAuthorization('Acusamos a receção do orçamento.'), false);
+});
+
+test('classifica uma recusa ou espera explícita como bloqueio', () => {
+  assert.equal(classifyExplicitAdvanceInstruction('Não podem avançar. Aguardem autorização.'), 'bloquear');
+  assert.equal(classifyExplicitAdvanceInstruction('Pedido pendente de autorização.'), 'bloquear');
+  assert.equal(classifyExplicitAdvanceInstruction('Obrigado pela informação.'), null);
+});
+
+test('na recuperação prevalece a instrução explícita mais recente', () => {
+  const initial = '2026-07-07T15:33:07Z';
+  const authorized = latestExplicitAdvanceInstruction([
+    { date: initial, body: 'Pedido enviado para autorização.' },
+    { date: '2026-07-08T12:07:28Z', body: 'Bom dia, podem avançar com o pedido.' }
+  ], initial);
+
+  assert.equal(authorized.action, 'autorizar');
+  assert.equal(authorized.date, '2026-07-08T12:07:28Z');
+
+  const blocked = latestExplicitAdvanceInstruction([
+    { date: '2026-07-08T12:07:28Z', body: 'Podem avançar com o pedido.' },
+    { date: '2026-07-08T13:10:00Z', body: 'Não avancem. Aguardem autorização.' }
+  ], initial);
+  assert.equal(blocked.action, 'bloquear');
 });
 
 test('a autorização visual deixa de estar ativa após fecho do serviço', () => {
