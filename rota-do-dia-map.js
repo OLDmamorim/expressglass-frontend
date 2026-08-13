@@ -40,6 +40,9 @@
   }
 
   function getSelectedDate() {
+    // O dia escolhido na agenda vem daqui; só depois se cai para hoje.
+    const sel = window.getAgendaDayISO && window.getAgendaDayISO();
+    if (sel) return sel;
     if (window.currentMobileDay) return window.currentMobileDay.toISOString().split('T')[0];
     const lbl = document.getElementById('mobileDayLabel');
     if (lbl && lbl.dataset.date) return lbl.dataset.date;
@@ -693,10 +696,7 @@
 
   function init() {
     window.openRotaDoDia = function () {
-      const date = window.currentMobileDay
-        ? window.currentMobileDay.toISOString().split('T')[0]
-        : new Date().toISOString().split('T')[0];
-      openRotaMap(date);
+      openRotaMap(getSelectedDate());
     };
     const desk = document.getElementById('btnRotaDoDiaDesk');
     if (desk) desk.onclick = () => window.openRotaDoDia();
@@ -720,9 +720,7 @@
     if (list.querySelector('[onclick*="openRotaDoDia"]')) return;
     if (list.querySelector('.rm-rota-btn')) return;
 
-    const dateStr = window.currentMobileDay
-      ? window.currentMobileDay.toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0];
+    const dateStr = getSelectedDate();
     const temMoradas = (window.appointments || []).some(a => a.date === dateStr && !!a.address);
     if (!temMoradas) return;
 

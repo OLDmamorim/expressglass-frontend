@@ -1886,6 +1886,13 @@ function applyBlockedDayOverlays() {
 }
 let currentMonday = getMonday(new Date());
 let currentMobileDay = new Date();
+// `currentMobileDay` é um `let` de topo, por isso NÃO fica em `window` — os
+// scripts da rota/timeline liam `window.currentMobileDay` e obtinham sempre
+// `undefined`, caindo no dia de hoje. Este acessor fecha sobre a variável real
+// e devolve a data em formato local (o toISOString recuava um dia em UTC+1).
+window.getAgendaDayISO = function () {
+  try { return localISO(currentMobileDay); } catch (e) { return localISO(new Date()); }
+};
 let editingId = null;
 let searchQuery = '';
 let statusFilter = '';

@@ -15,6 +15,9 @@
 
   // ── Helpers ───────────────────────────────────────────────────────────
   function getSelectedDate() {
+    // O dia escolhido na agenda vem daqui; só depois se cai para hoje.
+    const sel = window.getAgendaDayISO && window.getAgendaDayISO();
+    if (sel) return sel;
     if (window.currentMobileDate) return window.currentMobileDate;
     if (window.currentMobileDay) return window.currentMobileDay.toISOString().split('T')[0];
     const lbl = document.getElementById('mobileDayLabel');
