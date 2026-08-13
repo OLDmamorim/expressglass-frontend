@@ -158,6 +158,8 @@
   }
 
   async function verificar() {
+    // Respeita o visto "Receber popups de aviso" do perfil
+    if (window.podeMostrarPopups && !window.podeMostrarPopups()) return;
     // Coordenadores e admins
     const role = window.authClient?.getUser?.()?.role;
     if (role !== 'coordenador' && role !== 'admin') return;

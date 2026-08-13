@@ -170,4 +170,15 @@ class AuthClient {
 // Instância global
 window.authClient = new AuthClient();
 
+// Ponto único de decisão dos popups de aviso. Todos os avisos que aparecem
+// sozinhos devem passar por aqui, para que o visto do perfil os trave a todos.
+// Na dúvida devolve true, para nunca esconder avisos por engano.
+window.podeMostrarPopups = function () {
+  try {
+    return window.authClient?.getUser?.()?.notifyPopups !== false;
+  } catch (e) {
+    return true;
+  }
+};
+
 console.log('🔐 Cliente de autenticação inicializado');
