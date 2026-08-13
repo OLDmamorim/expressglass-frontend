@@ -42,6 +42,10 @@
   }
 
   function check() {
+
+    // Respeita o visto "Receber popups de aviso" do perfil
+
+    if (window.podeMostrarPopups && !window.podeMostrarPopups()) return;
     if (!isDayOk() || wasDismissed() || !isCoordOrAdmin()) return;
     const overdue = getOverdue();
     if (!overdue.length) return;

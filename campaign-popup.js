@@ -27,6 +27,8 @@
 
   // ── Modal horária (só imagem + fechar) ───────────────────────────────────
   function _showModal() {
+    // Respeita o visto "Receber popups de aviso" do perfil
+    if (window.podeMostrarPopups && !window.podeMostrarPopups()) return;
     if (!_campaign) return;
     if (!_campaign.image_data) {
       console.warn('[Campaign] Campanha ativa mas sem imagem — verifique o admin.');

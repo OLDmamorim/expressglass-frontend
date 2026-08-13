@@ -38,7 +38,7 @@
   // Respeita o visto "Receber popups de aviso" do perfil do utilizador.
   // Só trava a abertura automática — o botão continua a funcionar sempre.
   function wantsPopups() {
-    return window.authClient?.getUser?.()?.notifyPopups !== false;
+    return !window.podeMostrarPopups || window.podeMostrarPopups();
   }
 
   async function checkAndShow() {
