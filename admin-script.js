@@ -526,6 +526,7 @@ function prepareNewUserForm(prefill = null) {
   document.getElementById('userModalTitle').textContent = 'Novo Utilizador';
   document.getElementById('userForm').reset();
   document.querySelector('input[name="userAccessMethod"][value="email"]').checked = true;
+  document.getElementById('userNotifyPopups').checked = true;
   document.getElementById('userEmail').value = prefill?.email || '';
   document.getElementById('userUsername').value = prefill?.name || '';
   if (prefill?.role) document.getElementById('userRole').value = prefill.role;
@@ -557,6 +558,7 @@ function editUser(id) {
   document.getElementById('userPassword').placeholder = 'Deixe em branco para manter';
   document.getElementById('passwordHint').style.display = 'block';
   document.getElementById('userRole').value = user.role;
+  document.getElementById('userNotifyPopups').checked = user.notifyPopups !== false;
   document.getElementById('userPortal').value = user.portalId || '';
   toggleUserAccessMethod();
   if (user.accountStatus === 'invited') {
@@ -899,6 +901,7 @@ async function handleUserFormSubmit(e) {
   }
 
   const userData = { username, email, role };
+  userData.notify_popups = document.getElementById('userNotifyPopups')?.checked !== false;
   if (inviteByEmail) userData.invite_by_email = true;
   if (password) {
     userData.password = password;

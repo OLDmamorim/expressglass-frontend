@@ -35,8 +35,14 @@
     return API + (parts.length ? '?' + parts.join('&') : '');
   }
 
+  // Respeita o visto "Receber popups de aviso" do perfil do utilizador.
+  // Só trava a abertura automática — o botão continua a funcionar sempre.
+  function wantsPopups() {
+    return window.authClient?.getUser?.()?.notifyPopups !== false;
+  }
+
   async function checkAndShow() {
-    if (!isCoordinator() || alreadyShown()) return;
+    if (!isCoordinator() || alreadyShown() || !wantsPopups()) return;
     const now = new Date();
     const h = now.getHours();
     const m = now.getMinutes();

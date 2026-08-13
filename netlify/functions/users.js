@@ -152,12 +152,25 @@ async function usernameExists(client, username, excludeUserId) {
   return rows.length > 0;
 }
 
+// Preferência de popups de aviso por utilizador. Fica a TRUE por omissão
+// para não desligar avisos a quem já os recebe hoje.
+let popupColumnReady;
+async function ensurePopupColumn() {
+  if (!popupColumnReady) {
+    popupColumnReady = pool.query(
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_popups BOOLEAN DEFAULT TRUE`
+    ).catch(err => { console.warn('Migration notify_popups:', err.message); });
+  }
+  return popupColumnReady;
+}
+
 async function loadAdminUsers() {
+  await ensurePopupColumn();
   const { rows } = await pool.query(`
     SELECT u.id, u.username, u.email, u.account_status, u.email_verified_at,
            u.portal_id, u.role, u.created_at, u.updated_at,
            u.telegram_chat_id, u.telegram_chat_id_2, u.assigned_portal_ids,
-           u.plain_password, p.name AS portal_name,
+           u.plain_password, u.notify_popups, p.name AS portal_name,
            invitation.expires_at AS invite_expires_at
     FROM users u
     LEFT JOIN portals p ON u.portal_id = p.id
@@ -185,6 +198,7 @@ async function loadAdminUsers() {
       portalId: user.portal_id,
       portalName: user.portal_name,
       role: user.role,
+      notifyPopups: user.notify_popups !== false,
       telegramChatId: user.telegram_chat_id || null,
       telegramChatId2: user.telegram_chat_id_2 || null,
       assigned_portal_ids: user.assigned_portal_ids || [],
@@ -369,9 +383,9 @@ exports.handler = async event => {
           INSERT INTO users (
             username, email, password_hash, plain_password, account_status,
             portal_id, role, telegram_chat_id, telegram_chat_id_2,
-            assigned_portal_ids, created_at, updated_at
+            assigned_portal_ids, notify_popups, created_at, updated_at
           )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
           RETURNING id, username, email, portal_id, role, account_status
         `, [
           username,
@@ -384,6 +398,7 @@ exports.handler = async event => {
           data.telegram_chat_id || null,
           data.telegram_chat_id_2 || null,
           role === 'comercial' ? coordinatedPortalIds : [],
+          data.notify_popups !== false,
         ]);
         newUser = rows[0];
         await syncUserAccess(client, newUser.id, data);
@@ -507,6 +522,7 @@ exports.handler = async event => {
         updates.push(`${column} = $${values.length}`);
       };
 
+      if (data.notify_popups !== undefined) add('notify_popups', data.notify_popups === true);
       if (username !== undefined) add('username', username);
       if (email !== undefined) add('email', email || null);
       if (data.password) {
