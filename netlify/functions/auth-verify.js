@@ -10,6 +10,19 @@ const pool = new Pool({
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
+
+// A coluna pode ainda não existir em bases antigas: garantimos aqui, senão
+// a consulta abaixo falharia e ninguém conseguia autenticar-se.
+let popupColumnReady;
+function ensurePopupColumn() {
+  if (!popupColumnReady) {
+    popupColumnReady = pool.query(
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_popups BOOLEAN DEFAULT TRUE`
+    ).catch(err => { console.warn('Migration notify_popups:', err.message); });
+  }
+  return popupColumnReady;
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -33,8 +46,10 @@ exports.handler = async (event) => {
     const decoded = jwt.verify(token, JWT_SECRET);
     await ensureAccountSchema(pool);
 
+    await ensurePopupColumn();
     const query = `
       SELECT u.id, u.username, u.email, u.account_status, u.portal_id, u.role,
+             u.notify_popups,
              p.name as portal_name, p.departure_address, p.localities, p.portal_type, p.vehicle_plate
       FROM users u
       LEFT JOIN portals p ON u.portal_id = p.id
@@ -77,6 +92,7 @@ exports.handler = async (event) => {
       username: user.username,
       email: user.email || null,
       role: user.role,
+      notifyPopups: user.notify_popups !== false,
       portal: user.portal_id ? {
         id: user.portal_id,
         name: user.portal_name,

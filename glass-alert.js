@@ -427,6 +427,10 @@ function printGlassAlert() {
 
 // Verificar e mostrar alerta automaticamente ao carregar (apenas desktop)
 function checkAndShowGlassAlert() {
+  // Respeita o visto "Receber popups de aviso" do perfil do utilizador.
+  // Só trava a abertura automática — o botão ⚠️ continua a funcionar sempre.
+  if (window.authClient?.getUser?.()?.notifyPopups === false) return;
+
   // Verificar se é desktop (largura > 768px)
   const isDesktop = window.innerWidth > 768;
   if (!isDesktop) return;
