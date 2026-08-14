@@ -169,12 +169,14 @@
   }
 
   function init() {
+    // Aviso automático desligado a pedido. O modal continua a ser construido
+    // e a verificação fica em window._routeOptCheck, para reactivar.
     _buildModal();
-    schedule();
-    document.addEventListener('portalReady', () => setTimeout(check, 800));
   }
 
+
   window._routeOptDismiss = dismiss;
+  window._routeOptCheck = check;
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

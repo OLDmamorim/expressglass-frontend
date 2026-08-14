@@ -232,8 +232,8 @@
   function start() {
     if (_started || !window.authClient?.isAuthenticated()) return;
     _started = true;
-    checkAndShow();
-    setInterval(checkAndShow, 60000);
+    // Aviso automático das 17h30 desligado a pedido. Os botões "Hoje" e
+    // "Amanhã" continuam a chamar ecReminder.showToday()/showNow().
   }
 
   if (window._portalReadyFired) {

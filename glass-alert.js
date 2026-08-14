@@ -427,6 +427,9 @@ function printGlassAlert() {
 
 // Verificar e mostrar alerta automaticamente ao carregar (apenas desktop)
 function checkAndShowGlassAlert() {
+  // Aviso automático desligado a pedido. A informação continua acessível
+  // pelo botão ⚠️ do cabeçalho, que chama openGlassAlertModal() diretamente.
+  return;
   // Respeita o visto "Receber popups de aviso" do perfil do utilizador.
   // Só trava a abertura automática — o botão ⚠️ continua a funcionar sempre.
   if (window.podeMostrarPopups && !window.podeMostrarPopups()) return;
