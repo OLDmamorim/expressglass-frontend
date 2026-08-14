@@ -166,11 +166,9 @@
   }
 
   function init() {
-    // Build modals dynamically
+    // Aviso automático de terça/quinta às 10h desligado a pedido. Os modais
+    // continuam a ser construidos, para window.weeklyReminder poder abri-los.
     _buildModals();
-    schedule();
-    // Also re-check when portal/data reloads (e.g. portal switch)
-    document.addEventListener('portalReady', () => setTimeout(check, 600));
   }
 
   function _buildModals() {

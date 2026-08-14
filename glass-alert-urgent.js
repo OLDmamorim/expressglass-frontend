@@ -173,10 +173,9 @@
   }
 
   function init() {
-    // Verificar 3 segundos depois de carregar (espera authClient e portalConfig)
-    setTimeout(verificar, 3000);
-    // Re-verificar a cada 5 minutos (caso o utilizador deixe a página aberta)
-    setInterval(verificar, 5 * 60 * 1000);
+    // Aviso automático das 9h30/14h30 desligado a pedido. A verificação
+    // mantém-se disponível em window._glassUrgentVerificar para reactivar.
+    return;
   }
 
   if (document.readyState === 'loading') {
@@ -184,4 +183,5 @@
   } else {
     init();
   }
+  window._glassUrgentVerificar = verificar;
 })();
