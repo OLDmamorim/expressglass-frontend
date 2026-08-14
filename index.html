@@ -4556,6 +4556,17 @@
       setTimeout(_checkPhcReminder, 6000);
       setInterval(_checkPhcReminder, 60000);
     }
+    // Técnico: mesmo botão do coordenador/admin. O registo da receção segue
+    // exactamente a regra de hoje (respeita a receção automática da loja) e o
+    // servidor continua a limitar as ações de coordenação e a filtrar pelo
+    // portal do técnico. Sem sondagens de badge, que são de coordenação.
+    if (role === 'user') {
+      const btnU = document.getElementById('btnRececaoVidros');
+      if (btnU) btnU.style.display = '';
+      const btnUMobile = document.getElementById('btnRececaoVidrosMobile');
+      if (btnUMobile) btnUMobile.style.display = '';
+    }
+
     // Admin only: show mobile admin panel link
     if (role === 'admin') {
       const adminMobileBtn = document.getElementById('btnAdminPanelMobile');
