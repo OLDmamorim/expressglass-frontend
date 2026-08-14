@@ -181,6 +181,8 @@
   const SKIP_ROLES = new Set(['admin', 'coordenador', 'coordinator', 'comercial', 'pesados_coord']);
 
   async function check() {
+    // Respeita o visto "Receber popups de aviso" do perfil
+    if (window.podeMostrarPopups && !window.podeMostrarPopups()) return;
     const role = window.authClient?.getUser?.()?.role;
     const portalId = window.authClient?.getUser?.()?.portal?.id || window.portalConfig?.id;
     console.log('[IncServ] check: role=' + role + ' portalId=' + portalId + ' dismissed=' + isDismissed());
