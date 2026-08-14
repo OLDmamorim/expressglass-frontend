@@ -189,6 +189,9 @@
 
   async function check(force) {
     if (!window.authClient?.getUser?.()) return;
+    // Respeita o visto "Receber popups de aviso" do perfil (o modo forçado,
+    // pedido pelo utilizador, continua a passar)
+    if (!force && window.podeMostrarPopups && !window.podeMostrarPopups()) return;
     const now = new Date();
     if (!force && !isDebug() && now.getHours() < ALERT_HOUR) return; // só a partir das 9h
 

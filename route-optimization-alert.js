@@ -74,6 +74,8 @@
   }
 
   function check() {
+    // Respeita o visto "Receber popups de aviso" do perfil
+    if (window.podeMostrarPopups && !window.podeMostrarPopups()) return;
     if (wasDismissed() || !isCoordOrAdmin()) return;
     const conflicts = getConflicts();
     if (!conflicts.length) return;
