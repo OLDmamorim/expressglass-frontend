@@ -4551,10 +4551,9 @@
       if (vrMobileBtn) vrMobileBtn.style.display = '';
       _pollPendingBadge();
       setInterval(_pollPendingBadge, 60000);
-      setTimeout(_checkGlassAlerts, 4000);
-      setInterval(_checkGlassAlerts, 5 * 60 * 1000);
-      setTimeout(_checkPhcReminder, 6000);
-      setInterval(_checkPhcReminder, 60000);
+      // Avisos automáticos "Vidros por tratar" e "Receção PHC" desligados a
+      // pedido. As verificações ficam acessíveis em window.glassReception
+      // (_checkGlassAlerts / _checkPhcReminder) para reactivar.
     }
     // Técnico: mesmo botão do coordenador/admin. O registo da receção segue
     // exactamente a regra de hoje (respeita a receção automática da loja) e o
@@ -4616,7 +4615,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _retryLastSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _loadCoordList, _associatePending, _reanalysePending, _markReceived, _rejectReception, _updateBulkSelection, _toggleAllReceptionSelection, _deleteSelectedReceptions, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _retryLastSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _loadCoordList, _associatePending, _reanalysePending, _markReceived, _rejectReception, _updateBulkSelection, _toggleAllReceptionSelection, _deleteSelectedReceptions, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT, _checkGlassAlerts, _checkPhcReminder };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
