@@ -3184,8 +3184,20 @@
   async function _loadReturns(reason) {
     try {
       const res = await fetch(API + '/glass-reception?returns=' + reason, { headers: authHeaders() });
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || json.message || "Erro desconhecido");
+      // Ler como texto primeiro: quando a função excede o tempo ou rebenta, a
+      // resposta não traz 'success' nem 'error' e ficávamos com "Erro
+      // desconhecido", que não dizia nada. Assim mostra-se o estado HTTP e o
+      // início do corpo, que é o que permite perceber o que aconteceu.
+      const raw = await res.text();
+      let json = null;
+      try { json = JSON.parse(raw); } catch (_) { /* resposta não é JSON */ }
+      if (!json) {
+        throw new Error(`resposta inválida do servidor (HTTP ${res.status}) — ${raw.slice(0, 160) || 'corpo vazio'}`);
+      }
+      if (!json.success) {
+        throw new Error(json.error || json.message || json.errorMessage ||
+          `HTTP ${res.status} — ${raw.slice(0, 160)}`);
+      }
       _renderReturnsList(json.data, reason);
     } catch (e) {
       const el = document.getElementById('grTabContent');
