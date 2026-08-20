@@ -85,3 +85,41 @@ test('normaliza contactos nacionais e internacionais para tel:', () => {
   assert.equal(nextClientCall.normalizePhone('912 345 678 / 913 456 789'), '912345678');
   assert.equal(nextClientCall.normalizePhone('1234'), '');
 });
+
+test('a sugestão de chamada é só do serviço móvel', () => {
+  // Na loja o cliente vem ter com o técnico: a pergunta não tem destinatário.
+  assert.equal(nextClientCall.podeSugerirChamada('sm'), true);
+  assert.equal(nextClientCall.podeSugerirChamada('SM'), true);
+  assert.equal(nextClientCall.podeSugerirChamada('loja'), false);
+  assert.equal(nextClientCall.podeSugerirChamada('mycar'), false);
+  assert.equal(nextClientCall.podeSugerirChamada('pesados'), false);
+  assert.equal(nextClientCall.podeSugerirChamada('recalibra'), false);
+});
+
+test('sem tipo definido vale sm, como em applyPortalConfig', () => {
+  // Um portal SM cujo registo não tem portal_type continua a receber a
+  // sugestão — é esse o valor por omissão que a aplicação usa.
+  assert.equal(nextClientCall.podeSugerirChamada(undefined), true);
+  assert.equal(nextClientCall.podeSugerirChamada(''), true);
+  assert.equal(nextClientCall.podeSugerirChamada(null), true);
+});
+
+test('num portal de loja não se chega sequer a capturar contexto', () => {
+  // Guarda ponta-a-ponta: é capture() que os dois sítios que marcam o serviço
+  // chamam, por isso é aqui que a caixa tem de deixar de nascer.
+  const portalAnterior = globalThis.portalConfig;
+  const agendaAnterior = globalThis.appointments;
+  const servicos = [appt('atual'), appt('seguinte', { sortIndex: 2 })];
+  globalThis.appointments = servicos;
+  try {
+    globalThis.portalConfig = { portalType: 'loja' };
+    assert.equal(nextClientCall.capture(servicos[0]), null);
+    assert.equal(nextClientCall.offer({ currentId: 'atual', date: '2026-08-02', orderedIds: ['atual', 'seguinte'], snapshots: servicos }), false);
+
+    globalThis.portalConfig = { portalType: 'sm' };
+    assert.notEqual(nextClientCall.capture(servicos[0]), null);
+  } finally {
+    globalThis.portalConfig = portalAnterior;
+    globalThis.appointments = agendaAnterior;
+  }
+});

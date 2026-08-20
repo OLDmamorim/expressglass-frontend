@@ -7,6 +7,19 @@
 })(typeof window !== 'undefined' ? window : globalThis, function (root) {
   'use strict';
 
+  // Só o serviço móvel anda de cliente em cliente, e só aí faz sentido sugerir
+  // a chamada seguinte. Numa loja o cliente vem ter com o técnico: a pergunta
+  // não tem destinatário e só atrapalha quem está a fechar o serviço.
+  const PORTAIS_COM_CHAMADA = ['sm'];
+
+  // Sem tipo definido é 'sm', o mesmo que applyPortalConfig assume. Se aqui se
+  // usasse outro valor por omissão, um portal SM ainda sem configuração lida
+  // ficava sem a sugestão e ninguém perceberia porquê.
+  function podeSugerirChamada(portalType) {
+    const tipo = String(portalType || 'sm').toLowerCase();
+    return PORTAIS_COM_CHAMADA.indexOf(tipo) >= 0;
+  }
+
   function normalizeDate(value) {
     return value ? String(value).slice(0, 10) : '';
   }
@@ -174,14 +187,20 @@
     return phone ? { appointment, phone } : null;
   }
 
+  function portalAtual() {
+    return root.portalConfig && root.portalConfig.portalType;
+  }
+
   function capture(currentAppointment) {
+    if (!podeSugerirChamada(portalAtual())) return null;
+
     let isStore = false;
     try {
       isStore = typeof root.isLoja === 'function' ? !!root.isLoja() : false;
     } catch (error) {}
 
     return buildContext(currentAppointment, root.appointments || [], {
-      portalType: root.portalConfig && root.portalConfig.portalType,
+      portalType: portalAtual(),
       isStore,
       renderedIds: readRenderedOrder(currentAppointment && currentAppointment.id)
     });
@@ -227,6 +246,10 @@
   }
 
   function offer(context) {
+    // Segunda barreira: um contexto capturado antes de se trocar de portal não
+    // pode fazer aparecer a caixa onde ela não pertence.
+    if (!podeSugerirChamada(portalAtual())) return false;
+
     const target = getCallTarget(context, root.appointments || []);
     if (!target) return false;
     const modal = ensureModal();
@@ -266,6 +289,7 @@
     isHandled,
     normalizePhone,
     offer,
+    podeSugerirChamada,
     sortDailyAppointments
   };
 });
