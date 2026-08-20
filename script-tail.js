@@ -1039,6 +1039,9 @@ function _syncCompSalesFaturadoVisibility() {
 async function _silentRefreshAppointments() {
   if (!window.apiClient?.getAppointments) return;
   try {
+    var resumoAntes = window.appointmentsSync
+      ? window.appointmentsSync.resumoAgendamentos(window.appointments || [])
+      : null;
     var fresh = await window.apiClient.getAppointments();
     fresh.forEach(function(a) {
       if (a.date) a.date = String(a.date).slice(0, 10);
@@ -1054,6 +1057,18 @@ async function _silentRefreshAppointments() {
     fresh.forEach(function(a) { appointments.push(a); });
     window.appointments = appointments;
     _updateVendasComplBadge();
+
+    // Trocar os dados não chega: sem redesenhar, o ✓ que o coordenador marcou
+    // no telemóvel dele só aparecia aqui quando alguém mexia em alguma coisa.
+    // Só se redesenha quando algo à vista mudou, e nunca por cima de uma caixa
+    // aberta ou de quem está a escrever — nesse caso fica para a volta
+    // seguinte, que continua a ver a diferença.
+    if (resumoAntes !== null && typeof renderAll === 'function') {
+      var resumoDepois = window.appointmentsSync.resumoAgendamentos(appointments);
+      if (resumoDepois !== resumoAntes && !window.appointmentsSync.interfaceOcupada()) {
+        renderAll();
+      }
+    }
   } catch(e) { /* silent */ }
 }
 
@@ -2717,8 +2732,16 @@ document.addEventListener('DOMContentLoaded', function() {
   // Also check once on initial load after appointments are available
   setTimeout(checkNotifications, 3000);
   setTimeout(_updateVendasComplBadge, 3500);
-  // Poll every 90s to keep badge live when others add comp sales
-  setInterval(_silentRefreshAppointments, 90000);
+  // De 45 em 45 segundos. Agora que a recarga redesenha o quadro, este é o
+  // tempo máximo que alguém espera para ver o "realizado" marcado noutro
+  // dispositivo — noventa segundos era demasiado para trabalho de dia a dia.
+  setInterval(_silentRefreshAppointments, 45000);
+
+  // Voltar ao separador é o momento em que se olha para o quadro à procura de
+  // novidades. Esperar pela volta seguinte era a espera mais visível de todas.
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) _silentRefreshAppointments();
+  });
 })();
 
 // ===== Filter bar logic =====
