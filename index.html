@@ -1886,6 +1886,21 @@
 
   function _step1() { renderStep1(); }
 
+  // Pesquisa usando o que estiver nos campos de correção. Antes, o botão
+  // "Tentar novamente" chamava _step1() e recomeçava o scan, deitando fora a
+  // correção que o utilizador acabara de escrever.
+  function _searchCorrected() {
+    const ec = (document.getElementById('grFallbackEuro')?.value || '').trim() || null;
+    const or = (document.getElementById('grFallbackOrder')?.value || '').trim() || null;
+    const pl = (document.getElementById('grFallbackPlate')?.value || '').replace(/\s/g, '') || null;
+    if (!ec && !or && !pl) {
+      const aviso = document.getElementById('grFallbackHint');
+      if (aviso) aviso.style.display = 'block';
+      return;
+    }
+    _doSearch(or, ec, window._grFallbackRaw || '', null, pl);
+  }
+
   async function _doSearch(orderRef, eurocode, rawText, photoBase64, plate, allEurocodes, skipEcSelection) {
     window._grLastSearchArgs = { orderRef, eurocode, rawText, photoBase64, plate, allEurocodes, skipEcSelection: true };
     if (!skipEcSelection) window._grLabelSelectedEurocodes = null;
@@ -2064,6 +2079,7 @@
       const safeEuro = (eurocode||'').replace(/'/g,"\\'");
       window._grOrphanOrderRef = orderRef || null;
       window._grOrphanEurocode = eurocode || null;
+      window._grFallbackRaw = (rawText || '').substring(0, 200);
       body.innerHTML = infoHtml + `
         <p style="color:#ef4444;font-weight:600;text-align:center;margin:16px 0;">Nenhum processo encontrado com estes dados.</p>
         <div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:10px;padding:14px;margin-bottom:12px;">
@@ -2085,19 +2101,16 @@
               <input id="grFallbackPlate" type="text" placeholder="ex: 64-95-TC" maxlength="8"
                 style="flex:1;padding:10px 12px;border:2px solid #fbbf24;border-radius:8px;font-size:14px;font-weight:700;font-family:monospace;text-transform:uppercase;outline:none;"
                 oninput="this.value=this.value.toUpperCase()">
-              <button onclick="(function(){
-                  var ec=document.getElementById('grFallbackEuro')?.value?.trim()||null;
-                  var or=document.getElementById('grFallbackOrder')?.value?.trim()||null;
-                  var pl=document.getElementById('grFallbackPlate')?.value?.replace(/\\s/g,'')||null;
-                  if(ec||or||pl) window.glassReception._doSearch(or,ec,'${safeRaw}',null,pl||null);
-                })()"
+              <button onclick="window.glassReception._searchCorrected()"
                 style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
                 Procurar
               </button>
             </div>
           </div>
+          <p id="grFallbackHint" style="display:none;font-size:11px;font-weight:700;color:#b91c1c;margin:8px 0 0;">Preenche pelo menos um dos campos acima.</p>
         </div>
-        <button onclick="window.glassReception._step1()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;width:100%;margin-bottom:10px;">← Tentar novamente</button>
+        <button onclick="window.glassReception._searchCorrected()" style="background:#0f172a;color:#fff;border:none;border-radius:8px;padding:12px 20px;cursor:pointer;font-weight:800;width:100%;margin-bottom:8px;">🔄 Procurar com os dados corrigidos</button>
+        <button onclick="window.glassReception._step1()" style="background:#e2e8f0;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;width:100%;margin-bottom:10px;">📷 Repetir a fotografia</button>
         <div style="border-top:1px solid #e2e8f0;padding-top:10px;">
           <button onclick="window.glassReception._showOrphanConfirm()" style="width:100%;background:#f59e0b;color:#fff;border:none;border-radius:8px;padding:11px 16px;font-size:13px;font-weight:700;cursor:pointer;">
             📦 Rececionar sem processo associado
@@ -4628,7 +4641,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _retryLastSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _loadCoordList, _associatePending, _reanalysePending, _markReceived, _rejectReception, _updateBulkSelection, _toggleAllReceptionSelection, _deleteSelectedReceptions, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT, _checkGlassAlerts, _checkPhcReminder };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _retryLastSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _loadCoordList, _associatePending, _reanalysePending, _markReceived, _rejectReception, _updateBulkSelection, _toggleAllReceptionSelection, _deleteSelectedReceptions, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT, _checkGlassAlerts, _checkPhcReminder, _searchCorrected };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
