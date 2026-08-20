@@ -86,13 +86,14 @@ test('normaliza contactos nacionais e internacionais para tel:', () => {
   assert.equal(nextClientCall.normalizePhone('1234'), '');
 });
 
-test('a sugestão de chamada é só do serviço móvel', () => {
-  // Na loja o cliente vem ter com o técnico: a pergunta não tem destinatário.
+test('a sugestão de chamada é de quem anda na estrada', () => {
+  // Serviço móvel, de ligeiros e de pesados: há sempre um cliente seguinte.
   assert.equal(nextClientCall.podeSugerirChamada('sm'), true);
   assert.equal(nextClientCall.podeSugerirChamada('SM'), true);
+  assert.equal(nextClientCall.podeSugerirChamada('pesados'), true);
+  // Na loja o cliente vem ter com o técnico: a pergunta não tem destinatário.
   assert.equal(nextClientCall.podeSugerirChamada('loja'), false);
   assert.equal(nextClientCall.podeSugerirChamada('mycar'), false);
-  assert.equal(nextClientCall.podeSugerirChamada('pesados'), false);
   assert.equal(nextClientCall.podeSugerirChamada('recalibra'), false);
 });
 

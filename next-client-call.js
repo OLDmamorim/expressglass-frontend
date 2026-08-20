@@ -7,10 +7,11 @@
 })(typeof window !== 'undefined' ? window : globalThis, function (root) {
   'use strict';
 
-  // Só o serviço móvel anda de cliente em cliente, e só aí faz sentido sugerir
-  // a chamada seguinte. Numa loja o cliente vem ter com o técnico: a pergunta
-  // não tem destinatário e só atrapalha quem está a fechar o serviço.
-  const PORTAIS_COM_CHAMADA = ['sm'];
+  // Só quem anda de cliente em cliente é que tem um cliente seguinte para
+  // avisar — o serviço móvel, ligeiros e pesados. Numa loja o cliente vem ter
+  // com o técnico: a pergunta não tem destinatário e só atrapalha quem está a
+  // fechar o serviço.
+  const PORTAIS_COM_CHAMADA = ['sm', 'pesados'];
 
   // Sem tipo definido é 'sm', o mesmo que applyPortalConfig assume. Se aqui se
   // usasse outro valor por omissão, um portal SM ainda sem configuração lida
