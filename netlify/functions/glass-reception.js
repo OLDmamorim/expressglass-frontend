@@ -596,11 +596,43 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: invRows }) };
       }
 
+      // ── Fotografias de um registo (carregadas a pedido) ─────────────────────
+      if (p.photos) {
+        const photoId = parseInt(p.photos, 10);
+        if (!photoId) return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'ID inválido' }) };
+        const { rows: phRows } = await client.query(
+          `SELECT id, portal_id, label_photo, damage_photos FROM glass_receptions WHERE id = $1`,
+          [photoId]
+        );
+        if (!phRows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Registo não encontrado' }) };
+        const rec = phRows[0];
+        if (user.role !== 'admin') {
+          const allowed = await getAccessiblePortalIds(client, user, true);
+          if (!allowed.includes(Number(rec.portal_id))) {
+            return { statusCode: 403, headers, body: JSON.stringify({ success: false, error: 'Sem permissão' }) };
+          }
+        }
+        return { statusCode: 200, headers, body: JSON.stringify({
+          success: true,
+          data: { id: rec.id, label_photo: rec.label_photo || null, damage_photos: rec.damage_photos || [] }
+        })};
+      }
+
       // ── Returns query (is_return=true, filtered by reason) ───────────────────
       if (p.returns) {
         const isErradoGroup = p.returns === 'errado_cancelado';
+        // Nunca devolver as fotografias na listagem: sao base64 e faziam a
+        // resposta ultrapassar o limite de 6 MB da lambda ("Response payload
+        // size exceeded"). Vao so as contagens; as imagens seguem a pedido.
         let rq = `
-          SELECT gr.*, po.name AS portal_label,
+          SELECT gr.id, gr.appointment_id, gr.order_ref, gr.eurocode,
+                 gr.raw_label_text, gr.technician_id, gr.technician_name,
+                 gr.portal_id, gr.portal_name, gr.status, gr.created_at,
+                 gr.updated_at, gr.is_return, gr.return_reason, gr.carrier_guide,
+                 (gr.label_photo IS NOT NULL) AS has_label_photo,
+                 CASE WHEN jsonb_typeof(gr.damage_photos) = 'array'
+                      THEN jsonb_array_length(gr.damage_photos) ELSE 0 END AS damage_photo_count,
+                 po.name AS portal_label,
                  a.plate AS apt_plate, a.car AS apt_car
           FROM glass_receptions gr
           LEFT JOIN portals po      ON po.id = gr.portal_id

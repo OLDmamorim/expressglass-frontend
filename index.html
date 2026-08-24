@@ -3219,6 +3219,45 @@
     }
   }
 
+  // As fotografias já não vêm na listagem (rebentavam o limite de 6 MB da
+  // resposta). Vão-se buscar por registo, só quando são precisas.
+  async function _ensureReturnPhotos(id) {
+    const r = window._grReturnItemsMap?.[id];
+    if (!r) return null;
+    if (r._photosLoaded) return r;
+    const res = await fetch(API + '/glass-reception?photos=' + id, { headers: authHeaders() });
+    const raw = await res.text();
+    let j = null;
+    try { j = JSON.parse(raw); } catch (_) {}
+    if (!j || !j.success) {
+      throw new Error((j && (j.error || j.message || j.errorMessage)) || `HTTP ${res.status} — ${raw.slice(0, 120)}`);
+    }
+    r.label_photo = j.data.label_photo;
+    r.damage_photos = j.data.damage_photos;
+    r._photosLoaded = true;
+    return r;
+  }
+
+  async function _showReturnPhotos(id) {
+    const box = document.getElementById('grPhotos' + id);
+    if (!box) return;
+    box.innerHTML = '<span style="font-size:12px;color:#64748b;">A carregar fotografias…</span>';
+    try {
+      const r = await _ensureReturnPhotos(id);
+      const photos = _parsePhotos(r.damage_photos);
+      const label = r.label_photo
+        ? `<img src="data:image/jpeg;base64,${r.label_photo}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:2px solid #0f172a;cursor:pointer;" onclick="window.open('data:image/jpeg;base64,${r.label_photo}','_blank')">`
+        : '';
+      box.innerHTML = (label || photos.length)
+        ? `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">${label}` +
+          photos.map(b64 => `<img src="data:image/jpeg;base64,${b64}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:2px solid #dc2626;cursor:pointer;" onclick="window.open('data:image/jpeg;base64,${b64}','_blank')">`).join('') +
+          `</div>`
+        : '<span style="font-size:12px;color:#64748b;">Sem fotografias.</span>';
+    } catch (e) {
+      box.innerHTML = `<span style="font-size:12px;color:#dc2626;">Erro ao carregar fotografias: ${_grEscapeHtml(e.message)}</span>`;
+    }
+  }
+
   function _parsePhotos(raw) {
     if (Array.isArray(raw)) return raw;
     if (!raw) return [];
@@ -3246,12 +3285,14 @@
     items.forEach(r => { window._grReturnItemsMap[r.id] = r; });
 
     content.innerHTML = `<p style="font-size:12px;color:#64748b;margin-bottom:10px;">${items.length} registo${items.length !== 1 ? 's' : ''}</p>` + items.map(r => {
-      const photos = _parsePhotos(r.damage_photos);
-      const labelThumb = r.label_photo ? `<img src="data:image/jpeg;base64,${r.label_photo}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:2px solid #0f172a;flex-shrink:0;">` : '';
-      const damageThumbsHtml = photos.length ? `
+      const nPhotos = Number(r.damage_photo_count || 0) + (r.has_label_photo ? 1 : 0);
+      const damageThumbsHtml = nPhotos ? `
         <div style="margin-top:8px;">
-          <div style="font-size:11px;font-weight:700;color:#dc2626;margin-bottom:4px;">📸 Fotos do dano (${photos.length}):</div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px;">${photos.map(b64 => `<img src="data:image/jpeg;base64,${b64}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:2px solid #dc2626;cursor:pointer;" onclick="window.open('data:image/jpeg;base64,${b64}','_blank')">`).join('')}</div>
+          <button onclick="window.glassReception._showReturnPhotos(${r.id})"
+            style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:#334155;cursor:pointer;">
+            📸 Ver fotografias (${nPhotos})
+          </button>
+          <div id="grPhotos${r.id}" style="margin-top:8px;"></div>
         </div>` : '';
       const orderInfo = (r.order_ref || r.carrier_guide) ? `
         <div style="display:flex;gap:12px;font-size:12px;flex-wrap:wrap;margin-top:4px;">
@@ -3267,7 +3308,6 @@
       return `
       <div id="grRow${r.id}" style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:10px;background:#fff;">
         <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
-          ${labelThumb}
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
               <span style="font-family:monospace;font-weight:800;font-size:14px;background:#0f172a;color:#fff;padding:3px 10px;border-radius:6px;">${(r.eurocode || '—').toUpperCase()}</span>
@@ -3386,11 +3426,12 @@
     } catch (_) {}
   }
 
-  function _printReturn(id) {
+  async function _printReturn(id) {
     const r = window._grReturnItemsMap?.[id];
     if (!r) return;
     const reasonLabels = { errado: 'Errado', desistencia: 'Desistência', outro: 'Outro', partido: 'Danificado', errado_cancelado: 'Errado / Cancelado' };
     const reasonText = reasonLabels[r.return_reason] || r.return_reason || '—';
+    try { await _ensureReturnPhotos(id); } catch (_) { /* imprime sem fotos */ }
     const photos = _parsePhotos(r.damage_photos);
     const photoHtml = photos.length ? photos.map(b64 =>
       `<img src="data:image/jpeg;base64,${b64}" style="width:120px;height:120px;object-fit:cover;border:1px solid #ccc;border-radius:4px;">`
@@ -4641,7 +4682,7 @@
     });
   }
 
-  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _retryLastSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _loadCoordList, _associatePending, _reanalysePending, _markReceived, _rejectReception, _updateBulkSelection, _toggleAllReceptionSelection, _deleteSelectedReceptions, _reportAxial, _reportAxialErrado, _printReturn, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT, _checkGlassAlerts, _checkPhcReminder, _searchCorrected };
+  window.glassReception = { openScan, closeScan, openCoordPanel, closeCoord, _renderChoice, _renderReturnChoice, _renderReturnEurocode, _selectSubReason, _selectGlassType, _onReturnLabel, _onDamagePhoto, _removeDamagePhoto, _submitReturn, _onPhoto, _manualSearch, _step1, _doSearch, _retryLastSearch, _toggleStoreFilter, _showConfirm, _confirmReception, _showOrphanConfirm, _confirmOrphanReception, _loadCoordList, _associatePending, _reanalysePending, _markReceived, _rejectReception, _updateBulkSelection, _toggleAllReceptionSelection, _deleteSelectedReceptions, _reportAxial, _reportAxialErrado, _printReturn, _showReturnPhotos, _retryReturnSearch, _doReturnSearch, _confirmReturnMatch, _rejectReturnMatch, _selectReturnPortal, _loadInventory, _devolvido, _deleteReturn, _switchTab, _loadHistory, _exportCSV, _printHistory, _dismissAlert, _listPhcItems, _printPhcList, _checkPhcStock, _deleteReception, _requestClose, _loadCloseRequests, _processCloseRequest, _handleProcessClose, _backfillCache, _exportInventoryCSV, _printInventory, _loadSettings, _setAutoReceive, _printLabel, _doPrintLabel, _printLabelBluetooth, _printLabelRawBT, _checkGlassAlerts, _checkPhcReminder, _searchCorrected };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', _initVisibility);
