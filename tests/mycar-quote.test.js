@@ -141,6 +141,23 @@ test('recupera a cotação do reply mais recente para o processo existente', () 
   assert.equal(selected.meta.gmailMessageId, 'reply-184');
 });
 
+test('ignora mensagens da conversa que não contêm qualquer cotação', () => {
+  const selected = selectLatestQuoteMessage([
+    {
+      date: '2026-09-01T14:45:00Z',
+      body: 'Podem avançar, serviço a realizar no mcc.',
+      tableRows: []
+    },
+    {
+      date: '2026-09-01T11:30:00Z',
+      tableRows: parseTableHtml(bu68ReplyHtml)
+    }
+  ], 'BU-68-AX');
+
+  assert.equal(selected.quote.valor, 192);
+  assert.equal(selected.quote.eurocode, '3593LYPE5RWZ');
+});
+
 test('o sweep consolida a cotação antes de marcar o reply como processado', () => {
   const source = fs.readFileSync(
     path.join(__dirname, '../netlify/functions/mycar-gmail-poller.js'),
