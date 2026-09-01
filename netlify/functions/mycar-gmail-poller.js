@@ -504,46 +504,89 @@ function fetchMessagesForPendingService(imap, service) {
 }
 
 async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN) {
-  const candidates = await getPendingReplySweepCandidates(client, limit);
-  const stats = { scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0, errors: 0 };
+  let candidates;
+  try {
+    candidates = await getPendingReplySweepCandidates(client, limit);
+  } catch (error) {
+    error.reanalysisStage = 'candidates';
+    throw error;
+  }
+  const stats = {
+    scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0,
+    errors: 0, messageErrors: 0, errorStages: {}
+  };
   if (candidates.length === 0) return stats;
 
-  const imap = await connectReadOnlyInbox();
+  let imap;
   try {
+    imap = await connectReadOnlyInbox();
+  } catch (error) {
+    error.reanalysisStage = 'connect';
+    throw error;
+  }
+  try {
+    let reconnectUsed = false;
     for (const service of candidates) {
+      let stage = 'fetch';
       try {
+        stats.scanned++;
         const target = String(service.matricula).toUpperCase().replace(/[^A-Z0-9]/g, '');
-        const emails = await fetchMessagesForPendingService(imap, service);
-        const messages = emails
-          .map(email => {
+        let emails;
+        try {
+          emails = await fetchMessagesForPendingService(imap, service);
+        } catch (firstError) {
+          if (reconnectUsed) throw firstError;
+          reconnectUsed = true;
+          stage = 'reconnect';
+          try { imap.end(); } catch (_) {}
+          imap = await connectReadOnlyInbox();
+          stage = 'fetch_retry';
+          emails = await fetchMessagesForPendingService(imap, service);
+        }
+        stage = 'messages';
+        const messages = emails.flatMap(email => {
+          try {
             const text = emailText(email);
             const myCarBody = extractMyCarMessageBody({ ...email, text });
-            return {
-              email,
-              text,
-              myCarBody,
-              subjectMatches: String(email.subject || '').toUpperCase().replace(/[^A-Z0-9]/g, '').includes(target)
-            };
-          })
-          .filter(item => item.myCarBody && item.subjectMatches)
-          .map(({ email, text, myCarBody }) => {
-            const htmlRows = email.html ? parseTableHtml(email.html) : [];
-            const textRows = parseQuoteText(text, service.matricula);
-            return {
+            const subjectMatches = String(email.subject || '')
+              .toUpperCase().replace(/[^A-Z0-9]/g, '').includes(target);
+            if (!myCarBody || !subjectMatches) return [];
+
+            const rows = [];
+            try {
+              if (email.html) rows.push(...parseTableHtml(email.html));
+            } catch (error) {
+              stats.messageErrors++;
+              console.error(`⚠️ HTML da resposta ${service.matricula} inválido:`, error.message);
+            }
+            try {
+              rows.push(...parseQuoteText(text, service.matricula));
+            } catch (error) {
+              stats.messageErrors++;
+              console.error(`⚠️ Texto da resposta ${service.matricula} inválido:`, error.message);
+            }
+
+            return [{
               date: email.date,
               body: cleanEmailBody(myCarBody),
               meta: extractThreadMeta(email, email._imapAttrs || {}, email._imapUid),
-              tableRows: consolidateQuoteRows([...htmlRows, ...textRows], service.matricula)
-            };
+              tableRows: consolidateQuoteRows(rows, service.matricula)
+            }];
+          } catch (error) {
+            stats.messageErrors++;
+            console.error(`⚠️ Resposta ${service.matricula} ignorada:`, error.message);
+            return [];
+          }
           });
+        stage = 'decision';
         const decision = latestExplicitAdvanceInstruction(messages, service.email_received_at);
         const quoteMessage = selectLatestQuoteMessage(messages, service.matricula);
-        stats.scanned++;
 
         // A resposta da MyCar costuma citar o nosso email anterior, onde está
         // a tabela da cotação. Consolidamos esses dados ANTES de marcar o
         // reply como processado, para o visto verde nunca deixar o card vazio.
         if (quoteMessage) {
+          stage = 'quote_update';
           const quote = quoteMessage.quote;
           const meta = quoteMessage.meta || {};
           const quoteDateValue = new Date(quoteMessage.date);
@@ -594,6 +637,7 @@ async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN)
         }
         if (decision?.action !== 'autorizar') continue;
 
+        stage = 'authorization_update';
         const reason = 'A MyCar deu autorização explícita para avançar.';
         const stamp = new Date(decision.date).toLocaleString('pt-PT');
         const meta = decision.meta || {};
@@ -621,6 +665,7 @@ async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN)
         }
       } catch (error) {
         stats.errors++;
+        stats.errorStages[stage] = (stats.errorStages[stage] || 0) + 1;
         console.error(`⚠️ Reanálise direta ${service.matricula} falhou:`, error.message);
       }
     }
@@ -787,11 +832,16 @@ async function runPoller() {
     // Prioridade aos processos que o técnico ainda vê como pendentes. Assim,
     // uma resposta antiga como a do BU-23-JN é encontrada pelo assunto da
     // própria matrícula, sem ficar à espera do replay geral de toda a caixa.
-    let replySweep = { scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0, errors: 0 };
+    let replySweep = {
+      scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0,
+      errors: 0, messageErrors: 0, errorStages: {}
+    };
     try {
       replySweep = await runPendingReplySweep(client);
     } catch (error) {
       replySweep.errors++;
+      const stage = error.reanalysisStage || 'start';
+      replySweep.errorStages[stage] = (replySweep.errorStages[stage] || 0) + 1;
       console.error('⚠️ Reanálise direta dos pendentes falhou:', error.message);
     }
 
@@ -811,7 +861,9 @@ async function runPoller() {
           autorizados: replySweep.authorized,
           detalhesRecuperados: replySweep.detailsRecovered,
           pendentesReanalisados: replySweep.scanned,
-          errosReanalise: replySweep.errors
+          errosReanalise: replySweep.errors,
+          emailsInvalidosReanalise: replySweep.messageErrors,
+          fasesErroReanalise: replySweep.errorStages
         }
       };
     }
@@ -822,6 +874,8 @@ async function runPoller() {
       inserted: 0, updated: 0, skipped: 0, duplicated: 0,
       htmlVazio: 0, atualizadosIA: 0, autorizados: replySweep.authorized,
       detalhesRecuperados: replySweep.detailsRecovered,
+      emailsInvalidosReanalise: replySweep.messageErrors,
+      fasesErroReanalise: replySweep.errorStages,
       cancelados: 0, erros: 0,
       pendentesReanalisados: replySweep.scanned,
       errosReanalise: replySweep.errors
