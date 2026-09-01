@@ -75,7 +75,7 @@ function indicadores(bruto) {
  * Cada portal traz o seu `powering_loja_id` já resolvido, para o PoweringEG
  * nunca precisar de saber o que é um portal.
  */
-function juntarPorPortal(portais, totais, tempos, motivos, comerciais) {
+function juntarPorPortal(portais, totais, tempos, motivos, comerciais, localidades, dias) {
   const porId = (linhas) => {
     const mapa = new Map();
     for (const linha of linhas || []) {
@@ -98,6 +98,8 @@ function juntarPorPortal(portais, totais, tempos, motivos, comerciais) {
   const temposPorId = porId(tempos);
   const motivosPorId = agrupar(motivos);
   const comerciaisPorId = agrupar(comerciais);
+  const localidadesPorId = agrupar(localidades);
+  const diasPorId = agrupar(dias);
 
   return (portais || []).map(portal => {
     const chave = String(portal.id);
@@ -120,9 +122,36 @@ function juntarPorPortal(portais, totais, tempos, motivos, comerciais) {
         horas: h.horas,
         diasRegistados: h.dias_registados,
       }),
+      // Um serviço por realizar sem motivo escrito não é um motivo — é uma
+      // falha de preenchimento, e vale a pena distingui-la, senão aparece
+      // "Sem motivo" no topo de todos os SMs e a coluna deixa de dizer nada.
       motivosNaoRealizacao: (motivosPorId.get(chave) || [])
-        .map(m => ({ motivo: m.motivo || 'Sem motivo', total: numero(m.total) }))
+        .filter(m => String(m.motivo || '').trim() !== '')
+        .map(m => ({ motivo: String(m.motivo).trim(), total: numero(m.total) }))
         .sort((a, b) => b.total - a.total),
+      semJustificacao: (motivosPorId.get(chave) || [])
+        .filter(m => String(m.motivo || '').trim() === '')
+        .reduce((soma, m) => soma + numero(m.total), 0),
+      porLocalidade: (localidadesPorId.get(chave) || [])
+        .map(l => ({
+          localidade: l.localidade || 'Sem localidade',
+          agendados: numero(l.agendados),
+          realizados: numero(l.realizados),
+          km: numero(l.km),
+          taxaRealizacao: racio(l.realizados, l.agendados),
+        }))
+        .sort((a, b) => b.agendados - a.agendados),
+      dias: (diasPorId.get(chave) || [])
+        .map(d => ({
+          data: d.data,
+          entrada: d.checkin_at || null,
+          saida: d.checkout_at || null,
+          horas: Math.round(numero(d.horas) * 100) / 100,
+          realizados: numero(d.realizados),
+          km: numero(d.km),
+          servicosPorHora: racio(d.realizados, d.horas),
+        }))
+        .sort((a, b) => String(a.data).localeCompare(String(b.data))),
       porComercial: (comerciaisPorId.get(chave) || [])
         .map(c => ({
           comercial: c.comercial || 'Sem comercial',

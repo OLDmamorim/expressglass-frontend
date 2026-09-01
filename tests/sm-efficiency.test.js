@@ -117,14 +117,13 @@ test('motivos e comerciais vêm do maior para o menor', () => {
   assert.ok(Math.abs(linha.porComercial[0].taxaRealizacao - 20 / 30) < 1e-9);
 });
 
-test('motivo e comercial em branco ficam nomeados, não vazios', () => {
+test('comercial em branco fica nomeado, não vazio', () => {
+  // O motivo em branco tem tratamento próprio — ver o teste do semJustificacao.
   const [linha] = juntarPorPortal(
     [{ id: 1, name: 'Braga SM', portal_type: 'sm', powering_loja_id: 10 }],
-    [], [],
-    [{ portal_id: 1, motivo: null, total: 4 }],
+    [], [], [],
     [{ portal_id: 1, comercial: null, agendados: 2, realizados: 1 }]
   );
-  assert.equal(linha.motivosNaoRealizacao[0].motivo, 'Sem motivo');
   assert.equal(linha.porComercial[0].comercial, 'Sem comercial');
 });
 
@@ -149,4 +148,78 @@ test('o powering_loja_id sai como número mesmo vindo como texto', () => {
 test('aguenta listas em falta sem rebentar', () => {
   assert.deepEqual(juntarPorPortal(undefined, undefined, undefined, undefined, undefined), []);
   assert.equal(juntarPorPortal([{ id: 1, name: 'X', portal_type: 'sm' }]).length, 1);
+});
+
+test('"sem motivo" não é um motivo — conta à parte', () => {
+  // Aparecia "Sem motivo" no topo de todos os SMs e a coluna deixava de dizer
+  // nada. O que ali está é falha de preenchimento, não uma causa.
+  const [linha] = juntarPorPortal(
+    [{ id: 1, name: 'Braga SM', portal_type: 'sm', powering_loja_id: 10 }],
+    [], [],
+    [
+      { portal_id: 1, motivo: null, total: 8 },
+      { portal_id: 1, motivo: 'Cliente ausente', total: 3 },
+      { portal_id: 1, motivo: '   ', total: 2 },
+    ],
+    [], [], []
+  );
+  assert.deepEqual(linha.motivosNaoRealizacao, [{ motivo: 'Cliente ausente', total: 3 }]);
+  assert.equal(linha.semJustificacao, 10, 'os nulos e os brancos somam-se');
+});
+
+test('sem nenhum motivo registado, a lista fica vazia e o contador conta', () => {
+  const [linha] = juntarPorPortal(
+    [{ id: 1, name: 'SM', portal_type: 'sm', powering_loja_id: 10 }],
+    [], [], [{ portal_id: 1, motivo: null, total: 4 }], [], [], []
+  );
+  assert.deepEqual(linha.motivosNaoRealizacao, []);
+  assert.equal(linha.semJustificacao, 4);
+});
+
+test('localidades vêm da mais movimentada para a menos', () => {
+  const [linha] = juntarPorPortal(
+    [{ id: 1, name: 'SM', portal_type: 'sm', powering_loja_id: 10 }],
+    [], [], [], [],
+    [
+      { portal_id: 1, localidade: 'Braga', agendados: 9, realizados: 8, km: 92 },
+      { portal_id: 1, localidade: 'Póvoa de Lanhoso', agendados: 13, realizados: 11, km: 516 },
+    ],
+    []
+  );
+  assert.deepEqual(linha.porLocalidade.map(l => l.localidade), ['Póvoa de Lanhoso', 'Braga']);
+  assert.ok(Math.abs(linha.porLocalidade[0].taxaRealizacao - 11 / 13) < 1e-9);
+});
+
+test('os dias saem por ordem cronológica, com o rácio de cada um', () => {
+  const [linha] = juntarPorPortal(
+    [{ id: 1, name: 'SM', portal_type: 'sm', powering_loja_id: 10 }],
+    [], [], [], [], [],
+    [
+      { portal_id: 1, data: '2026-08-05', checkin_at: '09:18', checkout_at: '17:38', horas: 7.33, realizados: 5, km: 141 },
+      { portal_id: 1, data: '2026-08-03', checkin_at: '09:12', checkout_at: '16:45', horas: 6.55, realizados: 1, km: 36 },
+    ]
+  );
+  assert.deepEqual(linha.dias.map(d => d.data), ['2026-08-03', '2026-08-05']);
+  assert.ok(Math.abs(linha.dias[0].servicosPorHora - 1 / 6.55) < 1e-9);
+});
+
+test('um dia sem horas não inventa serviços por hora', () => {
+  // Check-in sem check-out: as horas ficam a zero e o rácio não existe.
+  const [linha] = juntarPorPortal(
+    [{ id: 1, name: 'SM', portal_type: 'sm', powering_loja_id: 10 }],
+    [], [], [], [], [],
+    [{ portal_id: 1, data: '2026-08-03', checkin_at: '09:12', checkout_at: null, horas: null, realizados: 2, km: 0 }]
+  );
+  assert.equal(linha.dias[0].horas, 0);
+  assert.equal(linha.dias[0].servicosPorHora, null);
+  assert.equal(linha.dias[0].saida, null);
+});
+
+test('sem detalhe nenhum, as listas ficam vazias em vez de undefined', () => {
+  const [linha] = juntarPorPortal(
+    [{ id: 1, name: 'SM', portal_type: 'sm', powering_loja_id: 10 }], [], [], [], []
+  );
+  assert.deepEqual(linha.porLocalidade, []);
+  assert.deepEqual(linha.dias, []);
+  assert.equal(linha.semJustificacao, 0);
 });
