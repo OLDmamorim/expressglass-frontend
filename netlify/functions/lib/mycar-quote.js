@@ -45,6 +45,80 @@ function normalizeEurocode(value) {
   return text ? text.toUpperCase() : null;
 }
 
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function identifierRegex(value) {
+  const normalized = normalizePlate(value);
+  if (normalized.length === 6) {
+    const groups = [normalized.slice(0, 2), normalized.slice(2, 4), normalized.slice(4, 6)];
+    // Nas versões de texto do Outlook, a célula seguinte pode ficar colada à
+    // matrícula ("BU-68-AXSUBSTITUIÇÃO"), portanto não podemos exigir uma
+    // fronteira de palavra no fim. A validação do valor/serviço abaixo evita
+    // que a matrícula isolada do assunto seja interpretada como cotação.
+    return new RegExp(groups.map(escapeRegex).join('\\s*-?\\s*'), 'gi');
+  }
+  if (normalized.length === 17) return new RegExp(escapeRegex(normalized), 'gi');
+  return /\b(?:[A-Z0-9]{2}\s*-\s*[A-Z0-9]{2}\s*-\s*[A-Z0-9]{2}|[A-HJ-NPR-Z0-9]{17})\b/gi;
+}
+
+function cleanServiceDescription(value) {
+  let text = cleanCell(value)
+    .replace(/\s*>\s*/g, ' ')
+    .replace(/^(?:(?:servi[çc]o|descri[çc][aã]o)\s*:?\s*)+/i, '')
+    .replace(/\s*(?:valor|pre[çc]o)\s*:?\s*$/i, '')
+    .replace(/\s*(?:n[.º°o]?e?|notas?)\s*:?\s*$/i, '')
+    .replace(/^[|;:,\-]+|[|;:,\-]+$/g, '')
+    .trim();
+
+  if (text.length > 260) {
+    const starts = [...text.matchAll(/\b(?:substitui[çc][aã]o|repara[çc][aã]o|vidro|para-?brisas|[oó]culo|luneta)\b/gi)];
+    if (starts.length) text = text.slice(starts.at(-1).index).trim();
+  }
+
+  if (text.length > 260) return null;
+  return /substitui|repara|vidro|para-?brisas|[oó]culo|lateral|luneta|\/oem/i.test(text) ? text : null;
+}
+
+// O Outlook pode reenviar a cotação sem conservar as tags <table>. O
+// mailparser transforma então as células numa sequência de texto, por vezes
+// sem qualquer espaço ("MatrículaServiçoValor..."). Recuperamos a linha pela
+// matrícula e pelos marcadores fortes do valor/Eurocode.
+function parseQuoteText(text, fallbackPlate = null) {
+  const source = String(text || '').replace(/\u00a0/g, ' ').replace(/\r/g, '');
+  if (!source) return [];
+
+  const services = [];
+  const idRx = identifierRegex(fallbackPlate);
+  for (const match of source.matchAll(idRx)) {
+    const tail = source.slice((match.index || 0) + match[0].length, (match.index || 0) + match[0].length + 520);
+    // Também o valor pode ficar colado à descrição ("/OEM192,00").
+    const valueMatch = tail.match(/\d{1,3}(?:[.\s]\d{3})*[,.]\d{2}(?:\s*€)?/);
+    if (!valueMatch || valueMatch.index == null || valueMatch.index > 320) continue;
+
+    const descricao = cleanServiceDescription(tail.slice(0, valueMatch.index));
+    const afterValue = tail.slice(valueMatch.index + valueMatch[0].length, valueMatch.index + valueMatch[0].length + 220);
+    const starredCode = afterValue.match(/\*+\s*([A-Z0-9][A-Z0-9._/-]{6,30})/i);
+    const plainCode = afterValue.match(/\b(\d{4}[A-Z][A-Z0-9]{5,20})\b/i);
+    const eurocode = normalizeEurocode(starredCode?.[1] || plainCode?.[1] || null);
+
+    // Uma matrícula no assunto seguida, muito mais abaixo, por um valor não é
+    // uma linha da cotação. Exigimos descrição de serviço ou Eurocode forte.
+    if (!descricao && !eurocode) continue;
+
+    services.push({
+      matricula: fallbackPlate || cleanCell(match[0]).replace(/\s/g, '').toUpperCase(),
+      descricao,
+      valor: parseValor(valueMatch[0]),
+      eurocode,
+      ne: null
+    });
+  }
+
+  return consolidateQuoteRows(services, fallbackPlate);
+}
+
 function parseTableHtml(html) {
   if (!html) return [];
   const $ = cheerio.load(String(html));
@@ -170,6 +244,7 @@ module.exports = {
   parseValor,
   normalizeEurocode,
   parseTableHtml,
+  parseQuoteText,
   hasQuoteDetails,
   consolidateQuoteRows,
   pickQuoteForPlate,

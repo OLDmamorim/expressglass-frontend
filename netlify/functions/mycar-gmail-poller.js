@@ -31,6 +31,7 @@ const {
 const {
   parseValor,
   parseTableHtml,
+  parseQuoteText,
   hasQuoteDetails,
   consolidateQuoteRows,
   pickQuoteForPlate,
@@ -397,9 +398,10 @@ const THREAD_MESSAGES_PER_SERVICE = 12;
 // respetiva matrícula no Gmail e recupera ordens explícitas sem esperar que o
 // cursor histórico chegue à data da resposta.
 async function getPendingReplySweepCandidates(client, limit) {
-  // v2 começa pelos registos mais recentes e inclui os que já ficaram verdes
-  // mas sem a cotação. A versão anterior só procurava autorizações em falta.
-  const stateKey = 'pending_reply_sweep_cursor_v2';
+  // v3 força uma nova passagem depois de acrescentarmos a leitura das tabelas
+  // que o Outlook converte em texto. Damos prioridade aos registos que já
+  // ficaram verdes mas continuam sem a cotação, como o BU-68-AX.
+  const stateKey = 'pending_reply_sweep_cursor_v3';
   const cursor = await getStateInt(client, stateKey);
   const fields = `id, matricula, descricao, valor, eurocode,
                   email_received_at, advance_authorized_at`;
@@ -413,11 +415,16 @@ async function getPendingReplySweepCandidates(client, limit) {
       OR valor IS NULL
       OR NULLIF(TRIM(eurocode), '') IS NULL
     )`;
+  const priority = `(advance_authorized_at IS NOT NULL AND (
+      NULLIF(TRIM(descricao), '') IS NULL
+      OR valor IS NULL
+      OR NULLIF(TRIM(eurocode), '') IS NULL
+    )) DESC, id DESC`;
 
   const { rows: after } = await client.query(
     `SELECT ${fields} FROM mycar_services
       WHERE ${active} AND ($1::int = 0 OR id < $1)
-      ORDER BY id DESC LIMIT $2`,
+      ORDER BY ${priority} LIMIT $2`,
     [cursor, limit]
   );
 
@@ -426,7 +433,7 @@ async function getPendingReplySweepCandidates(client, limit) {
     const { rows: wrapped } = await client.query(
       `SELECT ${fields} FROM mycar_services
         WHERE ${active} AND id > $1
-        ORDER BY id DESC LIMIT $2`,
+        ORDER BY ${priority} LIMIT $2`,
       [cursor, limit - rows.length]
     );
     rows = rows.concat(wrapped);
@@ -513,17 +520,22 @@ async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN)
             const myCarBody = extractMyCarMessageBody({ ...email, text });
             return {
               email,
+              text,
               myCarBody,
               subjectMatches: String(email.subject || '').toUpperCase().replace(/[^A-Z0-9]/g, '').includes(target)
             };
           })
           .filter(item => item.myCarBody && item.subjectMatches)
-          .map(({ email, myCarBody }) => ({
-            date: email.date,
-            body: cleanEmailBody(myCarBody),
-            meta: extractThreadMeta(email, email._imapAttrs || {}, email._imapUid),
-            tableRows: email.html ? parseTableHtml(email.html) : []
-          }));
+          .map(({ email, text, myCarBody }) => {
+            const htmlRows = email.html ? parseTableHtml(email.html) : [];
+            const textRows = parseQuoteText(text, service.matricula);
+            return {
+              date: email.date,
+              body: cleanEmailBody(myCarBody),
+              meta: extractThreadMeta(email, email._imapAttrs || {}, email._imapUid),
+              tableRows: consolidateQuoteRows([...htmlRows, ...textRows], service.matricula)
+            };
+          });
         const decision = latestExplicitAdvanceInstruction(messages, service.email_received_at);
         const quoteMessage = selectLatestQuoteMessage(messages, service.matricula);
         stats.scanned++;
@@ -839,7 +851,10 @@ async function runPoller() {
       // Matrícula/VIN vem do ASSUNTO (fiável); os detalhes (serviço/valor/
       // eurocode) vêm da TABELA no corpo. Juntamos os dois.
       const subjId = extractIdFromSubject(subject);
-      const parsedTableRows = html ? parseTableHtml(html) : [];
+      const parsedTableRows = [
+        ...(html ? parseTableHtml(html) : []),
+        ...parseQuoteText(rawText, subjId)
+      ];
       const tableRows = consolidateQuoteRows(parsedTableRows, subjId);
       if (tableRows.length > 0) stats.withTable++;
 
@@ -1041,7 +1056,10 @@ function findServiceByMatricula(imap, matricula) {
         f.once('end', async () => {
           try {
             const parsed = await simpleParser(Buffer.concat(chunks));
-            const rows = parsed.html ? parseTableHtml(parsed.html) : [];
+            const rows = consolidateQuoteRows([
+              ...(parsed.html ? parseTableHtml(parsed.html) : []),
+              ...parseQuoteText(parsed.text || '', matricula)
+            ], matricula);
             if (rows.length) {
               const r = pickQuoteForPlate(rows, matricula) || consolidateQuoteRows(rows, matricula)[0];
               return resolve({
