@@ -131,6 +131,37 @@ exports.handler = async (event) => {
       args
     );
 
+    // Detalhe: onde é que o SM andou, e o que fez em cada dia. É o que se abre
+    // quando se olha para uma zona em particular; a lista geral não o usa, mas
+    // vem junto para não obrigar a uma segunda ida à rede — são poucas linhas.
+    const { rows: localidades } = await pool.query(
+      `SELECT portal_id,
+              COALESCE(NULLIF(TRIM(locality), ''), 'Sem localidade') AS localidade,
+              COUNT(*)                                  AS agendados,
+              COUNT(*) FILTER (WHERE executed = true)   AS realizados,
+              COALESCE(SUM(km), 0)                      AS km
+         FROM appointments
+        WHERE portal_id = ANY($1) AND date BETWEEN $2::date AND $3::date
+        GROUP BY portal_id, COALESCE(NULLIF(TRIM(locality), ''), 'Sem localidade')`,
+      args
+    );
+
+    const { rows: dias } = await pool.query(
+      `SELECT tc.portal_id,
+              tc.date::text                                                  AS data,
+              tc.checkin_at,
+              tc.checkout_at,
+              EXTRACT(EPOCH FROM (tc.checkout_at - tc.checkin_at)) / 3600.0  AS horas,
+              COUNT(a.id) FILTER (WHERE a.executed = true)                   AS realizados,
+              COALESCE(SUM(a.km) FILTER (WHERE a.executed = true), 0)        AS km
+         FROM team_checkins tc
+         LEFT JOIN appointments a ON a.portal_id = tc.portal_id AND a.date = tc.date
+        WHERE tc.portal_id = ANY($1) AND tc.date BETWEEN $2::date AND $3::date
+        GROUP BY tc.portal_id, tc.date, tc.checkin_at, tc.checkout_at
+        ORDER BY tc.date ASC`,
+      args
+    );
+
     return {
       statusCode: 200,
       headers,
@@ -139,7 +170,7 @@ exports.handler = async (event) => {
         // O fim devolvido é o efectivo, não o pedido: quem consome tem de saber
         // que período é que estes números cobrem.
         periodo: { de: dateFrom, ate },
-        sms: juntarPorPortal(portais, totais, tempos, motivos, comerciais),
+        sms: juntarPorPortal(portais, totais, tempos, motivos, comerciais, localidades, dias),
       }),
     };
   } catch (e) {
