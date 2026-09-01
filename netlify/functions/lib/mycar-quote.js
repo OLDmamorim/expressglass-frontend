@@ -178,7 +178,7 @@ function parseTableHtml(html) {
 }
 
 function hasQuoteDetails(row = {}) {
-  return Boolean(row.descricao || row.valor != null || row.eurocode);
+  return Boolean(row && (row.descricao || row.valor != null || row.eurocode));
 }
 
 // A primeira tabela no email é a cotação mais recente. Se a conversa incluir
