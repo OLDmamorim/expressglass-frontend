@@ -4,9 +4,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { simpleParser } = require('mailparser');
 const {
   parseValor,
   parseTableHtml,
+  parseQuoteText,
   consolidateQuoteRows,
   pickQuoteForPlate,
   selectLatestQuoteMessage
@@ -42,6 +44,64 @@ test('lê a cotação citada no reply real BU-68-AX', () => {
     eurocode: '3593LYPE5RWZ',
     ne: null
   }]);
+});
+
+test('lê a cotação quando o Outlook cola todas as células em texto', () => {
+  const text = `Bom dia,
+Podem avançar, serviço a realizar no mcc.
+
+MatrículaServiçoValorNeNotasBU-68-AXSUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQUERDO
+/OEM192,00
+€*3593LYPE5RWZ`;
+
+  assert.deepEqual(parseQuoteText(text, 'BU-68-AX'), [{
+    matricula: 'BU-68-AX',
+    descricao: 'SUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQUERDO /OEM',
+    valor: 192,
+    eurocode: '3593LYPE5RWZ',
+    ne: null
+  }]);
+});
+
+test('recupera a cotação após o mailparser converter o HTML do Outlook em texto', async () => {
+  const rawEmail = [
+    'From: Gestao Clientes <gestaoclientes@expressglass.pt>',
+    'To: orcamentacao@mycarcenter.pt',
+    'Subject: RE: BU-68-AX | WIP: 16801',
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    bu68ReplyHtml
+  ].join('\r\n');
+  const parsed = await simpleParser(Buffer.from(rawEmail));
+  const [quote] = parseQuoteText(parsed.text, 'BU-68-AX');
+
+  assert.equal(quote.descricao, 'SUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQUERDO /OEM');
+  assert.equal(quote.valor, 192);
+  assert.equal(quote.eurocode, '3593LYPE5RWZ');
+});
+
+test('lê a cotação quando o Outlook separa as células por linhas', () => {
+  const text = `Matrícula
+BU-68-AX
+Serviço
+SUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQUERDO /OEM
+Valor
+192,00 €
+Ne
+Notas
+*3593LYPE5RWZ`;
+
+  const [quote] = parseQuoteText(text, 'BU68AX');
+  assert.equal(quote.descricao, 'SUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQUERDO /OEM');
+  assert.equal(quote.valor, 192);
+  assert.equal(quote.eurocode, '3593LYPE5RWZ');
+});
+
+test('não confunde uma matrícula isolada no assunto com uma cotação', () => {
+  const text = `RE: BU-68-AX | WIP: 16801\n\nBom dia, podem avançar.\n${'texto '.repeat(90)}192,00 €`;
+  assert.deepEqual(parseQuoteText(text, 'BU-68-AX'), []);
 });
 
 test('interpreta valores portugueses com e sem separador de milhares', () => {
@@ -94,4 +154,6 @@ test('o sweep consolida a cotação antes de marcar o reply como processado', ()
   assert.ok(sweep.indexOf('selectLatestQuoteMessage') < sweep.indexOf('markMessageProcessed'));
   assert.match(source, /processed:\s*replySweep\.authorized\s*\+\s*replySweep\.detailsRecovered/);
   assert.match(source, /advance_authorized_at IS NULL[\s\S]*?NULLIF\(TRIM\(eurocode\), ''\) IS NULL/);
+  assert.match(source, /pending_reply_sweep_cursor_v3/);
+  assert.match(source, /parseQuoteText\(text, service\.matricula\)/);
 });
