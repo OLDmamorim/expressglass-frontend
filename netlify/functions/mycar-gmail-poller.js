@@ -28,6 +28,14 @@ const {
   latestExplicitAdvanceInstruction,
   shouldAnalyzeAsFollowup
 } = require('./lib/mycar-email-thread');
+const {
+  parseValor,
+  parseTableHtml,
+  hasQuoteDetails,
+  consolidateQuoteRows,
+  pickQuoteForPlate,
+  selectLatestQuoteMessage
+} = require('./lib/mycar-quote');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -119,12 +127,6 @@ function extractWip(subject) {
   return m ? `WIP: ${m[1]}` : null;
 }
 
-function parseValor(str) {
-  if (!str) return null;
-  const v = parseFloat(str.replace(/[^\d,.-]/g, '').replace(',', '.'));
-  return isNaN(v) ? null : v;
-}
-
 // Extrai matrícula/VIN do assunto quando o email não traz tabela HTML
 // (encaminhados com os dados em imagem, ex.: "FW: BM-79-LI",
 //  "FW: BL-45-HM | WF0PXX...", "FW: M-049245//LSJW94393RG049245").
@@ -138,54 +140,6 @@ function extractIdFromSubject(subject) {
   const vin = s.match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
   if (vin) return vin[1];
   return null;
-}
-
-// Lê a tabela HTML do email (incluindo emails encaminhados/FW) e devolve array de serviços
-function parseTableHtml(html) {
-  if (!html) return [];
-  const $ = cheerio.load(html);
-  const services = [];
-
-  $('table').each((_, table) => {
-    const $rows = $(table).find('tr');
-    let headerRowIdx = -1;
-    let headers = [];
-
-    // Procura a linha de cabeçalho que contém "Matrícula" — pode não ser a primeira linha
-    $rows.each((rowIdx, row) => {
-      const cells = $(row).find('th, td').map((_, c) => $(c).text().trim().toLowerCase()).get();
-      if (cells.some(h => /matr[ií]cula/i.test(h))) {
-        headerRowIdx = rowIdx;
-        headers = cells;
-        return false; // break
-      }
-    });
-
-    if (headerRowIdx < 0) return; // tabela sem coluna Matrícula
-
-    const matIdx = headers.findIndex(h => /matr[ií]cula/i.test(h));
-    const svcIdx = headers.findIndex(h => /servi[çc]o|descri[çc][aã]o/i.test(h));
-    const valIdx = headers.findIndex(h => /valor/i.test(h));
-    const neIdx  = headers.findIndex(h => /^ne$/i.test(h));
-    const notIdx = headers.findIndex(h => /notas?/i.test(h));
-
-    $rows.slice(headerRowIdx + 1).each((_, row) => {
-      const cells = $(row).find('td').map((_, c) => $(c).text().trim()).get();
-      if (cells.length < 2) return;
-      const mat = cells[matIdx]?.replace(/\s/g, '').toUpperCase();
-      if (!mat || mat.length < 4) return;
-
-      services.push({
-        matricula: mat,
-        descricao: svcIdx >= 0 ? (cells[svcIdx] || null) : null,
-        valor:     valIdx >= 0 ? parseValor(cells[valIdx]) : null,
-        eurocode:  notIdx >= 0 ? (cells[notIdx] || null) : null,
-        ne:        neIdx  >= 0 ? (cells[neIdx]  || null) : null,
-      });
-    });
-  });
-
-  return services;
 }
 
 // Extrai o texto útil do email — remove headers de FW, assinaturas e linhas de tabela
@@ -443,19 +397,27 @@ const THREAD_MESSAGES_PER_SERVICE = 12;
 // respetiva matrícula no Gmail e recupera ordens explícitas sem esperar que o
 // cursor histórico chegue à data da resposta.
 async function getPendingReplySweepCandidates(client, limit) {
-  const stateKey = 'pending_reply_sweep_cursor_v1';
+  // v2 começa pelos registos mais recentes e inclui os que já ficaram verdes
+  // mas sem a cotação. A versão anterior só procurava autorizações em falta.
+  const stateKey = 'pending_reply_sweep_cursor_v2';
   const cursor = await getStateInt(client, stateKey);
-  const fields = `id, matricula, email_received_at, advance_authorized_at`;
+  const fields = `id, matricula, descricao, valor, eurocode,
+                  email_received_at, advance_authorized_at`;
   const active = `status IN ('pendente', 'encomendado')
-    AND advance_authorized_at IS NULL
     AND matricula IS NOT NULL
     AND email_received_at IS NOT NULL
-    AND email_received_at >= NOW() - INTERVAL '45 days'`;
+    AND email_received_at >= NOW() - INTERVAL '45 days'
+    AND (
+      advance_authorized_at IS NULL
+      OR NULLIF(TRIM(descricao), '') IS NULL
+      OR valor IS NULL
+      OR NULLIF(TRIM(eurocode), '') IS NULL
+    )`;
 
   const { rows: after } = await client.query(
     `SELECT ${fields} FROM mycar_services
-      WHERE ${active} AND id > $1
-      ORDER BY id ASC LIMIT $2`,
+      WHERE ${active} AND ($1::int = 0 OR id < $1)
+      ORDER BY id DESC LIMIT $2`,
     [cursor, limit]
   );
 
@@ -463,8 +425,8 @@ async function getPendingReplySweepCandidates(client, limit) {
   if (rows.length < limit && cursor > 0) {
     const { rows: wrapped } = await client.query(
       `SELECT ${fields} FROM mycar_services
-        WHERE ${active} AND id <= $1
-        ORDER BY id ASC LIMIT $2`,
+        WHERE ${active} AND id > $1
+        ORDER BY id DESC LIMIT $2`,
       [cursor, limit - rows.length]
     );
     rows = rows.concat(wrapped);
@@ -536,7 +498,7 @@ function fetchMessagesForPendingService(imap, service) {
 
 async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN) {
   const candidates = await getPendingReplySweepCandidates(client, limit);
-  const stats = { scanned: 0, authorized: 0, blocked: 0, errors: 0 };
+  const stats = { scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0, errors: 0 };
   if (candidates.length === 0) return stats;
 
   const imap = await connectReadOnlyInbox();
@@ -559,10 +521,60 @@ async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN)
           .map(({ email, myCarBody }) => ({
             date: email.date,
             body: cleanEmailBody(myCarBody),
-            meta: extractThreadMeta(email, email._imapAttrs || {}, email._imapUid)
+            meta: extractThreadMeta(email, email._imapAttrs || {}, email._imapUid),
+            tableRows: email.html ? parseTableHtml(email.html) : []
           }));
         const decision = latestExplicitAdvanceInstruction(messages, service.email_received_at);
+        const quoteMessage = selectLatestQuoteMessage(messages, service.matricula);
         stats.scanned++;
+
+        // A resposta da MyCar costuma citar o nosso email anterior, onde está
+        // a tabela da cotação. Consolidamos esses dados ANTES de marcar o
+        // reply como processado, para o visto verde nunca deixar o card vazio.
+        if (quoteMessage) {
+          const quote = quoteMessage.quote;
+          const meta = quoteMessage.meta || {};
+          const quoteDateValue = new Date(quoteMessage.date);
+          const quoteDate = Number.isFinite(quoteDateValue.getTime()) ? quoteDateValue : new Date();
+          const stamp = quoteDate.toLocaleString('pt-PT');
+          const summary = [
+            quote.descricao,
+            quote.valor != null ? `${quote.valor.toFixed(2)} €` : null,
+            quote.eurocode
+          ].filter(Boolean).join(' | ');
+          const { rows: recovered } = await client.query(
+            `UPDATE mycar_services
+                SET descricao = COALESCE($1::text, descricao),
+                    valor = COALESCE($2::numeric, valor),
+                    eurocode = COALESCE($3::text, eurocode),
+                    email_thread_id = COALESCE(email_thread_id, $4::text),
+                    email_message_id = COALESCE(email_message_id, $5::text),
+                    last_reply_at = CASE
+                      WHEN last_reply_at IS NULL OR last_reply_at <= $6::timestamp THEN $6::timestamp
+                      ELSE last_reply_at END,
+                    last_reply_body = CASE
+                      WHEN last_reply_at IS NULL OR last_reply_at <= $6::timestamp THEN $7::text
+                      ELSE last_reply_body END,
+                    historico = COALESCE(NULLIF(historico, '') || E'\n', '') || $8::text,
+                    updated_at = NOW()
+              WHERE id = $9
+                AND (
+                  ($1::text IS NOT NULL AND descricao IS DISTINCT FROM $1::text)
+                  OR ($2::numeric IS NOT NULL AND valor IS DISTINCT FROM $2::numeric)
+                  OR ($3::text IS NOT NULL AND eurocode IS DISTINCT FROM $3::text)
+                )
+              RETURNING id`,
+            [quote.descricao, quote.valor, quote.eurocode,
+             meta.gmailThreadId || null, meta.messageId || null, quoteDate,
+             quoteMessage.body || null,
+             `[${stamp}] Cotação importada da resposta MyCar: ${summary}`,
+             service.id]
+          );
+          if (recovered.length > 0) {
+            stats.detailsRecovered++;
+            console.log(`💶 Cotação recuperada: ${service.matricula} | ${summary}`);
+          }
+        }
 
         if (decision?.action === 'bloquear') {
           stats.blocked++;
@@ -588,8 +600,10 @@ async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN)
           [meta.gmailThreadId || null, meta.messageId || null, decision.date,
            decision.body, reason, `[${stamp}] ✅ Autorizado pela MyCar: ${reason}`, service.id]
         );
+        // Só depois de consolidar a cotação é seguro impedir que o poller
+        // principal volte a tratar esta mesma autorização.
+        await markMessageProcessed(client, buildMessageKey(meta), meta);
         if (rows.length > 0) {
-          await markMessageProcessed(client, buildMessageKey(meta), meta);
           stats.authorized++;
           console.log(`✅ Autorização recuperada diretamente: ${service.matricula}`);
         }
@@ -761,7 +775,7 @@ async function runPoller() {
     // Prioridade aos processos que o técnico ainda vê como pendentes. Assim,
     // uma resposta antiga como a do BU-23-JN é encontrada pelo assunto da
     // própria matrícula, sem ficar à espera do replay geral de toda a caixa.
-    let replySweep = { scanned: 0, authorized: 0, blocked: 0, errors: 0 };
+    let replySweep = { scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0, errors: 0 };
     try {
       replySweep = await runPendingReplySweep(client);
     } catch (error) {
@@ -776,24 +790,26 @@ async function runPoller() {
       if (nextCursor > cursor) await setCursor(client, nextCursor);
       console.log(`📭 Nada de serviço nesta janela (analisados ${scanned || 0})`);
       return {
-        processed: replySweep.authorized,
+        processed: replySweep.authorized + replySweep.detailsRecovered,
         emails: 0,
         remaining,
         stats: {
           withTable: 0, viaSubject: 0, noId: scanned || 0,
           inserted: 0, updated: 0, skipped: 0, htmlVazio: 0,
           autorizados: replySweep.authorized,
+          detalhesRecuperados: replySweep.detailsRecovered,
           pendentesReanalisados: replySweep.scanned,
           errosReanalise: replySweep.errors
         }
       };
     }
 
-    let totalImported = replySweep.authorized;
+    let totalImported = replySweep.authorized + replySweep.detailsRecovered;
     const stats = {
       withTable: 0, viaSubject: 0, viaThread: 0, noId: 0,
       inserted: 0, updated: 0, skipped: 0, duplicated: 0,
       htmlVazio: 0, atualizadosIA: 0, autorizados: replySweep.authorized,
+      detalhesRecuperados: replySweep.detailsRecovered,
       cancelados: 0, erros: 0,
       pendentesReanalisados: replySweep.scanned,
       errosReanalise: replySweep.errors
@@ -823,7 +839,8 @@ async function runPoller() {
       // Matrícula/VIN vem do ASSUNTO (fiável); os detalhes (serviço/valor/
       // eurocode) vêm da TABELA no corpo. Juntamos os dois.
       const subjId = extractIdFromSubject(subject);
-      const tableRows = html ? parseTableHtml(html) : [];
+      const parsedTableRows = html ? parseTableHtml(html) : [];
+      const tableRows = consolidateQuoteRows(parsedTableRows, subjId);
       if (tableRows.length > 0) stats.withTable++;
 
       let services;
@@ -879,22 +896,29 @@ async function runPoller() {
             [meta.gmailThreadId, meta.messageId, meta.normalizedSubject, date, body, e.id]
           );
 
-          const temNovos = svc.descricao || svc.valor != null || svc.eurocode;
-          const faltava  = !e.descricao && e.valor == null && !e.eurocode;
-          if (temNovos && faltava) {
-            await client.query(
+          const temNovos = hasQuoteDetails(svc);
+          if (temNovos) {
+            const { rows: detailChanges } = await client.query(
               `UPDATE mycar_services
                  SET matricula = $1,
-                     descricao = COALESCE($2, descricao),
-                     valor     = COALESCE($3, valor),
-                     eurocode  = COALESCE($4, eurocode),
+                     descricao = COALESCE($2::text, descricao),
+                     valor     = COALESCE($3::numeric, valor),
+                     eurocode  = COALESCE($4::text, eurocode),
                      notas     = COALESCE(notas, $5),
                      updated_at = NOW()
-               WHERE id = $6`,
+               WHERE id = $6
+                 AND (
+                   ($2::text IS NOT NULL AND descricao IS DISTINCT FROM $2::text)
+                   OR ($3::numeric IS NOT NULL AND valor IS DISTINCT FROM $3::numeric)
+                   OR ($4::text IS NOT NULL AND eurocode IS DISTINCT FROM $4::text)
+                 )
+               RETURNING id`,
               [svc.matricula, svc.descricao, svc.valor, svc.eurocode, wip, e.id]
             );
-            serviceChanged = true; stats.updated++;
-            console.log(`🔧 Detalhes preenchidos: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
+            if (detailChanges.length > 0) {
+              serviceChanged = true; stats.updated++;
+              console.log(`🔧 Cotação atualizada: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
+            }
           }
 
           // Uma resposta é analisada mesmo que traga novamente a tabela
@@ -1019,7 +1043,7 @@ function findServiceByMatricula(imap, matricula) {
             const parsed = await simpleParser(Buffer.concat(chunks));
             const rows = parsed.html ? parseTableHtml(parsed.html) : [];
             if (rows.length) {
-              const r = rows[0];
+              const r = pickQuoteForPlate(rows, matricula) || consolidateQuoteRows(rows, matricula)[0];
               return resolve({
                 matricula: (r.matricula && r.matricula.length >= 4) ? r.matricula : matricula,
                 descricao: r.descricao, valor: r.valor, eurocode: r.eurocode,
@@ -1042,11 +1066,15 @@ async function runFillDetails(limit) {
   const client = await pool.connect();
   try {
     await ensureTable(client);
-    const missingSql = `SELECT COUNT(*)::int AS n FROM mycar_services
-      WHERE matricula IS NOT NULL AND descricao IS NULL AND valor IS NULL AND eurocode IS NULL`;
+    const missingFilter = `matricula IS NOT NULL AND (
+      NULLIF(TRIM(descricao), '') IS NULL
+      OR valor IS NULL
+      OR NULLIF(TRIM(eurocode), '') IS NULL
+    )`;
+    const missingSql = `SELECT COUNT(*)::int AS n FROM mycar_services WHERE ${missingFilter}`;
     const { rows } = await client.query(
       `SELECT id, matricula FROM mycar_services
-       WHERE matricula IS NOT NULL AND descricao IS NULL AND valor IS NULL AND eurocode IS NULL
+       WHERE ${missingFilter}
        ORDER BY created_at DESC LIMIT $1`, [limit]);
     if (rows.length === 0) {
       const { rows: r0 } = await client.query(missingSql);
@@ -1069,19 +1097,25 @@ async function runFillDetails(limit) {
               try {
                 const svc = await findServiceByMatricula(imap, row.matricula);
                 if (svc && (svc.descricao || svc.valor != null || svc.eurocode)) {
-                  await client.query(
+                  const { rows: updated } = await client.query(
                     `UPDATE mycar_services
                        SET matricula  = COALESCE($1, matricula),
-                           descricao  = COALESCE($2, descricao),
-                           valor      = COALESCE($3, valor),
-                           eurocode   = COALESCE($4, eurocode),
+                           descricao  = COALESCE(NULLIF(descricao, ''), $2::text),
+                           valor      = COALESCE(valor, $3::numeric),
+                           eurocode   = COALESCE(NULLIF(eurocode, ''), $4::text),
                            notas      = COALESCE(notas, $5),
                            email_body = COALESCE(email_body, $6),
                            updated_at = NOW()
-                     WHERE id = $7`,
+                     WHERE id = $7
+                       AND (
+                         (NULLIF(descricao, '') IS NULL AND $2::text IS NOT NULL)
+                         OR (valor IS NULL AND $3::numeric IS NOT NULL)
+                         OR (NULLIF(eurocode, '') IS NULL AND $4::text IS NOT NULL)
+                       )
+                     RETURNING id`,
                     [svc.matricula, svc.descricao, svc.valor, svc.eurocode, svc.wip, svc.body, row.id]
                   );
-                  filled++;
+                  filled += updated.length;
                 }
               } catch (e) { console.error('⚠️ fill entry falhou:', e.message); }
             }
