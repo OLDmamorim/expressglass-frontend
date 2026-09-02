@@ -5,6 +5,7 @@ const {
   normalizeEurocode: normalizeEurocodeMatch,
   normalizeOrderRef: normalizeOrderRefMatch
 } = require('../lib/glass-reception-match');
+const { ensureSingleFirstOfDay } = require('./lib/first-of-day-invariant');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -162,6 +163,12 @@ exports.handler = async (event) => {
     await pool.query(`ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_period_check`);
     await pool.query(`ALTER TABLE appointments ADD CONSTRAINT appointments_period_check CHECK (period IS NULL OR period IN ('Manhã', 'Tarde') OR period ~ '^[0-9]{1,2}:[0-9]{2}(-[0-9]{1,2}:[0-9]{2})?$')`);
   } catch(migErr) { console.warn('Migration period_check warning:', migErr.message); }
+
+  try {
+    await ensureSingleFirstOfDay(pool);
+  } catch(migErr) {
+    console.warn('Migration single first_of_day warning:', migErr.message);
+  }
 
   try {
     const user = getUserFromToken(event);
