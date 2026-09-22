@@ -1650,6 +1650,8 @@ body.printing-now > *:not(#print-container-temp) {
 #appointmentModal .loja-hidden,
 #appointmentModal .loja-hidden.form-row,
 #appointmentModal .loja-hidden.form-group { display:none !important; }
+/* Serviços sem peça (reparação, calibragem): o estado do vidro não se aplica */
+#appointmentModal .sem-vidro-hidden.form-group { display:none !important; }
 
 /* === Modal -> 2 colunas estáveis === */
 #appointmentModal .form-row{

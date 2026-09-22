@@ -76,7 +76,10 @@ function getGlassServicesForNextDays(days = 3) {
     
     // Verificar status do vidro (não deve ser ST)
     if (a.status === 'ST') return false;
-    
+
+    // Reparação e calibragem não levam peça — não há vidro para encomendar
+    if (window.agendamentoUsaVidro && !window.agendamentoUsaVidro(a)) return false;
+
     return true;
   });
   

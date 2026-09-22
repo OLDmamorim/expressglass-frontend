@@ -930,6 +930,27 @@ const statusBarColors = { NE:'#EF4444', VE:'#F59E0B', ST:'#10B981' };
 // === TIPO DE PORTAL (loja vs sm) ===
 function isLoja() { return window.portalConfig?.portalType === 'loja'; }
 
+// Serviços sem peça: a reparação é manual e a calibragem não leva vidro.
+// Nenhum deles encomenda, movimenta ou consome stock.
+const SERVICOS_SEM_VIDRO = ['REP', 'CAL'];
+function servicoUsaVidro(service) {
+  const code = service ? String(service).toUpperCase().trim().split(' ')[0].split('-')[0] : '';
+  return !SERVICOS_SEM_VIDRO.includes(code);
+}
+// Um agendamento precisa de vidro se QUALQUER um dos seus serviços precisar —
+// uma reparação com um para-brisas associado continua a precisar de peça.
+function agendamentoUsaVidro(a) {
+  if (!a) return true;
+  let lista = [];
+  try {
+    if (typeof getAllServices === 'function') lista = getAllServices(a) || [];
+  } catch (e) { lista = []; }
+  if (!lista.length) lista = [{ service: a.service }];
+  return lista.some(s => servicoUsaVidro(s && s.service));
+}
+window.servicoUsaVidro = servicoUsaVidro;
+window.agendamentoUsaVidro = agendamentoUsaVidro;
+
 // Adapta o modal de agendamento ao tipo de portal
 // — Loja / Recalibra: oculta campos de morada/localidade/km (localização fixa)
 // — SM  : mostra tudo
@@ -2788,6 +2809,7 @@ function editAppointment(id) {
 
   applyLojaModalMode();
   applyRecalibraModalMode(appointment.service);
+  window.toggleStatusVidro && window.toggleStatusVidro();
   document.getElementById('appointmentModal').classList.add('show');
 }
 
@@ -3043,7 +3065,7 @@ function buildDesktopCard(a){
       ${preAgendadoBadge}
       ${confirmBtn}
       ${locWarning}
-      ${(a.service !== 'CAL' && !isRecalibra) ? `<div class="appt-status dc-status">
+      ${(agendamentoUsaVidro(a) && !isRecalibra) ? `<div class="appt-status dc-status">
         <label><input type="checkbox" data-status="NE" ${a.status==='NE'?'checked':''}/> N/E</label>
         <label><input type="checkbox" data-status="VE" ${a.status==='VE'?'checked':''}/> V/E</label>
         <label><input type="checkbox" data-status="ST" ${a.status==='ST'?'checked':''}/> ST</label>
