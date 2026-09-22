@@ -1408,6 +1408,23 @@ function _readExtraServices() {
   window.addEventListener('portalReady', attach);
 })();
 
+// Ordem dos serviços de um dia: o 1.º e o 2.º serviço ficam fixos no topo e o
+// resto segue a ordem da rota (sortIndex). Nas Lojas a grelha está dividida em
+// Manhã/Tarde, por isso aí o período manda primeiro — a marca põe o serviço no
+// topo da sua metade do dia, e desktop e telemóvel ficam a concordar.
+function compareDayOrder(a, b, opts) {
+  if (opts && opts.byPeriod) {
+    const byPeriod = (a.period || '').localeCompare(b.period || '');
+    if (byPeriod) return byPeriod;
+  }
+  if (a.first_of_day && !b.first_of_day) return -1;
+  if (!a.first_of_day && b.first_of_day) return 1;
+  if (a.second_of_day && !b.second_of_day) return -1;
+  if (!a.second_of_day && b.second_of_day) return 1;
+  return (a.sortIndex || 0) - (b.sortIndex || 0);
+}
+window.compareDayOrder = compareDayOrder;
+
 function buildDaySummary(dayDate, isMobile) {
   if (isLoja()) return '';
   const iso = localISO(dayDate);
@@ -1415,13 +1432,7 @@ function buildDaySummary(dayDate, isMobile) {
   // Filtro baseado apenas no role — mobile e desktop devem calcular com os mesmos serviços
   const canSeeUnconfirmed = (userRole === 'admin' || userRole === 'coordenador');
   let items = appointments.filter(a => a.date && a.date === iso)
-    .sort((a,b) => {
-      if (a.first_of_day && !b.first_of_day) return -1;
-      if (!a.first_of_day && b.first_of_day) return 1;
-      if (a.second_of_day && !b.second_of_day) return -1;
-      if (!a.second_of_day && b.second_of_day) return 1;
-      return (a.sortIndex||0) - (b.sortIndex||0);
-    });
+    .sort((a,b) => compareDayOrder(a,b));
   // Resumo: só contar serviços com localidade (confirmados e prontos para rota)
   // Pré-agendamentos sem localidade não entram no cálculo de tempo/km
   items = items.filter(a => !!a.locality);
@@ -3075,7 +3086,7 @@ function renderSchedule(){
       const iso = localISO(dayDate);
       const items = filterAppointments(
         appointments.filter(a => a.date && a.date === iso && (a.period || 'Manhã') === period)
-          .sort((a,b) => (a.sortIndex||0) - (b.sortIndex||0))
+          .sort((a,b) => compareDayOrder(a,b))
       );
       const blocks = items.map(buildDesktopCard).join('');
       return `<div class="drop-zone" data-drop-bucket="${iso}|${period}">${blocks}</div>`;
@@ -3103,11 +3114,7 @@ function renderSchedule(){
             if (_isRecalibraPortal) {
               return (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0);
             }
-            if (a.first_of_day && !b.first_of_day) return -1;
-            if (!a.first_of_day && b.first_of_day) return 1;
-            if (a.second_of_day && !b.second_of_day) return -1;
-            if (!a.second_of_day && b.second_of_day) return 1;
-            return (a.sortIndex||0) - (b.sortIndex||0);
+            return compareDayOrder(a,b);
           })
       );
       // Técnicos: esconder serviços SM sem localidade (não aplica a Recalibra)

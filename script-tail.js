@@ -243,17 +243,12 @@ async function renderMobileDay(){
         if (isRecalibra) {
           return (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0);
         }
-        // Loja: ordenar por período (Manhã/Tarde) e depois sortIndex
-        // SM: ordenar apenas por sortIndex (rota optimizada)
-        if (isLoja()) {
-          return (a.period||'').localeCompare(b.period||'') || (a.sortIndex||0)-(b.sortIndex||0);
-        }
-        // first_of_day e second_of_day sempre no topo, por esta ordem
-        if (a.first_of_day && !b.first_of_day) return -1;
-        if (!a.first_of_day && b.first_of_day) return 1;
-        if (a.second_of_day && !b.second_of_day) return -1;
-        if (!a.second_of_day && b.second_of_day) return 1;
-        return (a.sortIndex||0) - (b.sortIndex||0);
+        // Loja: o dia está dividido em Manhã/Tarde, por isso o período manda
+        // primeiro; dentro de cada metade valem as marcas de 1.º e 2.º serviço.
+        // SM: as marcas mandam sempre, e depois a ordem da rota.
+        return window.compareDayOrder
+          ? window.compareDayOrder(a, b, { byPeriod: isLoja() })
+          : (a.sortIndex||0) - (b.sortIndex||0);
       })
   );
 
