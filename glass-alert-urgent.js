@@ -56,6 +56,8 @@
         if (isNaN(d)) return false;
         d.setHours(0,0,0,0);
         if (d < hoje || d > limite) return false;
+        // Reparação e calibragem não levam peça
+        if (window.agendamentoUsaVidro && !window.agendamentoUsaVidro(a)) return false;
         return a.status === 'NE' || a.status === 'V/E' || a.status === 'VE' || a.status === 'N/E';
       });
       return pendentes.length;

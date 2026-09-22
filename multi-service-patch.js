@@ -98,7 +98,11 @@ window._addExtraServiceRow = function(serviceVal, customTime) {
   removeBtn.type = 'button';
   removeBtn.style.cssText = 'background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:10px 12px;font-size:16px;cursor:pointer;flex-shrink:0;';
   removeBtn.textContent = '✕';
-  removeBtn.onclick = function() { row.remove(); };
+  removeBtn.onclick = function() {
+    row.remove();
+    // tirar um serviço pode deixar o agendamento sem peça
+    window.toggleStatusVidro && window.toggleStatusVidro();
+  };
 
   sel.addEventListener('change', function() {
     timeWrap.style.display = this.value === 'OUT' ? 'block' : 'none';
@@ -108,6 +112,9 @@ window._addExtraServiceRow = function(serviceVal, customTime) {
   row.appendChild(timeWrap);
   row.appendChild(removeBtn);
   container.appendChild(row);
+  // Quando a linha já vem preenchida (edição), o valor é posto por código e não
+  // dispara 'change' — acertar aqui a visibilidade do estado do vidro.
+  window.toggleStatusVidro && window.toggleStatusVidro();
 };
 
 // ── Hook no guardar agendamento — interceptar updateAppointment/createAppointment ──

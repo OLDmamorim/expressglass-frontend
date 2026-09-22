@@ -2226,8 +2226,29 @@ function sugerirDataParaLocalidade(locality) {
 
 window.sugerirDataParaLocalidade = sugerirDataParaLocalidade;
 
+// O estado do vidro só faz sentido quando há peça. Numa reparação (manual) ou
+// numa calibragem não há nada a encomendar nem a movimentar em stock, por isso
+// o campo desaparece e deixa de ser obrigatório. Basta um dos serviços do
+// agendamento precisar de vidro para o campo voltar.
+window.toggleStatusVidro = function() {
+  const grupo = document.getElementById('statusVidroGroup');
+  const sel = document.getElementById('appointmentStatus');
+  if (!grupo || !sel) return;
+  const codigos = [document.getElementById('appointmentService')?.value || ''];
+  document.querySelectorAll('.extra-svc-select').forEach(el => codigos.push(el.value || ''));
+  const usa = codigos.filter(Boolean).some(c => !window.servicoUsaVidro || window.servicoUsaVidro(c));
+  // Sem serviço escolhido, mantém-se visível (estado inicial do formulário)
+  const mostrar = !codigos.some(Boolean) || usa;
+  // classe, e não style inline: o modal força display:flex !important
+  grupo.classList.toggle('sem-vidro-hidden', !mostrar);
+  sel.required = mostrar;
+};
+
 // Mostrar campo de tempo personalizado quando OUT selecionado
 document.addEventListener('change', function(e) {
+  if (e.target.id === 'appointmentService' || (e.target.classList && e.target.classList.contains('extra-svc-select'))) {
+    window.toggleStatusVidro();
+  }
   if (e.target.id === 'appointmentService') {
     var grp = document.getElementById('customServiceTimeGroup');
     if (grp) grp.style.display = e.target.value === 'OUT' ? 'block' : 'none';
