@@ -1099,9 +1099,9 @@ const ROUTE_CONFIG = {
   fuelPricePerLiter: 1.65
 };
 const SERVICE_TIMES = {
-  PB_L: 90, LT_L: 45, OC_L: 60, REP_L: 30, POL_L: 45, RV_L: 30, OUT_L: 60,
-  PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60, RV_P: 45, OUT_P: 90,
-  PB_A: 150, LT_A: 75, OC_A: 105, REP_A: 45, POL_A: 60, RV_A: 60, OUT_A: 90,
+  PB_L: 90, LT_L: 45, OC_L: 60, TETO_L: 90, REP_L: 30, POL_L: 45, RV_L: 30, OUT_L: 60,
+  PB_P: 120, LT_P: 60, OC_P: 90, TETO_P: 120, REP_P: 45, POL_P: 60, RV_P: 45, OUT_P: 90,
+  PB_A: 150, LT_A: 75, OC_A: 105, TETO_A: 150, REP_A: 45, POL_A: 60, RV_A: 60, OUT_A: 90,
   // Tempo extra por calibragem ADAS (em minutos, somado ao serviço base)
   CALIB_EXTRA_L: 30,
   CALIB_EXTRA_P: 45,
@@ -1375,7 +1375,7 @@ window.setRecalibraHour = async function(id, hour) {
 };
 
 // ── UI: linha de serviço extra no formulário ──────────────────────────────
-const _SVC_OPTS = ['PB - Para-brisas','LT - Lateral','OC - Óculo','REP - Reparação','POL - Polimento','RV - Retirar Vidro','OUT - Outros']
+const _SVC_OPTS = ['PB - Para-brisas','LT - Lateral','OC - Óculo','TETO - Teto','REP - Reparação','POL - Polimento','RV - Retirar Vidro','OUT - Outros']
   .map(o => { const [v, l] = o.split(' - '); return `<option value="${v}">${v} - ${l}</option>`; }).join('');
 
 function _addExtraServiceRow(serviceVal, customTime) {

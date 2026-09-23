@@ -2003,6 +2003,7 @@ async function loadSettings() {
       document.getElementById('timePB_L').value = s.serviceTimes?.PB_L ?? s.serviceTimes?.PB ?? 90;
       document.getElementById('timeLT_L').value = s.serviceTimes?.LT_L ?? s.serviceTimes?.LT ?? 45;
       document.getElementById('timeOC_L').value = s.serviceTimes?.OC_L ?? s.serviceTimes?.OC ?? 60;
+      document.getElementById('timeTETO_L').value = s.serviceTimes?.TETO_L ?? 90;
       document.getElementById('timeREP_L').value = s.serviceTimes?.REP_L ?? s.serviceTimes?.REP ?? 30;
       document.getElementById('timePOL_L').value = s.serviceTimes?.POL_L ?? s.serviceTimes?.POL ?? 45;
       document.getElementById('timeRV_L').value = s.serviceTimes?.RV_L ?? 30;
@@ -2010,6 +2011,7 @@ async function loadSettings() {
       document.getElementById('timePB_P').value = s.serviceTimes?.PB_P ?? 120;
       document.getElementById('timeLT_P').value = s.serviceTimes?.LT_P ?? 60;
       document.getElementById('timeOC_P').value = s.serviceTimes?.OC_P ?? 90;
+      document.getElementById('timeTETO_P').value = s.serviceTimes?.TETO_P ?? 120;
       document.getElementById('timeREP_P').value = s.serviceTimes?.REP_P ?? 45;
       document.getElementById('timePOL_P').value = s.serviceTimes?.POL_P ?? 60;
       document.getElementById('timeRV_P').value = s.serviceTimes?.RV_P ?? 45;
@@ -2017,6 +2019,7 @@ async function loadSettings() {
       document.getElementById('timePB_A').value = s.serviceTimes?.PB_A ?? 150;
       document.getElementById('timeLT_A').value = s.serviceTimes?.LT_A ?? 75;
       document.getElementById('timeOC_A').value = s.serviceTimes?.OC_A ?? 105;
+      document.getElementById('timeTETO_A').value = s.serviceTimes?.TETO_A ?? 150;
       document.getElementById('timeREP_A').value = s.serviceTimes?.REP_A ?? 45;
       document.getElementById('timePOL_A').value = s.serviceTimes?.POL_A ?? 60;
       document.getElementById('timeRV_A').value = s.serviceTimes?.RV_A ?? 60;
@@ -2041,18 +2044,21 @@ async function saveSettings() {
       PB_L: parseInt(document.getElementById('timePB_L').value) || 90,
       LT_L: parseInt(document.getElementById('timeLT_L').value) || 45,
       OC_L: parseInt(document.getElementById('timeOC_L').value) || 60,
+      TETO_L: parseInt(document.getElementById('timeTETO_L').value) || 90,
       REP_L: parseInt(document.getElementById('timeREP_L').value) || 30,
       POL_L: parseInt(document.getElementById('timePOL_L').value) || 45,
       RV_L: parseInt(document.getElementById('timeRV_L').value) || 30,
       PB_P: parseInt(document.getElementById('timePB_P').value) || 120,
       LT_P: parseInt(document.getElementById('timeLT_P').value) || 60,
       OC_P: parseInt(document.getElementById('timeOC_P').value) || 90,
+      TETO_P: parseInt(document.getElementById('timeTETO_P').value) || 120,
       REP_P: parseInt(document.getElementById('timeREP_P').value) || 45,
       POL_P: parseInt(document.getElementById('timePOL_P').value) || 60,
       RV_P: parseInt(document.getElementById('timeRV_P').value) || 45,
       PB_A: parseInt(document.getElementById('timePB_A').value) || 150,
       LT_A: parseInt(document.getElementById('timeLT_A').value) || 75,
       OC_A: parseInt(document.getElementById('timeOC_A').value) || 105,
+      TETO_A: parseInt(document.getElementById('timeTETO_A').value) || 150,
       REP_A: parseInt(document.getElementById('timeREP_A').value) || 45,
       POL_A: parseInt(document.getElementById('timePOL_A').value) || 60,
       RV_A: parseInt(document.getElementById('timeRV_A').value) || 60,
@@ -2691,7 +2697,7 @@ function renderReport(data) {
   });
 
   // Gráfico: por tipo de serviço (doughnut)
-  const svcMap = { PB:'Para-brisas', LT:'Lateral', OC:'Óculo', REP:'Reparação', POL:'Polimento', MO:'Montante' };
+  const svcMap = { PB:'Para-brisas', LT:'Lateral', OC:'Óculo', TETO:'Teto', REP:'Reparação', POL:'Polimento', MO:'Montante' };
   reportCharts.service = new Chart(document.getElementById('chartService'), {
     type: 'doughnut',
     data: {

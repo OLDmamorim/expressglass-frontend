@@ -790,7 +790,7 @@ function buildRelatorio() {
   const apptsConcluidos = weekAppts.filter(a => a.executed === true);
 
   if (apptsConcluidos.length > 0) {
-    const serviceLabels = { PB: 'Para-brisas', LT: 'Lateral', OC: 'Óculo', REP: 'Reparação', POL: 'Polimento' };
+    const serviceLabels = { PB: 'Para-brisas', LT: 'Lateral', OC: 'Óculo', TETO: 'Teto', REP: 'Reparação', POL: 'Polimento' };
     const byService = {};
 
     apptsConcluidos.forEach(a => {

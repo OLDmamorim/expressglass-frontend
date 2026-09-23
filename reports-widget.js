@@ -275,7 +275,7 @@ function _rwRenderReport(data) {
     options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
   });
 
-  const svcMap = { PB:'Para-brisas', LT:'Lateral', OC:'Óculo', REP:'Reparação', POL:'Polimento', MO:'Montante' };
+  const svcMap = { PB:'Para-brisas', LT:'Lateral', OC:'Óculo', TETO:'Teto', REP:'Reparação', POL:'Polimento', MO:'Montante' };
   _rwCharts.service = new Chart(document.getElementById('chartService'), {
     type: 'doughnut',
     data: { labels: byService.map(r=>svcMap[r.service]||r.service), datasets: [{ data: byService.map(r=>parseInt(r.total)), backgroundColor: COLORS, borderWidth: 2 }] },
@@ -594,7 +594,7 @@ function _rwRenderComparison(dataA, dataB) {
       </div>`;
   }
 
-  const svcMap = { PB: 'Para-brisas', LT: 'Lateral', OC: 'Óculo', REP: 'Reparação', POL: 'Polimento', MO: 'Montante' };
+  const svcMap = { PB: 'Para-brisas', LT: 'Lateral', OC: 'Óculo', TETO: 'Teto', REP: 'Reparação', POL: 'Polimento', MO: 'Montante' };
 
   function localityTable(rows, color) {
     if (!rows || !rows.length) return '<p style="color:#94a3b8;font-size:13px;padding:12px;">Sem dados</p>';

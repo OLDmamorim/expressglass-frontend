@@ -277,6 +277,7 @@ async function handleUpdate(update) {
     return sendButtons(chat_id, `✅ Matrícula: <b>${formatted}</b>\n\n🔧 Tipo de vidro:`, [
       [{ text: '🪟 Para-brisas (PB)', callback_data: 'svc:PB' }],
       [{ text: '🚪 Lateral (LT)', callback_data: 'svc:LT' }, { text: '🔵 Óculo (OC)', callback_data: 'svc:OC' }],
+      [{ text: '☀️ Teto (TETO)', callback_data: 'svc:TETO' }],
       [{ text: '🔧 Reparação (REP)', callback_data: 'svc:REP' }],
     ]);
   }

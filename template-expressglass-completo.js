@@ -41,6 +41,7 @@ if (window.templateManager) {
         'Para-brisas': 'PB',
         'Lateral': 'LT',
         'Óculo': 'OC',
+        'Teto': 'TETO',
         'Reparação': 'REP',
         'Polimento': 'POL'
       },
@@ -147,6 +148,9 @@ class ExpressglassFileProcessor {
     }
     if (statusLower.includes('óculo') || statusLower.includes('oculo')) {
       return 'OC';
+    }
+    if (statusLower.includes('teto') || statusLower.includes('tecto') || statusLower.includes('tejadilho')) {
+      return 'TETO';
     }
     if (statusLower.includes('reparação') || statusLower.includes('reparacao')) {
       return 'REP';
