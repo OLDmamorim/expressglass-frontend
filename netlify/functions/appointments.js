@@ -152,10 +152,10 @@ exports.handler = async (event) => {
     await pool.query(`ALTER TABLE appointments ADD COLUMN IF NOT EXISTS comp_sales_faturado BOOLEAN DEFAULT FALSE`);
   } catch(migErr) { console.warn('Migration comp_sales warning:', migErr.message); }
 
-  // Migração: actualizar constraint de service para incluir RV e OUT
+  // Migração: actualizar constraint de service para incluir RV, OUT e TETO
   try {
     await pool.query(`ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_service_check`);
-    await pool.query(`ALTER TABLE appointments ADD CONSTRAINT appointments_service_check CHECK (service IS NULL OR service IN ('PB', 'LT', 'OC', 'REP', 'POL', 'RV', 'OUT', 'CAL', 'RECL'))`);
+    await pool.query(`ALTER TABLE appointments ADD CONSTRAINT appointments_service_check CHECK (service IS NULL OR service IN ('PB', 'LT', 'OC', 'TETO', 'REP', 'POL', 'RV', 'OUT', 'CAL', 'RECL'))`);
   } catch(migErr) { console.warn('Migration service_check warning:', migErr.message); }
 
   // Migração: permitir hora (HH:MM) no period, além de Manhã/Tarde (Recalibra usa hora)

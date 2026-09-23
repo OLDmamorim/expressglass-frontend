@@ -77,7 +77,7 @@ window._addExtraServiceRow = function(serviceVal, customTime) {
   const sel = document.createElement('select');
   sel.className = 'extra-svc-select';
   sel.style.cssText = 'flex:1;padding:10px;border:1.5px solid #d1d5db;border-radius:8px;font-size:14px;';
-  [['','Selecionar...'],['PB','PB - Para-brisas'],['LT','LT - Lateral'],['OC','OC - Óculo'],['REP','REP - Reparação'],['POL','POL - Polimento'],['OUT','OUT - Outros']].forEach(([v,t]) => {
+  [['','Selecionar...'],['PB','PB - Para-brisas'],['LT','LT - Lateral'],['OC','OC - Óculo'],['TETO','TETO - Teto'],['REP','REP - Reparação'],['POL','POL - Polimento'],['OUT','OUT - Outros']].forEach(([v,t]) => {
     const opt = document.createElement('option');
     opt.value = v; opt.textContent = t;
     sel.appendChild(opt);

@@ -19,9 +19,9 @@ function verifyToken(event) {
 // Valores default
 const DEFAULT_SETTINGS = {
   serviceTimes: {
-    PB_L: 90, LT_L: 45, OC_L: 60, REP_L: 30, POL_L: 45, RV_L: 30,
-    PB_P: 120, LT_P: 60, OC_P: 90, REP_P: 45, POL_P: 60, RV_P: 45,
-    PB_A: 150, LT_A: 75, OC_A: 105, REP_A: 45, POL_A: 60, RV_A: 60,
+    PB_L: 90, LT_L: 45, OC_L: 60, TETO_L: 90, REP_L: 30, POL_L: 45, RV_L: 30,
+    PB_P: 120, LT_P: 60, OC_P: 90, TETO_P: 120, REP_P: 45, POL_P: 60, RV_P: 45,
+    PB_A: 150, LT_A: 75, OC_A: 105, TETO_A: 150, REP_A: 45, POL_A: 60, RV_A: 60,
     CALIB_EXTRA_L: 30, CALIB_EXTRA_P: 45, CALIB_EXTRA_A: 45
   },
   avgSpeedKmh: 50,
