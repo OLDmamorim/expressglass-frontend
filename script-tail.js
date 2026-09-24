@@ -41,13 +41,15 @@ const telBtn = phone ? `
 
   // Semáforo de stock: absolutamente posicionado (separado do map-icons para não expandir o container)
   // Calcula o top com base no nº de botões — cada botão ocupa 28px + 8px gap = 36px
-  const _st = a.status || 'NE';
+  // Serviços sem peça (reparação, calibragem) não esperam material: verde, não vermelho.
+  const _semSemVidro = !!(window.agendamentoUsaVidro && !window.agendamentoUsaVidro(a));
+  const _st = (window.estadoVidro ? window.estadoVidro(a) : a.status) || 'NE';
   const _lights = [
     { s: 'NE', on: '#f87171', glow: 'rgba(248,113,113,0.7)' },
     { s: 'VE', on: '#fbbf24', glow: 'rgba(251,191,36,0.7)'  },
     { s: 'ST', on: '#4ade80', glow: 'rgba(74,222,128,0.7)'  },
   ];
-  const _semLabel = { NE: 'S/STOCK', VE: 'ENC.', ST: 'STOCK' }[_st] || 'S/STOCK';
+  const _semLabel = _semSemVidro ? 'S/ MATERIAL' : ({ NE: 'S/STOCK', VE: 'ENC.', ST: 'STOCK' }[_st] || 'S/STOCK');
   const _numBtns = [wazeBtn, mapsBtn, telBtn].filter(Boolean).length;
   const _semTop = 10 + _numBtns * 36;
   const stockSemaphore = isRecalibra ? '' : `
@@ -108,7 +110,8 @@ const telBtn = phone ? `
         : `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:#d97706;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#fff;cursor:pointer;">💰 Venda pendente</button>`)
     : `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.25);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;">💰 Venda compl.</button>`;
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
-  const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
+  // Sem vidro não há status de vidro para confirmar (os checkboxes nem aparecem).
+  const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE') && !_semSemVidro;
   const phcFooter = isAutoImported ? `
       <div class="phc-import-footer">
         <div>Importado direto PHC, mantém?</div>
