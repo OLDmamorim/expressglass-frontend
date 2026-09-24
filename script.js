@@ -951,6 +951,16 @@ function agendamentoUsaVidro(a) {
 window.servicoUsaVidro = servicoUsaVidro;
 window.agendamentoUsaVidro = agendamentoUsaVidro;
 
+// Estado do vidro para efeitos de semáforo/cor do cartão.
+// Sem peça não há nada por que esperar: conta como pronto (verde), nunca
+// como "não encomendado" (vermelho) — até porque os checkboxes NE/VE/ST
+// estão escondidos nestes serviços e o utilizador não conseguiria mudá-lo.
+function estadoVidro(a) {
+  if (!agendamentoUsaVidro(a)) return 'ST';
+  return a && a.status;
+}
+window.estadoVidro = estadoVidro;
+
 // Adapta o modal de agendamento ao tipo de portal
 // — Loja / Recalibra: oculta campos de morada/localidade/km (localização fixa)
 // — SM  : mostra tudo
@@ -2931,7 +2941,7 @@ function buildDesktopCard(a){
   const g = gradFromBase(base);
   const textColor = textColorForBg(base);
   const loja = isLoja();
-  const bar = (loja || window.portalConfig?.portalType === 'recalibra') ? '' : `border-left:5px solid ${statusBarColors[a.status] || '#475569'}`;
+  const bar = (loja || window.portalConfig?.portalType === 'recalibra') ? '' : `border-left:5px solid ${statusBarColors[estadoVidro(a)] || '#475569'}`;
   // Nova hierarquia: matrícula em Barlow Condensed, badge serviço, carro secundário
   const plate = (a.plate || '').toUpperCase();
   const service = a.service || 'PB';
@@ -2971,7 +2981,8 @@ function buildDesktopCard(a){
       </div>` : '';
   // Auto-importado do PHC com data
   // Footer PHC: só mostrar se auto_imported E status ainda é NE (não confirmado)
-  const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE');
+  // Sem vidro não há status de vidro para confirmar (os checkboxes nem aparecem).
+  const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE') && agendamentoUsaVidro(a);
   const phcFooter = isAutoImported ? `
       <div class="phc-import-footer">
         <div>Importado direto PHC, mantém?</div>
