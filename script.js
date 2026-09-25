@@ -1046,7 +1046,8 @@ const glassCardColors = {
 // Cor base do card conforme tipo de portal
 function getCardBaseColor(a) {
   if (isLoja()) {
-    return glassCardColors[a.status] || '#9CA3AF';
+    // estadoVidro: serviços sem peça (REP/CAL) contam como prontos — verde.
+    return glassCardColors[estadoVidro(a)] || '#9CA3AF';
   }
   if (window.portalConfig?.portalType === 'recalibra') {
     return a.executed === true ? '#10B981' : '#F59E0B';
