@@ -939,9 +939,12 @@ function isLoja() { return window.portalConfig?.portalType === 'loja'; }
 // OUT e RECL ficam de fora de propósito: podem envolver vidro, e dá-los
 // como "sem peça" faria um vidro ficar por encomendar sem ninguém notar.
 const SERVICOS_SEM_VIDRO = ['REP', 'POL', 'RV', 'CAL'];
+// Normaliza o que vier gravado ('LT', 'LT - Lateral', 'lt-lateral') no código.
+function codigoServico(service) {
+  return service ? String(service).toUpperCase().trim().split(' ')[0].split('-')[0] : '';
+}
 function servicoUsaVidro(service) {
-  const code = service ? String(service).toUpperCase().trim().split(' ')[0].split('-')[0] : '';
-  return !SERVICOS_SEM_VIDRO.includes(code);
+  return !SERVICOS_SEM_VIDRO.includes(codigoServico(service));
 }
 // Um agendamento precisa de vidro se QUALQUER um dos seus serviços precisar —
 // uma reparação com um para-brisas associado continua a precisar de peça.
@@ -966,6 +969,27 @@ function estadoVidro(a) {
   return a && a.status;
 }
 window.estadoVidro = estadoVidro;
+
+// Lateral e óculo: aproveitar a deslocação para ver se o para-brisas tem
+// danos reparáveis. Aviso no cartão, para o técnico não se esquecer.
+const SERVICOS_AVISO_REP_PB = ['LT', 'OC'];
+function avisaVerificarRepPB(a) {
+  if (!a) return false;
+  let lista = [];
+  try {
+    if (typeof getAllServices === 'function') lista = getAllServices(a) || [];
+  } catch (e) { lista = []; }
+  if (!lista.length) lista = [{ service: a.service }];
+  return lista.some(s => SERVICOS_AVISO_REP_PB.includes(codigoServico(s && s.service)));
+}
+// O mesmo banner nos dois cartões (desktop e mobile).
+function bannerVerificarRepPB(a) {
+  return avisaVerificarRepPB(a)
+    ? `<div class="pb-check-banner"><span class="pb-check-icon">🔍</span><span>Verificar reparações PB</span></div>`
+    : '';
+}
+window.avisaVerificarRepPB = avisaVerificarRepPB;
+window.bannerVerificarRepPB = bannerVerificarRepPB;
 
 // Adapta o modal de agendamento ao tipo de portal
 // — Loja / Recalibra: oculta campos de morada/localidade/km (localização fixa)
@@ -3075,6 +3099,7 @@ function buildDesktopCard(a){
         ${a.commercial_user_id ? '<span class="dc-calib-badge" style="background:#7c3aed !important;color:#fff !important;animation:blink 1.5s infinite;">🤝 COMERCIAL</span>' : ''}
         ${car ? `<span class="dc-car">${car}</span>` : ''}
       </div>
+      ${bannerVerificarRepPB(a)}
       ${sub ? `<div class="dc-sub">${sub}</div>` : ''}
       ${a.damage_details ? `<div class="dc-sub" style="margin-top:3px;font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : ''}
       ${!isRecalibra && a.comp_sales_desc && !a.comp_sales_faturado ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:#d97706;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#fff;cursor:pointer;">💰 Venda pendente</button>` : ''}
