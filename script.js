@@ -985,7 +985,17 @@ function avisaVerificarRepPB(a) {
 // O mesmo banner nos dois cartões (desktop e mobile).
 function bannerVerificarRepPB(a) {
   return avisaVerificarRepPB(a)
-    ? `<div class="pb-check-banner"><span class="pb-check-icon">🔍</span><span>Verificar reparações PB</span></div>`
+    ? `<div class="pb-check-banner">
+        <svg class="pb-check-icon" viewBox="0 0 28 20" aria-hidden="true">
+          <path class="pbc-glass" d="M2.7 15.8 L6.8 5 Q7.2 4 8.4 4 L19.6 4 Q20.8 4 21.2 5 L25.3 15.8 Q25.7 17 24.5 17 L3.5 17 Q2.3 17 2.7 15.8 Z"/>
+          <g class="pbc-cracks">
+            <path d="M14 10 L14 5.6"/><path d="M14 10 L18.1 8"/><path d="M14 10 L17.3 13.4"/>
+            <path d="M14 10 L10.6 13.1"/><path d="M14 10 L10.2 7.4"/>
+          </g>
+          <circle class="pbc-impact" cx="14" cy="10" r="2.1"/>
+        </svg>
+        <span>Verificar reparações PB</span>
+      </div>`
     : '';
 }
 window.avisaVerificarRepPB = avisaVerificarRepPB;

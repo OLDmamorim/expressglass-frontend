@@ -2066,22 +2066,37 @@ body.printing-now > *:not(#print-container-temp) {
 #appointmentHistory { width:100%; height:100px; border:1px solid #e5e7eb; border-radius:8px; padding:8px; font-size:12px; font-family:monospace; color:#374151; background:#f9fafb; resize:vertical; box-sizing:border-box; }
 
 /* ===== Aviso "Verificar reparações PB" (serviços LT / OC) =====
-   Fundo escuro com texto amarelo: é o único par que se lê bem sobre TODAS
-   as cores de cartão — vermelho/âmbar/verde na Loja e cor da localidade no
-   SM. Amarelo cheio desaparecia sobre o cartão âmbar (V/E). */
-@keyframes pbCheckPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.9); }
-  50%      { box-shadow: 0 0 0 7px rgba(251, 191, 36, 0); }
+   O fundo alterna entre escuro e vermelho, mas nunca fica claro: é assim
+   que se lê sobre TODAS as cores de cartão — vermelho/âmbar/verde na Loja
+   e cor da localidade no SM. Amarelo cheio desaparecia sobre o âmbar. */
+@keyframes pbCheckBlink {
+  0%,  44%  { background: #111827; border-color: #fbbf24; color: #fde047; -webkit-text-fill-color: #fde047;
+              box-shadow: 0 0 0 0 rgba(251,191,36,0); }
+  50%, 94%  { background: #dc2626; border-color: #ffffff; color: #ffffff; -webkit-text-fill-color: #ffffff;
+              box-shadow: 0 0 0 3px rgba(255,255,255,0.45), 0 0 12px 2px rgba(0,0,0,0.45); }
+  100%      { background: #111827; border-color: #fbbf24; color: #fde047; -webkit-text-fill-color: #fde047;
+              box-shadow: 0 0 0 0 rgba(251,191,36,0); }
 }
 @keyframes pbCheckNudge {
-  0%, 82%, 100% { transform: rotate(0deg); }
-  88%           { transform: rotate(-16deg); }
-  94%           { transform: rotate(16deg); }
+  0%, 70%, 100% { transform: rotate(0deg) scale(1); }
+  78%           { transform: rotate(-12deg) scale(1.12); }
+  86%           { transform: rotate(12deg) scale(1.12); }
+  93%           { transform: rotate(-6deg) scale(1.06); }
+}
+/* O impacto no vidro "estala": ponto vermelho que salta e fissuras a acender */
+@keyframes pbCheckImpact {
+  0%, 55%, 100% { transform: scale(1);   opacity: 1; }
+  62%           { transform: scale(1.75); opacity: 1; }
+  74%           { transform: scale(0.9);  opacity: .75; }
+}
+@keyframes pbCheckCracks {
+  0%, 50%, 100% { opacity: .55; }
+  60%, 80%      { opacity: 1; }
 }
 .pb-check-banner {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   margin: 6px 0;
   padding: 7px 11px;
   border-radius: 10px;
@@ -2095,19 +2110,50 @@ body.printing-now > *:not(#print-container-temp) {
   line-height: 1.2;
   text-transform: uppercase;
   text-shadow: none;
-  animation: pbCheckPulse 2.2s ease-in-out infinite;
+  animation: pbCheckBlink 1.6s steps(1, end) infinite;
 }
 .pb-check-banner .pb-check-icon {
-  font-size: 15px;
-  line-height: 1;
+  width: 30px;
+  height: 22px;
   flex-shrink: 0;
-  animation: pbCheckNudge 2.2s ease-in-out infinite;
+  overflow: visible;
+  transform-origin: 50% 50%;
+  animation: pbCheckNudge 1.6s ease-in-out infinite;
+}
+.pb-check-banner .pbc-glass {
+  fill: rgba(255,255,255,0.3);
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+.pb-check-banner .pbc-cracks {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  animation: pbCheckCracks 1.6s ease-in-out infinite;
+}
+.pb-check-banner .pbc-impact {
+  fill: #ef4444;
+  stroke: #ffffff;
+  stroke-width: 0.9;
+  transform-origin: 14px 10px;
+  animation: pbCheckImpact 1.6s ease-in-out infinite;
 }
 /* Mobile: o cartão é mais largo, dá para respirar um pouco mais */
-.m-card .pb-check-banner {
-  font-size: 13px;
-  padding: 8px 12px;
-}
+.m-card .pb-check-banner { font-size: 13px; padding: 8px 12px; }
+.m-card .pb-check-banner .pb-check-icon { width: 34px; height: 25px; }
+/* Sem animação para quem a desligou no sistema — fica o estado vermelho,
+   que é o mais visível dos dois. */
 @media (prefers-reduced-motion: reduce) {
-  .pb-check-banner, .pb-check-banner .pb-check-icon { animation: none; }
+  .pb-check-banner {
+    animation: none;
+    background: #dc2626;
+    border-color: #ffffff;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff;
+  }
+  .pb-check-banner .pb-check-icon,
+  .pb-check-banner .pbc-cracks,
+  .pb-check-banner .pbc-impact { animation: none; }
 }
