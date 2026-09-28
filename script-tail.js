@@ -203,6 +203,7 @@ const telBtn = phone ? `
         ${(hourBadge || lojaBadge) ? `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">${hourBadge}${lojaBadge}</div>` : ''}
         ${car ? `<div class="m-car">${car}</div>` : ''}
         ${chips ? `<div class="m-chips" data-ms-patched="1">${chips}</div>` : ''}
+        ${window.bannerVerificarRepPB ? window.bannerVerificarRepPB(a) : ''}
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${damageRow}
