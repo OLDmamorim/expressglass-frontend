@@ -930,9 +930,15 @@ const statusBarColors = { NE:'#EF4444', VE:'#F59E0B', ST:'#10B981' };
 // === TIPO DE PORTAL (loja vs sm) ===
 function isLoja() { return window.portalConfig?.portalType === 'loja'; }
 
-// Serviços sem peça: a reparação é manual e a calibragem não leva vidro.
-// Nenhum deles encomenda, movimenta ou consome stock.
-const SERVICOS_SEM_VIDRO = ['REP', 'CAL'];
+// Serviços que são só mão de obra: não levam peça nova, por isso não
+// encomendam, não movimentam nem consomem stock.
+//   REP  reparação — arranjo manual do vidro que já lá está
+//   POL  polimento — idem
+//   RV   retirar vidro — tira o existente, não põe nenhum
+//   CAL  calibragem ADAS — não leva vidro
+// OUT e RECL ficam de fora de propósito: podem envolver vidro, e dá-los
+// como "sem peça" faria um vidro ficar por encomendar sem ninguém notar.
+const SERVICOS_SEM_VIDRO = ['REP', 'POL', 'RV', 'CAL'];
 function servicoUsaVidro(service) {
   const code = service ? String(service).toUpperCase().trim().split(' ')[0].split('-')[0] : '';
   return !SERVICOS_SEM_VIDRO.includes(code);
