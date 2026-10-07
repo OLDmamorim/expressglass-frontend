@@ -7,6 +7,7 @@ const https = require('https');
 const jwt   = require('jsonwebtoken');
 const { Pool } = require('pg');
 const { selectPoweringResult } = require('../lib/powering-kpis-select');
+const { caminhoPortalLink, menuValido } = require('../lib/portal-link');
 
 const JWT_SECRET    = process.env.JWT_SECRET    || 'expressglass-secret-key-change-in-production';
 const POWERING_KEY  = process.env.POWERING_EG_API_KEY;
@@ -69,7 +70,8 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ total: lojas.length, lojas }) };
     }
 
-    // Link do portal da loja (abre no menu Viatura/Frota)
+    // Link do portal da loja: menu=viatura (por omissão) abre a Frota;
+    // menu=encomenda abre os Consumíveis no portal da loja principal.
     if (p.action === 'portal-link') {
       let lojaId = p.loja_id ? parseInt(p.loja_id) : null;
       if (!lojaId && p.portal_id) {
@@ -85,8 +87,8 @@ exports.handler = async (event) => {
           body: JSON.stringify({ success: false, error: 'Portal sem powering_loja_id configurado', reason: 'sem_portal' })
         };
       }
-      const data = await fetchPowering(`/portal-link/${lojaId}`);
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, url: data.url, lojaNome: data.lojaNome }) };
+      const data = await fetchPowering(caminhoPortalLink(lojaId, p.menu));
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, url: data.url, lojaNome: data.lojaNome, menu: menuValido(p.menu) }) };
     }
 
     // Vendas complementares — devolve TODAS as lojas + lojaId da loja atual
