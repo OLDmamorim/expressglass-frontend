@@ -1028,16 +1028,18 @@ function applyLojaModalMode() {
   } else {
     if (localityAutocomplete) localityAutocomplete.style.display = '';
     if (lojaInput) lojaInput.style.display = 'none';
-    if (localityLabel) localityLabel.textContent = 'Localidade *';
+    if (localityLabel) localityLabel.textContent = 'Localidade';
   }
 
   // LINHA 7 — Morada + Distância (km)
   const addressRow = document.getElementById('addressKmRow');
   if (addressRow) addressRow.classList.toggle('loja-hidden', loja);
 
-  // Remove/repõe required na localidade
+  // Localidade nunca é obrigatória no SM: é preenchida a partir da morada
+  // (ver extracção dos address_components do Google). Para o Recalibra, o
+  // setRecalibraTipo volta a pô-la obrigatória — lá o campo é a Loja.
   const localityInput = document.getElementById('appointmentLocality');
-  if (localityInput) localityInput.required = !loja;
+  if (localityInput) localityInput.required = false;
 
   // Recalibra não tem vendas complementares — esconder secção no modal
   const compSales = document.getElementById('compSalesSection');
@@ -2909,7 +2911,6 @@ function cancelEdit() {
   editingId = null;
   window.originalUnscheduledServiceId = null;
   window.dispatchEvent(new CustomEvent('appointmentModalClosed'));
-  document.getElementById('localityFirstOverlay')?.remove();
   document.getElementById('appointmentForm').reset();
   const calibCb = document.getElementById('appointmentCalibration');
   if (calibCb) calibCb.checked = false;
