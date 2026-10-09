@@ -1028,16 +1028,18 @@ function applyLojaModalMode() {
   } else {
     if (localityAutocomplete) localityAutocomplete.style.display = '';
     if (lojaInput) lojaInput.style.display = 'none';
-    if (localityLabel) localityLabel.textContent = 'Localidade *';
+    if (localityLabel) localityLabel.textContent = 'Localidade';
   }
 
   // LINHA 7 — Morada + Distância (km)
   const addressRow = document.getElementById('addressKmRow');
   if (addressRow) addressRow.classList.toggle('loja-hidden', loja);
 
-  // Remove/repõe required na localidade
+  // Localidade nunca é obrigatória no SM: é preenchida a partir da morada
+  // (ver extracção dos address_components do Google). Para o Recalibra, o
+  // setRecalibraTipo volta a pô-la obrigatória — lá o campo é a Loja.
   const localityInput = document.getElementById('appointmentLocality');
-  if (localityInput) localityInput.required = !loja;
+  if (localityInput) localityInput.required = false;
 
   // Recalibra não tem vendas complementares — esconder secção no modal
   const compSales = document.getElementById('compSalesSection');
@@ -2704,6 +2706,67 @@ function ensureCommercialSection() {
 }
 
 
+// ===== HISTÓRICO DE ALTERAÇÕES DO SERVIÇO =====
+// Lê o audit_log do servidor, que regista TODAS as alterações — arrastar na
+// agenda, vistos do vidro, Realizado, importação do Excel — e não só as
+// gravações feitas por este modal.
+function _histData(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return String(iso).slice(0, 16).replace('T', ' ');
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function _histValor(v) {
+  if (v === null || v === undefined || v === '') return '—';
+  // Datas ISO → dd/mm/aaaa, que é como são lidas em todo o resto da app
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(v);
+}
+
+function formatarHistorico(entradas) {
+  const linhas = [];
+  for (const e of entradas) {
+    const d = e.details || {};
+    const changes = Array.isArray(d.changes) ? d.changes : [];
+    const criado = e.action === 'appt_created';
+    const apagado = e.action === 'appt_deleted';
+    // Gravações que não mexeram em nada não valem uma linha
+    if (!criado && !apagado && !changes.length) continue;
+
+    linhas.push(`${_histData(e.created_at)} · ${e.username || 'sistema'}${criado ? ' · Criado' : apagado ? ' · Removido da agenda' : ''}`);
+    for (const c of changes) {
+      linhas.push(criado
+        ? `    ${c.label}: ${_histValor(c.para)}`
+        : `    ${c.label}: ${_histValor(c.de)} → ${_histValor(c.para)}`);
+    }
+  }
+  return linhas.join('\n');
+}
+
+async function carregarHistoricoServico(id, historicoAntigo) {
+  const el = document.getElementById('appointmentHistory');
+  if (!el || !id) return;
+  try {
+    const resp = await window.authClient.authenticatedFetch(
+      `/.netlify/functions/audit-log?entity=appointment&entity_id=${encodeURIComponent(id)}&limit=200`
+    );
+    const json = await resp.json();
+    if (!json.success || !Array.isArray(json.data)) return;
+    // O endpoint devolve do mais recente para o mais antigo
+    const texto = formatarHistorico(json.data.slice().reverse());
+    const partes = [];
+    if (texto) partes.push(texto);
+    if (historicoAntigo) partes.push('— registo anterior —\n' + historicoAntigo);
+    el.value = partes.join('\n\n') || 'Sem histórico';
+  } catch (e) {
+    console.warn('[histórico] não foi possível carregar:', e.message);
+  }
+}
+window.carregarHistoricoServico = carregarHistoricoServico;
+window.formatarHistorico = formatarHistorico;
+
 function editAppointment(id) {
   const appointment = appointments.find(a => String(a.id) === String(id));
   if (!appointment) {
@@ -2754,6 +2817,9 @@ function editAppointment(id) {
   document.getElementById('appointmentExtra').value = _eurocode;
   if (document.getElementById('appointmentPhoto')) document.getElementById('appointmentPhoto').value = _photoUrl;
   if (document.getElementById('appointmentHistory')) document.getElementById('appointmentHistory').value = _history;
+  // Histórico real (audit_log do servidor): substitui o texto antigo assim que
+  // chega. O antigo fica como rodapé, porque tem entradas anteriores a isto.
+  carregarHistoricoServico(id, _history);
   if (document.getElementById('appointmentDamageDetails')) {
     document.getElementById('appointmentDamageDetails').value = appointment.damage_details || '';
   }
@@ -2909,7 +2975,6 @@ function cancelEdit() {
   editingId = null;
   window.originalUnscheduledServiceId = null;
   window.dispatchEvent(new CustomEvent('appointmentModalClosed'));
-  document.getElementById('localityFirstOverlay')?.remove();
   document.getElementById('appointmentForm').reset();
   const calibCb = document.getElementById('appointmentCalibration');
   if (calibCb) calibCb.checked = false;

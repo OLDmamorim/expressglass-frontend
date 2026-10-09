@@ -18,9 +18,34 @@ exports.handler = async (event) => {
   try {
     const auth = event.headers?.authorization || '';
     const decoded = jwt.verify(auth.substring(7), JWT_SECRET);
-    if (decoded.role !== 'admin') throw new Error('Acesso negado');
 
     const p = event.queryStringParameters || {};
+    const entity    = p.entity    || null;
+    const entity_id = p.entity_id || null;
+
+    // O histórico de UM serviço é visível a quem já consegue abrir o cartão —
+    // é o registo do trabalho deles. A consulta livre do log continua só para
+    // admin, porque aí dá para varrer a actividade de toda a gente.
+    const historicoDeUmServico = entity === 'appointment' && entity_id;
+    if (!historicoDeUmServico && decoded.role !== 'admin') throw new Error('Acesso negado');
+
+    // ...mas "quem consegue abrir o cartão" tem de ser verificado: sem isto,
+    // qualquer utilizador autenticado leria o histórico de qualquer serviço,
+    // incluindo morada, cliente e telefone de portais a que não tem acesso.
+    if (historicoDeUmServico && decoded.role !== 'admin') {
+      const { rows: apptRows } = await pool.query(
+        'SELECT portal_id FROM appointments WHERE id = $1 LIMIT 1',
+        [entity_id]
+      );
+      if (!apptRows.length) throw new Error('Agendamento não encontrado');
+      const permitidos = new Set([
+        ...(decoded.portalIds || []),
+        ...(decoded.consultablePortalIds || []),
+        ...(decoded.portalId ? [decoded.portalId] : [])
+      ]);
+      if (!permitidos.has(apptRows[0].portal_id)) throw new Error('Acesso negado');
+    }
+
     const page   = parseInt(p.page  || '1');
     const limit  = parseInt(p.limit || '50');
     const action = p.action || null;
@@ -31,6 +56,8 @@ exports.handler = async (event) => {
     let vals  = [];
     let i     = 1;
 
+    if (entity)    { where.push(`entity = $${i++}`);    vals.push(entity); }
+    if (entity_id) { where.push(`entity_id = $${i++}`); vals.push(String(entity_id)); }
     if (action) { where.push(`action = $${i++}`); vals.push(action); }
     if (user)   { where.push(`(username ILIKE $${i} OR CAST(user_id AS TEXT) = $${i+1})`); vals.push(`%${user}%`); vals.push(user); i += 2; }
 
