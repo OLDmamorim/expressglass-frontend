@@ -426,10 +426,12 @@
 
     leafletMap = L.map(el, { center: [39.5, -8.0], zoom: 7, zoomControl: true });
 
-    // CartoDB Voyager — cores naturais, mar azul, terra clara
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
+    // OpenStreetMap standard — sem chave de API.
+    // O CARTO (basemaps.cartocdn.com) passou a exigir API key e começou a
+    // devolver tiles com "API KEY REQUIRED" escrito por cima, deixando o mapa
+    // inutilizável. Para voltar ao aspecto Voyager é preciso uma chave CARTO.
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
     }).addTo(leafletMap);
 
