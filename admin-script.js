@@ -207,31 +207,31 @@ const colorPalette = [
 ];
 let colorIndex = 0;
 
-// ===== CÓDIGOS NMDOS (extraídos do Excel) =====
-const NMDOS_CODES = [
+// ===== CÓDIGOS NMDOS =====
+// Fichas de serviço móvel: nomes próprios, não seguem numeração.
+const NMDOS_CODES_SMOVEL = [
   "Ficha S.Movel 1-Porto","Ficha S.Movel 2-Braga","Ficha S.Movel 3-Camarate",
   "Ficha S.Movel 5-Setubal","Ficha S.Movel 6-Coimbra","Ficha S.Movel 7-Leiria",
   "Ficha S.Movel-Rep.Coimbr","Ficha S.Movel-Rep.Leiria","Ficha S.Movel-Rep.Lisboa",
-  "Ficha S.Movel-Rep.Minho","Ficha S.Movel-Rep.Porto",
-  "Ficha Servico 01","Ficha Servico 02","Ficha Servico 03","Ficha Servico 04",
-  "Ficha Servico 05","Ficha Servico 06","Ficha Servico 07","Ficha Servico 08",
-  "Ficha Servico 09","Ficha Servico 10","Ficha Servico 11","Ficha Servico 12",
-  "Ficha Servico 13","Ficha Servico 14","Ficha Servico 15","Ficha Servico 16",
-  "Ficha Servico 17","Ficha Servico 18","Ficha Servico 19","Ficha Servico 20",
-  "Ficha Servico 21","Ficha Servico 22","Ficha Servico 23","Ficha Servico 24",
-  "Ficha Servico 25","Ficha Servico 26","Ficha Servico 27","Ficha Servico 28",
-  "Ficha Servico 29","Ficha Servico 30","Ficha Servico 31","Ficha Servico 32",
-  "Ficha Servico 34","Ficha Servico 35","Ficha Servico 36","Ficha Servico 37",
-  "Ficha Servico 38","Ficha Servico 39","Ficha Servico 40","Ficha Servico 43",
-  "Ficha Servico 44","Ficha Servico 45","Ficha Servico 46","Ficha Servico 48",
-  "Ficha Servico 49","Ficha Servico 50","Ficha Servico 54","Ficha Servico 59",
-  "Ficha Servico 60",
-  "Ficha Servico 61","Ficha Servico 62","Ficha Servico 63","Ficha Servico 64",
-  "Ficha Servico 65","Ficha Servico 66","Ficha Servico 67","Ficha Servico 68",
-  "Ficha Servico 69","Ficha Servico 71","Ficha Servico 72","Ficha Servico 73",
-  "Ficha Servico 76","Ficha Servico 77","Ficha Servico 84","Ficha Servico 85",
-  "Ficha Servico 86","Ficha Servico 91","Ficha Servico 92","Ficha Servico 94",
-  "Ficha Servico 95","Ficha Servico 96","Ficha Servico 97"
+  "Ficha S.Movel-Rep.Minho","Ficha S.Movel-Rep.Porto"
+];
+
+// Armazéns: a gama completa 01–97, gerada.
+// Isto era uma lista escrita à mão, tirada de um Excel de certa altura, e
+// faltavam-lhe 25 códigos. De cada vez que um armazém em falta era preciso,
+// ficava impossível atribuí-lo sem editar o código e fazer deploy — aconteceu
+// com o 59 (#596) e com o 33.
+// Oferecer a gama toda não tem custo: quem manda na importação é o Excel, um
+// código que não exista por lá simplesmente não corresponde a nenhuma linha,
+// e os já usados continuam a aparecer marcados como "(já atribuído)".
+const NMDOS_ARMAZEM_MAX = 97;
+
+const NMDOS_CODES = [
+  ...NMDOS_CODES_SMOVEL,
+  ...Array.from(
+    { length: NMDOS_ARMAZEM_MAX },
+    (_, i) => `Ficha Servico ${String(i + 1).padStart(2, '0')}`
+  )
 ];
 
 // ===== POWERING EG — Lojas =====
