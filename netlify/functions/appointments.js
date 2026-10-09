@@ -89,6 +89,73 @@ async function auditLog({ user, action, entity_id, details, event }) {
   } catch (e) { console.warn('[audit appointments]', e.message); }
 }
 
+// ===== HISTÓRICO DE ALTERAÇÕES =====
+// Campos seguidos no histórico do serviço, com a etiqueta que o utilizador vê.
+// Deliberadamente fora: 'extra' (guarda o blob interno eurocode/photo_url/history,
+// que muda a cada gravação) e os campos de controlo (updated_at, sort_index).
+const CAMPOS_HISTORICO = [
+  ['date',                'Data'],
+  ['period',              'Período'],
+  ['locality',            'Localidade'],
+  ['address',             'Morada'],
+  ['service',             'Serviço'],
+  ['status',              'Estado do vidro'],
+  ['plate',               'Matrícula'],
+  ['car',                 'Viatura'],
+  ['client_name',         'Cliente'],
+  ['phone',               'Telefone'],
+  ['notes',               'Observações'],
+  ['damage_details',      'Detalhe de danos'],
+  ['km',                  'Km'],
+  ['vehicle_type',        'Tipo de viatura'],
+  ['calibration',         'Calibragem'],
+  ['first_of_day',        '1.º serviço'],
+  ['second_of_day',       '2.º serviço'],
+  ['confirmed',           'Confirmado'],
+  ['executed',            'Realizado'],
+  ['not_done_reason',     'Motivo de não realizado'],
+  ['glass_removed',       'Vidro retirado'],
+  ['glass_removed_date',  'Data de retirada do vidro'],
+  ['glass_eurocode',      'Eurocode'],
+  ['n_obra',              'Nº de obra'],
+  ['order_ref',           'Nº de encomenda'],
+  ['reception_ref',       'Nº de receção'],
+  ['reception_date',      'Data de receção'],
+  ['claim_ref',           'FS de reclamação'],
+  ['custom_service_time', 'Tempo personalizado'],
+  ['comp_sales_desc',     'Venda complementar'],
+  ['comp_sales_faturado', 'Venda faturada'],
+  ['portal_id',           'Portal'],
+];
+
+// Normaliza um valor para comparação e leitura. Datas podem chegar do pg como
+// objecto Date ou como string, conforme o tipo da coluna — tratar os dois.
+function valorHistorico(v) {
+  if (v === null || v === undefined || v === '') return null;
+  if (v instanceof Date) {
+    const iso = v.toISOString();
+    return iso.slice(11, 19) === '00:00:00' ? iso.slice(0, 10) : iso.slice(0, 16).replace('T', ' ');
+  }
+  if (typeof v === 'boolean') return v ? 'Sim' : 'Não';
+  if (Array.isArray(v) || (typeof v === 'object')) { try { return JSON.stringify(v); } catch (e) { return String(v); } }
+  const s = String(v);
+  // Datas em texto ISO: cortar a hora para ficar legível
+  return /^\d{4}-\d{2}-\d{2}T/.test(s) ? s.slice(0, 10) : s;
+}
+
+// Compara a linha antes e depois do UPDATE. Diferente de comparar com o payload:
+// apanha o que a base de dados realmente mudou, venha o pedido de onde vier.
+function diffHistorico(antes, depois) {
+  const changes = [];
+  for (const [campo, label] of CAMPOS_HISTORICO) {
+    if (!(campo in antes) && !(campo in depois)) continue;
+    const de   = valorHistorico(antes[campo]);
+    const para = valorHistorico(depois[campo]);
+    if (de !== para) changes.push({ campo, label, de, para });
+  }
+  return changes;
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -484,7 +551,9 @@ exports.handler = async (event) => {
           plate: rows[0].plate, car: rows[0].car, date: rows[0].date,
           locality: rows[0].locality, service: rows[0].service,
           confirmed: rows[0].confirmed, portal_id: rows[0].portal_id,
-          portal: await getPortalName(rows[0].portal_id)
+          portal: await getPortalName(rows[0].portal_id),
+          // Estado inicial, para a primeira linha do histórico do cartão
+          changes: diffHistorico({}, rows[0])
         }
       });
       return { statusCode: 201, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
@@ -499,8 +568,10 @@ exports.handler = async (event) => {
       // Admin e coordenadores: procurar por id primeiro, depois verificar autorização
       const isAdmin = user.role === 'admin';
       const isCoord = user.role === 'coordinator' || user.role === 'coordenador';
+      // Linha completa: além dos campos preservados, serve de base ao diff do
+      // histórico (ver diffHistorico mais abaixo).
       const checkResult = await pool.query(
-        'SELECT id, portal_id, executed, not_done_reason, not_done_at, glass_removed, glass_removed_date, date, custom_service_time, service, claim_ref FROM appointments WHERE id = $1',
+        'SELECT * FROM appointments WHERE id = $1',
         [id]
       );
       if (checkResult.rows.length === 0) {
@@ -604,6 +675,7 @@ exports.handler = async (event) => {
       ];
       const { rows } = await pool.query(q, v);
       if (!rows.length) return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Agendamento não encontrado' }) };
+      const changes = diffHistorico(existing, rows[0]);
       await auditLog({
         user, action: 'appt_updated', entity_id: id, event,
         details: {
@@ -612,7 +684,9 @@ exports.handler = async (event) => {
           date_mudou: dateChanged,
           locality: rows[0].locality, confirmed: rows[0].confirmed,
           status: rows[0].status, portal_id: rows[0].portal_id,
-          portal: await getPortalName(rows[0].portal_id)
+          portal: await getPortalName(rows[0].portal_id),
+          // Alterações campo a campo, para o histórico do cartão
+          changes
         }
       });
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows[0] }) };
