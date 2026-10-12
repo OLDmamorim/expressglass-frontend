@@ -253,8 +253,27 @@ exports.handler = async (event) => {
         try { requestedId = JSON.parse(event.body)._portalId; } catch(e) { console.warn('appointments _portalId parse warning:', e.message); }
       }
       if (requestedId) {
-        const allowed = user.portalIds || (user.portalId ? [user.portalId] : []);
-        if (allowed.includes(requestedId)) portalId = requestedId;
+        const geridos = user.portalIds || (user.portalId ? [user.portalId] : []);
+        // Agendas de consulta podem ser LIDAS, nunca escritas. Sem as incluir
+        // aqui, pedir uma agenda de consulta não dava erro: o portalId ficava
+        // silenciosamente no portal próprio e a agenda mostrava os serviços
+        // errados por baixo do cabeçalho certo.
+        const consultaveis = user.consultablePortalIds || [];
+        const souLeitura = event.httpMethod === 'GET';
+
+        if (geridos.includes(requestedId)) {
+          portalId = requestedId;
+        } else if (consultaveis.includes(requestedId)) {
+          if (!souLeitura) {
+            // Escrever numa agenda de consulta não é "cair para a minha":
+            // seria gravar no portal errado sem ninguém dar por isso.
+            return {
+              statusCode: 403, headers,
+              body: JSON.stringify({ success: false, error: 'Agenda de consulta — só leitura' })
+            };
+          }
+          portalId = requestedId;
+        }
       }
       if (!portalId && user.portalIds?.length > 0) portalId = user.portalIds[0];
     }
