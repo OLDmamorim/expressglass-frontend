@@ -265,8 +265,8 @@
   window.addEventListener('portalReady', patchCardRenderers, { once: true });
   setTimeout(patchCardRenderers, 2000);
 
-  // Limpar locality stale ao abrir novo agendamento
-  // _injectLocalityFirstOverlay corre a 50ms — limpar antes disso
+  // Limpar locality stale ao abrir novo agendamento, antes de o utilizador
+  // escrever a morada (que é quem a preenche)
   document.addEventListener('click', function(e) {
     var t = e.target;
     if (!t) return;
