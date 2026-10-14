@@ -273,8 +273,23 @@ exports.handler = async (event) => {
             };
           }
           portalId = requestedId;
+        } else {
+          // Pedir uma agenda sem acesso devolvia em silêncio a agenda própria:
+          // a pessoa trocava de agenda no seletor e continuava a ver a
+          // anterior, sem erro nenhum. Melhor falhar à vista.
+          // A causa mais comum é a sessão: a lista de agendas é fixada no
+          // login, por isso uma agenda criada ou atribuída depois disso está
+          // no seletor mas não na sessão.
+          return {
+            statusCode: 403, headers,
+            body: JSON.stringify({
+              success: false,
+              error: 'Sem acesso a esta agenda nesta sessão. Sair e voltar a entrar actualiza a lista de agendas.'
+            })
+          };
         }
       }
+      // Sem portal_id pedido (ex.: primeiro carregamento): usar o primeiro gerido.
       if (!portalId && user.portalIds?.length > 0) portalId = user.portalIds[0];
     }
 
