@@ -41,7 +41,7 @@ test('lê a cotação citada no reply real BU-68-AX', () => {
     matricula: 'BU-68-AX',
     descricao: 'SUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQUERDO /OEM',
     valor: 192,
-    eurocode: '3593LYPE5RWZ',
+    eurocode: '*3593LYPE5RWZ',
     ne: null
   }]);
 });
@@ -58,7 +58,7 @@ MatrículaServiçoValorNeNotasBU-68-AXSUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQU
     matricula: 'BU-68-AX',
     descricao: 'SUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQUERDO /OEM',
     valor: 192,
-    eurocode: '3593LYPE5RWZ',
+    eurocode: '*3593LYPE5RWZ',
     ne: null
   }]);
 });
@@ -79,7 +79,7 @@ test('recupera a cotação após o mailparser converter o HTML do Outlook em tex
 
   assert.equal(quote.descricao, 'SUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQUERDO /OEM');
   assert.equal(quote.valor, 192);
-  assert.equal(quote.eurocode, '3593LYPE5RWZ');
+  assert.equal(quote.eurocode, '*3593LYPE5RWZ');
 });
 
 test('lê a cotação quando o Outlook separa as células por linhas', () => {
@@ -96,7 +96,7 @@ Notas
   const [quote] = parseQuoteText(text, 'BU68AX');
   assert.equal(quote.descricao, 'SUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQUERDO /OEM');
   assert.equal(quote.valor, 192);
-  assert.equal(quote.eurocode, '3593LYPE5RWZ');
+  assert.equal(quote.eurocode, '*3593LYPE5RWZ');
 });
 
 test('não confunde uma matrícula isolada no assunto com uma cotação', () => {
@@ -137,7 +137,7 @@ test('recupera a cotação do reply mais recente para o processo existente', () 
   ], 'BU68AX');
 
   assert.equal(selected.quote.valor, 192);
-  assert.equal(selected.quote.eurocode, '3593LYPE5RWZ');
+  assert.equal(selected.quote.eurocode, '*3593LYPE5RWZ');
   assert.equal(selected.meta.gmailMessageId, 'reply-184');
 });
 
@@ -155,7 +155,7 @@ test('ignora mensagens da conversa que não contêm qualquer cotação', () => {
   ], 'BU-68-AX');
 
   assert.equal(selected.quote.valor, 192);
-  assert.equal(selected.quote.eurocode, '3593LYPE5RWZ');
+  assert.equal(selected.quote.eurocode, '*3593LYPE5RWZ');
 });
 
 test('o sweep consolida a cotação antes de marcar o reply como processado', () => {
@@ -173,4 +173,26 @@ test('o sweep consolida a cotação antes de marcar o reply como processado', ()
   assert.match(source, /advance_authorized_at IS NULL[\s\S]*?NULLIF\(TRIM\(eurocode\), ''\) IS NULL/);
   assert.match(source, /pending_reply_sweep_cursor_v3/);
   assert.match(source, /parseQuoteText\(text, service\.matricula\)/);
+});
+
+test('o asterisco da referência é preservado, o resto da pontuação não', () => {
+  // O fornecedor escreve *7624BGSHAI e o asterisco distingue a peça: tem de
+  // chegar ao portal tal como veio. Bullets, dois pontos e traços continuam a
+  // ser ruído de formatação da célula.
+  const comNotas = (notas) => parseTableHtml(
+    '<table><tr><th>Matricula</th><th>Serviço</th><th>Valor</th><th>Notas</th></tr>' +
+    `<tr><td>BJ-95-CU</td><td>SUBSTITUIÇÃO ÓCULO / OEM</td><td>248,00 €</td><td>${notas}</td></tr></table>`
+  )[0].eurocode;
+
+  assert.equal(comNotas('*7624BGSHAI'), '*7624BGSHAI');
+  assert.equal(comNotas('* 7624BGSHAI'), '*7624BGSHAI');
+  assert.equal(comNotas('**7624BGSHAI'), '**7624BGSHAI');
+  assert.equal(comNotas('7624BGSHAI'), '7624BGSHAI');
+  assert.equal(comNotas('# 7624BGSHAI'), '7624BGSHAI');
+  assert.equal(comNotas('• 7624BGSHAI'), '7624BGSHAI');
+  assert.equal(comNotas(': 7624BGSHAI'), '7624BGSHAI');
+
+  // Também no texto corrido, que é como chega quando o Outlook achata a tabela
+  const corrido = parseQuoteText('BJ-95-CU SUBSTITUIÇÃO ÓCULO / OEM 248,00 € *7624BGSHAI', 'BJ-95-CU');
+  assert.equal(corrido[0].eurocode, '*7624BGSHAI');
 });
