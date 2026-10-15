@@ -2402,6 +2402,10 @@ function _renderTeamSection(teamStats) {
   const calcFuelCost = km => km * fuelPer100 / 100 * fuelPricePerLtr;
   const totalFuelCost = calcFuelCost(totalKm);
   const avgCostPerService = totalServices > 0 ? totalFuelCost / totalServices : 0;
+  // Média do período: total de km a dividir pelo total de serviços — não a
+  // média das médias diárias, que daria peso igual a um dia de 1 serviço e a
+  // um de 4.
+  const avgKmPerService = totalServices > 0 ? (totalKm / totalServices).toFixed(1) + ' km' : '—';
 
   sec.innerHTML = `
     <div style="border-top:2px solid #7c3aed;padding-top:24px;margin-top:32px;">
@@ -2437,6 +2441,7 @@ function _renderTeamSection(teamStats) {
           <th style="padding:9px 10px;text-align:center;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">Horas líq.</th>
           <th style="padding:9px 10px;text-align:center;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">Serviços</th>
           <th style="padding:9px 10px;text-align:center;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">KM</th>
+          <th style="padding:9px 10px;text-align:center;font-weight:700;color:#0891b2;border-bottom:2px solid #e2e8f0;">KM/serviço</th>
           <th style="padding:9px 10px;text-align:center;font-weight:700;color:#7c3aed;border-bottom:2px solid #e2e8f0;">Serv./hora</th>
           <th style="padding:9px 10px;text-align:center;font-weight:700;color:#9333ea;border-bottom:2px solid #e2e8f0;">Custo combust.</th>
           <th style="padding:9px 10px;text-align:center;font-weight:700;color:#9333ea;border-bottom:2px solid #e2e8f0;">€/serviço</th>
@@ -2450,6 +2455,7 @@ function _renderTeamSection(teamStats) {
             const km = parseFloat(r.km_day||0);
             const fuelCost = calcFuelCost(km);
             const cps = svcs > 0 ? (fuelCost / svcs).toFixed(2) + '€' : '—';
+            const kps = svcs > 0 ? (km / svcs).toFixed(1) + ' km' : '—';
             return `<tr style="border-bottom:1px solid #f1f5f9;${i%2===0?'background:#fafafa':''}">
               <td style="padding:8px 10px;font-weight:600;">${fmtD(r.date)}</td>
               <td style="padding:8px 10px;text-align:center;color:${r.checkin_auto?'#94a3b8':'#16a34a'};font-weight:600;">${fmtT(r.checkin_at)}${r.checkin_auto?' *':''}</td>
@@ -2457,6 +2463,7 @@ function _renderTeamSection(teamStats) {
               <td style="padding:8px 10px;text-align:center;font-weight:700;color:#7c3aed;">${fmtH(net)}</td>
               <td style="padding:8px 10px;text-align:center;font-weight:700;">${svcs}</td>
               <td style="padding:8px 10px;text-align:center;">${km.toFixed(0)} km</td>
+              <td style="padding:8px 10px;text-align:center;font-weight:700;color:#0891b2;">${kps}</td>
               <td style="padding:8px 10px;text-align:center;font-weight:700;color:#ea580c;">${sph}</td>
               <td style="padding:8px 10px;text-align:center;color:#9333ea;">${fuelCost.toFixed(2)}€</td>
               <td style="padding:8px 10px;text-align:center;font-weight:700;color:#9333ea;">${cps}</td>
@@ -2468,6 +2475,7 @@ function _renderTeamSection(teamStats) {
             <td style="padding:8px 10px;text-align:center;color:#7c3aed;">${fmtH(totalNetHrs)}</td>
             <td style="padding:8px 10px;text-align:center;">${totalServices}</td>
             <td style="padding:8px 10px;text-align:center;">${totalKm.toFixed(0)} km</td>
+            <td style="padding:8px 10px;text-align:center;color:#0891b2;">${avgKmPerService}</td>
             <td style="padding:8px 10px;text-align:center;color:#ea580c;">${servicesPerHour.toFixed(2)}</td>
             <td style="padding:8px 10px;text-align:center;color:#9333ea;">${totalFuelCost.toFixed(2)}€</td>
             <td style="padding:8px 10px;text-align:center;font-weight:700;color:#9333ea;">${avgCostPerService.toFixed(2)}€</td>
