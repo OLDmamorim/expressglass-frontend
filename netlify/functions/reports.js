@@ -282,6 +282,21 @@ exports.handler = async (event) => {
       console.error('vidrosRetirados query error:', e.message);
     }
 
+    // 15. Consumo e preço do combustível das Configurações — os que a secção
+    // "Equipa — Tempos e Rentabilidade" usa no custo por serviço.
+    let combustivel = { litros100: 7.5, precoLitro: 1.65 };
+    try {
+      const { rows } = await pool.query("SELECT value FROM settings WHERE key = 'global' LIMIT 1");
+      if (rows.length > 0) {
+        const s = typeof rows[0].value === 'string' ? JSON.parse(rows[0].value) : rows[0].value;
+        const l = parseFloat(s?.fuelPer100km);
+        const p = parseFloat(s?.fuelPricePerLiter);
+        combustivel = { litros100: l > 0 ? l : 7.5, precoLitro: p > 0 ? p : 1.65 };
+      }
+    } catch(e) {
+      console.error('settings combustível error:', e.message);
+    }
+
     return {
       statusCode: 200,
       headers,
@@ -289,6 +304,7 @@ exports.handler = async (event) => {
         success: true,
         diasAberto,
         vidrosRetirados,
+        combustivel,
         portal: portalInfo[0] || {},
         period: { from: dateFrom, to: dateTo },
         totals: {

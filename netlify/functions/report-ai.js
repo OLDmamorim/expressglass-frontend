@@ -2,14 +2,25 @@
 // Analisa os resultados de um relatório operacional e produz um comentário
 // (o que está bem, o que está mal, o que melhorar). Usa a OpenAI.
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { callAI } = require('../lib/ai');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
+/** O PoweringEG pede a análise com a mesma chave do reports.js (EGAGENDA_API_KEY). */
+function chavePoweringValida(recebida) {
+  const esperada = process.env.EGAGENDA_API_KEY;
+  if (!esperada || !recebida) return false;
+  const a = Buffer.from(String(recebida));
+  const b = Buffer.from(esperada);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Content-Type': 'application/json'
   };
@@ -18,10 +29,12 @@ exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: '{}' };
 
   try {
-    const authHeader = event.headers.authorization || event.headers.Authorization;
-    if (!authHeader?.startsWith('Bearer ')) throw new Error('Não autenticado');
-    const decoded = jwt.verify(authHeader.substring(7), JWT_SECRET);
-    if (!['admin', 'coordenador'].includes(decoded.role)) throw new Error('Acesso negado');
+    if (!chavePoweringValida(event.headers['x-api-key'] || event.headers['X-API-Key'])) {
+      const authHeader = event.headers.authorization || event.headers.Authorization;
+      if (!authHeader?.startsWith('Bearer ')) throw new Error('Não autenticado');
+      const decoded = jwt.verify(authHeader.substring(7), JWT_SECRET);
+      if (!['admin', 'coordenador'].includes(decoded.role)) throw new Error('Acesso negado');
+    }
 
     const { report } = JSON.parse(event.body || '{}');
     if (!report) throw new Error('Dados do relatório em falta');
