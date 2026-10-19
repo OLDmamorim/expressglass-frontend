@@ -1,25 +1,43 @@
 // netlify/functions/reports.js
 const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
+/**
+ * O PoweringEG também lê este relatório (Eficiência dos SMs), com a mesma
+ * chave do sm-efficiency.js: do outro lado está um servidor, não uma pessoa
+ * com sessão. Comparação em tempo constante.
+ */
+function chavePoweringValida(recebida) {
+  const esperada = process.env.EGAGENDA_API_KEY;
+  if (!esperada || !recebida) return false;
+  const a = Buffer.from(String(recebida));
+  const b = Buffer.from(esperada);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
     'Content-Type': 'application/json'
   };
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'GET') return { statusCode: 405, headers, body: JSON.stringify({ error: 'GET only' }) };
 
-  try {
-    const token = (event.headers.authorization || event.headers.Authorization || '').replace('Bearer ', '');
-    jwt.verify(token, JWT_SECRET);
-  } catch(e) {
-    return { statusCode: 403, headers, body: JSON.stringify({ error: 'Não autenticado' }) };
+  const chave = event.headers['x-api-key'] || event.headers['X-API-Key'];
+  if (!chavePoweringValida(chave)) {
+    try {
+      const token = (event.headers.authorization || event.headers.Authorization || '').replace('Bearer ', '');
+      jwt.verify(token, JWT_SECRET);
+    } catch(e) {
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Não autenticado' }) };
+    }
   }
 
   const params = event.queryStringParameters || {};
@@ -222,11 +240,55 @@ exports.handler = async (event) => {
       console.error('teamStats query error:', e.message);
     }
 
+    // 13. Dias em aberto (da criação ao dia do serviço), já em escalões — o
+    // mesmo que o ecrã do relatório calcula a partir da lista de agendamentos,
+    // aqui no servidor para quem lê por API (PoweringEG).
+    let diasAberto = null;
+    try {
+      const { rows } = await pool.query(`
+        SELECT
+          COUNT(*) FILTER (WHERE d <= 2) AS b0,
+          COUNT(*) FILTER (WHERE d BETWEEN 3 AND 6) AS b1,
+          COUNT(*) FILTER (WHERE d BETWEEN 7 AND 13) AS b2,
+          COUNT(*) FILTER (WHERE d BETWEEN 14 AND 29) AS b3,
+          COUNT(*) FILTER (WHERE d >= 30) AS b4,
+          ROUND(AVG(d)::numeric, 1) AS media
+        FROM (
+          SELECT GREATEST(0, (date - created_at::date)) AS d
+          FROM appointments
+          WHERE portal_id = $1 AND date BETWEEN $2 AND $3 AND created_at IS NOT NULL
+        ) x
+      `, [portalId, dateFrom, effectiveDateTo]);
+      const r = rows[0] || {};
+      diasAberto = {
+        escaloes: [r.b0, r.b1, r.b2, r.b3, r.b4].map(v => parseInt(v) || 0),
+        media: r.media === null || r.media === undefined ? null : Number(r.media),
+      };
+    } catch(e) {
+      console.error('diasAberto query error:', e.message);
+    }
+
+    // 14. Vidros retirados à espera (sem filtro de período: são pendentes).
+    let vidrosRetirados = [];
+    try {
+      const { rows } = await pool.query(`
+        SELECT plate, car, service, glass_removed_date::text AS glass_removed_date, date::text AS date
+        FROM appointments
+        WHERE portal_id = $1 AND glass_removed = true
+        ORDER BY glass_removed_date ASC NULLS LAST
+      `, [portalId]);
+      vidrosRetirados = rows;
+    } catch(e) {
+      console.error('vidrosRetirados query error:', e.message);
+    }
+
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
+        diasAberto,
+        vidrosRetirados,
         portal: portalInfo[0] || {},
         period: { from: dateFrom, to: dateTo },
         totals: {
