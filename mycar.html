@@ -5,15 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mycar Center - Expressglass</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#1e40af">
+  <meta name="theme-color" content="#0b2d64">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --blue:    #2563eb;
-      --blue-d:  #1d4ed8;
+      /* Imagem ExpressGlass: azul-marinho como cor principal, vermelho só de acento. */
+      --blue:    #0b2d64;
+      --blue-d:  #071e45;
+      --eg-vermelho: #e1251b;
+      --eg-navy-claro: #eef2f8;
       --green:   #16a34a;
       --green-l: #dcfce7;
       --orange:  #d97706;
@@ -25,20 +31,21 @@
       --border:  #e5e7eb;
       --text:    #111827;
       --text-s:  #374151;
-      --radius:  10px;
+      --radius:  6px;
       --shadow:  0 1px 4px rgba(0,0,0,.08);
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f1f5f9;
+      font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f4f6f9;
       color: var(--text);
       min-height: 100vh;
     }
 
     /* ─── HEADER ─── */
     .header {
-      background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+      background: var(--blue);
+      border-bottom: 3px solid var(--eg-vermelho);
       color: white;
       padding: 0 24px;
       height: 60px;
@@ -50,8 +57,8 @@
       top: 0;
       z-index: 100;
     }
-    .header-logo { height: 32px; filter: brightness(0) invert(1); }
-    .header-title { font-size: 1.1rem; font-weight: 700; letter-spacing: .4px; flex: 1; }
+    .header-logo { height: 36px; background: #fff; padding: 6px 12px; border-radius: 6px; }
+    .header-title { font-family: 'Poppins', sans-serif; font-size: 1.1rem; font-weight: 600; letter-spacing: -.01em; flex: 1; }
     .header-subtitle { font-size: .75rem; opacity: .75; }
     .header-nav a {
       color: rgba(255,255,255,.85);
@@ -113,7 +120,7 @@
       margin-bottom: 16px;
       flex-wrap: wrap;
     }
-    .toolbar-title { font-size: 1rem; font-weight: 700; color: var(--text-s); flex: 1; }
+    .toolbar-title { font-family: 'Poppins', sans-serif; font-size: 1rem; font-weight: 600; color: var(--blue); flex: 1; }
     .search-input {
       padding: 8px 12px;
       border: 1px solid var(--border);
@@ -188,7 +195,7 @@
       cursor: pointer;
       transition: background .1s;
     }
-    tbody tr:hover { background: #f0f7ff; }
+    tbody tr:hover { background: var(--eg-navy-claro); }
     tbody tr:last-child { border-bottom: none; }
     td {
       padding: 16px 20px;
@@ -245,9 +252,9 @@
     .badge-done    { background: var(--green-l);  color: var(--green); }
     .badge-reject  { background: var(--red-l);    color: var(--red); }
     .badge-neutral { background: var(--gray-l);   color: var(--gray); }
-    .badge-new     { background: #dbeafe; color: #1d4ed8; font-size:.65rem; padding:2px 6px; }
+    .badge-new     { background: var(--eg-navy-claro); color: var(--blue); font-size:.65rem; padding:2px 6px; }
     .badge-authorized { background: #bbf7d0; color: #166534; border: 1px solid #86efac; }
-    tr.row-new { background: #eff6ff; }
+    tr.row-new { background: var(--eg-navy-claro); }
     tr.row-new td { font-weight: 600; }
     tr.row-authorized { background: #ecfdf5; box-shadow: inset 4px 0 0 var(--green); }
     tr.row-authorized:hover { background: #dcfce7; }
@@ -289,7 +296,7 @@
     .modal-overlay.open { display: flex; }
     .modal {
       background: white;
-      border-radius: 16px;
+      border-radius: 8px;
       box-shadow: 0 24px 64px rgba(0,0,0,.25);
       width: 100%;
       max-width: 960px;
@@ -328,7 +335,7 @@
     /* ─── SERVICE CARDS (detail panel) ─── */
     .service-card {
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: var(--radius);
       padding: 14px 16px;
       margin-bottom: 10px;
       transition: border-color .15s;
@@ -457,11 +464,11 @@
     .treat-checkbox {
       width: 18px;
       height: 18px;
-      accent-color: #2563eb;
+      accent-color: var(--blue);
       cursor: pointer;
     }
-    tr.in-treatment { background: #eff6ff; }
-    tr.in-treatment:hover { background: #dbeafe; }
+    tr.in-treatment { background: var(--eg-navy-claro); }
+    tr.in-treatment:hover { background: #e3e9f5; }
     tr.in-treatment.row-authorized { background: #ecfdf5; }
     tr.in-treatment.row-authorized:hover { background: #dcfce7; }
 
@@ -477,7 +484,7 @@
     }
     .toast {
       padding: 12px 18px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       font-size: .88rem;
       font-weight: 500;
       box-shadow: 0 4px 16px rgba(0,0,0,.15);
@@ -486,7 +493,7 @@
     }
     .toast.success { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
     .toast.error   { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-    .toast.info    { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .toast.info    { background: var(--eg-navy-claro); color: var(--blue); border: 1px solid #c6d3ea; }
     @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
     /* ─── RESPONSIVE ─── */
@@ -884,7 +891,7 @@ function renderTable(groups) {
           ${g.isNew ? '<span class="count-badge badge-new" style="margin-left:6px">Novo</span>' : ''}
           ${g.authorizedCount ? `<span class="count-badge badge-authorized" style="margin-left:6px" title="${g.authorizedCount} serviço(s) autorizado(s) pela MyCar">✓ Avançar</span>` : ''}
           ${g.car ? `<div style="font-size:.82rem;color:#374151;font-weight:600;margin-top:5px">${g.car}</div>` : ''}
-          ${g.n_obra ? `<div style="font-size:.8rem;color:#2563eb;font-weight:700;margin-top:2px">FS${g.n_obra}</div>` : ''}
+          ${g.n_obra ? `<div style="font-size:.8rem;color:var(--blue);font-weight:700;margin-top:2px">FS${g.n_obra}</div>` : ''}
         </td>
         <td class="col-glass">${(function(){
           const gs = g.glass_status;
