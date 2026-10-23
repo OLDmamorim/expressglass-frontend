@@ -7,13 +7,14 @@
   <!-- 🚨 TESTE DEPLOY 25/09/2025 13:20 -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Figtree:wght@400;500;600;700;800&family=Roboto:wght@400;500&family=Rajdhani:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Poppins:wght@500;600;700&family=Figtree:wght@400;500;600;700;800&family=Roboto:wght@400;500&family=Rajdhani:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=2026-06-22g"/>
 <link rel="stylesheet" href="transport-guide.css?v=2026-05-19h"/>
+  <link rel="stylesheet" href="marca-eg.css?v=2026-10-23a"/>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#0b2d64">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Agendamentos EG">
@@ -151,21 +152,21 @@
         <button id="prevWeek" class="nav-button">&lt; Anterior</button>
         <button id="nextWeek" class="nav-button">Próxima &gt;</button>
         <button id="todayWeek" class="nav-button">📅 Hoje</button>
-        <button class="nav-button" id="addServiceBtn" style="background:#2563eb;color:#fff;font-weight:700;">+ Novo Serviço</button>
+        <button class="nav-button" id="addServiceBtn" style="background:#0b2d64;color:#fff;font-weight:700;border-color:#0b2d64;">+ Novo Serviço</button>
       </div>
       <div class="week-range" id="weekRange">—</div>
       <div class="nav-right">
-        <button id="calculateRoutes" class="nav-button" style="color:#fbbf24;" title="Otimizar rotas por proximidade">🗺️ Calcular Rotas</button>
-        <button id="btnRotaDoDiaDesk" class="nav-button" style="background:#16a34a;color:#fbbf24;" title="Ver rota do dia no Google Maps">📍 Ver Rota</button>
-        <button id="btnVendasComplDesk" class="nav-button" onclick="openVendasComplPanel()" style="color:#fbbf24;position:relative;" title="Vendas Complementares">💰 Vendas Compl.<span id="vendasComplBadgeDesk" style="display:none;position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;background:#ef4444;color:#fff;border-radius:9px;font-size:11px;font-weight:700;line-height:18px;text-align:center;padding:0 3px;"></span></button>
-        <button id="btnTimelineDesk" class="nav-button" style="background:#7c3aed;color:#fbbf24;" title="Timeline do dia">⏱️ Timeline</button>
-        <button id="btnCoordDayView" class="nav-button" style="display:none;background:#0891b2;color:#fff;font-weight:700;" title="Vista por dia — serviços de todas as lojas">📆 Vista por Dia</button>
-        <button id="btnVidrosRetirados" class="nav-button" style="background:#f59e0b;color:#fff;font-weight:700;" title="Ver vidros retirados">🪟 Vidros Retirados</button>
+        <button id="calculateRoutes" class="nav-button" title="Otimizar rotas por proximidade">🗺️ Calcular Rotas</button>
+        <button id="btnRotaDoDiaDesk" class="nav-button" title="Ver rota do dia no Google Maps">📍 Ver Rota</button>
+        <button id="btnVendasComplDesk" class="nav-button" onclick="openVendasComplPanel()" style="position:relative;" title="Vendas Complementares">💰 Vendas Compl.<span id="vendasComplBadgeDesk" style="display:none;position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;background:#ef4444;color:#fff;border-radius:9px;font-size:11px;font-weight:700;line-height:18px;text-align:center;padding:0 3px;"></span></button>
+        <button id="btnTimelineDesk" class="nav-button" title="Timeline do dia">⏱️ Timeline</button>
+        <button id="btnCoordDayView" class="nav-button" style="display:none;" title="Vista por dia — serviços de todas as lojas">📆 Vista por Dia</button>
+        <button id="btnVidrosRetirados" class="nav-button" title="Ver vidros retirados">🪟 Vidros Retirados</button>
 
-        <button id="btnRececaoVidros" class="nav-button" style="display:none;background:#0f172a;color:#94a3b8;border:1px solid rgba(255,255,255,0.15);font-weight:700;position:relative;" title="Receção de Vidros" onclick="window.glassReception?.openCoordPanel()">📦 Receção Vidros</button>
-        <button id="btnRelatoriosDesk" class="nav-button" style="display:none;background:#1e40af;color:#fff;font-weight:700;" title="Relatórios" onclick="openReportsPanel()">📊 Relatórios</button>
-        <button id="btnHistoricoDesk" class="nav-button" style="display:none;background:#0f766e;color:#fff;font-weight:700;" title="Histórico de Serviços" onclick="window.historicoModal?.open()">🕘 Histórico</button>
-        <button id="printPage" class="nav-button" style="color:#fbbf24;">🖨 Imprimir</button>
+        <button id="btnRececaoVidros" class="nav-button" style="display:none;background:#0b2d64;color:#fff;border:1px solid #0b2d64;font-weight:700;position:relative;" title="Receção de Vidros" onclick="window.glassReception?.openCoordPanel()">📦 Receção Vidros</button>
+        <button id="btnRelatoriosDesk" class="nav-button" style="display:none;" title="Relatórios" onclick="openReportsPanel()">📊 Relatórios</button>
+        <button id="btnHistoricoDesk" class="nav-button" style="display:none;" title="Histórico de Serviços" onclick="window.historicoModal?.open()">🕘 Histórico</button>
+        <button id="printPage" class="nav-button">🖨 Imprimir</button>
         <!-- Guia AT upload (coordinator/admin only, desktop) -->
         <div id="guiaATUploadAreaDesk" style="display:none; align-items:center; gap:6px;">
           <input type="file" id="guiaATFileInputDesk" accept=".pdf,image/*" style="display:none" onchange="guiaAT.handleFileSelected(this)">
@@ -240,17 +241,17 @@
           </button>
         </div>
         <div id="mobileActionRow" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;width:100%;box-sizing:border-box;">
-          <button id="btnVendasCompl" class="m-report-btn" onclick="openVendasComplPanel()" style="color:#fbbf24;min-width:0;padding-left:4px;padding-right:4px;position:relative;">
+          <button id="btnVendasCompl" class="m-report-btn" onclick="openVendasComplPanel()" style="min-width:0;padding-left:4px;padding-right:4px;position:relative;">
             💰
             <span id="vendasComplBadge" style="display:none;position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;background:#ef4444;color:#fff;border-radius:8px;font-size:10px;font-weight:700;line-height:16px;text-align:center;padding:0 2px;"></span>
             Vendas
           </button>
-          <button id="calculateRoutesMobile" class="m-report-btn" style="background:#1d4ed8;color:#fbbf24;min-width:0;padding-left:4px;padding-right:4px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
+          <button id="calculateRoutesMobile" class="m-report-btn" style="min-width:0;padding-left:4px;padding-right:4px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"></polygon></svg>
             Calcular Rotas
           </button>
-          <button id="btnTimeline" class="m-report-btn" style="background:#7c3aed;color:#fbbf24;min-width:0;padding-left:4px;padding-right:4px;">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><polyline points="12 9 12 13 15 16"></polyline><line x1="9" y1="2" x2="15" y2="2"></line></svg>
+          <button id="btnTimeline" class="m-report-btn" style="min-width:0;padding-left:4px;padding-right:4px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><polyline points="12 9 12 13 15 16"></polyline><line x1="9" y1="2" x2="15" y2="2"></line></svg>
             Timeline
           </button>
         </div>
@@ -277,7 +278,7 @@
           <button id="btnRececaoVidrosMobile" style="display:none;" class="guia-at-upload-btn" onclick="window.glassReception?.openCoordPanel()" title="Painel de Receção de Vidros">
             📦 Receção Vidros
           </button>
-          <button id="btnVidrosRetiradosMobile" style="display:none;background:#f59e0b;color:#fff;border-color:#f59e0b;" class="guia-at-upload-btn" onclick="window._openVidrosPanel?.()" title="Ver vidros retirados">
+          <button id="btnVidrosRetiradosMobile" style="display:none;" class="guia-at-upload-btn" onclick="window._openVidrosPanel?.()" title="Ver vidros retirados">
             🪟 Vidros Retirados
           </button>
           <button id="btnHistoricoMobile" style="display:none;" class="guia-at-upload-btn" onclick="window.historicoModal?.open()" title="Histórico de Serviços">
@@ -4589,9 +4590,9 @@
           btn.textContent = `📦 Receção Vidros (${n})`;
         } else {
           btn.style.animation = '';
-          btn.style.background = '#0f172a';
-          btn.style.color = '#94a3b8';
-          btn.style.border = '1px solid rgba(255,255,255,0.15)';
+          btn.style.background = '#0b2d64';
+          btn.style.color = '#fff';
+          btn.style.border = '1px solid #0b2d64';
           btn.style.boxShadow = '';
           btn.textContent = '📦 Receção Vidros';
         }

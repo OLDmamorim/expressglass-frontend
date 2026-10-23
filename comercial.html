@@ -6,21 +6,22 @@
   <title>Portal Comercial - Expressglass</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Poppins:wght@500;600;700&family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="/favicon.ico">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#0b2d64">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Figtree', sans-serif;
-      background: #f1f5f9;
+      background: #f4f6f9;
       min-height: 100vh;
     }
 
     /* ===== HEADER ===== */
     .page-header {
-      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+      background: #0b2d64;
+      border-bottom: 3px solid #e1251b;
       color: white;
       padding: 0 24px;
       height: 64px;
@@ -36,17 +37,17 @@
     .header-left { display: flex; align-items: center; gap: 16px; }
 
     .header-logo {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: 1px;
+      font-family: 'Poppins', 'Figtree', sans-serif;
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
       text-transform: uppercase;
     }
 
     .header-badge {
-      background: rgba(99,179,237,.25);
-      border: 1px solid rgba(99,179,237,.4);
-      color: #90cdf4;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.25);
+      color: #fff;
       font-size: 11px;
       font-weight: 700;
       padding: 3px 10px;
@@ -149,7 +150,7 @@
     .chip-total      { background: #e2e8f0; color: #475569; }
     .chip-done       { background: #dcfce7; color: #16a34a; }
     .chip-notdone    { background: #fee2e2; color: #dc2626; }
-    .chip-pending    { background: #eff6ff; color: #2563eb; }
+    .chip-pending    { background: #eef2f8; color: #0b2d64; }
     .chip-poragendar { background: #fff7ed; color: #ea580c; }
 
     /* ===== TABLE ===== */
@@ -166,14 +167,14 @@
     }
 
     .com-table thead {
-      background: #0f172a;
+      background: #0b2d64;
       color: white;
     }
     .com-table thead th {
       padding: 14px 16px;
       text-align: left;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 13px;
+      font-family: 'Poppins', 'Figtree', sans-serif;
+      font-size: 12px;
       font-weight: 700;
       letter-spacing: .5px;
       text-transform: uppercase;
@@ -252,7 +253,7 @@
     }
     .status-pill.done       { background: #dcfce7; color: #16a34a; }
     .status-pill.notdone    { background: #fee2e2; color: #dc2626; }
-    .status-pill.pending    { background: #eff6ff; color: #2563eb; }
+    .status-pill.pending    { background: #eef2f8; color: #0b2d64; }
     .status-pill.poragendar { background: #fff7ed; color: #ea580c; }
 
     .status-dot {
@@ -263,7 +264,7 @@
     }
     .done .status-dot       { background: #16a34a; }
     .notdone .status-dot    { background: #dc2626; }
-    .pending .status-dot    { background: #2563eb; }
+    .pending .status-dot    { background: #0b2d64; }
     .poragendar .status-dot { background: #ea580c; }
 
     /* Coluna motivo */
@@ -431,7 +432,7 @@
 
     /* ===== PEDIDO DE SERVIÇO ===== */
     .btn-pedido {
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      background: #0b2d64;
       color: white;
       border: none;
       padding: 9px 18px;
@@ -487,7 +488,7 @@
     }
     .pedido-close {
       width: 32px; height: 32px;
-      border: none; background: #f1f5f9;
+      border: none; background: #f4f6f9;
       border-radius: 50%; cursor: pointer;
       font-size: 16px; color: #64748b;
       display: flex; align-items: center; justify-content: center;
@@ -515,7 +516,7 @@
       outline: none;
       transition: border-color .15s;
     }
-    .pedido-field input:focus, .pedido-field select:focus { border-color: #2563eb; }
+    .pedido-field input:focus, .pedido-field select:focus { border-color: #0b2d64; }
     .pedido-field .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
 
     /* Sugestões de SM */
@@ -533,8 +534,8 @@
       cursor: pointer;
       transition: all .15s;
     }
-    .sm-option:hover { border-color: #2563eb; background: #eff6ff; }
-    .sm-option.selected { border-color: #2563eb; background: #eff6ff; }
+    .sm-option:hover { border-color: #0b2d64; background: #eef2f8; }
+    .sm-option.selected { border-color: #0b2d64; background: #eef2f8; }
     .sm-option.best { border-color: #16a34a; }
     .sm-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
     .sm-name { font-weight: 700; font-size: 14px; flex: 1; }
@@ -561,7 +562,7 @@
       font-family: 'Figtree', sans-serif;
     }
     .btn-submit-pedido {
-      background: #2563eb; color: white;
+      background: #0b2d64; color: white;
       border: none; padding: 10px 24px;
       border-radius: 10px; font-weight: 700;
       font-size: 14px; cursor: pointer;
@@ -582,7 +583,7 @@
       width: 8px; height: 8px; border-radius: 50%; background: #e2e8f0;
       transition: background .2s;
     }
-    .step-dot.active { background: #2563eb; }
+    .step-dot.active { background: #0b2d64; }
 
   </style>
 </head>
@@ -602,7 +603,7 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Pedido de Serviço
       </button>
-      <button onclick="toggleMeusPedidos()" style="background:#7c3aed;color:#fff;border:none;padding:8px 16px;border-radius:20px;font-weight:700;font-size:13px;cursor:pointer;">📋 Meus Pedidos</button>
+      <button onclick="toggleMeusPedidos()" style="background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25);padding:8px 16px;border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;">📋 Meus Pedidos</button>
       <button class="btn-logout" onclick="doLogout()">Sair</button>
     </div>
   </header>

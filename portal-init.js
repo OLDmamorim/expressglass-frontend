@@ -269,7 +269,7 @@ function buildPortalSwitcher(portals, activeId) {
   const wrapper = document.createElement('div');
   wrapper.id = 'portalSwitcher';
   wrapper.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:10px;' +
-    'padding:10px 16px;background:linear-gradient(135deg,#1e40af,#1d4ed8);';
+    'padding:10px 16px;background:#123d82;';
 
   const label = document.createElement('span');
   label.textContent = 'Agenda:';
@@ -277,7 +277,7 @@ function buildPortalSwitcher(portals, activeId) {
 
   const select = document.createElement('select');
   select.id = 'portalSwitcherSelect';
-  select.style.cssText = 'padding:8px 16px;border-radius:8px;border:2px solid rgba(255,255,255,0.3);' +
+  select.style.cssText = 'padding:8px 16px;border-radius:6px;border:2px solid rgba(255,255,255,0.3);' +
     'background:rgba(255,255,255,0.15);color:white;font-size:15px;font-weight:600;cursor:pointer;' +
     'min-width:180px;outline:none;';
 

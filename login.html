@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login - Expressglass</title>
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#2563eb">
+  <meta name="theme-color" content="#0b2d64">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Agendamentos EG">
@@ -15,184 +15,221 @@
       navigator.serviceWorker.register('/sw.js').catch(function(){});
     }
   </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* Login ao estilo do My ExpressGlass (como no PoweringEG): o lado da marca
+       a azul-marinho com o logótipo no canto e a mensagem, o formulário à direita. */
+    :root {
+      --eg-navy: #0b2d64;
+      --eg-navy-escuro: #071e45;
+      --eg-vermelho: #e1251b;
+      --eg-cinzento: #f4f6f9;
+      --eg-texto: #1f2a3d;
+      --eg-borda: #d6dde7;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: var(--eg-cinzento);
+      color: var(--eg-texto);
       padding: 20px;
     }
 
     .login-container {
       width: 100%;
-      max-width: 420px;
-      background: white;
-      border-radius: 24px;
-      padding: 40px 32px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    }
-
-    .logo-container {
-      background: white;
+      max-width: 960px;
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      background: #fff;
       border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 32px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(148,163,184,.6);
+    }
+
+    /* ── Lado da marca ── */
+    .brand-side {
+      position: relative;
+      min-height: 560px;
+      overflow: hidden;
+      background: linear-gradient(140deg, #0b2d64 0%, #123d82 55%, #071e45 100%);
+    }
+    .brand-side::before, .brand-side::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255,255,255,.05);
+    }
+    .brand-side::before { width: 320px; height: 320px; right: -96px; top: 96px; }
+    .brand-side::after  { width: 384px; height: 384px; left: -64px; bottom: -128px; }
+    .brand-logo {
+      position: absolute;
+      left: 0; top: 0;
+      background: #fff;
+      padding: 32px 40px;
+      border-bottom-right-radius: 48px;
+      z-index: 1;
+    }
+    .brand-logo img { height: 56px; width: auto; display: block; }
+    .brand-message {
+      position: absolute;
+      left: 40px; right: 40px; bottom: 48px;
+      max-width: 384px;
+      background: rgba(44,86,143,.9);
+      padding: 28px 32px;
+      color: #fff;
+      z-index: 1;
+    }
+    .brand-message .traco { display: block; width: 48px; height: 4px; background: var(--eg-vermelho); margin-bottom: 16px; }
+    .brand-message .titulo { font-family: 'Poppins', sans-serif; font-size: 24px; font-weight: 700; line-height: 1.2; }
+    .brand-message .texto { margin-top: 8px; font-size: 14px; color: rgba(255,255,255,.85); }
+
+    /* ── Formulário ── */
+    .form-side {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       justify-content: center;
+      padding: 40px 48px;
     }
-
-    .logo-container img {
-      max-width: 100%;
-      height: auto;
-      display: block;
-    }
-
-    .welcome-text {
-      text-align: center;
-      margin-bottom: 28px;
-    }
-
+    .form-logo { display: none; height: 48px; width: auto; max-width: 100%; object-fit: contain; align-self: flex-start; margin-bottom: 32px; }
+    .welcome-text { margin-bottom: 28px; }
+    .welcome-text .boas-vindas { font-size: 14px; color: #64748b; }
+    .welcome-text .boas-vindas strong { color: var(--eg-navy); font-weight: 600; }
+    .welcome-text .descricao { font-size: 12px; color: #94a3b8; }
     .welcome-text h1 {
-      font-size: 28px;
-      font-weight: 700;
-      color: #1f2937;
-      margin-bottom: 6px;
-    }
-
-    .welcome-text p {
-      font-size: 15px;
-      color: #6b7280;
+      margin-top: 32px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--eg-navy);
     }
 
     .form-group {
       margin-bottom: 20px;
     }
-
     .form-group label {
       display: block;
       font-size: 14px;
       font-weight: 600;
-      color: #374151;
+      color: var(--eg-texto);
       margin-bottom: 6px;
     }
-
     .form-group input,
     .form-group select {
       width: 100%;
-      padding: 13px 16px;
+      height: 48px;
+      padding: 0 14px;
+      font-family: inherit;
       font-size: 15px;
-      border: 2px solid #e5e7eb;
-      border-radius: 12px;
-      background: #f9fafb;
-      transition: all 0.2s ease;
+      color: var(--eg-texto);
+      border: 1px solid var(--eg-borda);
+      border-radius: 6px;
+      background: #fff;
+      transition: border-color .15s, box-shadow .15s;
       outline: none;
       appearance: none;
     }
-
     .form-group select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748b' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 14px center;
       padding-right: 36px;
     }
-
     .form-group input:focus,
     .form-group select:focus {
-      border-color: #6366f1;
-      background: white;
-      box-shadow: 0 0 0 3px rgba(99,102,241,0.1);
+      border-color: #3f63a8;
+      box-shadow: 0 0 0 3px rgba(11,45,100,.12);
     }
-
     .form-group input::placeholder { color: #9ca3af; }
+
+    .password-wrap { position: relative; }
+    .password-wrap input { padding-right: 44px; }
+    .ver-password {
+      position: absolute;
+      right: 10px; top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      padding: 4px;
+      border-radius: 4px;
+      color: #94a3b8;
+      cursor: pointer;
+      display: flex;
+    }
+    .ver-password:hover { color: #475569; }
+    .ver-password svg { width: 18px; height: 18px; }
 
     .btn-login {
       width: 100%;
-      padding: 15px;
-      font-size: 17px;
+      height: 48px;
+      font-family: inherit;
+      font-size: 14px;
       font-weight: 600;
-      color: white;
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: #fff;
+      background: var(--eg-navy);
       border: none;
-      border-radius: 12px;
+      border-radius: 6px;
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: background .15s;
       margin-top: 4px;
     }
-
-    .btn-login:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(99,102,241,0.4);
-    }
-
-    .btn-login:active { transform: translateY(0); }
-
-    .btn-login:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-
+    .btn-login:hover { background: var(--eg-navy-escuro); }
+    .btn-login:disabled { opacity: .6; cursor: not-allowed; }
     .btn-secondary-action {
       width: 100%;
-      padding: 13px;
-      font-size: 15px;
+      height: 48px;
+      font-family: inherit;
+      font-size: 14px;
       font-weight: 600;
-      color: #6366f1;
-      background: transparent;
-      border: 2px solid #e5e7eb;
-      border-radius: 12px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--eg-navy);
+      background: #fff;
+      border: 1px solid rgba(11,45,100,.3);
+      border-radius: 6px;
       cursor: pointer;
-      transition: all 0.2s ease;
-      margin-top: 10px;
+      transition: background .15s;
     }
-
-    .btn-secondary-action:hover {
-      border-color: #6366f1;
-      background: #f5f3ff;
-    }
-
+    .btn-secondary-action:hover { background: #eef2f8; }
     .divider {
       display: flex;
       align-items: center;
       gap: 12px;
       margin: 20px 0;
-      color: #d1d5db;
+      color: #94a3b8;
       font-size: 13px;
     }
-
     .divider::before,
     .divider::after {
       content: '';
       flex: 1;
       height: 1px;
-      background: #e5e7eb;
+      background: #e3e8ef;
     }
-
     .alert-message {
       padding: 12px 16px;
-      border-radius: 10px;
+      border-radius: 6px;
       margin-bottom: 18px;
       font-size: 14px;
       font-weight: 500;
       display: none;
     }
-
     .alert-message.show { display: block; animation: slideDown 0.3s ease; }
     .alert-message.error { background: #fee2e2; color: #dc2626; }
     .alert-message.success { background: #f0fdf4; color: #16a34a; }
-
     @keyframes slideDown {
       from { opacity: 0; transform: translateY(-8px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-
     .loading {
       display: inline-block;
       width: 15px;
@@ -204,19 +241,17 @@
       margin-right: 8px;
       vertical-align: middle;
     }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Painel de registo */
     #registerPanel { display: none; }
     #loginPanel { display: block; }
-
     .back-link {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       font-size: 13px;
-      color: #6b7280;
+      color: #64748b;
       cursor: pointer;
       margin-bottom: 20px;
       font-weight: 600;
@@ -224,101 +259,118 @@
       border: none;
       padding: 0;
     }
-
-    .back-link:hover { color: #6366f1; }
-
+    .back-link:hover { color: var(--eg-navy); }
     .register-title {
+      font-family: 'Poppins', sans-serif;
       font-size: 20px;
-      font-weight: 800;
-      color: #1f2937;
+      font-weight: 600;
+      color: var(--eg-navy);
       margin-bottom: 4px;
     }
-
     .register-sub {
       font-size: 13px;
-      color: #6b7280;
+      color: #64748b;
       margin-bottom: 24px;
     }
 
-    @media (max-width: 480px) {
-      .login-container { padding: 28px 20px; }
-      .welcome-text h1 { font-size: 24px; }
+    /* No telemóvel, só o formulário, com o logótipo em cima. */
+    @media (max-width: 767px) {
+      .login-container { grid-template-columns: minmax(0, 1fr); max-width: 440px; }
+      .brand-side { display: none; }
+      .form-logo { display: block; }
+      .form-side { padding: 32px 24px; }
     }
   </style>
 </head>
 <body>
   <div class="login-container">
-
-    <div class="logo-container">
-      <img src="expressglass-logo.png" alt="Expressglass - Vidros para Viaturas">
+    <!-- Lado da marca (como no My ExpressGlass) -->
+    <div class="brand-side" aria-hidden="true">
+      <div class="brand-logo">
+        <img src="expressglass-logo.png" alt="">
+      </div>
+      <div class="brand-message">
+        <span class="traco"></span>
+        <p class="titulo">Os agendamentos da ExpressGlass, num só sítio.</p>
+        <p class="texto">Agenda, serviços e equipas.</p>
+      </div>
     </div>
 
-    <!-- ══ PAINEL LOGIN ══ -->
-    <div id="loginPanel">
-      <div class="welcome-text">
-        <h1>Bem-vindo</h1>
-        <p>Faça login na sua conta</p>
+    <div class="form-side">
+      <img class="form-logo" src="expressglass-logo.png" alt="Expressglass - Vidros para Viaturas">
+
+      <!-- ══ PAINEL LOGIN ══ -->
+      <div id="loginPanel">
+        <div class="welcome-text">
+          <p class="boas-vindas">Bem-vindo(a) à <strong>Agenda ExpressGlass</strong></p>
+          <p class="descricao">O agendamento de serviços da rede ExpressGlass.</p>
+          <h1>Faça login</h1>
+        </div>
+
+        <div id="loginError" class="alert-message error"></div>
+
+        <form id="loginForm">
+          <div class="form-group">
+            <label for="username">Email ou username</label>
+            <input type="text" id="username" name="username"
+              placeholder="nome@expressglass.pt" required autocomplete="username" autofocus>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div class="password-wrap">
+              <input type="password" id="password" name="password"
+                required autocomplete="current-password">
+              <button type="button" class="ver-password" id="verPassword" aria-label="Mostrar a password">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+          <button type="submit" id="btnLogin" class="btn-login">Entrar</button>
+        </form>
+
+        <div class="divider">ou</div>
+
+        <button class="btn-secondary-action" onclick="showRegister()">
+          Solicitar acesso
+        </button>
       </div>
 
-      <div id="loginError" class="alert-message error"></div>
+      <!-- ══ PAINEL REGISTO ══ -->
+      <div id="registerPanel">
+        <button class="back-link" onclick="showLogin()">← Voltar ao login</button>
+        <div class="register-title">Solicitar acesso</div>
+        <div class="register-sub">Preencha os dados. O administrador criará a sua conta.</div>
 
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="username">Email ou username</label>
-          <input type="text" id="username" name="username"
-            placeholder="nome@expressglass.pt ou username" required autocomplete="username" autofocus>
-        </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" name="password"
-            placeholder="••••••••" required autocomplete="current-password">
-        </div>
-        <button type="submit" id="btnLogin" class="btn-login">Entrar</button>
-      </form>
+        <div id="registerAlert" class="alert-message"></div>
 
-      <div class="divider">ou</div>
-
-      <button class="btn-secondary-action" onclick="showRegister()">
-        ✍️ Solicitar acesso
-      </button>
+        <form id="registerForm">
+          <div class="form-group">
+            <label for="regName">Nome completo</label>
+            <input type="text" id="regName" placeholder="Ex: João Silva" required>
+          </div>
+          <div class="form-group">
+            <label for="regEmail">Email</label>
+            <input type="email" id="regEmail" placeholder="joao.silva@expressglass.pt" required>
+          </div>
+          <div class="form-group">
+            <label for="regPortal">Loja / Região</label>
+            <input type="text" id="regPortal" placeholder="Ex: Braga, Viana do Castelo SM...">
+          </div>
+          <div class="form-group">
+            <label for="regRole">Cargo</label>
+            <select id="regRole" required>
+              <option value="">Selecionar cargo...</option>
+              <option value="coordenador">Coordenador</option>
+              <option value="user">Técnico</option>
+              <option value="comercial">Comercial</option>
+            </select>
+          </div>
+          <button type="submit" id="btnRegister" class="btn-login">
+            Enviar pedido
+          </button>
+        </form>
+      </div>
     </div>
-
-    <!-- ══ PAINEL REGISTO ══ -->
-    <div id="registerPanel">
-      <button class="back-link" onclick="showLogin()">← Voltar ao login</button>
-      <div class="register-title">Solicitar acesso</div>
-      <div class="register-sub">Preencha os dados. O administrador criará a sua conta.</div>
-
-      <div id="registerAlert" class="alert-message"></div>
-
-      <form id="registerForm">
-        <div class="form-group">
-          <label for="regName">Nome completo</label>
-          <input type="text" id="regName" placeholder="Ex: João Silva" required>
-        </div>
-        <div class="form-group">
-          <label for="regEmail">Email</label>
-          <input type="email" id="regEmail" placeholder="joao.silva@expressglass.pt" required>
-        </div>
-        <div class="form-group">
-          <label for="regPortal">Loja / Região</label>
-          <input type="text" id="regPortal" placeholder="Ex: Braga, Viana do Castelo SM...">
-        </div>
-        <div class="form-group">
-          <label for="regRole">Cargo</label>
-          <select id="regRole" required>
-            <option value="">Selecionar cargo...</option>
-            <option value="coordenador">Coordenador</option>
-            <option value="user">Técnico</option>
-            <option value="comercial">Comercial</option>
-          </select>
-        </div>
-        <button type="submit" id="btnRegister" class="btn-login" style="background:linear-gradient(135deg,#059669,#047857);">
-          Enviar pedido
-        </button>
-      </form>
-    </div>
-
   </div>
 
   <script src="auth-client.js"></script>
@@ -372,6 +424,17 @@
     function hideLoginError()    { loginError.classList.remove('show'); }
     document.getElementById('username').addEventListener('input', hideLoginError);
     document.getElementById('password').addEventListener('input', hideLoginError);
+
+    // Ver / esconder a password
+    const OLHO_ABERTO  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+    const OLHO_FECHADO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-6.5 0-10-7-10-7a18.5 18.5 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+    document.getElementById('verPassword').addEventListener('click', (e) => {
+      const input = document.getElementById('password');
+      const ver = input.type === 'password';
+      input.type = ver ? 'text' : 'password';
+      e.currentTarget.innerHTML = ver ? OLHO_FECHADO : OLHO_ABERTO;
+      e.currentTarget.setAttribute('aria-label', ver ? 'Esconder a password' : 'Mostrar a password');
+    });
 
     // ══ REGISTO ══
     function showRegister() {
