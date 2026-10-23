@@ -1002,15 +1002,31 @@ function openDetail(plate) {
 // A lista vem sem os dados; cada imagem é pedida à parte (podem ser fotos grandes).
 const imageCache = {};
 
+// As fotos grandes vêm em partes (limite de resposta do Netlify); juntamo-las.
+async function fetchImagePart(id, part) {
+  const res = await fetch(`${API_BASE}/mycar-services?image=${id}&part=${part}`, { headers: authHeaders() });
+  const data = await safeJson(res);
+  if (!data.success) throw new Error(data.error || 'Erro');
+  return data.data;
+}
+
+async function loadImage(id) {
+  const first = await fetchImagePart(id, 0);
+  const chunks = [first.chunk];
+  for (let part = 1; part < first.parts; part++) {
+    chunks.push((await fetchImagePart(id, part)).chunk);
+  }
+  return {
+    id: first.id,
+    filename: first.filename,
+    content_type: first.content_type,
+    url: `data:${first.content_type};base64,${chunks.join('')}`
+  };
+}
+
 async function fetchImage(id) {
   if (!imageCache[id]) {
-    imageCache[id] = fetch(`${API_BASE}/mycar-services?image=${id}`, { headers: authHeaders() })
-      .then(safeJson)
-      .then(data => {
-        if (!data.success) throw new Error(data.error || 'Erro');
-        return data.data;
-      })
-      .catch(err => { delete imageCache[id]; throw err; });
+    imageCache[id] = loadImage(id).catch(err => { delete imageCache[id]; throw err; });
   }
   return imageCache[id];
 }

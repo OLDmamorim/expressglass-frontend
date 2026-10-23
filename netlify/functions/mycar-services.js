@@ -107,14 +107,19 @@ exports.handler = async (event) => {
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
       }
       if (image) {
-        const params = [parseInt(image, 10)];
+        // Uma foto de 6 MB passa dos 6 MB de resposta do Netlify em base64:
+        // vai em partes (`part`), que o mural junta.
+        const IMAGE_PART_CHARS = 4 * 1024 * 1024;
+        const part = Math.max(0, parseInt(event.queryStringParameters.part, 10) || 0);
+        const params = [parseInt(image, 10), part * IMAGE_PART_CHARS + 1, IMAGE_PART_CHARS];
         if (ownPortal) params.push(user.portalId);
         const { rows } = await client.query(
-          `SELECT img.id, img.filename, img.content_type, img.data
+          `SELECT img.id, img.filename, img.content_type, LENGTH(img.data) AS data_length,
+                  SUBSTRING(img.data FROM $2 FOR $3) AS chunk
              FROM mycar_service_images img
              JOIN mycar_services ms ON ms.id = img.service_id
             WHERE img.id = $1
-              ${ownPortal ? 'AND (ms.portal_id = $2 OR ms.portal_id IS NULL)' : ''}`,
+              ${ownPortal ? 'AND (ms.portal_id = $4 OR ms.portal_id IS NULL)' : ''}`,
           params
         );
         if (rows.length === 0) {
@@ -123,7 +128,8 @@ exports.handler = async (event) => {
         const img = rows[0];
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: {
           id: img.id, filename: img.filename, content_type: img.content_type,
-          url: `data:${img.content_type};base64,${img.data}`
+          part, parts: Math.max(1, Math.ceil(img.data_length / IMAGE_PART_CHARS)),
+          chunk: img.chunk
         } }) };
       }
 
