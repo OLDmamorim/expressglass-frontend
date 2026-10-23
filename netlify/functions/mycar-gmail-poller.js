@@ -1396,14 +1396,12 @@ async function runFillDetails(limit) {
 const NOTAS_SWEEP_DAYS = 10;
 const NOTAS_PER_RUN = 6;
 
+// Pelo assunto, e não pelo remetente: chegam reencaminhadas por quem as
+// recebeu (paredes@…), e a MyCar só aparece no cabeçalho citado.
 function searchNotasEncomenda(imap, days) {
   return new Promise((resolve, reject) => {
     const since = new Date(); since.setDate(since.getDate() - days);
-    const senders = configuredSenders();
-    const criteria = senders.length === 1
-      ? [['SINCE', since], ['FROM', senders[0]]]
-      : [['SINCE', since], senders.reduce((acc, s) => acc ? ['OR', acc, ['FROM', s]] : ['FROM', s], null)];
-    imap.search(criteria, (err, uids) => {
+    imap.search([['SINCE', since], ['SUBJECT', 'encomenda']], (err, uids) => {
       if (err) { reject(err); return; }
       resolve((uids || []).sort((a, b) => b - a));
     });

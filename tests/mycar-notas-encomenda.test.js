@@ -38,6 +38,22 @@ test('reconhece o email das Notas de Encomenda pelo assunto e remetente', () => 
   assert.equal(isNotaEncomendaEmail(email({ subject: 'Nota de encomenda 23/10' })), true);
 });
 
+test('aceita a nota reencaminhada por paredes@ com a MyCar no cabeçalho citado', () => {
+  const fw = email({
+    subject: 'FW: NOTAS DE ENCOMENDA - 23/10',
+    from: { value: [{ address: 'paredes@expressglass.pt' }] },
+    html: `<p><b>De:</b> Gestão MCC &lt;gestao.mcc@grupojap.pt&gt;<br><b>Assunto:</b> NOTAS DE ENCOMENDA - 23/10</p>${notasHtml}`
+  });
+  assert.equal(isNotaEncomendaEmail(fw), true);
+  assert.equal(parseNotasEncomenda(fw).length, 4);
+  // Um reencaminhamento sem a MyCar no cabeçalho não é uma nota da MyCar
+  assert.equal(isNotaEncomendaEmail(email({
+    subject: 'FW: Notas de encomenda',
+    from: { value: [{ address: 'paredes@expressglass.pt' }] },
+    html: '<p>De: Fornecedor &lt;vendas@fornecedor.pt&gt;</p>'
+  })), false);
+});
+
 test('lê as quatro linhas da tabela, com a matrícula, o WIP, o valor e a N.E.', () => {
   const rows = parseNotasEncomenda(email());
   assert.equal(rows.length, 4);

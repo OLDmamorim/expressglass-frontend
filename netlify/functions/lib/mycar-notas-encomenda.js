@@ -24,10 +24,14 @@ function senderAddresses(email = {}) {
   return (email.from?.value || []).map(v => String(v.address || '').toLowerCase());
 }
 
+// Chegam quase sempre reencaminhadas ("FW: NOTAS DE ENCOMENDA", de
+// paredes@expressglass.pt): aí a MyCar só aparece no cabeçalho citado.
 function isNotaEncomendaEmail(email = {}, senders = DEFAULT_SENDERS) {
   if (!SUBJECT_RX.test(String(email.subject || ''))) return false;
   const from = senderAddresses(email);
-  return from.length === 0 || from.some(a => senders.includes(a));
+  if (from.length === 0 || from.some(a => senders.includes(a))) return true;
+  const body = `${email.text || ''}\n${email.html || ''}`.toLowerCase();
+  return senders.some(s => body.includes(s));
 }
 
 function cleanCell(value) {
