@@ -66,7 +66,54 @@ async function ensureImagesTable(client) {
     )
   `);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_images_service ON mycar_service_images(service_id)`);
+  await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_images_checksum ON mycar_service_images(checksum)`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS images_checked_at TIMESTAMP`);
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS mycar_signature_images (
+      checksum VARCHAR(64) PRIMARY KEY,
+      filename TEXT,
+      found_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  // As assinaturas que já tinham entrado (iguais em mais de uma matrícula).
+  const { rows } = await client.query(`
+    INSERT INTO mycar_signature_images (checksum, filename)
+    SELECT img.checksum, MIN(img.filename)
+      FROM mycar_service_images img
+      JOIN mycar_services ms ON ms.id = img.service_id
+     GROUP BY img.checksum
+    HAVING COUNT(DISTINCT UPPER(ms.matricula)) > 1
+    ON CONFLICT (checksum) DO NOTHING
+    RETURNING checksum`);
+  if (rows.length) {
+    await client.query(`DELETE FROM mycar_service_images WHERE checksum = ANY($1)`, [rows.map(r => r.checksum)]);
+  }
+}
+
+// Assinaturas: o logótipo da MyCar, selos de prémios… vêm iguais (byte a byte)
+// em emails de viaturas diferentes, e há alguns acima do limite de tamanho.
+// Uma foto de dano é de uma só viatura; a mesma imagem em duas matrículas é
+// da assinatura: passa para mycar_signature_images e deixa de ser guardada.
+async function isSignatureImage(client, serviceId, img) {
+  const { rows: known } = await client.query(
+    `SELECT 1 FROM mycar_signature_images WHERE checksum = $1`, [img.checksum]);
+  if (known.length) return true;
+
+  const { rows: elsewhere } = await client.query(
+    `SELECT 1 FROM mycar_service_images other_img
+       JOIN mycar_services other_ms ON other_ms.id = other_img.service_id
+      WHERE other_img.checksum = $1
+        AND UPPER(other_ms.matricula) <> (SELECT UPPER(matricula) FROM mycar_services WHERE id = $2)
+      LIMIT 1`,
+    [img.checksum, serviceId]
+  );
+  if (!elsewhere.length) return false;
+
+  await client.query(
+    `INSERT INTO mycar_signature_images (checksum, filename) VALUES ($1, $2)
+     ON CONFLICT (checksum) DO NOTHING`, [img.checksum, img.filename]);
+  await client.query(`DELETE FROM mycar_service_images WHERE checksum = $1`, [img.checksum]);
+  return true;
 }
 
 // Guarda as imagens do email no serviço. Devolve quantas eram novas.
@@ -75,6 +122,7 @@ async function saveServiceImages(client, serviceId, email, meta = {}) {
   const images = extractEmailImages(email);
   let saved = 0;
   for (const img of images) {
+    if (await isSignatureImage(client, serviceId, img)) continue;
     const { rowCount } = await client.query(
       `INSERT INTO mycar_service_images
          (service_id, filename, content_type, size_bytes, checksum, is_inline, data, email_message_id, email_date)

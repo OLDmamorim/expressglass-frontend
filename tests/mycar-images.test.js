@@ -78,24 +78,61 @@ test('email sem anexos não dá imagens', () => {
   assert.deepEqual(extractEmailImages({ attachments: [null, { contentType: 'image/png' }] }), []);
 });
 
-test('saveServiceImages grava cada imagem e conta só as novas', async () => {
-  const calls = [];
-  const client = {
+// Base de dados a fingir: `known` são as assinaturas já conhecidas e
+// `elsewhere` as imagens que já existem noutra matrícula.
+function fakeClient({ known = [], elsewhere = [], repeated = [] } = {}) {
+  const inserts = [], signatures = [], deletes = [];
+  return {
+    inserts, signatures, deletes,
     async query(sql, params) {
-      calls.push(params);
-      return { rowCount: params[4] === 'repetida' ? 0 : 1 };
+      if (/FROM mycar_signature_images WHERE checksum/.test(sql)) {
+        return { rows: known.includes(params[0]) ? [{}] : [] };
+      }
+      if (/other_img\.checksum = \$1/.test(sql)) {
+        return { rows: elsewhere.includes(params[0]) ? [{}] : [] };
+      }
+      if (/INSERT INTO mycar_signature_images/.test(sql)) { signatures.push(params[0]); return { rows: [] }; }
+      if (/DELETE FROM mycar_service_images/.test(sql)) { deletes.push(params[0]); return { rowCount: 2 }; }
+      if (/INSERT INTO mycar_service_images/.test(sql)) {
+        inserts.push(params);
+        return { rowCount: repeated.includes(params[4]) ? 0 : 1 };
+      }
+      throw new Error('consulta inesperada: ' + sql);
     }
   };
+}
+
+test('saveServiceImages grava cada imagem e conta só as novas', async () => {
+  const client = fakeClient({ repeated: ['repetida'] });
   const email = {
     date: new Date('2026-10-20T10:00:00Z'),
     attachments: [attachment(40 * 1024, { checksum: 'nova' }), attachment(40 * 1024, { checksum: 'repetida' })]
   };
   const saved = await saveServiceImages(client, 42, email, { messageId: '<abc@mycar>' });
   assert.equal(saved, 1);
-  assert.equal(calls.length, 2);
-  assert.equal(calls[0][0], 42);
-  assert.equal(calls[0][2], 'image/jpeg');
-  assert.equal(calls[0][7], '<abc@mycar>');
+  assert.equal(client.inserts.length, 2);
+  assert.equal(client.inserts[0][0], 42);
+  assert.equal(client.inserts[0][2], 'image/jpeg');
+  assert.equal(client.inserts[0][7], '<abc@mycar>');
+});
+
+test('uma assinatura já conhecida (logótipo MyCar) não é guardada', async () => {
+  const client = fakeClient({ known: ['logo-mycar'] });
+  const email = { attachments: [
+    attachment(91547, { filename: 'image001.png', cid: 'image001.png@01DC', checksum: 'logo-mycar' }),
+    attachment(4 * 1024 * 1024, { filename: 'dano.png', checksum: 'dano' })
+  ] };
+  assert.equal(await saveServiceImages(client, 7, email), 1);
+  assert.deepEqual(client.inserts.map(p => p[4]), ['dano']);
+});
+
+test('a mesma imagem noutra matrícula passa a assinatura e sai das guardadas', async () => {
+  const client = fakeClient({ elsewhere: ['selo-premio'] });
+  const email = { attachments: [attachment(40915, { filename: 'image003.png', checksum: 'selo-premio' })] };
+  assert.equal(await saveServiceImages(client, 7, email), 0);
+  assert.deepEqual(client.signatures, ['selo-premio']);
+  assert.deepEqual(client.deletes, ['selo-premio']);
+  assert.equal(client.inserts.length, 0);
 });
 
 test('saveServiceImages sem serviço não grava nada', async () => {
