@@ -34,6 +34,8 @@ const {
   parseQuoteText,
   hasQuoteDetails,
   consolidateQuoteRows,
+  assignQuoteRows,
+  normalizePlate,
   pickQuoteForPlate,
   selectLatestQuoteMessage
 } = require('./lib/mycar-quote');
@@ -272,6 +274,12 @@ async function ensureTable(client) {
   `);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_email_thread ON mycar_services(email_thread_id)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_email_subject_norm ON mycar_services(email_subject_normalized)`);
+  // Revisão dos vidros de cada cotação (pedidos com vários vidros)
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS glasses_checked_at TIMESTAMP`);
+  // Copiadas para os vidros acrescentados (criadas também em mycar-services)
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS car TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS n_obra VARCHAR(50)`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS in_treatment BOOLEAN DEFAULT FALSE`);
   // Imagens dos emails (anexos e embebidas), por serviço
   await ensureImagesTable(client);
 }
@@ -343,7 +351,80 @@ function samePlate(a, b) {
   return Boolean(norm(a) && norm(a) === norm(b));
 }
 
-async function findExistingService(client, svc, meta, subject, wip) {
+// Um vidro da cotação que ainda não tem serviço: nasce com os dados do pedido
+// (email, conversa, WIP, autorização) do serviço que já existe na matrícula.
+async function createGlassService(client, anchorId, glass, note) {
+  const { rows } = await client.query(
+    `INSERT INTO mycar_services
+       (matricula, descricao, valor, eurocode, status,
+        email_from, email_subject, email_subject_normalized,
+        email_thread_id, email_message_id, email_received_at,
+        portal_id, notas, email_body, car, n_obra,
+        advance_authorized_at, advance_authorized_reason, in_treatment,
+        historico, images_checked_at, glasses_checked_at)
+     SELECT matricula, $2, $3, $4, 'pendente',
+            email_from, email_subject, email_subject_normalized,
+            email_thread_id, email_message_id, email_received_at,
+            portal_id, notas, email_body, car, n_obra,
+            advance_authorized_at, advance_authorized_reason, in_treatment,
+            $5, NOW(), NOW()
+       FROM mycar_services WHERE id = $1
+     RETURNING id`,
+    [anchorId, glass.descricao || null, glass.valor ?? null, glass.eurocode || null, note]
+  );
+  return rows[0]?.id || null;
+}
+
+// Os serviços da mesma matrícula e da mesma conversa que `serviceId`.
+async function findGlassSiblings(client, serviceId) {
+  const { rows } = await client.query(
+    `SELECT s.id, s.matricula, s.descricao, s.valor, s.eurocode
+       FROM mycar_services s
+       JOIN mycar_services base ON base.id = $1
+      WHERE REGEXP_REPLACE(UPPER(s.matricula), '[^A-Z0-9]', '', 'g')
+          = REGEXP_REPLACE(UPPER(base.matricula), '[^A-Z0-9]', '', 'g')
+        AND (s.id = base.id
+             OR (base.email_thread_id IS NOT NULL AND s.email_thread_id = base.email_thread_id)
+             OR (NULLIF(base.email_subject_normalized, '') IS NOT NULL
+                 AND s.email_subject_normalized = base.email_subject_normalized))
+      ORDER BY s.id`,
+    [serviceId]
+  );
+  return rows;
+}
+
+// Distribui os vidros de uma cotação pelos serviços da conversa: os vidros
+// sem serviço são criados e os outros serviços só ganham o que lhes falta.
+// Devolve o vidro que coube a `service` (ou null) e quantos foram criados.
+async function applyQuoteGlasses(client, service, quoteRows, note) {
+  const glasses = consolidateQuoteRows(quoteRows, service.matricula)
+    .filter(g => samePlate(g.matricula, service.matricula) && hasQuoteDetails(g));
+  if (glasses.length === 0) return { glass: null, created: 0 };
+
+  const siblings = await findGlassSiblings(client, service.id);
+  let glassForService = null, created = 0;
+  for (const { glass, existing } of assignQuoteRows(glasses, siblings)) {
+    if (!existing) {
+      if (await createGlassService(client, service.id, glass, note)) created++;
+    } else if (existing.id === service.id) {
+      glassForService = glass;
+    } else {
+      await client.query(
+        `UPDATE mycar_services
+            SET descricao = COALESCE(NULLIF(descricao, ''), $1::text),
+                valor     = COALESCE(valor, $2::numeric),
+                eurocode  = COALESCE(NULLIF(eurocode, ''), $3::text),
+                updated_at = NOW()
+          WHERE id = $4`,
+        [glass.descricao || null, glass.valor ?? null, glass.eurocode || null, existing.id]
+      );
+    }
+  }
+  return { glass: glassForService, created };
+}
+
+// Todos os serviços desta conversa para a matrícula (um por vidro pedido).
+async function findExistingServices(client, svc, meta, subject, wip) {
   const refs = [...new Set([meta.messageId, ...meta.references].filter(Boolean))];
 
   // Primeiro, identificadores fortes da conversa. Funcionam mesmo que o
@@ -361,12 +442,13 @@ async function findExistingService(client, svc, meta, subject, wip) {
         LIMIT 50`,
       [meta.gmailThreadId, refs, wip]
     );
-    const byPlate = svc?.matricula ? rows.find(r => samePlate(r.matricula, svc.matricula)) : null;
-    if (byPlate) return byPlate;
-    if (!svc?.matricula && rows.length === 1) return rows[0];
+    const byPlate = svc?.matricula ? rows.filter(r => samePlate(r.matricula, svc.matricula)) : [];
+    if (byPlate.length) return byPlate;
+    // Sem matrícula (assunto alterado): só serve se a conversa for de uma só viatura.
+    if (!svc?.matricula && rows.length && rows.every(r => samePlate(r.matricula, rows[0].matricula))) return rows;
   }
 
-  if (!svc?.matricula) return null;
+  if (!svc?.matricula) return [];
 
   // Compatibilidade com os registos antigos, que ainda não têm IDs Gmail:
   // restringir à matrícula e comparar o assunto sem RE:/FW:/ENC:.
@@ -381,10 +463,10 @@ async function findExistingService(client, svc, meta, subject, wip) {
     [String(svc.matricula).toUpperCase().replace(/[^A-Z0-9]/g, '')]
   );
   const normalized = meta.normalizedSubject || normalizeSubject(subject);
-  return rows.find(r =>
+  return rows.filter(r =>
     r.email_subject === subject ||
     (r.email_subject_normalized || normalizeSubject(r.email_subject)) === normalized
-  ) || null;
+  );
 }
 
 // Janela de leitura e limites por execução. Lemos CABEÇALHOS de muitos
@@ -515,7 +597,7 @@ async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN)
     throw error;
   }
   const stats = {
-    scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0, images: 0,
+    scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0, images: 0, glassesCreated: 0,
     errors: 0, messageErrors: 0, errorStages: {}
   };
   if (candidates.length === 0) return stats;
@@ -599,11 +681,15 @@ async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN)
         // reply como processado, para o visto verde nunca deixar o card vazio.
         if (quoteMessage) {
           stage = 'quote_update';
-          const quote = quoteMessage.quote;
           const meta = quoteMessage.meta || {};
           const quoteDateValue = new Date(quoteMessage.date);
           const quoteDate = Number.isFinite(quoteDateValue.getTime()) ? quoteDateValue : new Date();
           const stamp = quoteDate.toLocaleString('pt-PT');
+          // Com vários vidros, cada serviço fica com o seu e os que faltam são criados.
+          const glasses = await applyQuoteGlasses(client, service, quoteMessage.tableRows,
+            `[${stamp}] Vidro acrescentado a partir da cotação`);
+          stats.glassesCreated += glasses.created;
+          const quote = glasses.glass || { descricao: null, valor: null, eurocode: null };
           const summary = [
             quote.descricao,
             quote.valor != null ? `${quote.valor.toFixed(2)} €` : null,
@@ -845,7 +931,7 @@ async function runPoller() {
     // uma resposta antiga como a do BU-23-JN é encontrada pelo assunto da
     // própria matrícula, sem ficar à espera do replay geral de toda a caixa.
     let replySweep = {
-      scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0, images: 0,
+      scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0, images: 0, glassesCreated: 0,
       errors: 0, messageErrors: 0, errorStages: {}
     };
     try {
@@ -873,6 +959,7 @@ async function runPoller() {
           autorizados: replySweep.authorized,
           detalhesRecuperados: replySweep.detailsRecovered,
           imagensReanalise: replySweep.images,
+          vidrosAcrescentados: replySweep.glassesCreated,
           pendentesReanalisados: replySweep.scanned,
           errosReanalise: replySweep.errors,
           emailsInvalidosReanalise: replySweep.messageErrors,
@@ -888,6 +975,7 @@ async function runPoller() {
       htmlVazio: 0, atualizadosIA: 0, autorizados: replySweep.authorized,
       detalhesRecuperados: replySweep.detailsRecovered,
       imagensReanalise: replySweep.images,
+      vidrosAcrescentados: replySweep.glassesCreated,
       emailsInvalidosReanalise: replySweep.messageErrors,
       fasesErroReanalise: replySweep.errorStages,
       cancelados: 0, erros: 0, imagens: 0,
@@ -938,10 +1026,10 @@ async function runPoller() {
       } else {
         // O assunto pode ter sido alterado na resposta. Recuperar o processo
         // pelo ID da conversa, In-Reply-To/References ou WIP.
-        const existingByThread = await findExistingService(client, null, meta, subject, wip);
-        if (existingByThread) {
+        const existingByThread = await findExistingServices(client, null, meta, subject, wip);
+        if (existingByThread.length) {
           services = [{
-            matricula: existingByThread.matricula,
+            matricula: existingByThread[0].matricula,
             descricao: null, valor: null, eurocode: null, ne: null,
             _existing: existingByThread
           }];
@@ -959,8 +1047,46 @@ async function runPoller() {
       }
       console.log(`📧 "${subject}" | tabela:${tableRows.length} | serviços:${services.length}`);
 
+      // Um pedido pode ter vários vidros, cada um com o seu serviço. Ligamos
+      // cada linha da cotação ao serviço desse vidro; os que ainda não
+      // existem são criados. Uma resposta sem cotação (ex.: "podem avançar")
+      // vale para todos os vidros da matrícula.
+      const assignments = [];
+      const byPlate = new Map();
       for (const svc of services) {
-        const e = svc._existing || await findExistingService(client, svc, meta, subject, wip);
+        const key = normalizePlate(svc.matricula);
+        if (!byPlate.has(key)) byPlate.set(key, []);
+        byPlate.get(key).push(svc);
+      }
+      for (const glasses of byPlate.values()) {
+        const first = glasses[0];
+        const candidates = first._existing || await findExistingServices(client, first, meta, subject, wip);
+        const anchor = candidates[0] || null;
+        if (glasses.some(hasQuoteDetails)) {
+          for (const { glass, existing } of assignQuoteRows(glasses, candidates)) {
+            assignments.push({ svc: glass, e: existing, anchor, singleGlass: glasses.length === 1 });
+          }
+        } else if (candidates.length) {
+          for (const e of candidates) {
+            assignments.push({ svc: first, e, anchor, singleGlass: candidates.length === 1 });
+          }
+        } else {
+          assignments.push({ svc: first, e: null, anchor: null, singleGlass: true });
+        }
+      }
+
+      // A IA lê a resposta uma vez por email; a decisão vale para todos os vidros.
+      let aiDecision;
+      // As fotos do email ficam no primeiro serviço da matrícula (o mural junta-as).
+      const platesWithImages = new Set();
+      const saveImagesOnce = async (serviceId, matricula) => {
+        const key = normalizePlate(matricula);
+        if (platesWithImages.has(key)) return;
+        platesWithImages.add(key);
+        stats.imagens += await saveServiceImages(client, serviceId, email, meta);
+      };
+
+      for (const { svc, e, anchor, singleGlass } of assignments) {
         if (e) {
           let serviceChanged = false;
           const isFollowupMessage = shouldAnalyzeAsFollowup(e, { subject, date, meta });
@@ -980,7 +1106,7 @@ async function runPoller() {
           );
 
           // As fotos que vierem nesta resposta juntam-se às do processo.
-          stats.imagens += await saveServiceImages(client, e.id, email, meta);
+          await saveImagesOnce(e.id, e.matricula);
 
           const temNovos = hasQuoteDetails(svc);
           if (temNovos) {
@@ -1012,15 +1138,21 @@ async function runPoller() {
           // serve apenas para aprender os IDs da conversa.
           let decision = null;
           if (isFollowupMessage && fromMyCar) {
-            try {
-              decision = await analyzeFollowupEmail({ existing: e, subject, body, tableRows });
-            } catch (aiErr) {
-              if (hasExplicitAdvanceAuthorization(body)) {
-                decision = { action: 'autorizar', motivo: 'A MyCar deu autorização explícita para avançar.' };
-              } else {
-                console.error('⚠️ IA de acompanhamento falhou:', aiErr.message);
+            if (aiDecision === undefined) {
+              aiDecision = null;
+              try {
+                aiDecision = await analyzeFollowupEmail({ existing: e, subject, body, tableRows });
+              } catch (aiErr) {
+                if (hasExplicitAdvanceAuthorization(body)) {
+                  aiDecision = { action: 'autorizar', motivo: 'A MyCar deu autorização explícita para avançar.' };
+                } else {
+                  console.error('⚠️ IA de acompanhamento falhou:', aiErr.message);
+                }
               }
             }
+            decision = aiDecision;
+            // A alteração proposta pela IA é de um vidro; com vários, a cotação manda.
+            if (decision?.action === 'atualizar' && !singleGlass) decision = null;
           }
 
           const stamp = new Date(date).toLocaleString('pt-PT');
@@ -1073,19 +1205,30 @@ async function runPoller() {
           continue;
         }
 
+        if (anchor) {
+          const stamp = new Date(date).toLocaleString('pt-PT');
+          const newId = await createGlassService(client, anchor.id, svc,
+            `[${stamp}] Vidro acrescentado a partir da cotação`);
+          if (newId) {
+            totalImported++; stats.inserted++;
+            console.log(`✅ Vidro acrescentado: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
+            continue;
+          }
+        }
+
         const { rows: insertedRows } = await client.query(
           `INSERT INTO mycar_services
              (matricula, descricao, valor, eurocode, status,
               email_from, email_subject, email_subject_normalized,
               email_thread_id, email_message_id, email_received_at,
-              portal_id, notas, email_body, images_checked_at)
-           VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW())
+              portal_id, notas, email_body, images_checked_at, glasses_checked_at)
+           VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW(),NOW())
            RETURNING id`,
           [svc.matricula, svc.descricao, svc.valor, svc.eurocode,
            from, subject, meta.normalizedSubject, meta.gmailThreadId, meta.messageId,
            date, portalId, wip, body || null]
         );
-        stats.imagens += await saveServiceImages(client, insertedRows[0].id, email, meta);
+        await saveImagesOnce(insertedRows[0].id, svc.matricula);
         totalImported++; stats.inserted++;
         console.log(`✅ Importado: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
       }
@@ -1226,47 +1369,65 @@ async function runFillDetails(limit) {
   }
 }
 
-// Vai buscar as imagens dos processos que já existiam antes de as guardarmos:
-// procura cada matrícula pelo assunto e junta as imagens da conversa.
+// Revê a conversa dos processos que já existiam: junta as imagens (que antes
+// não guardávamos) e acrescenta os vidros que a cotação trazia mas ficaram de
+// fora (antes, um pedido de vários vidros ficava num só serviço).
 const IMAGE_BACKFILL_DAYS = 120;
 async function runFillImages(limit) {
   const client = await pool.connect();
   try {
     await ensureTable(client);
     const candidateFilter = `matricula IS NOT NULL
-      AND images_checked_at IS NULL
+      AND (images_checked_at IS NULL OR glasses_checked_at IS NULL)
       AND email_received_at >= NOW() - INTERVAL '${IMAGE_BACKFILL_DAYS} days'`;
     const remainingSql = `SELECT COUNT(*)::int AS n FROM mycar_services WHERE ${candidateFilter}`;
     const { rows } = await client.query(
-      `SELECT id, matricula, email_received_at FROM mycar_services
+      `SELECT id, matricula, email_received_at, images_checked_at, glasses_checked_at FROM mycar_services
         WHERE ${candidateFilter}
         ORDER BY email_received_at DESC LIMIT $1`, [limit]);
-    if (rows.length === 0) return { checked: 0, images: 0, remaining: 0 };
+    if (rows.length === 0) return { checked: 0, images: 0, glasses: 0, remaining: 0 };
 
-    let checked = 0, images = 0;
+    let checked = 0, images = 0, glasses = 0;
     const imap = await connectReadOnlyInbox();
     try {
       for (const service of rows) {
         try {
           const target = String(service.matricula).toUpperCase().replace(/[^A-Z0-9]/g, '');
           const emails = await fetchMessagesForPendingService(imap, service);
+          const messages = [];
           for (const email of emails) {
             const subjectMatches = String(email.subject || '')
               .toUpperCase().replace(/[^A-Z0-9]/g, '').includes(target);
             if (!subjectMatches) continue;
             const meta = extractThreadMeta(email, email._imapAttrs || {}, email._imapUid);
-            images += await saveServiceImages(client, service.id, email, meta);
+            if (!service.images_checked_at) images += await saveServiceImages(client, service.id, email, meta);
+            const rowsInEmail = [
+              ...(email.html ? parseTableHtml(email.html) : []),
+              ...parseQuoteText(emailText(email), service.matricula)
+            ];
+            messages.push({ date: email.date, meta, tableRows: consolidateQuoteRows(rowsInEmail, service.matricula) });
           }
-          await client.query(`UPDATE mycar_services SET images_checked_at = NOW() WHERE id = $1`, [service.id]);
+          if (!service.glasses_checked_at) {
+            const quoteMessage = selectLatestQuoteMessage(messages, service.matricula);
+            if (quoteMessage) {
+              const quoteDate = new Date(quoteMessage.date);
+              const stamp = (Number.isFinite(quoteDate.getTime()) ? quoteDate : new Date()).toLocaleString('pt-PT');
+              glasses += (await applyQuoteGlasses(client, service, quoteMessage.tableRows,
+                `[${stamp}] Vidro acrescentado a partir da cotação (revisão)`)).created;
+            }
+          }
+          await client.query(
+            `UPDATE mycar_services SET images_checked_at = NOW(), glasses_checked_at = NOW() WHERE id = $1`,
+            [service.id]);
           checked++;
-        } catch (e) { console.error(`⚠️ Imagens ${service.matricula} falharam:`, e.message); }
+        } catch (e) { console.error(`⚠️ Revisão ${service.matricula} falhou:`, e.message); }
       }
     } finally {
       try { imap.end(); } catch (_) {}
     }
 
     const { rows: rN } = await client.query(remainingSql);
-    return { checked, images, remaining: rN[0].n };
+    return { checked, images, glasses, remaining: rN[0].n };
   } finally {
     client.release();
   }

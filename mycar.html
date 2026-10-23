@@ -1318,9 +1318,9 @@ async function recoverDetails() {
       ? `✅ ${filled} detalhe(s) preenchido(s)${remaining ? ` · ${remaining} sem correspondência` : ''}`
       : (remaining ? `📭 ${remaining} sem correspondência no email` : '✅ Nada por preencher'), filled > 0 ? 'success' : 'info');
 
-    // Imagens dos processos que já existiam antes de as guardarmos
-    spin('Imagens…');
-    let images = 0;
+    // Imagens e vidros em falta dos processos que já existiam
+    spin('Imagens e vidros…');
+    let images = 0, glasses = 0;
     erros = 0;
     for (let i = 0; i < 60; i++) {
       let data;
@@ -1334,12 +1334,16 @@ async function recoverDetails() {
       } catch (err) { if (++erros >= 4) break; continue; }
       if (!data.success) { if (++erros >= 4) break; continue; }
       images += data.images || 0;
+      glasses += data.glasses || 0;
       if (!data.remaining || !data.checked) break;
-      spin(`imagens: faltam ${data.remaining}…`);
+      spin(`a rever: faltam ${data.remaining}…`);
     }
-    if (images > 0) {
+    if (images > 0 || glasses > 0) {
       await loadServices();
-      toast(`📷 ${images} imagem(ns) recuperada(s) dos emails`, 'success');
+      toast([
+        glasses ? `🪟 ${glasses} vidro(s) acrescentado(s) das cotações` : null,
+        images ? `📷 ${images} imagem(ns) recuperada(s) dos emails` : null
+      ].filter(Boolean).join(' · '), 'success');
     }
   } catch (e) {
     toast(`Erro: ${e.message}`, 'error');

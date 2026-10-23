@@ -10,6 +10,7 @@ const {
   parseTableHtml,
   parseQuoteText,
   consolidateQuoteRows,
+  assignQuoteRows,
   pickQuoteForPlate,
   selectLatestQuoteMessage
 } = require('../netlify/functions/lib/mycar-quote');
@@ -195,4 +196,102 @@ test('o asterisco da referência é preservado, o resto da pontuação não', ()
   // Também no texto corrido, que é como chega quando o Outlook achata a tabela
   const corrido = parseQuoteText('BJ-95-CU SUBSTITUIÇÃO ÓCULO / OEM 248,00 € *7624BGSHAI', 'BJ-95-CU');
   assert.equal(corrido[0].eurocode, '*7624BGSHAI');
+});
+
+// ── Pedidos com vários vidros ────────────────────────────────────────────────
+const br11Quote = (rows) => `<table class="cotacao">
+  <tr><td>Matrícula</td><td>Serviço</td><td>Valor</td><td>Ne</td><td>Notas</td></tr>
+  ${rows.map(([desc, valor, code]) => `<tr><td>BR-11-XT</td><td>${desc}</td><td>${valor}</td><td></td><td>${code}</td></tr>`).join('\n  ')}
+</table>`;
+
+test('uma cotação com três vidros dá três linhas, uma por vidro', () => {
+  const html = br11Quote([
+    ['SUBSTITUIÇÃO DO PARA-BRISAS + CALIBRAGEM /AFTERMARKET', '268,00 €', '6748AGACMVZ'],
+    ['SUBSTITUIÇÃO ÓCULO TRASEIRO /OEM', '310,00 €', '6748BGSH'],
+    ['SUBSTITUIÇÃO VIDRO FIXO PORTA TRAS. ESQ. /AFTERMARKET', '95,00 €', '6748LGSH5RQ']
+  ]);
+  const rows = consolidateQuoteRows(parseTableHtml(html), 'BR-11-XT');
+
+  assert.equal(rows.length, 3);
+  assert.deepEqual(rows.map(r => r.valor), [268, 310, 95]);
+  assert.deepEqual(rows.map(r => r.eurocode), ['6748AGACMVZ', '6748BGSH', '6748LGSH5RQ']);
+});
+
+test('as cotações antigas citadas não acrescentam vidros nem substituem os novos', () => {
+  const recente = br11Quote([
+    ['SUBSTITUIÇÃO DO PARA-BRISAS /AFTERMARKET', '268,00 €', '6748AGACMVZ'],
+    ['SUBSTITUIÇÃO ÓCULO TRASEIRO /OEM', '310,00 €', '']
+  ]);
+  const antiga = br11Quote([
+    ['SUBSTITUIÇÃO DO PARA-BRISAS', '250,00 €', 'ANTIGO'],
+    ['SUBSTITUIÇÃO ÓCULO TRASEIRO /OEM', '300,00 €', '6748BGSH']
+  ]);
+  const rows = consolidateQuoteRows(parseTableHtml(`${recente}<blockquote>${antiga}</blockquote>`), 'BR-11-XT');
+
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].valor, 268);
+  assert.equal(rows[0].eurocode, '6748AGACMVZ');
+  assert.equal(rows[1].valor, 310);
+  // O Eurocode que faltava ao óculo vem da cópia antiga do mesmo vidro
+  assert.equal(rows[1].eurocode, '6748BGSH');
+});
+
+test('no texto do Outlook, cada tabela citada começa noutro cabeçalho', () => {
+  const text = `Podem avançar.
+MatrículaServiçoValorNeNotas
+BG-53-AHSUBSTITUIÇÃO VIDRO LATERAL TRAS. ESQUERDO / AFTERMARKET171,00 €7311LGSR5RQZ
+BG-53-AHSUBSTITUIÇÃO ÓCULO TRASEIRO / OEM289,00 €7311BGSH
+De: Gestao Clientes
+MatrículaServiçoValorNeNotas
+BG-53-AHSUBSTITUIÇÃO VIDRO LATERAL TRAS. ESQUERDO / AFTERMARKET165,00 €7311LGSR5RQZ`;
+  const rows = parseQuoteText(text, 'BG-53-AH');
+
+  assert.equal(rows.length, 2);
+  assert.deepEqual(rows.map(r => r.valor), [171, 289]);
+});
+
+test('o HTML e o texto do mesmo email não duplicam os vidros', () => {
+  const html = br11Quote([
+    ['SUBSTITUIÇÃO DO PARA-BRISAS /AFTERMARKET', '268,00 €', '6748AGACMVZ'],
+    ['SUBSTITUIÇÃO ÓCULO TRASEIRO /OEM', '310,00 €', '6748BGSH']
+  ]);
+  const text = `MatrículaServiçoValorNeNotas
+BR-11-XTSUBSTITUIÇÃO DO PARA-BRISAS /AFTERMARKET268,00 €6748AGACMVZ
+BR-11-XTSUBSTITUIÇÃO ÓCULO TRASEIRO /OEM310,00 €6748BGSH`;
+  const rows = consolidateQuoteRows([...parseTableHtml(html), ...parseQuoteText(text, 'BR-11-XT')], 'BR-11-XT');
+
+  assert.equal(rows.length, 2);
+});
+
+test('o pedido sem detalhes fica com o primeiro vidro e os outros são novos', () => {
+  const glasses = [
+    { matricula: 'BR-11-XT', descricao: 'PARA-BRISAS', valor: 268, eurocode: 'A' },
+    { matricula: 'BR-11-XT', descricao: 'ÓCULO', valor: 310, eurocode: 'B' },
+    { matricula: 'BR-11-XT', descricao: 'VIDRO FIXO', valor: 95, eurocode: 'C' }
+  ];
+  const result = assignQuoteRows(glasses, [{ id: 254, descricao: null, valor: null, eurocode: null }]);
+
+  assert.deepEqual(result.map(r => r.existing?.id ?? null), [254, null, null]);
+});
+
+test('numa nova cotação, cada vidro volta ao seu serviço pelo Eurocode', () => {
+  const glasses = [
+    { descricao: 'ÓCULO /OEM', valor: 300, eurocode: 'B' },
+    { descricao: 'PARA-BRISAS /OEM', valor: 280, eurocode: 'A' }
+  ];
+  const existing = [
+    { id: 10, descricao: 'PARA-BRISAS', valor: 268, eurocode: 'A' },
+    { id: 11, descricao: 'ÓCULO', valor: 310, eurocode: 'B' }
+  ];
+  const result = assignQuoteRows(glasses, existing);
+
+  assert.deepEqual(result.map(r => r.existing.id), [11, 10]);
+});
+
+test('um só vidro continua a atualizar o serviço que já existe', () => {
+  const result = assignQuoteRows(
+    [{ descricao: 'VIDRO LATERAL /OEM', valor: 192, eurocode: 'NOVO' }],
+    [{ id: 5, descricao: 'VIDRO LATERAL', valor: 180, eurocode: 'ANTIGO' }]
+  );
+  assert.equal(result[0].existing.id, 5);
 });

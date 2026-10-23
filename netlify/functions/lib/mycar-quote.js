@@ -51,6 +51,15 @@ function normalizeEurocode(value) {
   return text ? text.toUpperCase() : null;
 }
 
+// Cada linha lida guarda (escondido) o bloco de onde veio: uma tabela no HTML,
+// ou um troço de texto que começa num cabeçalho "Matrícula". Um pedido com
+// vários vidros tem várias linhas no MESMO bloco; as cópias citadas mais
+// abaixo na conversa vêm noutros blocos.
+function withBlock(row, block) {
+  Object.defineProperty(row, '_block', { value: block, enumerable: false, configurable: true });
+  return row;
+}
+
 function escapeRegex(value) {
   return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -97,6 +106,8 @@ function parseQuoteText(text, fallbackPlate = null) {
 
   const services = [];
   const idRx = identifierRegex(fallbackPlate);
+  let block = 0;
+  let lastRowEnd = 0;
   for (const match of source.matchAll(idRx)) {
     const tail = source.slice((match.index || 0) + match[0].length, (match.index || 0) + match[0].length + 520);
     // Também o valor pode ficar colado à descrição ("/OEM192,00").
@@ -114,13 +125,18 @@ function parseQuoteText(text, fallbackPlate = null) {
     // uma linha da cotação. Exigimos descrição de serviço ou Eurocode forte.
     if (!descricao && !eurocode) continue;
 
-    services.push({
+    // Um novo cabeçalho "Matrícula" entre esta linha e a anterior é o
+    // começo de outra tabela (a cotação citada de uma mensagem anterior).
+    if (services.length && /matr[ií]cula/i.test(source.slice(lastRowEnd, match.index || 0))) block++;
+    lastRowEnd = (match.index || 0) + match[0].length + valueMatch.index + valueMatch[0].length;
+
+    services.push(withBlock({
       matricula: fallbackPlate || cleanCell(match[0]).replace(/\s/g, '').toUpperCase(),
       descricao,
       valor: parseValor(valueMatch[0]),
       eurocode,
       ne: null
-    });
+    }, `t${block}`));
   }
 
   return consolidateQuoteRows(services, fallbackPlate);
@@ -132,7 +148,7 @@ function parseTableHtml(html) {
   const services = [];
   const exactRows = new Set();
 
-  $('table').each((_, table) => {
+  $('table').each((tableIdx, table) => {
     // Outlook envolve frequentemente a tabela da cotação noutras tabelas de
     // layout. Só lemos as linhas que pertencem diretamente a esta tabela para
     // não importar a mesma cotação várias vezes.
@@ -176,7 +192,7 @@ function parseTableHtml(html) {
       const key = JSON.stringify(service);
       if (!exactRows.has(key)) {
         exactRows.add(key);
-        services.push(service);
+        services.push(withBlock(service, `h${tableIdx}`));
       }
     });
   });
@@ -188,36 +204,82 @@ function hasQuoteDetails(row = {}) {
   return Boolean(row && (row.descricao || row.valor != null || row.eurocode));
 }
 
-// A primeira tabela no email é a cotação mais recente. Se a conversa incluir
-// cópias antigas da mesma matrícula, elas só podem preencher campos que a
-// tabela mais recente deixou vazios; nunca substituem os valores mais novos.
+function fillMissing(current, row) {
+  if (!current.descricao && row?.descricao) current.descricao = row.descricao;
+  if (current.valor == null && row?.valor != null) current.valor = row.valor;
+  if (!current.eurocode && row?.eurocode) current.eurocode = row.eurocode;
+  if (!current.ne && row?.ne) current.ne = row.ne;
+}
+
+function sameGlassRow(a, b) {
+  return Boolean(
+    (a.eurocode && b.eurocode && normalizePlate(a.eurocode) === normalizePlate(b.eurocode)) ||
+    (a.descricao && b.descricao && cleanCell(a.descricao).toUpperCase() === cleanCell(b.descricao).toUpperCase())
+  );
+}
+
+// A primeira tabela no email é a cotação mais recente, com uma linha por
+// vidro: essas linhas são os vidros do pedido. Se a conversa incluir cópias
+// antigas da mesma matrícula (outros blocos), elas só podem preencher campos
+// que a tabela mais recente deixou vazios — no mesmo vidro (pelo Eurocode ou
+// pela descrição, senão pela posição) — e nunca substituem os valores novos.
+// Linhas sem bloco conhecido contam cada uma como uma cópia à parte.
 function consolidateQuoteRows(rows = [], fallbackPlate = null) {
   const grouped = new Map();
 
-  for (const row of rows) {
+  rows.forEach((row, index) => {
     const matricula = row?.matricula || fallbackPlate;
     const key = normalizePlate(matricula);
-    if (!key) continue;
+    if (!key) return;
+    const block = row?._block ?? `row${index}`;
 
-    const current = grouped.get(key);
-    if (!current) {
-      grouped.set(key, {
-        matricula,
-        descricao: row?.descricao || null,
-        valor: row?.valor == null ? null : row.valor,
-        eurocode: row?.eurocode || null,
-        ne: row?.ne || null
-      });
-      continue;
+    let plate = grouped.get(key);
+    if (!plate) {
+      plate = { block, glasses: [], copies: new Map() };
+      grouped.set(key, plate);
     }
 
-    if (!current.descricao && row?.descricao) current.descricao = row.descricao;
-    if (current.valor == null && row?.valor != null) current.valor = row.valor;
-    if (!current.eurocode && row?.eurocode) current.eurocode = row.eurocode;
-    if (!current.ne && row?.ne) current.ne = row.ne;
-  }
+    const glass = {
+      matricula,
+      descricao: row?.descricao || null,
+      valor: row?.valor == null ? null : row.valor,
+      eurocode: row?.eurocode || null,
+      ne: row?.ne || null
+    };
 
-  return [...grouped.values()];
+    if (block === plate.block) {
+      const duplicate = plate.glasses.find(g =>
+        g.descricao === glass.descricao && g.valor === glass.valor && g.eurocode === glass.eurocode);
+      if (!duplicate) plate.glasses.push(withBlock(glass, block));
+      return;
+    }
+
+    // Cópia antiga: completa o vidro correspondente da cotação mais recente.
+    const copy = plate.copies.get(block) || [];
+    plate.copies.set(block, copy);
+    const target = plate.glasses.find(g => sameGlassRow(g, glass)) || plate.glasses[copy.length];
+    copy.push(glass);
+    if (target) fillMissing(target, glass);
+  });
+
+  return [...grouped.values()].flatMap(plate => plate.glasses);
+}
+
+// Liga cada vidro da cotação a um serviço que já existe na mesma conversa:
+// primeiro pelo mesmo Eurocode/descrição, depois pela ordem (o pedido entra
+// como um só serviço sem detalhes, que fica com o primeiro vidro). Os vidros
+// que sobram não têm serviço e devem ser criados. Devolve [{ glass, existing }].
+function assignQuoteRows(glasses = [], existing = []) {
+  const free = [...existing].sort((a, b) => a.id - b.id);
+  const take = (service) => { free.splice(free.indexOf(service), 1); return service; };
+  const result = glasses.map(glass => {
+    const match = free.find(s => sameGlassRow(s, glass));
+    return { glass, existing: match ? take(match) : null };
+  });
+  for (const entry of result) {
+    if (!entry.existing && free.length) entry.existing = take(free[0]);
+  }
+  return result;
 }
 
 function pickQuoteForPlate(rows = [], plate = null) {
@@ -254,6 +316,7 @@ module.exports = {
   parseQuoteText,
   hasQuoteDetails,
   consolidateQuoteRows,
+  assignQuoteRows,
   pickQuoteForPlate,
   selectLatestQuoteMessage
 };
