@@ -1290,11 +1290,14 @@ async function updateStatus(id, status, workType) {
     const json = await safeJson(res);
     if (!json.success) throw new Error(json.error);
 
-    // Atualizar estado local
+    // Atualizar estado local. A resposta não traz os campos calculados da
+    // lista (vidro, imagens, PDFs), por isso junta-se ao que já havia.
     const idx = allServices.findIndex(s => s.id === id);
-    if (idx >= 0) allServices[idx] = json.data;
+    if (idx >= 0) allServices[idx] = { ...allServices[idx], ...json.data };
 
     updateStats();
+    // Com um filtro ativo, a matrícula sai logo da lista se deixou de lá caber.
+    filterTable();
     renderDetailBody(currentPlate);
     toast(`Estado atualizado: ${statusLabel(status)}`, 'success');
   } catch (e) {
@@ -1332,7 +1335,7 @@ async function saveObsTecnico(id) {
     const json = await safeJson(res);
     if (!json.success) throw new Error(json.error);
     const idx = allServices.findIndex(s => s.id === id);
-    if (idx >= 0) allServices[idx] = json.data;
+    if (idx >= 0) allServices[idx] = { ...allServices[idx], ...json.data };
     toast('Observação guardada', 'success');
   } catch (e) {
     toast(`Erro: ${e.message}`, 'error');
