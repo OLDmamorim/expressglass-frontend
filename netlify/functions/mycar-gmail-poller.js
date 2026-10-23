@@ -43,6 +43,8 @@ const { ensureImagesTable, saveServiceImages } = require('./lib/mycar-images');
 const {
   configuredSenders,
   isNotaEncomendaEmail,
+  parseNotasEncomenda,
+  matchNotaPdfs,
   ensureNotasTables,
   applyNotasEncomenda
 } = require('./lib/mycar-notas-encomenda');
@@ -1395,6 +1397,7 @@ async function runFillDetails(limit) {
 // (até lá, volta a ser lido — pode chegar antes de o serviço existir).
 const NOTAS_SWEEP_DAYS = 10;
 const NOTAS_PER_RUN = 6;
+const NOTAS_RETRY_MS = 6 * 60 * 60 * 1000;
 
 // Pelo assunto, e não pelo remetente: chegam reencaminhadas por quem as
 // recebeu (paredes@…), e a MyCar só aparece no cabeçalho citado.
@@ -1440,7 +1443,7 @@ async function pdfTextsOf(email) {
   return texts;
 }
 
-async function runNotasEncomendaSweep(client, days = NOTAS_SWEEP_DAYS, limit = NOTAS_PER_RUN) {
+async function runNotasEncomendaSweep(client, days = NOTAS_SWEEP_DAYS, limit = NOTAS_PER_RUN, force = false) {
   const stats = { emails: 0, linhas: 0, associadas: 0, semServico: 0, pdfs: 0, erros: 0 };
   let imap;
   try {
@@ -1468,6 +1471,10 @@ async function runNotasEncomendaSweep(client, days = NOTAS_SWEEP_DAYS, limit = N
         if (!/=\?/.test(header.subject) && !isNotaEncomendaEmail({ subject: header.subject })) continue;
         const headerKey = `ne:${buildMessageKey(extractThreadMeta({}, header.attrs, uid))}`;
         if (await wasMessageProcessed(client, headerKey)) continue;
+        // Uma nota com linhas ainda sem serviço volta a ser lida, mas no máximo
+        // de 6 em 6 horas (descarregá-la com os PDFs leva vários segundos).
+        const retryKey = `retry:${headerKey}`;
+        if (!force && Date.now() - await getStateInt(client, retryKey) < NOTAS_RETRY_MS) continue;
 
         read++;
         const email = await fetchFullMessage(imap, uid);
@@ -1477,10 +1484,15 @@ async function runNotasEncomendaSweep(client, days = NOTAS_SWEEP_DAYS, limit = N
         if (key !== headerKey && await wasMessageProcessed(client, key)) continue;
 
         stats.emails++;
+        // Os PDFs só se abrem quando o nome do ficheiro não diz a N.E.
+        const neNumbers = parseNotasEncomenda(email).map(r => r.ne);
+        const byName = matchNotaPdfs(neNumbers, email.attachments || []);
+        const needTexts = neNumbers.some(ne => !byName.has(ne));
         const result = await applyNotasEncomenda(client, email, {
-          pdfTexts: await pdfTextsOf(email),
+          pdfTexts: needTexts ? await pdfTextsOf(email) : [],
           messageId: meta.messageId
         });
+        await setState(client, retryKey, Date.now());
         stats.linhas += result.rows;
         stats.associadas += result.matched;
         stats.semServico += result.unmatched.length;
@@ -1612,7 +1624,7 @@ exports.handler = async (event) => {
     try {
       await ensureTable(client);
       const result = await runNotasEncomendaSweep(client,
-        Math.min(parseInt(bodyObj.days) || 120, 365), parseInt(bodyObj.limit) || 4);
+        Math.min(parseInt(bodyObj.days) || 120, 365), parseInt(bodyObj.limit) || 4, Boolean(bodyObj.force));
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, ...result }) };
     } catch (error) {
       console.error('❌ fill_notas:', error.message);
