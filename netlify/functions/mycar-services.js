@@ -8,6 +8,7 @@ const pool = new Pool({
 });
 
 const { ensureImagesTable } = require('./lib/mycar-images');
+const { ensureNotasTables } = require('./lib/mycar-notas-encomenda');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
@@ -60,6 +61,7 @@ async function ensureTable(client) {
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_status ON mycar_services(status)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_portal ON mycar_services(portal_id)`);
   await ensureImagesTable(client);
+  await ensureNotasTables(client);
 }
 
 exports.handler = async (event) => {
@@ -106,24 +108,42 @@ exports.handler = async (event) => {
         rows.sort((a, b) => a.id - b.id);
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
       }
-      if (image) {
+      // Documentos (PDF das Notas de Encomenda): a lista de uma matrícula.
+      const { documents, document } = event.queryStringParameters || {};
+      if (documents) {
+        const params = [documents.toUpperCase()];
+        if (ownPortal) params.push(user.portalId);
+        const { rows } = await client.query(
+          `SELECT doc.id, doc.service_id, doc.kind, doc.reference, doc.filename, doc.content_type, doc.size_bytes
+             FROM mycar_service_documents doc
+             JOIN mycar_services ms ON ms.id = doc.service_id
+            WHERE UPPER(ms.matricula) = $1
+              ${ownPortal ? 'AND (ms.portal_id = $2 OR ms.portal_id IS NULL)' : ''}
+            ORDER BY doc.id`,
+          params
+        );
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
+      }
+
+      if (image || document) {
         // Uma foto de 6 MB passa dos 6 MB de resposta do Netlify em base64:
-        // vai em partes (`part`), que o mural junta.
+        // vai em partes (`part`), que o mural junta. O mesmo para os PDFs.
+        const table = image ? 'mycar_service_images' : 'mycar_service_documents';
         const IMAGE_PART_CHARS = 4 * 1024 * 1024;
         const part = Math.max(0, parseInt(event.queryStringParameters.part, 10) || 0);
-        const params = [parseInt(image, 10), part * IMAGE_PART_CHARS + 1, IMAGE_PART_CHARS];
+        const params = [parseInt(image || document, 10), part * IMAGE_PART_CHARS + 1, IMAGE_PART_CHARS];
         if (ownPortal) params.push(user.portalId);
         const { rows } = await client.query(
           `SELECT img.id, img.filename, img.content_type, LENGTH(img.data) AS data_length,
                   SUBSTR(img.data, $2::int, $3::int) AS chunk
-             FROM mycar_service_images img
+             FROM ${table} img
              JOIN mycar_services ms ON ms.id = img.service_id
             WHERE img.id = $1
               ${ownPortal ? 'AND (ms.portal_id = $4 OR ms.portal_id IS NULL)' : ''}`,
           params
         );
         if (rows.length === 0) {
-          return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Imagem não encontrada' }) };
+          return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: image ? 'Imagem não encontrada' : 'Documento não encontrado' }) };
         }
         const img = rows[0];
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: {
@@ -158,7 +178,8 @@ exports.handler = async (event) => {
         `SELECT ms.*,
                 apt.status    AS glass_status,
                 apt.order_ref AS apt_order_ref,
-                (SELECT COUNT(*)::int FROM mycar_service_images img WHERE img.service_id = ms.id) AS image_count
+                (SELECT COUNT(*)::int FROM mycar_service_images img WHERE img.service_id = ms.id) AS image_count,
+                (SELECT COUNT(*)::int FROM mycar_service_documents doc WHERE doc.service_id = ms.id) AS document_count
          FROM mycar_services ms
          LEFT JOIN LATERAL (
            SELECT status, order_ref

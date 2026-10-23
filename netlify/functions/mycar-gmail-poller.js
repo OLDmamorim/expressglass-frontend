@@ -40,6 +40,13 @@ const {
   selectLatestQuoteMessage
 } = require('./lib/mycar-quote');
 const { ensureImagesTable, saveServiceImages } = require('./lib/mycar-images');
+const {
+  configuredSenders,
+  isNotaEncomendaEmail,
+  ensureNotasTables,
+  applyNotasEncomenda
+} = require('./lib/mycar-notas-encomenda');
+const pdfParse = require('pdf-parse');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -282,6 +289,8 @@ async function ensureTable(client) {
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS in_treatment BOOLEAN DEFAULT FALSE`);
   // Imagens dos emails (anexos e embebidas), por serviço
   await ensureImagesTable(client);
+  // Notas de Encomenda (número e PDF), por serviço
+  await ensureNotasTables(client);
 }
 
 async function getCursor(client) {
@@ -943,6 +952,15 @@ async function runPoller() {
       console.error('⚠️ Reanálise direta dos pendentes falhou:', error.message);
     }
 
+    // Notas de Encomenda da MyCar (número e PDF de cada serviço)
+    let notas = { emails: 0, linhas: 0, associadas: 0, semServico: 0, pdfs: 0, erros: 0 };
+    try {
+      notas = await runNotasEncomendaSweep(client);
+    } catch (error) {
+      notas.erros++;
+      console.error('⚠️ Notas de encomenda falharam:', error.message);
+    }
+
     const { emails, nextCursor, remaining, scanned } = await fetchBatch(cursor, knownThreadIds);
 
     if (emails.length === 0) {
@@ -960,6 +978,7 @@ async function runPoller() {
           detalhesRecuperados: replySweep.detailsRecovered,
           imagensReanalise: replySweep.images,
           vidrosAcrescentados: replySweep.glassesCreated,
+          notasEncomenda: notas,
           pendentesReanalisados: replySweep.scanned,
           errosReanalise: replySweep.errors,
           emailsInvalidosReanalise: replySweep.messageErrors,
@@ -976,6 +995,7 @@ async function runPoller() {
       detalhesRecuperados: replySweep.detailsRecovered,
       imagensReanalise: replySweep.images,
       vidrosAcrescentados: replySweep.glassesCreated,
+      notasEncomenda: notas,
       emailsInvalidosReanalise: replySweep.messageErrors,
       fasesErroReanalise: replySweep.errorStages,
       cancelados: 0, erros: 0, imagens: 0,
@@ -1369,6 +1389,124 @@ async function runFillDetails(limit) {
   }
 }
 
+// Notas de Encomenda: não trazem matrícula no assunto, por isso não passam
+// pelo cursor da caixa. Em cada execução procuramos as dos últimos dias pelo
+// remetente; um email só fica processado quando todas as linhas têm serviço
+// (até lá, volta a ser lido — pode chegar antes de o serviço existir).
+const NOTAS_SWEEP_DAYS = 10;
+const NOTAS_PER_RUN = 6;
+
+function searchNotasEncomenda(imap, days) {
+  return new Promise((resolve, reject) => {
+    const since = new Date(); since.setDate(since.getDate() - days);
+    const senders = configuredSenders();
+    const criteria = senders.length === 1
+      ? [['SINCE', since], ['FROM', senders[0]]]
+      : [['SINCE', since], senders.reduce((acc, s) => acc ? ['OR', acc, ['FROM', s]] : ['FROM', s], null)];
+    imap.search(criteria, (err, uids) => {
+      if (err) { reject(err); return; }
+      resolve((uids || []).sort((a, b) => b - a));
+    });
+  });
+}
+
+function fetchFullMessage(imap, uid) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let attrs = {};
+    const f = imap.fetch([uid], { bodies: '', markSeen: false });
+    f.on('message', (msg) => {
+      msg.on('body', (stream) => stream.on('data', c => chunks.push(c)));
+      msg.once('attributes', a => { attrs = a || {}; });
+    });
+    f.once('error', reject);
+    f.once('end', async () => {
+      try {
+        const parsed = await simpleParser(Buffer.concat(chunks));
+        parsed._imapAttrs = attrs;
+        parsed._imapUid = attrs?.uid ?? uid;
+        resolve(parsed);
+      } catch (e) { reject(e); }
+    });
+  });
+}
+
+async function pdfTextsOf(email) {
+  const texts = [];
+  for (const att of email.attachments || []) {
+    const pdf = /pdf/i.test(String(att.contentType || '')) || /\.pdf$/i.test(String(att.filename || ''));
+    if (!pdf || !Buffer.isBuffer(att.content)) { texts.push(''); continue; }
+    try { texts.push((await pdfParse(att.content)).text || ''); }
+    catch (e) { console.error(`⚠️ PDF ${att.filename} ilegível:`, e.message); texts.push(''); }
+  }
+  return texts;
+}
+
+async function runNotasEncomendaSweep(client, days = NOTAS_SWEEP_DAYS, limit = NOTAS_PER_RUN) {
+  const stats = { emails: 0, linhas: 0, associadas: 0, semServico: 0, pdfs: 0, erros: 0 };
+  let imap;
+  try {
+    imap = await connectReadOnlyInbox();
+    const uids = await searchNotasEncomenda(imap, days);
+    let read = 0;
+    for (const uid of uids) {
+      if (read >= limit) break;
+      try {
+        // Cabeçalho primeiro: o processado e o assunto evitam descarregar os PDFs.
+        const header = await new Promise((resolve, reject) => {
+          const chunks = []; let attrs = {};
+          const f = imap.fetch([uid], { bodies: 'HEADER.FIELDS (SUBJECT FROM MESSAGE-ID REFERENCES IN-REPLY-TO)', markSeen: false });
+          f.on('message', (msg) => {
+            msg.on('body', (stream) => stream.on('data', c => chunks.push(c)));
+            msg.once('attributes', a => { attrs = a || {}; });
+          });
+          f.once('error', reject);
+          f.once('end', () => {
+            const h = Imap.parseHeader(Buffer.concat(chunks).toString('utf8'));
+            resolve({ subject: (h.subject && h.subject[0]) || '', attrs });
+          });
+        });
+        // Assunto codificado (=?utf-8?...) só se lê depois de descarregar
+        if (!/=\?/.test(header.subject) && !isNotaEncomendaEmail({ subject: header.subject })) continue;
+        const headerKey = `ne:${buildMessageKey(extractThreadMeta({}, header.attrs, uid))}`;
+        if (await wasMessageProcessed(client, headerKey)) continue;
+
+        read++;
+        const email = await fetchFullMessage(imap, uid);
+        if (!isNotaEncomendaEmail(email, configuredSenders())) continue;
+        const meta = extractThreadMeta(email, email._imapAttrs || {}, email._imapUid);
+        const key = `ne:${buildMessageKey(meta)}`;
+        if (key !== headerKey && await wasMessageProcessed(client, key)) continue;
+
+        stats.emails++;
+        const result = await applyNotasEncomenda(client, email, {
+          pdfTexts: await pdfTextsOf(email),
+          messageId: meta.messageId
+        });
+        stats.linhas += result.rows;
+        stats.associadas += result.matched;
+        stats.semServico += result.unmatched.length;
+        stats.pdfs += result.documents;
+        if (result.unmatched.length) {
+          console.log(`🧾 N.E. sem serviço (${email.subject}):`, result.unmatched.map(r => `${r.matricula} ${r.ne}`).join(', '));
+        }
+        // Fora da janela normal já não há serviço a chegar: fica processado.
+        const ageDays = (Date.now() - new Date(email.date || Date.now()).getTime()) / 86400000;
+        if ((result.rows > 0 && result.unmatched.length === 0) || ageDays > NOTAS_SWEEP_DAYS) {
+          await markMessageProcessed(client, key, meta);
+        }
+        if (result.rows === 0) console.log(`🧾 N.E. sem tabela legível: ${email.subject}`);
+      } catch (e) {
+        stats.erros++;
+        console.error('⚠️ Nota de encomenda falhou:', e.message);
+      }
+    }
+  } finally {
+    try { imap?.end(); } catch (_) {}
+  }
+  return stats;
+}
+
 // Revê a conversa dos processos que já existiam: junta as imagens (que antes
 // não guardávamos) e acrescenta os vidros que a cotação trazia mas ficaram de
 // fora (antes, um pedido de vários vidros ficava num só serviço).
@@ -1467,6 +1605,22 @@ exports.handler = async (event) => {
     } catch (error) {
       console.error('❌ fill_details:', error.message);
       return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+    }
+  }
+
+  // Recuperar Notas de Encomenda antigas (as que chegaram antes desta leitura)
+  if (bodyObj.action === 'fill_notas') {
+    const client = await pool.connect();
+    try {
+      await ensureTable(client);
+      const result = await runNotasEncomendaSweep(client,
+        Math.min(parseInt(bodyObj.days) || 120, 365), parseInt(bodyObj.limit) || 4);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, ...result }) };
+    } catch (error) {
+      console.error('❌ fill_notas:', error.message);
+      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+    } finally {
+      client.release();
     }
   }
 

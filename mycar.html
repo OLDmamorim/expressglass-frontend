@@ -505,7 +505,7 @@
       .form-row-2 { grid-template-columns: 1fr; }
       .service-meta { grid-template-columns: 1fr; }
       /* Tabela: esconder colunas secundárias */
-      .col-total, .col-trat, .col-rej, .col-last, .col-arrow { display: none; }
+      .col-total, .col-trat, .col-rej, .col-ne, .col-last, .col-arrow { display: none; }
       .col-pend { display: table-cell; }
     }
     @media (max-width: 480px) {
@@ -535,6 +535,10 @@
 
     /* ─── IMAGENS DO EMAIL ─── */
     .badge-images { background: var(--eg-navy-claro); color: var(--blue); }
+    .badge-ne { background: #ecfeff; color: #0e7490; white-space: nowrap; font-family: monospace; }
+    .col-ne .count-badge + .count-badge { margin-top: 3px; }
+    .ne-mobile { display: none; font-size: .75rem; color: #0e7490; font-weight: 700; font-family: monospace; margin-top: 2px; }
+    @media (max-width: 700px) { .ne-mobile { display: block; } }
     .email-images { margin-bottom: 14px; }
     .email-images-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .6px; color: var(--gray); margin-bottom: 8px; }
     .email-images-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
@@ -637,12 +641,13 @@
 
           <th class="col-trat">Tratados</th>
           <th class="col-rej">Rejeitados</th>
+          <th class="col-ne" style="white-space:nowrap">N.E.</th>
           <th class="col-last">Último registo</th>
           <th class="col-arrow"></th>
         </tr>
       </thead>
       <tbody id="table-body">
-        <tr class="loading-row"><td colspan="7"><div class="spinner"></div>A carregar…</td></tr>
+        <tr class="loading-row"><td colspan="9"><div class="spinner"></div>A carregar…</td></tr>
       </tbody>
     </table>
   </div>
@@ -845,7 +850,7 @@ async function loadServices() {
   } catch (e) {
     console.error(e);
     document.getElementById('table-body').innerHTML =
-      `<tr><td colspan="7" style="text-align:center;padding:30px;color:#dc2626">Erro ao carregar dados: ${e.message}</td></tr>`;
+      `<tr><td colspan="9" style="text-align:center;padding:30px;color:#dc2626">Erro ao carregar dados: ${e.message}</td></tr>`;
   }
 }
 
@@ -870,9 +875,11 @@ function buildGroups(services) {
   const map = {};
   for (const svc of services) {
     const key = svc.matricula.toUpperCase();
-    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null, in_treatment: false, authorizedCount: 0, imageCount: 0 };
+    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null, in_treatment: false, authorizedCount: 0, imageCount: 0, notas: [], documentCount: 0 };
     map[key].services.push(svc);
     map[key].imageCount += svc.image_count || 0;
+    map[key].documentCount += svc.document_count || 0;
+    if (svc.nota_encomenda && !map[key].notas.includes(svc.nota_encomenda)) map[key].notas.push(svc.nota_encomenda);
     const d = svc.last_reply_at || svc.email_received_at || svc.created_at;
     if (d && (!map[key].lastDate || d > map[key].lastDate)) map[key].lastDate = d;
     if (!svc.viewed_at) map[key].isNew = true;
@@ -905,7 +912,7 @@ function renderTable(groups) {
   const tbody = document.getElementById('table-body');
   if (groups.length === 0) {
     tbody.innerHTML = `
-      <tr><td colspan="7">
+      <tr><td colspan="9">
         <div class="empty-state">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <circle cx="12" cy="12" r="10"/><path d="M12 8v4m0 4h.01"/>
@@ -930,6 +937,7 @@ function renderTable(groups) {
           ${g.imageCount ? `<span class="count-badge badge-images" style="margin-left:6px" title="Imagens no email">📷</span>` : ''}
           ${g.car ? `<div style="font-size:.82rem;color:#374151;font-weight:600;margin-top:5px">${g.car}</div>` : ''}
           ${g.n_obra ? `<div style="font-size:.8rem;color:var(--blue);font-weight:700;margin-top:2px">FS${g.n_obra}</div>` : ''}
+          ${g.notas.length ? `<div class="ne-mobile">${g.notas.map(escapeHtml).join(' · ')}</div>` : ''}
         </td>
         <td class="col-glass">${(function(){
           const gs = g.glass_status;
@@ -948,6 +956,7 @@ function renderTable(groups) {
         </td>
         <td class="col-trat">${trat > 0 ? `<span class="count-badge badge-done">${trat}</span>`    : '<span style="color:#d1d5db">0</span>'}</td>
         <td class="col-rej">${rej  > 0 ? `<span class="count-badge badge-reject">${rej}</span>`   : '<span style="color:#d1d5db">0</span>'}</td>
+        <td class="col-ne">${g.notas.length ? g.notas.map(ne => `<span class="count-badge badge-ne" title="Nota de encomenda${g.documentCount ? ' (PDF)' : ''}">${g.documentCount ? '📄 ' : ''}${escapeHtml(ne)}</span>`).join(' ') : '<span style="color:#d1d5db">—</span>'}</td>
         <td class="col-last" style="color:var(--gray);font-size:.82rem">${last}</td>
         <td class="col-arrow"><span style="color:var(--blue);font-size:.82rem">Ver →</span></td>
       </tr>`;
@@ -969,7 +978,7 @@ function filterTable() {
   }
 
   const groups = buildGroups(filtered).filter(g =>
-    !search || g.matricula.includes(search)
+    !search || g.matricula.includes(search) || g.notas.some(ne => ne.includes(search))
   );
   renderTable(groups);
 }
@@ -995,6 +1004,7 @@ function openDetail(plate) {
 
   renderDetailBody(plate);
   loadDetailImages(plate);
+  loadDetailDocuments(plate);
   document.getElementById('detail-modal').classList.add('open');
 }
 
@@ -1003,25 +1013,69 @@ function openDetail(plate) {
 const imageCache = {};
 
 // As fotos grandes vêm em partes (limite de resposta do Netlify); juntamo-las.
-async function fetchImagePart(id, part) {
-  const res = await fetch(`${API_BASE}/mycar-services?image=${id}&part=${part}`, { headers: authHeaders() });
+async function fetchImagePart(id, part, kind = 'image') {
+  const res = await fetch(`${API_BASE}/mycar-services?${kind}=${id}&part=${part}`, { headers: authHeaders() });
   const data = await safeJson(res);
   if (!data.success) throw new Error(data.error || 'Erro');
   return data.data;
 }
 
-async function loadImage(id) {
-  const first = await fetchImagePart(id, 0);
+async function loadBase64(id, kind) {
+  const first = await fetchImagePart(id, 0, kind);
   const chunks = [first.chunk];
   for (let part = 1; part < first.parts; part++) {
-    chunks.push((await fetchImagePart(id, part)).chunk);
+    chunks.push((await fetchImagePart(id, part, kind)).chunk);
   }
-  return {
-    id: first.id,
-    filename: first.filename,
-    content_type: first.content_type,
-    url: `data:${first.content_type};base64,${chunks.join('')}`
-  };
+  return { id: first.id, filename: first.filename, content_type: first.content_type, base64: chunks.join('') };
+}
+
+async function loadImage(id) {
+  const img = await loadBase64(id, 'image');
+  return { id: img.id, filename: img.filename, content_type: img.content_type,
+           url: `data:${img.content_type};base64,${img.base64}` };
+}
+
+// ─── NOTAS DE ENCOMENDA (PDF) ─────────────────────────────────────────────────
+let detailDocuments = [];
+
+async function loadDetailDocuments(plate) {
+  detailDocuments = [];
+  try {
+    const res = await fetch(`${API_BASE}/mycar-services?documents=${encodeURIComponent(plate)}`, { headers: authHeaders() });
+    const data = await safeJson(res);
+    if (data.success && currentPlate === plate) detailDocuments = data.data || [];
+  } catch { /* sem documentos */ }
+  renderDocumentButtons();
+}
+
+function renderDocumentButtons() {
+  for (const slot of document.querySelectorAll('[id^="ne-docs-"]')) {
+    const serviceId = Number(slot.id.replace('ne-docs-', ''));
+    slot.innerHTML = detailDocuments
+      .filter(d => d.service_id === serviceId)
+      .map(d => `<button class="btn btn-ghost btn-sm" style="margin-left:8px;font-family:inherit"
+          title="${escapeHtml(d.filename || 'PDF')}" onclick="openDocument(${d.id})">📄 PDF</button>`)
+      .join('');
+  }
+}
+
+async function openDocument(id) {
+  // A janela abre já (ao clicar), senão o browser bloqueia-a depois do download.
+  const win = window.open('', '_blank');
+  try {
+    const doc = await loadBase64(id, 'document');
+    const bytes = Uint8Array.from(atob(doc.base64), c => c.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([bytes], { type: doc.content_type || 'application/pdf' }));
+    if (win) win.location.href = url;
+    else {
+      const a = document.createElement('a');
+      a.href = url; a.download = doc.filename || `nota-encomenda-${id}.pdf`; a.click();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) {
+    if (win) win.close();
+    toast(`Erro ao abrir o PDF: ${e.message}`, 'error');
+  }
 }
 
 async function fetchImage(id) {
@@ -1136,6 +1190,12 @@ function renderDetailBody(plate) {
           <div class="meta-label">Eurocode</div>
           <div class="meta-value" style="font-family:monospace">${svc.eurocode || '—'}</div>
         </div>
+        ${svc.nota_encomenda ? `<div class="meta-item">
+          <div class="meta-label">Nota de encomenda</div>
+          <div class="meta-value" style="font-family:monospace;font-weight:700;color:#0e7490">${escapeHtml(svc.nota_encomenda)}
+            <span id="ne-docs-${svc.id}"></span>
+          </div>
+        </div>` : ''}
         ${svc.notas ? `<div class="meta-item" style="grid-column:span 2">
           <div class="meta-label">OBS</div>
           <div class="meta-value" style="font-family:monospace;font-size:.82rem">${svc.notas}</div>
@@ -1177,6 +1237,7 @@ function renderDetailBody(plate) {
       </div>
     </div>
   `).join('');
+  renderDocumentButtons();
 }
 
 function closeDetail() {
@@ -1354,11 +1415,32 @@ async function recoverDetails() {
       if (!data.remaining || !data.checked) break;
       spin(`a rever: faltam ${data.remaining}…`);
     }
-    if (images > 0 || glasses > 0) {
+    // Notas de Encomenda que chegaram antes desta leitura existir
+    spin('Notas de encomenda…');
+    let notas = 0;
+    erros = 0;
+    for (let i = 0; i < 30; i++) {
+      let data;
+      try {
+        const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'fill_notas', days: 120, limit: 4 })
+        });
+        data = await safeJson(res);
+      } catch (err) { if (++erros >= 4) break; continue; }
+      if (!data.success) { if (++erros >= 4) break; continue; }
+      notas += data.associadas || 0;
+      if (!data.emails) break;
+    }
+
+
+    if (images > 0 || glasses > 0 || notas > 0) {
       await loadServices();
       toast([
         glasses ? `🪟 ${glasses} vidro(s) acrescentado(s) das cotações` : null,
-        images ? `📷 ${images} imagem(ns) recuperada(s) dos emails` : null
+        images ? `📷 ${images} imagem(ns) recuperada(s) dos emails` : null,
+        notas ? `🧾 ${notas} nota(s) de encomenda associada(s)` : null
       ].filter(Boolean).join(' · '), 'success');
     }
   } catch (e) {
