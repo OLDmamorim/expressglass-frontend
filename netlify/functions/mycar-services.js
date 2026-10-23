@@ -115,7 +115,7 @@ exports.handler = async (event) => {
         if (ownPortal) params.push(user.portalId);
         const { rows } = await client.query(
           `SELECT img.id, img.filename, img.content_type, LENGTH(img.data) AS data_length,
-                  SUBSTRING(img.data FROM $2 FOR $3) AS chunk
+                  SUBSTR(img.data, $2::int, $3::int) AS chunk
              FROM mycar_service_images img
              JOIN mycar_services ms ON ms.id = img.service_id
             WHERE img.id = $1
