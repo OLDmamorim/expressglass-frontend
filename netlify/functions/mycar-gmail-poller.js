@@ -1024,6 +1024,15 @@ async function runPoller() {
         continue;
       }
 
+      // Uma Nota de Encomenda ("FW: NOTAS DE ENCOMENDA") não é um pedido: as
+      // linhas da tabela não são serviços novos. É tratada à parte
+      // (runNotasEncomendaSweep), que tem a sua própria marca de processado.
+      if (isNotaEncomendaEmail(email, configuredSenders())) {
+        stats.notasEncomendaIgnoradas = (stats.notasEncomendaIgnoradas || 0) + 1;
+        await markMessageProcessed(client, messageKey, meta);
+        continue;
+      }
+
       if (!html) stats.htmlVazio++;
 
       // Matrícula/VIN vem do ASSUNTO (fiável); os detalhes (serviço/valor/

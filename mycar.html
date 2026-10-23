@@ -385,7 +385,7 @@
       border-radius: 99px;
       font-size: .75rem;
       font-weight: 700;
-      text-transform: capitalize;
+      white-space: nowrap;
     }
     .status-badge.pendente    { background: var(--orange-l); color: var(--orange); }
     .status-badge.encomendado { background: #ede9fe; color: #6366f1; }
@@ -611,7 +611,7 @@
       <option value="pendente">Pendente</option>
       <option value="autorizado">✓ Autorizado para avançar</option>
       <option value="encomendado">Encomendado</option>
-      <option value="realizado">Realizado</option>
+      <option value="realizado">Realizado por faturar</option>
       <option value="faturado">Faturado</option>
       <option value="rejeitado">Rejeitado</option>
     </select>
@@ -686,7 +686,7 @@
   <div class="modal" style="max-width:400px">
     <div class="modal-header">
       <div class="modal-header-info">
-        <div class="modal-title">✓ Marcar como Realizado</div>
+        <div class="modal-title">✓ Marcar como Realizado por faturar</div>
         <div class="modal-subtitle">Que tipo de serviço foi executado?</div>
       </div>
       <button class="modal-close" onclick="closeRealizadoModal()">×</button>
@@ -860,6 +860,19 @@ function isAdvanceAuthorized(svc) {
     svc.advance_authorized_at &&
     !['realizado', 'faturado', 'rejeitado'].includes(svc.status)
   );
+}
+
+// O estado guardado continua 'realizado'; no mural chama-se "Realizado por
+// faturar" até ser marcado como faturado.
+const STATUS_LABELS = {
+  pendente: 'Pendente',
+  encomendado: 'Encomendado',
+  realizado: 'Realizado por faturar',
+  faturado: 'Faturado',
+  rejeitado: 'Rejeitado'
+};
+function statusLabel(status) {
+  return STATUS_LABELS[status] || status;
 }
 
 function escapeHtml(value) {
@@ -1162,7 +1175,7 @@ function renderDetailBody(plate) {
           ${svc.work_type === 'substituicao' ? '<span style="background:#dcfce7;color:#166534;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:10px">🔧 Substituição</span>' : ''}
           ${svc.work_type === 'reparacao' ? '<span style="background:#ede9fe;color:#5b21b6;font-size:.75rem;font-weight:700;padding:2px 8px;border-radius:10px">🛠️ Reparação</span>' : ''}
           ${isAdvanceAuthorized(svc) ? '<span class="status-badge autorizado">✓ Avançar</span>' : ''}
-          <span class="status-badge ${svc.status}">${svc.status}</span>
+          <span class="status-badge ${svc.status}">${statusLabel(svc.status)}</span>
         </div>
       </div>
       <div class="service-meta">
@@ -1228,7 +1241,7 @@ function renderDetailBody(plate) {
         <button class="btn btn-sm" style="background:#ede9fe;color:#6366f1;border:1px solid #c4b5fd" onclick="updateStatus(${svc.id}, 'encomendado')"
           ${svc.status === 'encomendado' ? 'disabled style="opacity:.45"' : ''}>📦 Encomendado</button>
         <button class="btn btn-success btn-sm" onclick="confirmRealizado(${svc.id})"
-          ${svc.status === 'realizado' ? 'disabled style="opacity:.45"' : ''}>✓ Realizado</button>
+          ${svc.status === 'realizado' ? 'disabled style="opacity:.45"' : ''}>✓ Realizado por faturar</button>
         <button class="btn btn-sm" style="background:#cffafe;color:#0891b2;border:1px solid #a5f3fc" onclick="updateStatus(${svc.id}, 'faturado')"
           ${svc.status === 'faturado' ? 'disabled style="opacity:.45"' : ''}>🧾 Faturado</button>
         <button class="btn btn-danger btn-sm" onclick="updateStatus(${svc.id}, 'rejeitado')"
@@ -1283,7 +1296,7 @@ async function updateStatus(id, status, workType) {
 
     updateStats();
     renderDetailBody(currentPlate);
-    toast(`Estado atualizado: ${status}`, 'success');
+    toast(`Estado atualizado: ${statusLabel(status)}`, 'success');
   } catch (e) {
     toast(`Erro: ${e.message}`, 'error');
   }
