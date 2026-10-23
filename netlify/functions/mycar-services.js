@@ -7,6 +7,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+const { ensureImagesTable } = require('./lib/mycar-images');
+
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
 function getUserFromToken(event) {
@@ -57,6 +59,7 @@ async function ensureTable(client) {
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_matricula ON mycar_services(matricula)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_status ON mycar_services(status)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_portal ON mycar_services(portal_id)`);
+  await ensureImagesTable(client);
 }
 
 exports.handler = async (event) => {
@@ -82,7 +85,47 @@ exports.handler = async (event) => {
 
     // GET - listar serviços
     if (event.httpMethod === 'GET') {
-      const { matricula, status, portal_id } = event.queryStringParameters || {};
+      const { matricula, status, portal_id, images, image } = event.queryStringParameters || {};
+
+      // Imagens dos emails: a lista de uma matrícula (sem os dados) e cada
+      // imagem à parte, para a resposta nunca passar o limite do Netlify.
+      const ownPortal = user.role !== 'admin' && user.portalId;
+      if (images) {
+        const params = [images.toUpperCase()];
+        if (ownPortal) params.push(user.portalId);
+        const { rows } = await client.query(
+          `SELECT DISTINCT ON (img.checksum)
+                  img.id, img.service_id, img.filename, img.content_type, img.size_bytes, img.email_date
+             FROM mycar_service_images img
+             JOIN mycar_services ms ON ms.id = img.service_id
+            WHERE UPPER(ms.matricula) = $1
+              ${ownPortal ? 'AND (ms.portal_id = $2 OR ms.portal_id IS NULL)' : ''}
+            ORDER BY img.checksum, img.id`,
+          params
+        );
+        rows.sort((a, b) => a.id - b.id);
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: rows }) };
+      }
+      if (image) {
+        const params = [parseInt(image, 10)];
+        if (ownPortal) params.push(user.portalId);
+        const { rows } = await client.query(
+          `SELECT img.id, img.filename, img.content_type, img.data
+             FROM mycar_service_images img
+             JOIN mycar_services ms ON ms.id = img.service_id
+            WHERE img.id = $1
+              ${ownPortal ? 'AND (ms.portal_id = $2 OR ms.portal_id IS NULL)' : ''}`,
+          params
+        );
+        if (rows.length === 0) {
+          return { statusCode: 404, headers, body: JSON.stringify({ success: false, error: 'Imagem não encontrada' }) };
+        }
+        const img = rows[0];
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, data: {
+          id: img.id, filename: img.filename, content_type: img.content_type,
+          url: `data:${img.content_type};base64,${img.data}`
+        } }) };
+      }
 
       const conditions = [];
       const params = [];
@@ -108,7 +151,8 @@ exports.handler = async (event) => {
       const { rows } = await client.query(
         `SELECT ms.*,
                 apt.status    AS glass_status,
-                apt.order_ref AS apt_order_ref
+                apt.order_ref AS apt_order_ref,
+                (SELECT COUNT(*)::int FROM mycar_service_images img WHERE img.service_id = ms.id) AS image_count
          FROM mycar_services ms
          LEFT JOIN LATERAL (
            SELECT status, order_ref

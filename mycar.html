@@ -532,6 +532,30 @@
       .toast-container { bottom: 16px; right: 12px; left: 12px; }
       .toast { max-width: 100%; }
     }
+
+    /* ─── IMAGENS DO EMAIL ─── */
+    .badge-images { background: var(--eg-navy-claro); color: var(--blue); }
+    .email-images { margin-bottom: 14px; }
+    .email-images-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .6px; color: var(--gray); margin-bottom: 8px; }
+    .email-images-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+    .email-image-thumb {
+      aspect-ratio: 1; border-radius: var(--radius); border: 1px solid var(--border);
+      background: var(--gray-l); overflow: hidden; cursor: zoom-in; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--gray); font-size: .75rem;
+    }
+    .email-image-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .img-lightbox {
+      position: fixed; inset: 0; z-index: 3000; background: rgba(7,30,69,.92);
+      display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px;
+    }
+    .img-lightbox.open { display: flex; }
+    .img-lightbox img { max-width: 100%; max-height: calc(100vh - 110px); object-fit: contain; border-radius: 4px; background: #fff; }
+    .img-lightbox-bar { display: flex; gap: 8px; align-items: center; color: #fff; font-size: .85rem; }
+    .img-lightbox-bar a, .img-lightbox-bar button {
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); color: #fff;
+      padding: 6px 14px; border-radius: 6px; font-size: .85rem; cursor: pointer; text-decoration: none;
+    }
   </style>
 </head>
 <body>
@@ -635,8 +659,20 @@
       </div>
       <button class="modal-close" onclick="closeDetail()">×</button>
     </div>
-    <div class="modal-body" id="detail-body">
+    <div class="modal-body">
+      <div class="email-images" id="detail-images" style="display:none"></div>
+      <div id="detail-body"></div>
     </div>
+  </div>
+</div>
+
+<!-- IMAGEM EM GRANDE -->
+<div class="img-lightbox" id="img-lightbox" onclick="if(event.target===this)closeImage()">
+  <img id="img-lightbox-img" alt="">
+  <div class="img-lightbox-bar">
+    <span id="img-lightbox-name"></span>
+    <a id="img-lightbox-download" download>⬇ Descarregar</a>
+    <button onclick="closeImage()">Fechar</button>
   </div>
 </div>
 
@@ -834,8 +870,9 @@ function buildGroups(services) {
   const map = {};
   for (const svc of services) {
     const key = svc.matricula.toUpperCase();
-    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null, in_treatment: false, authorizedCount: 0 };
+    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null, in_treatment: false, authorizedCount: 0, imageCount: 0 };
     map[key].services.push(svc);
+    map[key].imageCount += svc.image_count || 0;
     const d = svc.last_reply_at || svc.email_received_at || svc.created_at;
     if (d && (!map[key].lastDate || d > map[key].lastDate)) map[key].lastDate = d;
     if (!svc.viewed_at) map[key].isNew = true;
@@ -890,6 +927,7 @@ function renderTable(groups) {
           <span class="plate-badge"><span class="plate-badge-text">${g.matricula}</span></span>
           ${g.isNew ? '<span class="count-badge badge-new" style="margin-left:6px">Novo</span>' : ''}
           ${g.authorizedCount ? `<span class="count-badge badge-authorized" style="margin-left:6px" title="${g.authorizedCount} serviço(s) autorizado(s) pela MyCar">✓ Avançar</span>` : ''}
+          ${g.imageCount ? `<span class="count-badge badge-images" style="margin-left:6px" title="Imagens no email">📷</span>` : ''}
           ${g.car ? `<div style="font-size:.82rem;color:#374151;font-weight:600;margin-top:5px">${g.car}</div>` : ''}
           ${g.n_obra ? `<div style="font-size:.8rem;color:var(--blue);font-weight:700;margin-top:2px">FS${g.n_obra}</div>` : ''}
         </td>
@@ -956,8 +994,86 @@ function openDetail(plate) {
   document.getElementById('detail-subtitle').textContent = '';
 
   renderDetailBody(plate);
+  loadDetailImages(plate);
   document.getElementById('detail-modal').classList.add('open');
 }
+
+// ─── IMAGENS DO EMAIL ─────────────────────────────────────────────────────────
+// A lista vem sem os dados; cada imagem é pedida à parte (podem ser fotos grandes).
+const imageCache = {};
+
+async function fetchImage(id) {
+  if (!imageCache[id]) {
+    imageCache[id] = fetch(`${API_BASE}/mycar-services?image=${id}`, { headers: authHeaders() })
+      .then(safeJson)
+      .then(data => {
+        if (!data.success) throw new Error(data.error || 'Erro');
+        return data.data;
+      })
+      .catch(err => { delete imageCache[id]; throw err; });
+  }
+  return imageCache[id];
+}
+
+async function loadDetailImages(plate) {
+  const box = document.getElementById('detail-images');
+  box.style.display = 'none';
+  box.innerHTML = '';
+  let list;
+  try {
+    const res = await fetch(`${API_BASE}/mycar-services?images=${encodeURIComponent(plate)}`, { headers: authHeaders() });
+    const data = await safeJson(res);
+    if (!data.success) return;
+    list = data.data || [];
+  } catch { return; }
+  if (currentPlate !== plate || list.length === 0) return;
+
+  box.innerHTML = `
+    <div class="email-images-title">📷 Imagens do email (${list.length})</div>
+    <div class="email-images-grid">
+      ${list.map(img => `<button class="email-image-thumb" id="img-thumb-${img.id}"
+          title="${escapeHtml(img.filename || 'Imagem')}" onclick="openImage(${img.id})">A carregar…</button>`).join('')}
+    </div>`;
+  box.style.display = '';
+
+  for (const img of list) {
+    fetchImage(img.id).then(full => {
+      const thumb = document.getElementById(`img-thumb-${img.id}`);
+      if (thumb) thumb.innerHTML = `<img src="${full.url}" alt="${escapeHtml(full.filename || 'Imagem')}" loading="lazy">`;
+    }).catch(() => {
+      const thumb = document.getElementById(`img-thumb-${img.id}`);
+      if (thumb) thumb.textContent = 'Indisponível';
+    });
+  }
+}
+
+async function openImage(id) {
+  try {
+    const full = await fetchImage(id);
+    const name = full.filename || `imagem-${id}`;
+    document.getElementById('img-lightbox-img').src = full.url;
+    document.getElementById('img-lightbox-name').textContent = name;
+    const link = document.getElementById('img-lightbox-download');
+    link.href = full.url;
+    link.download = name;
+    document.getElementById('img-lightbox').classList.add('open');
+  } catch (e) {
+    toast(`Erro ao abrir a imagem: ${e.message}`, 'error');
+  }
+}
+
+function closeImage() {
+  document.getElementById('img-lightbox').classList.remove('open');
+  document.getElementById('img-lightbox-img').removeAttribute('src');
+}
+
+// O ESC fecha primeiro a imagem em grande, e só depois o detalhe.
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.getElementById('img-lightbox').classList.contains('open')) {
+    closeImage();
+    e.stopImmediatePropagation();
+  }
+}, true);
 
 function renderDetailBody(plate) {
   const services = allServices.filter(s => s.matricula.toUpperCase() === plate);
@@ -1201,6 +1317,30 @@ async function recoverDetails() {
     toast(filled > 0
       ? `✅ ${filled} detalhe(s) preenchido(s)${remaining ? ` · ${remaining} sem correspondência` : ''}`
       : (remaining ? `📭 ${remaining} sem correspondência no email` : '✅ Nada por preencher'), filled > 0 ? 'success' : 'info');
+
+    // Imagens dos processos que já existiam antes de as guardarmos
+    spin('Imagens…');
+    let images = 0;
+    erros = 0;
+    for (let i = 0; i < 60; i++) {
+      let data;
+      try {
+        const res = await fetch('/.netlify/functions/mycar-gmail-poller', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'fill_images', limit: 4 })
+        });
+        data = await safeJson(res);
+      } catch (err) { if (++erros >= 4) break; continue; }
+      if (!data.success) { if (++erros >= 4) break; continue; }
+      images += data.images || 0;
+      if (!data.remaining || !data.checked) break;
+      spin(`imagens: faltam ${data.remaining}…`);
+    }
+    if (images > 0) {
+      await loadServices();
+      toast(`📷 ${images} imagem(ns) recuperada(s) dos emails`, 'success');
+    }
   } catch (e) {
     toast(`Erro: ${e.message}`, 'error');
   } finally {

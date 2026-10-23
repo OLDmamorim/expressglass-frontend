@@ -37,6 +37,7 @@ const {
   pickQuoteForPlate,
   selectLatestQuoteMessage
 } = require('./lib/mycar-quote');
+const { ensureImagesTable, saveServiceImages } = require('./lib/mycar-images');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -271,6 +272,8 @@ async function ensureTable(client) {
   `);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_email_thread ON mycar_services(email_thread_id)`);
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_email_subject_norm ON mycar_services(email_subject_normalized)`);
+  // Imagens dos emails (anexos e embebidas), por serviço
+  await ensureImagesTable(client);
 }
 
 async function getCursor(client) {
@@ -512,7 +515,7 @@ async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN)
     throw error;
   }
   const stats = {
-    scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0,
+    scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0, images: 0,
     errors: 0, messageErrors: 0, errorStages: {}
   };
   if (candidates.length === 0) return stats;
@@ -543,6 +546,15 @@ async function runPendingReplySweep(client, limit = PENDING_REPLY_SWEEP_PER_RUN)
           stage = 'fetch_retry';
           emails = await fetchMessagesForPendingService(imap, service);
         }
+        stage = 'images';
+        for (const email of emails) {
+          const subjectMatches = String(email.subject || '')
+            .toUpperCase().replace(/[^A-Z0-9]/g, '').includes(target);
+          if (!subjectMatches) continue;
+          const meta = extractThreadMeta(email, email._imapAttrs || {}, email._imapUid);
+          stats.images += await saveServiceImages(client, service.id, email, meta);
+        }
+
         stage = 'messages';
         const messages = emails.flatMap(email => {
           try {
@@ -833,7 +845,7 @@ async function runPoller() {
     // uma resposta antiga como a do BU-23-JN é encontrada pelo assunto da
     // própria matrícula, sem ficar à espera do replay geral de toda a caixa.
     let replySweep = {
-      scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0,
+      scanned: 0, authorized: 0, detailsRecovered: 0, blocked: 0, images: 0,
       errors: 0, messageErrors: 0, errorStages: {}
     };
     try {
@@ -860,6 +872,7 @@ async function runPoller() {
           inserted: 0, updated: 0, skipped: 0, htmlVazio: 0,
           autorizados: replySweep.authorized,
           detalhesRecuperados: replySweep.detailsRecovered,
+          imagensReanalise: replySweep.images,
           pendentesReanalisados: replySweep.scanned,
           errosReanalise: replySweep.errors,
           emailsInvalidosReanalise: replySweep.messageErrors,
@@ -874,9 +887,10 @@ async function runPoller() {
       inserted: 0, updated: 0, skipped: 0, duplicated: 0,
       htmlVazio: 0, atualizadosIA: 0, autorizados: replySweep.authorized,
       detalhesRecuperados: replySweep.detailsRecovered,
+      imagensReanalise: replySweep.images,
       emailsInvalidosReanalise: replySweep.messageErrors,
       fasesErroReanalise: replySweep.errorStages,
-      cancelados: 0, erros: 0,
+      cancelados: 0, erros: 0, imagens: 0,
       pendentesReanalisados: replySweep.scanned,
       errosReanalise: replySweep.errors
     };
@@ -964,6 +978,9 @@ async function runPoller() {
               WHERE id = $6`,
             [meta.gmailThreadId, meta.messageId, meta.normalizedSubject, date, body, e.id]
           );
+
+          // As fotos que vierem nesta resposta juntam-se às do processo.
+          stats.imagens += await saveServiceImages(client, e.id, email, meta);
 
           const temNovos = hasQuoteDetails(svc);
           if (temNovos) {
@@ -1056,17 +1073,19 @@ async function runPoller() {
           continue;
         }
 
-        await client.query(
+        const { rows: insertedRows } = await client.query(
           `INSERT INTO mycar_services
              (matricula, descricao, valor, eurocode, status,
               email_from, email_subject, email_subject_normalized,
               email_thread_id, email_message_id, email_received_at,
-              portal_id, notas, email_body)
-           VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+              portal_id, notas, email_body, images_checked_at)
+           VALUES ($1,$2,$3,$4,'pendente',$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW())
+           RETURNING id`,
           [svc.matricula, svc.descricao, svc.valor, svc.eurocode,
            from, subject, meta.normalizedSubject, meta.gmailThreadId, meta.messageId,
            date, portalId, wip, body || null]
         );
+        stats.imagens += await saveServiceImages(client, insertedRows[0].id, email, meta);
         totalImported++; stats.inserted++;
         console.log(`✅ Importado: ${svc.matricula} | ${svc.descricao} | €${svc.valor}`);
       }
@@ -1207,6 +1226,52 @@ async function runFillDetails(limit) {
   }
 }
 
+// Vai buscar as imagens dos processos que já existiam antes de as guardarmos:
+// procura cada matrícula pelo assunto e junta as imagens da conversa.
+const IMAGE_BACKFILL_DAYS = 120;
+async function runFillImages(limit) {
+  const client = await pool.connect();
+  try {
+    await ensureTable(client);
+    const candidateFilter = `matricula IS NOT NULL
+      AND images_checked_at IS NULL
+      AND email_received_at >= NOW() - INTERVAL '${IMAGE_BACKFILL_DAYS} days'`;
+    const remainingSql = `SELECT COUNT(*)::int AS n FROM mycar_services WHERE ${candidateFilter}`;
+    const { rows } = await client.query(
+      `SELECT id, matricula, email_received_at FROM mycar_services
+        WHERE ${candidateFilter}
+        ORDER BY email_received_at DESC LIMIT $1`, [limit]);
+    if (rows.length === 0) return { checked: 0, images: 0, remaining: 0 };
+
+    let checked = 0, images = 0;
+    const imap = await connectReadOnlyInbox();
+    try {
+      for (const service of rows) {
+        try {
+          const target = String(service.matricula).toUpperCase().replace(/[^A-Z0-9]/g, '');
+          const emails = await fetchMessagesForPendingService(imap, service);
+          for (const email of emails) {
+            const subjectMatches = String(email.subject || '')
+              .toUpperCase().replace(/[^A-Z0-9]/g, '').includes(target);
+            if (!subjectMatches) continue;
+            const meta = extractThreadMeta(email, email._imapAttrs || {}, email._imapUid);
+            images += await saveServiceImages(client, service.id, email, meta);
+          }
+          await client.query(`UPDATE mycar_services SET images_checked_at = NOW() WHERE id = $1`, [service.id]);
+          checked++;
+        } catch (e) { console.error(`⚠️ Imagens ${service.matricula} falharam:`, e.message); }
+      }
+    } finally {
+      try { imap.end(); } catch (_) {}
+    }
+
+    const { rows: rN } = await client.query(remainingSql);
+    return { checked, images, remaining: rN[0].n };
+  } finally {
+    client.release();
+  }
+}
+
 exports.handler = async (event) => {
   const method = event?.httpMethod;
   console.log('🔔 Invocado | httpMethod:', method ?? 'NONE', '| next_run:', event?.next_run ?? 'NONE');
@@ -1240,6 +1305,17 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, ...result }) };
     } catch (error) {
       console.error('❌ fill_details:', error.message);
+      return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
+    }
+  }
+
+  // Recuperar imagens: os processos antigos, poucos de cada vez
+  if (bodyObj.action === 'fill_images') {
+    try {
+      const result = await runFillImages(parseInt(bodyObj.limit) || 4);
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, ...result }) };
+    } catch (error) {
+      console.error('❌ fill_images:', error.message);
       return { statusCode: 500, headers, body: JSON.stringify({ success: false, error: error.message }) };
     }
   }
