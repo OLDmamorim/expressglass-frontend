@@ -116,6 +116,22 @@ async function isSignatureImage(client, serviceId, img) {
   return true;
 }
 
+// A foto já está noutro serviço da mesma matrícula (outro vidro do pedido):
+// o mural junta as fotos por matrícula, não é preciso outra cópia.
+async function isOnSamePlate(client, serviceId, img) {
+  const { rows } = await client.query(
+    `SELECT 1 FROM mycar_service_images other_img
+       JOIN mycar_services other_ms ON other_ms.id = other_img.service_id
+      WHERE other_img.checksum = $1
+        AND other_img.service_id <> $2
+        AND REGEXP_REPLACE(UPPER(other_ms.matricula), '[^A-Z0-9]', '', 'g')
+          = (SELECT REGEXP_REPLACE(UPPER(matricula), '[^A-Z0-9]', '', 'g') FROM mycar_services WHERE id = $2)
+      LIMIT 1`,
+    [img.checksum, serviceId]
+  );
+  return rows.length > 0;
+}
+
 // Guarda as imagens do email no serviço. Devolve quantas eram novas.
 async function saveServiceImages(client, serviceId, email, meta = {}) {
   if (!serviceId) return 0;
@@ -123,6 +139,7 @@ async function saveServiceImages(client, serviceId, email, meta = {}) {
   let saved = 0;
   for (const img of images) {
     if (await isSignatureImage(client, serviceId, img)) continue;
+    if (await isOnSamePlate(client, serviceId, img)) continue;
     const { rowCount } = await client.query(
       `INSERT INTO mycar_service_images
          (service_id, filename, content_type, size_bytes, checksum, is_inline, data, email_message_id, email_date)

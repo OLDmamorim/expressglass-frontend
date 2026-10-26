@@ -178,7 +178,19 @@ exports.handler = async (event) => {
         `SELECT ms.*,
                 apt.status    AS glass_status,
                 apt.order_ref AS apt_order_ref,
-                (SELECT COUNT(*)::int FROM mycar_service_images img WHERE img.service_id = ms.id) AS image_count,
+                -- A mesma foto pode estar em vários vidros da matrícula: conta só
+                -- no primeiro serviço que a tem, para a soma por matrícula bater
+                -- certo com a galeria.
+                (SELECT COUNT(*)::int FROM mycar_service_images img
+                  WHERE img.service_id = ms.id
+                    AND NOT EXISTS (
+                      SELECT 1 FROM mycar_service_images first_img
+                        JOIN mycar_services first_ms ON first_ms.id = first_img.service_id
+                       WHERE first_img.checksum = img.checksum
+                         AND first_img.service_id < img.service_id
+                         AND REGEXP_REPLACE(UPPER(first_ms.matricula), '[^A-Z0-9]', '', 'g')
+                           = REGEXP_REPLACE(UPPER(ms.matricula), '[^A-Z0-9]', '', 'g'))
+                ) AS image_count,
                 (SELECT COUNT(*)::int FROM mycar_service_documents doc WHERE doc.service_id = ms.id) AS document_count
          FROM mycar_services ms
          LEFT JOIN LATERAL (

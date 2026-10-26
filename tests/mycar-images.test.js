@@ -80,13 +80,16 @@ test('email sem anexos não dá imagens', () => {
 
 // Base de dados a fingir: `known` são as assinaturas já conhecidas e
 // `elsewhere` as imagens que já existem noutra matrícula.
-function fakeClient({ known = [], elsewhere = [], repeated = [] } = {}) {
+function fakeClient({ known = [], elsewhere = [], samePlate = [], repeated = [] } = {}) {
   const inserts = [], signatures = [], deletes = [];
   return {
     inserts, signatures, deletes,
     async query(sql, params) {
       if (/FROM mycar_signature_images WHERE checksum/.test(sql)) {
         return { rows: known.includes(params[0]) ? [{}] : [] };
+      }
+      if (/other_img\.service_id <> \$2/.test(sql)) {
+        return { rows: samePlate.includes(params[0]) ? [{}] : [] };
       }
       if (/other_img\.checksum = \$1/.test(sql)) {
         return { rows: elsewhere.includes(params[0]) ? [{}] : [] };
@@ -133,6 +136,14 @@ test('a mesma imagem noutra matrícula passa a assinatura e sai das guardadas', 
   assert.deepEqual(client.signatures, ['selo-premio']);
   assert.deepEqual(client.deletes, ['selo-premio']);
   assert.equal(client.inserts.length, 0);
+});
+
+test('a foto que já está noutro vidro da mesma matrícula não é guardada outra vez', async () => {
+  const client = fakeClient({ samePlate: ['foto-br11'] });
+  const email = { attachments: [attachment(300 * 1024, { checksum: 'foto-br11' })] };
+  assert.equal(await saveServiceImages(client, 285, email), 0);
+  assert.equal(client.inserts.length, 0);
+  assert.equal(client.signatures.length, 0);
 });
 
 test('saveServiceImages sem serviço não grava nada', async () => {
