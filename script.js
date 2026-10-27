@@ -502,52 +502,70 @@ async function calculateOptimalRoutes() {
   }
 }
 
-// Otimizar serviços de um dia específico
+// Otimizar serviços de um dia específico.
+// A rota é uma volta: sai da base, faz os serviços e regressa à base. Escolhe
+// a ordem com menos tempo de viagem EM TODA A VOLTA (o regresso conta: sem
+// ele, a rota podia acabar longe da base e parecer curta).
+// Os serviços marcados como 1.º e 2.º do dia ficam fixos à cabeça (é assim
+// que a agenda os mostra); os restantes ordenam-se a partir do último fixo.
 async function optimizeDayServices(services) {
-  if (services.length < 2) return;
+  if (services.length < 1) return;
 
   const base = getBasePartida();
 
-  // Verificar se há serviço marcado como "Primeiro serviço do dia"
-  const pinnedIdx = services.findIndex(s => s.first_of_day);
-  const hasPinned = pinnedIdx >= 0;
-  const pinned = hasPinned ? services[pinnedIdx] : null;
-  // Serviços a optimizar (sem o fixo se existir)
-  const toOptimize = hasPinned ? services.filter((_, i) => i !== pinnedIdx) : services;
+  const first  = services.find(s => s.first_of_day) || null;
+  const second = services.find(s => s.second_of_day && s !== first) || null;
+  const pinnedList = [first, second].filter(Boolean);
+  const toOptimize = services.filter(s => !pinnedList.includes(s));
 
-  // Se só há o fixo, apenas calcular km da base para ele
-  if (toOptimize.length === 0 && hasPinned) {
-    const idx = appointments.findIndex(a => a.id === pinned.id);
+  // Fixos: posições 1 (e 2), km a partir da base ou do fixo anterior
+  let previousAddr = base;
+  for (let p = 0; p < pinnedList.length; p++) {
+    const svc = pinnedList[p];
+    const addr = getAddressFromItem(svc);
+    const idx = appointments.findIndex(a => a.id === svc.id);
     if (idx >= 0) {
-      appointments[idx].sortIndex = 1;
-      const r = await getDistanceAndTime(base, getAddressFromItem(pinned));
+      const r = await getDistanceAndTime(previousAddr, addr);
+      appointments[idx].sortIndex = p + 1;
       appointments[idx].km = r.distance !== Infinity ? Math.round(r.distance / 1000) : 0;
       appointments[idx].travelTime = r.duration || 0;
       appointments[idx]._optimized = true;
+      if (toOptimize.length === 0 && p === pinnedList.length - 1) {
+        const back = await getDistanceAndTime(addr, base);
+        appointments[idx].return_km = back.distance !== Infinity ? Math.round(back.distance / 1000) : 0;
+        appointments[idx].return_time = back.duration || 0;
+      }
     }
-    return;
+    previousAddr = addr;
   }
+  if (toOptimize.length === 0) return;
 
-  // Ponto de partida para os restantes: se há fixo, partir dele; senão da base
-  const startPoint = hasPinned ? getAddressFromItem(pinned) : base;
+  // Ponto de partida para os restantes: o último fixo, ou a base
+  const startPoint = previousAddr;
   const addresses = toOptimize.map(s => getAddressFromItem(s));
   const n = toOptimize.length;
 
+  // Índice 0 = ponto de partida; 1..n = serviços
   const dist = [];
   const time = [];
   for (let i = 0; i <= n; i++) {
     dist.push(new Array(n + 1).fill(Infinity));
     time.push(new Array(n + 1).fill(0));
   }
+  const backDist = new Array(n).fill(Infinity);
+  const backTime = new Array(n).fill(0);
 
-  // Calcular startPoint → cada serviço
+  // startPoint → cada serviço, e cada serviço → base (regresso)
   for (let j = 0; j < n; j++) {
     const r = await getDistanceAndTime(startPoint, addresses[j]);
     dist[0][j + 1] = r.distance;
     time[0][j + 1] = r.duration || 0;
+    const b = await getDistanceAndTime(addresses[j], base);
+    backDist[j] = b.distance;
+    backTime[j] = b.duration || 0;
   }
 
-  // Calcular serviço → serviço
+  // serviço → serviço
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
       if (i === j) { dist[i+1][j+1] = 0; time[i+1][j+1] = 0; continue; }
@@ -557,61 +575,14 @@ async function optimizeDayServices(services) {
     }
   }
 
-  let bestOrder = null;
-  let bestTotal = Infinity;
-
-  if (n <= 8) {
-    const permutations = getPermutations([...Array(n).keys()]);
-    for (const perm of permutations) {
-      let total = time[0][perm[0] + 1];
-      for (let i = 0; i < perm.length - 1; i++) {
-        total += time[perm[i] + 1][perm[i+1] + 1];
-      }
-      if (total < bestTotal) { bestTotal = total; bestOrder = perm; }
-    }
-  } else {
-    for (let start = 0; start < n; start++) {
-      const visited = new Array(n).fill(false);
-      const route = [start];
-      visited[start] = true;
-      let total = time[0][start + 1];
-      while (route.length < n) {
-        const last = route[route.length - 1];
-        let nearest = -1, minT = Infinity;
-        for (let j = 0; j < n; j++) {
-          if (!visited[j] && time[last + 1][j + 1] < minT) { minT = time[last + 1][j + 1]; nearest = j; }
-        }
-        if (nearest === -1) break;
-        route.push(nearest);
-        visited[nearest] = true;
-        total += minT;
-      }
-      if (total < bestTotal) { bestTotal = total; bestOrder = route; }
-    }
-  }
-
+  const bestOrder = bestRoundTrip(n, time, backTime);
   if (!bestOrder) return;
 
-  // Calcular distância do último serviço de regresso à base
-  const lastServiceAddr = addresses[bestOrder[bestOrder.length - 1]];
-  const returnResult = await getDistanceAndTime(lastServiceAddr, base);
-  const returnKmReal = returnResult.distance !== Infinity ? Math.round(returnResult.distance / 1000) : 0;
-  const returnTimeReal = returnResult.duration || 0;
+  const lastIdx = bestOrder[bestOrder.length - 1];
+  const returnKmReal = backDist[lastIdx] !== Infinity ? Math.round(backDist[lastIdx] / 1000) : 0;
+  const returnTimeReal = backTime[lastIdx] || 0;
 
-  // Se há fixo: calcular km da base→fixo e atribuir sortIndex=1
-  if (hasPinned) {
-    const pinnedAppIdx = appointments.findIndex(a => a.id === pinned.id);
-    if (pinnedAppIdx >= 0) {
-      appointments[pinnedAppIdx].sortIndex = 1;
-      const r = await getDistanceAndTime(base, getAddressFromItem(pinned));
-      appointments[pinnedAppIdx].km = r.distance !== Infinity ? Math.round(r.distance / 1000) : 0;
-      appointments[pinnedAppIdx].travelTime = r.duration || 0;
-      appointments[pinnedAppIdx]._optimized = true;
-    }
-  }
-
-  // Restantes: sortIndex começa em 2 se há fixo, 1 se não
-  const startSortIndex = hasPinned ? 2 : 1;
+  const startSortIndex = pinnedList.length + 1;
   const optimizedRoute = bestOrder.map(i => toOptimize[i]);
 
   for (let i = 0; i < optimizedRoute.length; i++) {
@@ -636,6 +607,47 @@ async function optimizeDayServices(services) {
       appointments[appointmentIndex].return_time = returnTimeReal;
     }
   }
+}
+
+// A melhor ordem de n serviços, a partir do ponto 0 e com regresso à base:
+// time[0][j+1] = partida → j; time[i+1][j+1] = i → j; backTime[j] = j → base.
+// Até 8 serviços experimenta todas as ordens; acima disso, vizinho mais
+// próximo a partir de cada serviço, com o regresso a contar na escolha.
+function bestRoundTrip(n, time, backTime) {
+  const tourTime = (order) => {
+    let total = time[0][order[0] + 1];
+    for (let i = 0; i < order.length - 1; i++) total += time[order[i] + 1][order[i + 1] + 1];
+    return total + backTime[order[order.length - 1]];
+  };
+
+  let bestOrder = null;
+  let bestTotal = Infinity;
+  const consider = (order) => {
+    const total = tourTime(order);
+    if (total < bestTotal) { bestTotal = total; bestOrder = order; }
+  };
+
+  if (n <= 8) {
+    for (const perm of getPermutations([...Array(n).keys()])) consider(perm);
+  } else {
+    for (let start = 0; start < n; start++) {
+      const visited = new Array(n).fill(false);
+      const route = [start];
+      visited[start] = true;
+      while (route.length < n) {
+        const last = route[route.length - 1];
+        let nearest = -1, minT = Infinity;
+        for (let j = 0; j < n; j++) {
+          if (!visited[j] && time[last + 1][j + 1] < minT) { minT = time[last + 1][j + 1]; nearest = j; }
+        }
+        if (nearest === -1) break;
+        route.push(nearest);
+        visited[nearest] = true;
+      }
+      if (route.length === n) consider(route);
+    }
+  }
+  return bestOrder;
 }
 
 // Gera todas as permutações de um array
@@ -669,6 +681,111 @@ async function saveOptimizedRoutes() {
 
   appointments.forEach(a => delete a._optimized);
 }
+
+// ===== ROTA DESATUALIZADA =====
+// Um serviço que entra num dia já com rota calculada (criado, confirmado,
+// vindo do comercial ou de outro dispositivo) chega sem lugar na rota: fica
+// com a posição 1, empatado com o primeiro. A agenda mostrava-o em 2.º e o
+// mapa em último (ex.: AZ-93-LU, a 2 km da base, entre duas idas a Forjães).
+// Quando o coordenador abre a agenda ou grava, esse dia é recalculado; com a
+// rota bloqueada, o serviço novo vai para o fim e o resto fica como está.
+const _routeRefreshRunning = new Set();
+const _routeRefreshTried = new Set();
+
+function canRefreshRoutes() {
+  const role = window.authClient?.getUser?.()?.role;
+  return (role === 'admin' || role === 'coordenador') && !isLoja();
+}
+
+function dayRouteItems(dayISO) {
+  return appointments.filter(a => a.date === dayISO && getAddressFromItem(a));
+}
+
+function dayHasRoute(items) {
+  return items.some(a => (a.sortIndex || 0) > 1);
+}
+
+// Com rota calculada, cada serviço tem a sua posição; duas iguais querem
+// dizer que alguém entrou sem lugar.
+function dayRouteIsStale(items) {
+  if (items.length < 2 || !dayHasRoute(items)) return false;
+  const seen = new Set();
+  for (const a of items) {
+    const pos = a.sortIndex || 1;
+    if (seen.has(pos)) return true;
+    seen.add(pos);
+  }
+  return false;
+}
+
+// Rota bloqueada: mantém a ordem do coordenador e põe no fim os que estão
+// sem lugar (os mais recentes de cada empate).
+function appendUnplacedToLockedRoute(items) {
+  const created = a => a.createdAt || a.created_at || '';
+  const ordered = [...items].sort((a, b) =>
+    (a.sortIndex || 1) - (b.sortIndex || 1) || String(created(a)).localeCompare(String(created(b))));
+  let last = Math.max(...items.map(a => a.sortIndex || 1));
+  const seen = new Set();
+  for (const a of ordered) {
+    const pos = a.sortIndex || 1;
+    if (!seen.has(pos)) { seen.add(pos); continue; }
+    const idx = appointments.findIndex(x => x.id === a.id);
+    if (idx >= 0) { appointments[idx].sortIndex = ++last; appointments[idx]._optimized = true; }
+  }
+}
+
+async function refreshDayRoute(dayISO, { force = false } = {}) {
+  if (!dayISO || !canRefreshRoutes()) return false;
+  if (dayISO < localISO(new Date())) return false;
+  if (_routeRefreshRunning.has(dayISO)) return false;
+  // Sem o Google Maps as distâncias davam todas infinito: melhor não mexer.
+  if (!window.google?.maps?.DistanceMatrixService) return false;
+  const items = dayRouteItems(dayISO);
+  if (!items.length || !(force ? dayHasRoute(items) : dayRouteIsStale(items))) return false;
+
+  _routeRefreshRunning.add(dayISO);
+  try {
+    if (isDayRouteLocked(dayISO)) appendUnplacedToLockedRoute(items);
+    else await optimizeDayServices(items);
+    await saveOptimizedRoutes();
+    if (typeof renderAll === 'function') renderAll();
+    const d = new Date(dayISO + 'T00:00:00').toLocaleDateString('pt-PT', { weekday: 'long', day: '2-digit', month: '2-digit' });
+    showToast(isDayRouteLocked(dayISO)
+      ? `🔒 Rota de ${d} bloqueada: o serviço novo ficou no fim`
+      : `🗺️ Rota de ${d} recalculada com o serviço novo`, 'info');
+    return true;
+  } catch (e) {
+    console.warn('[Rota] Recalcular', dayISO, 'falhou:', e.message);
+    return false;
+  } finally {
+    _routeRefreshRunning.delete(dayISO);
+  }
+}
+
+// Procura os dias de hoje em diante com a rota desatualizada. Cada dia, com o
+// mesmo conjunto de serviços, só se tenta uma vez por sessão (se o recálculo
+// falhar, não fica em ciclo).
+async function refreshStaleRoutes() {
+  if (!canRefreshRoutes() || !window.google?.maps?.DistanceMatrixService) return;
+  const today = localISO(new Date());
+  const days = [...new Set(appointments.filter(a => a.date && a.date >= today).map(a => a.date))].sort();
+  for (const day of days) {
+    const items = dayRouteItems(day);
+    if (!dayRouteIsStale(items)) continue;
+    const signature = day + '|' + items.map(a => a.id).sort().join(',');
+    if (_routeRefreshTried.has(signature)) continue;
+    _routeRefreshTried.add(signature);
+    await refreshDayRoute(day);
+  }
+}
+
+let _staleRoutesTimer = null;
+function scheduleStaleRoutesCheck() {
+  clearTimeout(_staleRoutesTimer);
+  _staleRoutesTimer = setTimeout(() => { refreshStaleRoutes(); }, 1500);
+}
+window.refreshDayRoute = refreshDayRoute;
+window.scheduleStaleRoutesCheck = scheduleStaleRoutesCheck;
 
 // ===== FUNÇÕES DO MODAL DE PROGRESSO =====
 function showProgressModal() {

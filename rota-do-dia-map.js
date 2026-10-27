@@ -130,9 +130,14 @@
     });
     const data = await resp.json();
     if (!data.success) return [];
+    // A mesma ordem da agenda: os serviços marcados como 1.º e 2.º do dia à
+    // cabeça e depois a ordem da rota; sem posição conta como 1, como lá.
     const onDay = (data.data || [])
       .filter(a => a.date && String(a.date).slice(0, 10) === date)
-      .sort((a, b) => (a.sortIndex ?? 999) - (b.sortIndex ?? 999));
+      .map(a => ({ ...a, sortIndex: a.sortIndex ?? a.sortindex ?? 1 }))
+      .sort((a, b) => window.compareDayOrder
+        ? window.compareDayOrder(a, b)
+        : (a.sortIndex || 0) - (b.sortIndex || 0));
     apptCache.set(key, onDay);
     return onDay;
   }

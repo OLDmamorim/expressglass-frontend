@@ -381,6 +381,8 @@ function renderAll(){
   try { renderMobileDay(); } catch(e){ console.error('Erro renderMobileDay:', e); }
   try { applyBlockedDayOverlays(); } catch(e){ console.warn('applyBlockedDayOverlays:', e); }
   try { applyRouteLockOverlays(); } catch(e){ console.warn('applyRouteLockOverlays:', e); }
+  // Dias com rota calculada que receberam um serviço sem lugar → recalcular
+  try { window.scheduleStaleRoutesCheck?.(); } catch(e){ console.warn('scheduleStaleRoutesCheck:', e); }
 }
 
 // Função global para recarregar appointments (usada pelo switcher do coordenador)
@@ -1394,6 +1396,12 @@ function bootApp() {
         showToast('Agendamento atualizado', 'success');
         if (payload.first_of_day && payload.date) await enforceSingleFirstOfDay(editingId, payload.date);
         if (payload.second_of_day && payload.date) await enforceSingleSecondOfDay(editingId, payload.date);
+        // Mudou de dia ou de morada num dia com rota calculada → recalcular
+        // (a posição antiga não serve no dia novo, nem com a morada nova).
+        if (prevAppt && payload.date && (prevAppt.date !== payload.date ||
+            getAddressFromItem(prevAppt) !== getAddressFromItem({ ...prevAppt, ...payload }))) {
+          window.refreshDayRoute?.(payload.date, { force: true });
+        }
         // Notificar comercial apenas se mudou data OU confirmação
         if (payload.commercial_user_id && prevAppt) {
           const dateChanged = payload.date && prevAppt.date !== payload.date;
