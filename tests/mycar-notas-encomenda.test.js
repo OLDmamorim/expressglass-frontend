@@ -57,7 +57,8 @@ test('aceita a nota reencaminhada por paredes@ com a MyCar no cabeçalho citado'
 test('lê as quatro linhas da tabela, com a matrícula, o WIP, o valor e a N.E.', () => {
   const rows = parseNotasEncomenda(email());
   assert.equal(rows.length, 4);
-  assert.deepEqual(rows[0], { wip: '22593', matricula: 'BT-11-VC', servico: 'REPARAÇÃO', valor: 48, ne: 'NE956303' });
+  assert.deepEqual(rows[0], { wip: '22593', matricula: 'BT-11-VC', viatura: 'SERIE-1', data: '2026-10-12', servico: 'REPARAÇÃO', valor: 48, ne: 'NE956303' });
+  assert.deepEqual(rows.map(r => r.viatura), ['SERIE-1', 'RENAULT 5', '500C', 'CAPTUR']);
   assert.deepEqual(rows.map(r => r.ne), ['NE956303', 'NE956304', 'NE956305', 'NE956304']);
   assert.deepEqual(rows.map(r => r.matricula), ['BT-11-VC', 'BS-55-VH', 'AS-91-PI', 'BJ-93-TQ']);
 });
@@ -122,35 +123,86 @@ test('uma matrícula com um só serviço fica com a N.E., e os rejeitados ficam 
   assert.deepEqual(chooseServicesForRow(row, [{ id: 8, matricula: 'BT-11-VC', status: 'rejeitado' }]), []);
 });
 
-test('applyNotasEncomenda grava a N.E. e o PDF em cada serviço e diz o que ficou sem serviço', async () => {
-  const servicesByPlate = {
-    BT11VC: [{ id: 10, matricula: 'BT-11-VC', valor: 48, status: 'realizado', notas: 'WIP: 22593', nota_encomenda: null }],
-    BS55VH: [{ id: 11, matricula: 'BS-55-VH', valor: 268, status: 'realizado', notas: 'WIP: 17936', nota_encomenda: null }],
-    AS91PI: [],
-    BJ93TQ: [{ id: 13, matricula: 'BJ-93-TQ', valor: 268, status: 'faturado', notas: 'WIP: 23641', nota_encomenda: 'NE956304' }]
-  };
-  const updates = [], documents = [];
-  const client = {
+// Base de dados a fingir para applyNotasEncomenda.
+function notasClient(servicesByPlate) {
+  const updates = [], documents = [], inserts = [];
+  return {
+    updates, documents, inserts,
     async query(sql, params) {
+      if (/INSERT INTO mycar_services/.test(sql)) {
+        inserts.push(params);
+        return { rows: [{ id: 900 + inserts.length, matricula: params[0], valor: params[3], status: 'realizado', notas: params[10], nota_encomenda: null }] };
+      }
       if (/FROM mycar_services/.test(sql) && /SELECT/.test(sql)) return { rows: servicesByPlate[params[0]] || [] };
       if (/UPDATE mycar_services/.test(sql)) { updates.push([params[3], params[0]]); return { rows: [] }; }
       if (/INSERT INTO mycar_service_documents/.test(sql)) { documents.push([params[0], params[1], params[2]]); return { rowCount: 1 }; }
       throw new Error('consulta inesperada: ' + sql);
     }
   };
+}
+
+test('applyNotasEncomenda grava a N.E. e o PDF em cada serviço e cria o que não existe', async () => {
+  const client = notasClient({
+    BT11VC: [{ id: 10, matricula: 'BT-11-VC', valor: 48, status: 'realizado', notas: 'WIP: 22593', nota_encomenda: null }],
+    BS55VH: [{ id: 11, matricula: 'BS-55-VH', valor: 268, status: 'realizado', notas: 'WIP: 17936', nota_encomenda: null }],
+    AS91PI: [],
+    BJ93TQ: [{ id: 13, matricula: 'BJ-93-TQ', valor: 268, status: 'faturado', notas: 'WIP: 23641', nota_encomenda: 'NE956304' }]
+  });
   const result = await applyNotasEncomenda(client, email({
     attachments: [pdf('NE956303.pdf'), pdf('NE956304.pdf'), pdf('NE956305.pdf')]
-  }), { messageId: '<ne@grupojap>' });
+  }), { messageId: '<ne@grupojap>', portalId: 23 });
 
   assert.equal(result.rows, 4);
-  assert.equal(result.matched, 3);
-  assert.deepEqual(result.unmatched.map(r => r.matricula), ['AS-91-PI']);
+  assert.equal(result.matched, 4);
+  assert.equal(result.created, 1);
+  assert.deepEqual(result.unmatched, []);
+  // A AS-91-PI não tinha serviço: é criada com os dados da linha
+  const [created] = client.inserts;
+  assert.deepEqual(created.slice(0, 6), ['AS-91-PI', '2026-10-19', 'VIDRO OCULO', 171, '500C', null]);
+  assert.equal(created[9], 23);
+  assert.equal(created[10], 'WIP: 23519');
   // BJ-93-TQ já tinha a mesma N.E.: não volta a ser escrita
-  assert.deepEqual(updates, [[10, 'NE956303'], [11, 'NE956304']]);
+  assert.deepEqual(client.updates, [[10, 'NE956303'], [11, 'NE956304'], [901, 'NE956305']]);
   // A NE956304 cobre dois serviços: o mesmo PDF fica nos dois
-  assert.deepEqual(documents, [
+  assert.deepEqual(client.documents, [
     [10, 'NE956303', 'NE956303.pdf'],
     [11, 'NE956304', 'NE956304.pdf'],
+    [901, 'NE956305', 'NE956305.pdf'],
     [13, 'NE956304', 'NE956304.pdf']
   ]);
+});
+
+test('a reparação que só chega pela nota (BX-92-CG) passa a serviço realizado por faturar', async () => {
+  const client = notasClient({});
+  const result = await applyNotasEncomenda(client, email({
+    subject: 'FW: NOTAS DE ENCOMENDA - 26/10',
+    html: `<table><tr><td>23690</td><td>BX-92-CG</td><td>X1</td><td>20/10/2026</td><td>REPARAÇÃO</td>
+           <td>48,00 €</td><td>26/10/2026</td><td>NE956400</td></tr></table>`,
+    attachments: [pdf('NE956400.pdf')]
+  }));
+  assert.equal(result.created, 1);
+  const [created] = client.inserts;
+  assert.deepEqual(created.slice(0, 6), ['BX-92-CG', '2026-10-20', 'REPARAÇÃO', 48, 'X1', 'reparacao']);
+  assert.match(created[11], /Criado a partir da Nota de Encomenda NE956400/);
+  assert.deepEqual(client.documents, [[901, 'NE956400', 'NE956400.pdf']]);
+});
+
+test('uma matrícula que já tem serviços (mesmo rejeitados) não ganha um duplicado', async () => {
+  const client = notasClient({
+    BT11VC: [{ id: 10, matricula: 'BT-11-VC', valor: 48, status: 'rejeitado', notas: null, nota_encomenda: null }]
+  });
+  const result = await applyNotasEncomenda(client, email({
+    html: '<table><tr><td>22593</td><td>BT-11-VC</td><td>SERIE-1</td><td>12/10/2026</td><td>REPARAÇÃO</td><td>48,00 €</td><td>22/10/2026</td><td>NE956303</td></tr></table>'
+  }));
+  assert.equal(result.created, 0);
+  assert.deepEqual(result.unmatched.map(r => r.matricula), ['BT-11-VC']);
+  assert.deepEqual(client.inserts, []);
+});
+
+test('lê serviços de mão de obra que não falam de vidro', () => {
+  const [row] = parseNotasEncomenda({ html:
+    '<table><tr><td>24001</td><td>AA-11-BB</td><td>CLIO</td><td>21/10/2026</td><td>MÃO DE OBRA - BORRACHA MOLDURA</td><td>35,00 €</td><td>26/10/2026</td><td>NE957000</td></tr></table>' });
+  assert.equal(row.servico, 'MÃO DE OBRA - BORRACHA MOLDURA');
+  assert.equal(row.viatura, 'CLIO');
+  assert.equal(row.valor, 35);
 });

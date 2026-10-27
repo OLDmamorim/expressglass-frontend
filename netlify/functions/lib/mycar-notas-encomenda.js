@@ -43,20 +43,34 @@ function normalizeNe(value) {
   return m ? `NE${m[1]}` : null;
 }
 
-// Uma linha da tabela: a matrícula e a N.E. são obrigatórias; o WIP é o
-// primeiro número de 4–6 dígitos; o valor é a primeira célula com €.
+const DATE_RX = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/;
+
+function isoDate(cell) {
+  const m = String(cell || '').match(DATE_RX);
+  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+}
+
+// Uma linha da tabela — WIP, matrícula, viatura, data, serviço, valor, data,
+// N.E. A matrícula e a N.E. são obrigatórias; o WIP é o primeiro número de
+// 4–6 dígitos; o valor é a primeira célula com €; a viatura vem entre a
+// matrícula e a primeira data, e o serviço é o texto a seguir a essa data.
 function rowFromCells(cells) {
   const plateIdx = cells.findIndex(c => PLATE_RX.test(c) && /\d/.test(c) && /[A-Z]/i.test(c));
   const neIdx = cells.findIndex(c => normalizeNe(c));
   if (plateIdx < 0 || neIdx < 0) return null;
   const wipCell = cells.find((c, i) => i !== plateIdx && /^\d{4,6}$/.test(c));
   const valorCell = cells.find(c => /€/.test(c));
-  const serviceCell = cells.find((c, i) =>
-    i > plateIdx && i < neIdx && /[A-Za-zÀ-ú]{4,}/.test(c) && !/€/.test(c) && !/^\d/.test(c) &&
-    /repara|para-?brisas|vidro|[oó]culo|lateral|luneta|substitui|calibra/i.test(c));
+  const dateIdx = cells.findIndex((c, i) => i > plateIdx && DATE_RX.test(c));
+  const isText = c => /[A-Za-zÀ-ú]/.test(c) && !/€/.test(c) && !DATE_RX.test(c) && !normalizeNe(c);
+  const serviceCell = (dateIdx >= 0 ? cells.slice(dateIdx + 1, neIdx).find(isText) : null) ||
+    cells.find((c, i) => i > plateIdx && i < neIdx && isText(c) &&
+      /repara|para-?brisas|vidro|[oó]culo|lateral|luneta|substitui|calibra|borracha|m[aã]o\s+de\s+obra/i.test(c));
+  const modelCell = dateIdx > plateIdx + 1 ? cells.slice(plateIdx + 1, dateIdx).find(isText) : null;
   return {
     wip: wipCell || null,
     matricula: cells[plateIdx].toUpperCase().replace(/\s/g, ''),
+    viatura: modelCell || null,
+    data: dateIdx >= 0 ? isoDate(cells[dateIdx]) : null,
     servico: serviceCell || null,
     valor: valorCell ? parseValor(valorCell) : null,
     ne: normalizeNe(cells[neIdx])
@@ -157,6 +171,11 @@ function chooseServicesForRow(row, services = []) {
 async function ensureNotasTables(client) {
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS nota_encomenda VARCHAR(40)`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS nota_encomenda_at TIMESTAMP`);
+  // Usadas nos serviços criados a partir da nota (também criadas em mycar-services)
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS car TEXT`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS work_type VARCHAR(20)`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS images_checked_at TIMESTAMP`);
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS glasses_checked_at TIMESTAMP`);
   await client.query(`
     CREATE TABLE IF NOT EXISTS mycar_service_documents (
       id SERIAL PRIMARY KEY,
@@ -176,14 +195,35 @@ async function ensureNotasTables(client) {
   await client.query(`CREATE INDEX IF NOT EXISTS idx_mycar_documents_service ON mycar_service_documents(service_id)`);
 }
 
+// As reparações e a mão de obra não chegam por email: a MyCar pede-as por
+// outra via e só a Nota de Encomenda as traz (ex.: BX-92-CG, REPARAÇÃO 48 €).
+// Uma matrícula sem nenhum serviço no mural ganha um, já realizado (a nota
+// só vem depois de o serviço estar feito) e por faturar.
+async function createServiceFromRow(client, row, email, { portalId = null, stamp } = {}) {
+  const { rows } = await client.query(
+    `INSERT INTO mycar_services
+       (matricula, data_servico, descricao, valor, status, car, work_type,
+        email_from, email_subject, email_received_at, portal_id, notas, historico,
+        images_checked_at, glasses_checked_at)
+     VALUES ($1, $2, $3, $4, 'realizado', $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+     RETURNING id, matricula, valor, status, notas, nota_encomenda`,
+    [row.matricula, row.data, row.servico, row.valor, row.viatura,
+     /repara/i.test(row.servico || '') ? 'reparacao' : null,
+     email.from?.text || null, email.subject || null, email.date || new Date(), portalId,
+     row.wip ? `WIP: ${row.wip}` : null,
+     `[${stamp}] Criado a partir da Nota de Encomenda ${row.ne} (o pedido não chegou por email)`]
+  );
+  return rows[0];
+}
+
 // Aplica um email de Notas de Encomenda. `pdfTexts` é o texto de cada anexo
 // (na mesma ordem), para reconhecer o PDF de cada N.E. quando o nome não diz.
-// Devolve { rows, matched, unmatched: [linhas sem serviço], documents }.
-async function applyNotasEncomenda(client, email, { pdfTexts = [], messageId = null } = {}) {
+// Devolve { rows, matched, created, unmatched: [linhas sem serviço], documents }.
+async function applyNotasEncomenda(client, email, { pdfTexts = [], messageId = null, portalId = null } = {}) {
   const rows = parseNotasEncomenda(email);
   const pdfsByNe = matchNotaPdfs(rows.map(r => r.ne), email.attachments || [], pdfTexts);
   const stamp = new Date(email.date || Date.now()).toLocaleString('pt-PT');
-  let matched = 0, documents = 0;
+  let matched = 0, created = 0, documents = 0;
   const unmatched = [];
 
   for (const row of rows) {
@@ -194,7 +234,13 @@ async function applyNotasEncomenda(client, email, { pdfTexts = [], messageId = n
         ORDER BY email_received_at DESC NULLS LAST, id DESC`,
       [normalizePlate(row.matricula)]
     );
-    const targets = chooseServicesForRow(row, services);
+    let targets = chooseServicesForRow(row, services);
+    // Só quando a matrícula não tem serviço nenhum: se tiver (mesmo rejeitado),
+    // a linha fica por associar em vez de criar um duplicado.
+    if (!targets.length && services.length === 0) {
+      targets = [await createServiceFromRow(client, row, email, { portalId, stamp })];
+      created++;
+    }
     if (!targets.length) { unmatched.push(row); continue; }
     matched++;
 
@@ -224,7 +270,7 @@ async function applyNotasEncomenda(client, email, { pdfTexts = [], messageId = n
       }
     }
   }
-  return { rows: rows.length, matched, unmatched, documents };
+  return { rows: rows.length, matched, created, unmatched, documents };
 }
 
 module.exports = {

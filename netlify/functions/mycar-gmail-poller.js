@@ -955,7 +955,7 @@ async function runPoller() {
     }
 
     // Notas de Encomenda da MyCar (número e PDF de cada serviço)
-    let notas = { emails: 0, linhas: 0, associadas: 0, semServico: 0, pdfs: 0, erros: 0 };
+    let notas = { emails: 0, linhas: 0, associadas: 0, criados: 0, semServico: 0, pdfs: 0, erros: 0 };
     try {
       notas = await runNotasEncomendaSweep(client);
     } catch (error) {
@@ -1453,7 +1453,8 @@ async function pdfTextsOf(email) {
 }
 
 async function runNotasEncomendaSweep(client, days = NOTAS_SWEEP_DAYS, limit = NOTAS_PER_RUN, force = false) {
-  const stats = { emails: 0, linhas: 0, associadas: 0, semServico: 0, pdfs: 0, erros: 0 };
+  const stats = { emails: 0, linhas: 0, associadas: 0, criados: 0, semServico: 0, pdfs: 0, erros: 0 };
+  const portalId = await getMycaPortalId(client);
   let imap;
   try {
     imap = await connectReadOnlyInbox();
@@ -1499,11 +1500,13 @@ async function runNotasEncomendaSweep(client, days = NOTAS_SWEEP_DAYS, limit = N
         const needTexts = neNumbers.some(ne => !byName.has(ne));
         const result = await applyNotasEncomenda(client, email, {
           pdfTexts: needTexts ? await pdfTextsOf(email) : [],
-          messageId: meta.messageId
+          messageId: meta.messageId,
+          portalId
         });
         await setState(client, retryKey, Date.now());
         stats.linhas += result.rows;
         stats.associadas += result.matched;
+        stats.criados += result.created;
         stats.semServico += result.unmatched.length;
         stats.pdfs += result.documents;
         if (result.unmatched.length) {
