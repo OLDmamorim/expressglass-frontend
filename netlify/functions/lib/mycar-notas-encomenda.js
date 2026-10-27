@@ -176,6 +176,12 @@ async function ensureNotasTables(client) {
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS work_type VARCHAR(20)`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS images_checked_at TIMESTAMP`);
   await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS glasses_checked_at TIMESTAMP`);
+  // De onde veio o serviço: 'requisicao' = criado a partir da Nota de
+  // Encomenda (o pedido não chegou por email), para o mural o assinalar.
+  await client.query(`ALTER TABLE mycar_services ADD COLUMN IF NOT EXISTS origem VARCHAR(30)`);
+  await client.query(`
+    UPDATE mycar_services SET origem = 'requisicao'
+     WHERE origem IS NULL AND historico LIKE '%Criado a partir da Nota de Encomenda%'`);
   await client.query(`
     CREATE TABLE IF NOT EXISTS mycar_service_documents (
       id SERIAL PRIMARY KEY,
@@ -204,8 +210,8 @@ async function createServiceFromRow(client, row, email, { portalId = null, stamp
     `INSERT INTO mycar_services
        (matricula, data_servico, descricao, valor, status, car, work_type,
         email_from, email_subject, email_received_at, portal_id, notas, historico,
-        images_checked_at, glasses_checked_at)
-     VALUES ($1, $2, $3, $4, 'realizado', $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+        origem, images_checked_at, glasses_checked_at)
+     VALUES ($1, $2, $3, $4, 'realizado', $5, $6, $7, $8, $9, $10, $11, $12, 'requisicao', NOW(), NOW())
      RETURNING id, matricula, valor, status, notas, nota_encomenda`,
     [row.matricula, row.data, row.servico, row.valor, row.viatura,
      /repara/i.test(row.servico || '') ? 'reparacao' : null,

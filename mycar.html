@@ -534,6 +534,15 @@
     }
 
     /* ─── IMAGENS DO EMAIL ─── */
+    .badge-requisicao {
+      background: #fef3c7; color: #92400e; border: 1px solid #f59e0b;
+      padding: 3px 10px; font-size: .75rem; white-space: nowrap; vertical-align: middle;
+    }
+    .requisicao-alert {
+      display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px;
+      background: #fef3c7; border: 1px solid #f59e0b; border-radius: var(--radius);
+      padding: 8px 10px; font-size: .82rem; color: #92400e;
+    }
     .badge-images {
       display: inline-flex; align-items: center; gap: 5px; vertical-align: middle;
       background: var(--blue); color: #fff; padding: 4px 10px 4px 8px; font-size: .78rem;
@@ -896,10 +905,11 @@ function buildGroups(services) {
   const map = {};
   for (const svc of services) {
     const key = svc.matricula.toUpperCase();
-    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null, in_treatment: false, authorizedCount: 0, imageCount: 0, notas: [], documentCount: 0 };
+    if (!map[key]) map[key] = { matricula: key, services: [], lastDate: null, isNew: false, car: null, n_obra: null, glass_status: null, apt_order_ref: null, in_treatment: false, authorizedCount: 0, imageCount: 0, notas: [], documentCount: 0, fromRequisicao: false };
     map[key].services.push(svc);
     map[key].imageCount += svc.image_count || 0;
     map[key].documentCount += svc.document_count || 0;
+    if (svc.origem === 'requisicao') map[key].fromRequisicao = true;
     if (svc.nota_encomenda && !map[key].notas.includes(svc.nota_encomenda)) map[key].notas.push(svc.nota_encomenda);
     const d = svc.last_reply_at || svc.email_received_at || svc.created_at;
     if (d && (!map[key].lastDate || d > map[key].lastDate)) map[key].lastDate = d;
@@ -955,6 +965,7 @@ function renderTable(groups) {
           <span class="plate-badge"><span class="plate-badge-text">${g.matricula}</span></span>
           ${g.isNew ? '<span class="count-badge badge-new" style="margin-left:6px">Novo</span>' : ''}
           ${g.authorizedCount ? `<span class="count-badge badge-authorized" style="margin-left:6px" title="${g.authorizedCount} serviço(s) autorizado(s) pela MyCar">✓ Avançar</span>` : ''}
+          ${g.fromRequisicao ? `<span class="count-badge badge-requisicao" style="margin-left:6px" title="O pedido não chegou por email: o serviço foi criado a partir da Nota de Encomenda (requisição)">⚠ Importado da requisição</span>` : ''}
           ${g.imageCount ? `<span class="count-badge badge-images" style="margin-left:6px" title="Fotos no email">${CAMERA_ICON}${g.imageCount} ${g.imageCount === 1 ? 'foto' : 'fotos'}</span>` : ''}
           ${g.car ? `<div style="font-size:.82rem;color:#374151;font-weight:600;margin-top:5px">${g.car}</div>` : ''}
           ${g.n_obra ? `<div style="font-size:.8rem;color:var(--blue);font-weight:700;margin-top:2px">FS${g.n_obra}</div>` : ''}
@@ -1186,6 +1197,10 @@ function renderDetailBody(plate) {
           <span class="status-badge ${svc.status}">${statusLabel(svc.status)}</span>
         </div>
       </div>
+      ${svc.origem === 'requisicao' ? `<div class="requisicao-alert">
+        <span aria-hidden="true">⚠</span>
+        <div><strong>Importado da requisição</strong> — o pedido não chegou por email; este serviço foi criado a partir da Nota de Encomenda${svc.nota_encomenda ? ` ${escapeHtml(svc.nota_encomenda)}` : ''}. Confirme os dados.</div>
+      </div>` : ''}
       <div class="service-meta">
         <div class="meta-item">
           <div class="meta-label">Data</div>
