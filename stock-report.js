@@ -1,5 +1,6 @@
-// stock-report.js - v1
-// Botão "📦 Stock" nos cartões do agendamento: abre um modal para reportar um
+// stock-report.js - v2
+// Botão "📦 Stock" nos cartões do agendamento (todas as agendas, menos a
+// Recalibra): abre um modal para reportar um
 // problema com o vidro — errado, danificado, com defeito ou partido — com o
 // Eurocode do serviço já preenchido, observações e fotografia. O reporte vai
 // para o PoweringEG, para o menu Stock do Portal da loja PRINCIPAL do SM
@@ -80,9 +81,11 @@
     return window.currentPortalId || (u && u.portal_id) || null;
   }
 
+  // Todas as agendas (SM, pesados e lojas); a Recalibra não trabalha com vidro.
+  // Numa loja, o reporte fica no Portal da própria loja.
   function portalUsaStock() {
     var t = window.portalConfig && window.portalConfig.portalType;
-    return t !== 'loja' && t !== 'recalibra';
+    return t !== 'recalibra';
   }
 
   function toast(msg, tipo) {
@@ -123,9 +126,11 @@
     st.id = 'stockReportStyle';
     st.textContent = [
       // O botão no cartão, no lugar e com o formato do antigo "Venda compl."
-      '.sr-card-btn{display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.25);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#fff!important;-webkit-text-fill-color:#fff!important;font-family:inherit;}',
-      '.sr-card-btn.sr-pendente{background:#f59e0b;}',
-      '.sr-card-btn.sr-tratado{background:#059669;}',
+      // Em destaque sobre o cartão colorido: branco, letra azul-marinho e sombra
+      '.desk-card .sr-card-btn,.m-card .sr-card-btn,.sr-card-btn{display:inline-flex;align-items:center;gap:6px;background:#fff;border:2px solid #fff;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:800;letter-spacing:.2px;cursor:pointer;color:#0b2d64!important;-webkit-text-fill-color:#0b2d64!important;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,.25);}',
+      '.desk-card .sr-card-btn:hover,.m-card .sr-card-btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.3);}',
+      '.desk-card .sr-card-btn.sr-pendente,.m-card .sr-card-btn.sr-pendente{background:#f59e0b;border-color:#fff;color:#fff!important;-webkit-text-fill-color:#fff!important;}',
+      '.desk-card .sr-card-btn.sr-tratado,.m-card .sr-card-btn.sr-tratado{background:#059669;border-color:#fff;color:#fff!important;-webkit-text-fill-color:#fff!important;}',
       '.sr-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(7,30,69,.55);align-items:center;justify-content:center;padding:12px;}',
       '.sr-overlay.open{display:flex;}',
       '.sr-modal{background:#fff;border-radius:10px;max-width:460px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:Figtree,system-ui,sans-serif;color:#1f2a3d;}',
