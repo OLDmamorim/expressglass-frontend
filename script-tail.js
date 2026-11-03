@@ -108,7 +108,10 @@ const telBtn = phone ? `
     ? (a.comp_sales_faturado
         ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:#059669;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#fff;cursor:pointer;">✅ Venda faturada</button>`
         : `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:#d97706;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#fff;cursor:pointer;">💰 Venda pendente</button>`)
-    : `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin:4px 8px 0;display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.25);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;">💰 Venda compl.</button>`;
+    : '';
+  // O "Venda compl." (ninguém usava) deu lugar ao botão Stock, que o
+  // stock-report.js põe aqui (só nos portais ligados ao PoweringEG).
+  const stockSlot = `<span class="sr-slot" data-sr-slot="${a.id}" style="margin:4px 8px 0;display:inline-flex;"></span>`;
   // Footer PHC: só mostrar se auto_imported E status ainda é NE
   // Sem vidro não há status de vidro para confirmar (os checkboxes nem aparecem).
   const isAutoImported = a.auto_imported && a.date && (!a.status || a.status === 'NE') && !_semSemVidro;
@@ -207,7 +210,7 @@ const telBtn = phone ? `
         ${a.commercial_user_id ? `<div style="display:inline-block;background:#7c3aed !important;color:#fff !important;font-size:11px;font-weight:800;padding:3px 10px;border-radius:12px;margin-bottom:4px;animation:blink 1.5s infinite;">🤝 COMERCIAL</div>` : ''}
         ${notes}
         ${damageRow}
-        ${isRecalibra ? '' : compSalesBadge}
+        ${isRecalibra ? '' : compSalesBadge + stockSlot}
         ${preAgendadoM ? `<span class="pre-agendado-badge">⏳ Aguarda confirmação</span>` : ''}
         ${preAgendadoM
           ? `<div class="m-pending-confirm">⏳ Aguarda confirmação do coordenador</div>`

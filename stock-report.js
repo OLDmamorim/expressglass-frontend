@@ -122,9 +122,10 @@
     var st = document.createElement('style');
     st.id = 'stockReportStyle';
     st.textContent = [
-      '.sr-btn{width:100%;}',
-      '.sr-btn.sr-pendente{background:#f59e0b!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#f59e0b!important;}',
-      '.sr-btn.sr-tratado{background:#059669!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#059669!important;}',
+      // O botão no cartão, no lugar e com o formato do antigo "Venda compl."
+      '.sr-card-btn{display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.25);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;cursor:pointer;color:#fff!important;-webkit-text-fill-color:#fff!important;font-family:inherit;}',
+      '.sr-card-btn.sr-pendente{background:#f59e0b;}',
+      '.sr-card-btn.sr-tratado{background:#059669;}',
       '.sr-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(7,30,69,.55);align-items:center;justify-content:center;padding:12px;}',
       '.sr-overlay.open{display:flex;}',
       '.sr-modal{background:#fff;border-radius:10px;max-width:460px;width:100%;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);font-family:Figtree,system-ui,sans-serif;color:#1f2a3d;}',
@@ -381,69 +382,31 @@
     return estado === 'pendente' ? '📦 Stock reportado' : estado === 'tratado' ? '📦 Stock tratado' : '📦 Stock';
   }
 
+  // O botão vai para o lugar que era do "Venda compl." (o espaço data-sr-slot
+  // que o cartão já traz, no computador e no telemóvel).
   function injetarNosCartoes() {
     var dados = dadosDoPortal();
-    if (!dados || !dados.ligado || !portalUsaStock()) {
-      document.querySelectorAll('[data-sr-row]').forEach(function (n) { n.remove(); });
-      return;
-    }
+    var ativo = !!(dados && dados.ligado && portalUsaStock());
+    if (ativo) garantirEstilo();
     var appts = window.appointments || [];
     var usaVidro = function (a) { return !window.agendamentoUsaVidro || window.agendamentoUsaVidro(a); };
 
-    function linhaPara(cartao, id, classeBtn, margem) {
-      var a = appts.find(function (x) { return String(x.id) === String(id); });
-      var existente = cartao.querySelector('[data-sr-row]');
-      if (!a || !usaVidro(a)) { if (existente) existente.remove(); return null; }
+    document.querySelectorAll('[data-sr-slot]').forEach(function (slot) {
+      var a = ativo && appts.find(function (x) { return String(x.id) === String(slot.getAttribute('data-sr-slot')); });
+      if (!a || !usaVidro(a)) { if (slot.firstChild) slot.innerHTML = ''; return; }
       var estado = estadoDoServico(dados.reportes, a.id);
-      if (existente) {
-        var b0 = existente.querySelector('button');
-        b0.className = classeBtn + ' sr-btn' + (estado ? ' sr-' + estado : '');
-        b0.textContent = textoBotao(estado);
-        return null;
+      var b = slot.querySelector('button');
+      if (!b) {
+        b = document.createElement('button');
+        b.type = 'button';
+        b.title = 'Reportar um problema com o vidro (errado, danificado, com defeito, partido)';
+        b.onclick = function (e) { e.stopPropagation(); window._srAbrir(a.id); };
+        slot.appendChild(b);
       }
-      var linha = document.createElement('div');
-      linha.setAttribute('data-sr-row', '1');
-      linha.style.cssText = 'margin:' + margem + ';';
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = classeBtn + ' sr-btn' + (estado ? ' sr-' + estado : '');
-      b.textContent = textoBotao(estado);
-      b.title = 'Reportar um problema com o vidro (errado, danificado, com defeito, partido)';
-      b.onclick = function (e) { e.stopPropagation(); window._srAbrir(a.id); };
-      linha.appendChild(b);
-      return linha;
-    }
-
-    // Desktop: a seguir à linha Realizado/Retirar Vidro, ou antes das ações do cartão
-    document.querySelectorAll('.desk-card').forEach(function (card) {
-      var linha = linhaPara(card, card.getAttribute('data-id'), 'dc-exec-btn', '4px 0 0');
-      if (!linha) return;
-      var exec = card.querySelector('.dc-exec-row');
-      var depois = exec;
-      if (exec) {
-        var seguinte = exec.nextElementSibling;
-        while (seguinte && (seguinte.querySelector('[data-gr-id]') || /❌/.test(seguinte.textContent || ''))) { depois = seguinte; seguinte = seguinte.nextElementSibling; }
-        depois.insertAdjacentElement('afterend', linha);
-      } else {
-        var acoes = card.querySelector('.card-actions');
-        if (acoes) card.insertBefore(linha, acoes); else card.appendChild(linha);
-      }
-    });
-
-    // Telemóvel: a seguir à linha de estados (e ao Retirar Vidro)
-    document.querySelectorAll('.m-card[data-id]').forEach(function (card) {
-      var linha = linhaPara(card, card.getAttribute('data-id'), 'm-status-btn', '6px 8px 0');
-      if (!linha) return;
-      linha.querySelector('button').style.cssText = 'width:100%;justify-content:center;';
-      var estados = card.querySelector('.m-status-row');
-      var depois2 = estados;
-      if (estados) {
-        var seg = estados.nextElementSibling;
-        while (seg && seg.querySelector('[data-gr-id]')) { depois2 = seg; seg = seg.nextElementSibling; }
-        depois2.insertAdjacentElement('afterend', linha);
-      } else {
-        card.appendChild(linha);
-      }
+      var classe = 'sr-card-btn' + (estado ? ' sr-' + estado : '');
+      if (b.className !== classe) b.className = classe;
+      var texto = textoBotao(estado);
+      if (b.textContent !== texto) b.textContent = texto;
     });
   }
 

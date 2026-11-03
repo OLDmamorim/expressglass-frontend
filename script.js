@@ -3296,7 +3296,7 @@ function buildDesktopCard(a){
       ${a.damage_details ? `<div class="dc-sub" style="margin-top:3px;font-style:italic;opacity:0.85;">🔍 ${a.damage_details}</div>` : ''}
       ${!isRecalibra && a.comp_sales_desc && !a.comp_sales_faturado ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:#d97706;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#fff;cursor:pointer;">💰 Venda pendente</button>` : ''}
       ${!isRecalibra && a.comp_sales_desc && a.comp_sales_faturado ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:#059669;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:800;color:#fff;cursor:pointer;">✅ Venda faturada</button>` : ''}
-      ${!isRecalibra && !a.comp_sales_desc ? `<button onclick="event.stopPropagation();openCompSalesModal('${a.id}')" style="margin-top:4px;display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,0.2);border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#fff;cursor:pointer;">💰 Venda compl.</button>` : ''}
+      ${!isRecalibra ? `<span class="sr-slot" data-sr-slot="${a.id}" style="margin-top:4px;display:inline-flex;"></span>` : ''}
       ${preAgendadoBadge}
       ${confirmBtn}
       ${locWarning}
