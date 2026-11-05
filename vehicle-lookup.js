@@ -36,19 +36,42 @@
     return base;
   }
 
+  // Na Europa o ano no VIN não é obrigatório: a Renault usa aquele carácter
+  // para outra coisa (um Clio de 2023 dava "2007"). Só nestas marcas se mostra.
+  var MARCAS_ANO_NO_VIN = ['VOLKSWAGEN', 'VW', 'AUDI', 'SEAT', 'SKODA', 'CUPRA', 'PORSCHE',
+    'PEUGEOT', 'CITROEN', 'DS', 'OPEL', 'VAUXHALL', 'FIAT', 'ALFA ROMEO', 'LANCIA', 'JEEP', 'ABARTH',
+    'TOYOTA', 'LEXUS', 'HYUNDAI', 'KIA', 'FORD', 'HONDA', 'MAZDA', 'TESLA'];
+
+  function marcaPoeAnoNoVin(marca) {
+    var m = String(marca || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    return MARCAS_ANO_NO_VIN.some(function (x) { return m.indexOf(x) === 0; });
+  }
+
+  /** O que o formato da matrícula garante: AA-00-AA desde 2020, 00-AA-00 2005–2020, 00-00-AA 1992–2005. */
+  function periodoDaMatricula(matricula) {
+    var m = normalizar(matricula);
+    if (/^[A-Z]{2}\d{2}[A-Z]{2}$/.test(m)) return '2020 ou posterior';
+    if (/^\d{2}[A-Z]{2}\d{2}$/.test(m)) return 'entre 2005 e 2020';
+    if (/^\d{4}[A-Z]{2}$/.test(m)) return 'entre 1992 e 2005';
+    if (/^[A-Z]{2}\d{4}$/.test(m)) return 'antes de 1992';
+    return null;
+  }
+
   /** As linhas a mostrar (rótulo, valor), sem as vazias. */
-  function linhasDaViatura(v, agora) {
+  function linhasDaViatura(v, agora, matricula) {
     if (!v) return [];
-    var ano = anoModeloDoVin(v.vin, agora);
+    var ano = marcaPoeAnoNoVin(v.marca) ? anoModeloDoVin(v.vin, agora) : null;
+    var periodo = ano ? null : periodoDaMatricula(matricula);
     var linhas = [
-      ['Marca', v.marca], ['Modelo', v.modelo], ['Ano do modelo', ano ? String(ano) : ''],
+      ['Marca', v.marca], ['Modelo', v.modelo],
+      ano ? ['Ano do modelo', String(ano)] : ['Matrícula', periodo || ''],
       ['VIN', v.vin], ['Motor', v.motor], ['Potência', v.potencia], ['Transmissão', v.transmissao],
     ];
     (v.detalhes || []).forEach(function (d) { linhas.push([d.rotulo, d.valor]); });
     return linhas.filter(function (l) { return l[1]; });
   }
 
-  var api = { comTracos: comTracos, matriculaValida: matriculaValida, anoModeloDoVin: anoModeloDoVin, linhasDaViatura: linhasDaViatura };
+  var api = { comTracos: comTracos, matriculaValida: matriculaValida, anoModeloDoVin: anoModeloDoVin, periodoDaMatricula: periodoDaMatricula, linhasDaViatura: linhasDaViatura };
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
@@ -147,7 +170,7 @@
       var d = await r.json();
       if (!d || !d.success || !d.viatura) throw new Error((d && d.error) || 'Não encontrámos dados para esta matrícula.');
       var v = d.viatura;
-      var linhas = linhasDaViatura(v);
+      var linhas = linhasDaViatura(v, null, d.matricula);
       out.innerHTML =
         '<div class="vl-linha" style="justify-content:space-between"><p class="vl-titulo">' + esc(comTracos(d.matricula)) + ' · ' + esc(v.marca) + ' ' + esc(v.modelo) + '</p>' +
         '<button type="button" class="vl-atualizar" onclick="window._vlProcurar(true)">↻ Atualizar</button></div>' +

@@ -19,6 +19,12 @@ test('o ano do modelo pelo VIN', () => {
   assert.equal(vl.anoModeloDoVin('', hoje), null);
 });
 
+test('Renault não põe o ano no VIN: mostra o período da matrícula', () => {
+  const linhas = vl.linhasDaViatura({ marca: 'RENAULT', modelo: 'Clio V', vin: 'VF1RJA00670873044' }, new Date('2026-11-05'), 'BC-72-DR');
+  assert.deepEqual(linhas[2], ['Matrícula', '2020 ou posterior']);
+  assert.equal(vl.periodoDaMatricula('49-UE-30'), 'entre 2005 e 2020');
+});
+
 test('as linhas da viatura, sem as vazias', () => {
   const linhas = vl.linhasDaViatura({
     marca: 'OPEL', modelo: 'Vivaro C Furgão 1.5', vin: 'VXEVBYHVMPZ036209', motor: 'D 15 DTH (DV5RUC)',
