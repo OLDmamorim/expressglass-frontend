@@ -3164,7 +3164,10 @@ function buildDesktopCard(a){
   const g = gradFromBase(base);
   const textColor = textColorForBg(base);
   const loja = isLoja();
-  const bar = (loja || window.portalConfig?.portalType === 'recalibra') ? '' : `border-left:5px solid ${statusBarColors[estadoVidro(a)] || '#475569'}`;
+  const semBarra = loja || window.portalConfig?.portalType === 'recalibra';
+  const bar = semBarra ? '' : `border-left:10px solid ${statusBarColors[estadoVidro(a)] || '#475569'}`;
+  // Vidro sem stock (barra vermelha) → a barra pisca
+  const barraPisca = !semBarra && estadoVidro(a) === 'NE' ? ' vidro-ne' : '';
   // Nova hierarquia: matrícula em Barlow Condensed, badge serviço, carro secundário
   const plate = (a.plate || '').toUpperCase();
   const service = a.service || 'PB';
@@ -3275,7 +3278,7 @@ function buildDesktopCard(a){
   }
 
   return `
-    <div class="appointment desk-card${needsLoc}${isPreAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
+    <div class="appointment desk-card${needsLoc}${barraPisca}${isPreAgendado ? ' pre-agendado' : ''}" data-id="${a.id}" draggable="true"
          data-locality="${a.locality||''}" data-loccolor="${base}"
          style="--c1:${g.c1}; --c2:${g.c2}; --tc:${textColor}; ${bar} ${glassRemovedBorderStyle}">
       <div class="dc-title"><span class="dc-title-text">${plate}</span></div>

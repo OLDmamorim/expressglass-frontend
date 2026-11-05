@@ -338,6 +338,17 @@ table.schedule td.is-today {
 .desk-card.needs-locality * {
   color: #92400e !important;
 }
+/* Barra do estado do vidro a piscar quando está vermelha (sem stock) */
+@keyframes piscaBarraVidro {
+  0%, 100% { border-left-color: #EF4444; }
+  50% { border-left-color: #fee2e2; }
+}
+.desk-card.vidro-ne:not(.needs-locality) {
+  animation: piscaBarraVidro 1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .desk-card.vidro-ne { animation: none; }
+}
 .needs-loc-msg {
   text-align: center;
   padding: 6px 0;
