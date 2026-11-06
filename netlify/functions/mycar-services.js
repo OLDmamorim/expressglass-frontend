@@ -212,7 +212,7 @@ exports.handler = async (event) => {
 
     // PATCH - atualizar status de um serviço (ou marcar como visto)
     if (event.httpMethod === 'PATCH') {
-      const { id, status, notas, obs_tecnico, viewed, work_type, matricula, in_treatment } = JSON.parse(event.body || '{}');
+      const { id, status, notas, obs_tecnico, viewed, work_type, matricula, in_treatment, eurocode } = JSON.parse(event.body || '{}');
 
       // Bulk: togglear em tratamento por matrícula
       if (matricula && in_treatment !== undefined && !id) {
@@ -259,6 +259,15 @@ exports.handler = async (event) => {
       if (work_type !== undefined) {
         setClauses.push(`work_type = $${idx++}`);
         params.push(work_type);
+      }
+      // Corrigir o Eurocode à mão, com o # (complementar) ou o * (OEM) da origem
+      if (eurocode !== undefined) {
+        const ec = String(eurocode || '').trim().toUpperCase().replace(/^([#*]+)\s+/, '$1');
+        if (ec && !/^[#*]*\d[A-Z0-9]{3,29}$/.test(ec)) {
+          return { statusCode: 400, headers, body: JSON.stringify({ success: false, error: 'Eurocode inválido' }) };
+        }
+        setClauses.push(`eurocode = $${idx++}`);
+        params.push(ec || null);
       }
       params.push(id);
 
