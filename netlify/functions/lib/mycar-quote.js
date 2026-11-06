@@ -40,14 +40,14 @@ function parseValor(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-// O asterisco faz parte da referência que o fornecedor escreve (*7624BGSHAI),
-// não é pontuação a limpar: distingue a peça e tem de chegar ao portal tal
-// como veio no pedido. Os restantes (bullets, dois pontos, traços) continuam
-// a ser ruído de formatação da célula.
+// O asterisco ou o cardinal antes do Eurocode (*7624BGSHAI, #3595RYPR5RQZ)
+// não é pontuação a limpar: diz a origem do vidro (* OEM, # complementar) e
+// tem de chegar ao portal tal como veio na cotação. Os restantes (bullets,
+// dois pontos, traços) continuam a ser ruído de formatação da célula.
 function normalizeEurocode(value) {
   const text = cleanCell(value)
-    .replace(/^[#•:\s-]+/, '')
-    .replace(/^(\*+)\s+/, '$1');
+    .replace(/^[•:\s-]+/, '')
+    .replace(/^([#*]+)\s+/, '$1');
   return text ? text.toUpperCase() : null;
 }
 
@@ -115,9 +115,13 @@ function parseQuoteText(text, fallbackPlate = null) {
     if (!valueMatch || valueMatch.index == null || valueMatch.index > 320) continue;
 
     const descricao = cleanServiceDescription(tail.slice(0, valueMatch.index));
-    const afterValue = tail.slice(valueMatch.index + valueMatch[0].length, valueMatch.index + valueMatch[0].length + 220);
-    // Captura inclui o asterisco — faz parte da referência, ver normalizeEurocode
-    const starredCode = afterValue.match(/(\*+\s*[A-Z0-9][A-Z0-9._/-]{6,30})/i);
+    let afterValue = tail.slice(valueMatch.index + valueMatch[0].length, valueMatch.index + valueMatch[0].length + 220);
+    // O Eurocode desta linha acaba onde começa a seguinte (a matrícula outra
+    // vez): sem este corte, apanhava-se o código da linha de baixo.
+    const nextRow = afterValue.search(new RegExp(idRx.source, 'i'));
+    if (nextRow >= 0) afterValue = afterValue.slice(0, nextRow);
+    // Captura inclui o * ou o # — fazem parte da referência, ver normalizeEurocode
+    const starredCode = afterValue.match(/([#*]+\s*[A-Z0-9][A-Z0-9._/-]{6,30})/i);
     const plainCode = afterValue.match(/\b(\d{4}[A-Z][A-Z0-9]{5,20})\b/i);
     const eurocode = normalizeEurocode(starredCode?.[1] || plainCode?.[1] || null);
 

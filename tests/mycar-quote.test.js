@@ -189,13 +189,32 @@ test('o asterisco da referência é preservado, o resto da pontuação não', ()
   assert.equal(comNotas('* 7624BGSHAI'), '*7624BGSHAI');
   assert.equal(comNotas('**7624BGSHAI'), '**7624BGSHAI');
   assert.equal(comNotas('7624BGSHAI'), '7624BGSHAI');
-  assert.equal(comNotas('# 7624BGSHAI'), '7624BGSHAI');
+  assert.equal(comNotas('#7624BGSHAI'), '#7624BGSHAI');
+  assert.equal(comNotas('# 7624BGSHAI'), '#7624BGSHAI');
   assert.equal(comNotas('• 7624BGSHAI'), '7624BGSHAI');
   assert.equal(comNotas(': 7624BGSHAI'), '7624BGSHAI');
 
   // Também no texto corrido, que é como chega quando o Outlook achata a tabela
   const corrido = parseQuoteText('BJ-95-CU SUBSTITUIÇÃO ÓCULO / OEM 248,00 € *7624BGSHAI', 'BJ-95-CU');
   assert.equal(corrido[0].eurocode, '*7624BGSHAI');
+});
+
+test('BS-47-NT: o # (complementar) e o * (OEM) ficam, cada um na sua linha', () => {
+  const linhas = [
+    ['SUBSTITUIÇÃO VIDRO LATERAL TRASEIRO DIREITO / AFTERMARKET', '171,00 €', '#3595RYPR5RQZ'],
+    ['SUBSTITUIÇÃO VIDRO LATERAL TRASEIRO ESQUERDO /OEM', '192,00 €', '*3595LYPR5RQZ'],
+  ];
+  const html = parseTableHtml(
+    '<table><tr><th>Matricula</th><th>Serviço</th><th>Valor</th><th>Ne</th><th>Notas</th></tr>' +
+    linhas.map(([d, v, c]) => `<tr><td>BS-47-NT</td><td>${d}</td><td>${v}</td><td></td><td>${c}</td></tr>`).join('') +
+    '</table>'
+  );
+  assert.deepEqual(html.map(r => r.eurocode), ['#3595RYPR5RQZ', '*3595LYPR5RQZ']);
+
+  // Texto corrido: o código da linha de baixo não pode passar para a de cima
+  const corrido = parseQuoteText(linhas.map(([d, v, c]) => `BS-47-NT ${d} ${v} ${c}`).join(' '), 'BS-47-NT');
+  assert.deepEqual(corrido.map(r => r.eurocode), ['#3595RYPR5RQZ', '*3595LYPR5RQZ']);
+  assert.deepEqual(corrido.map(r => r.valor), [171, 192]);
 });
 
 // ── Pedidos com vários vidros ────────────────────────────────────────────────

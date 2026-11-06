@@ -9,9 +9,9 @@ test('os quatro problemas do modal', () => {
   assert.equal(stock.nomeProblema('partido'), 'Partido');
 });
 
-test('o Eurocode do serviço vem já preenchido, sem o asterisco do fornecedor', () => {
-  assert.deepEqual(stock.eurocodesDoServico('*3595LYPR5RQZ'), ['3595LYPR5RQZ']);
-  assert.deepEqual(stock.eurocodesDoServico('# 7624bgshai'), ['7624BGSHAI']);
+test('o Eurocode do serviço vem já preenchido, com o * ou o # da origem do vidro', () => {
+  assert.deepEqual(stock.eurocodesDoServico('*3595LYPR5RQZ'), ['*3595LYPR5RQZ']);
+  assert.deepEqual(stock.eurocodesDoServico('# 7624bgshai'), ['#7624BGSHAI']);
 });
 
 test('um serviço com vários vidros dá a escolher os Eurocodes, sem repetidos', () => {

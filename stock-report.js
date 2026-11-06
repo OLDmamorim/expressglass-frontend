@@ -27,14 +27,15 @@
   }
 
   // Os Eurocodes do serviço: a agenda pode ter vários ("8547AGN;8547ASMS")
-  // e o asterisco do fornecedor (*3595LYPR5RQZ).
+  // e o * ou o # que diz a origem do vidro (*3595LYPR5RQZ).
   function eurocodesDoServico(texto) {
     var vistos = {};
     return String(texto || '')
       .split(/[;,|/\n]+/)
-      .map(function (s) { return s.replace(/^[\s*#•:]+/, '').toUpperCase().replace(/[\s.\-_]+/g, ''); })
+      // O * (OEM) ou o # (complementar) diz a origem do vidro: fica.
+      .map(function (s) { return s.replace(/^[\s•:]+/, '').toUpperCase().replace(/[\s.\-_]+/g, ''); })
       .filter(function (s) {
-        if (!/^\d[A-Z0-9]{3,29}$/.test(s) || vistos[s]) return false;
+        if (!/^[#*]*\d[A-Z0-9]{3,29}$/.test(s) || vistos[s]) return false;
         vistos[s] = true;
         return true;
       });
