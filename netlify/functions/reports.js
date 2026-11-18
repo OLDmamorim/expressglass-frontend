@@ -93,7 +93,14 @@ exports.handler = async (event) => {
         COUNT(*) FILTER (WHERE date BETWEEN $2 AND $3) AS total_agendados,
         COUNT(*) FILTER (WHERE date BETWEEN $2 AND $3 AND executed = true) AS total_realizados,
         COUNT(*) FILTER (WHERE date BETWEEN $2 AND $3 AND executed = false) AS total_nao_realizados,
-        COALESCE(SUM(km) FILTER (WHERE date BETWEEN $2 AND $3), 0) AS total_km,
+        -- Os km entre serviços mais o regresso à base de cada dia (guardado no
+        -- último serviço do dia; só esse conta, para não somar regressos antigos).
+        COALESCE(SUM(km) FILTER (WHERE date BETWEEN $2 AND $3), 0)
+          + COALESCE((SELECT SUM(r.km) FROM (
+              SELECT DISTINCT ON (date) COALESCE(return_km, 0) AS km
+                FROM appointments
+               WHERE portal_id = $1 AND date BETWEEN $2 AND $3
+               ORDER BY date, sortIndex DESC NULLS LAST, id DESC) r), 0) AS total_km,
         COUNT(*) FILTER (WHERE date IS NULL) AS total_pendentes
       FROM appointments
       WHERE portal_id = $1
@@ -219,7 +226,15 @@ exports.handler = async (event) => {
     // 12. Equipa — check-in/check-out com serviços por dia
     let teamStats = [];
     try {
+      // km do dia = km dos serviços realizados + regresso à base (do último
+      // serviço do dia), quando houve algum realizado.
       const { rows } = await pool.query(`
+        WITH regresso AS (
+          SELECT DISTINCT ON (date) date, COALESCE(return_km, 0) AS km
+            FROM appointments
+           WHERE portal_id = $1 AND date BETWEEN $2::date AND $3::date
+           ORDER BY date, sortIndex DESC NULLS LAST, id DESC
+        )
         SELECT
           tc.date::text AS date,
           tc.checkin_at,
@@ -228,9 +243,11 @@ exports.handler = async (event) => {
           tc.checkout_auto,
           EXTRACT(EPOCH FROM (tc.checkout_at - tc.checkin_at)) / 3600.0 AS hours_raw,
           COUNT(a.id) FILTER (WHERE a.executed = true) AS services_done,
-          COALESCE(SUM(a.km) FILTER (WHERE a.executed = true), 0) AS km_day
+          COALESCE(SUM(a.km) FILTER (WHERE a.executed = true), 0)
+            + CASE WHEN COUNT(a.id) FILTER (WHERE a.executed = true) > 0 THEN COALESCE(MAX(r.km), 0) ELSE 0 END AS km_day
         FROM team_checkins tc
         LEFT JOIN appointments a ON a.portal_id = tc.portal_id AND a.date = tc.date
+        LEFT JOIN regresso r ON r.date = tc.date
         WHERE tc.portal_id = $1 AND tc.date BETWEEN $2::date AND $3::date
         GROUP BY tc.date, tc.checkin_at, tc.checkout_at, tc.checkin_auto, tc.checkout_auto
         ORDER BY tc.date ASC

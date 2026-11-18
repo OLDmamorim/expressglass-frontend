@@ -14,6 +14,15 @@ const pool = new Pool({
 
 const JWT_SECRET = process.env.JWT_SECRET || 'expressglass-secret-key-change-in-production';
 
+// Km de um serviço: 0 é um valor (o serviço é no mesmo sítio que o anterior);
+// vazio é que é "por calcular". Com `|| null` o 0 virava vazio e o dia
+// ficava sempre por calcular.
+function kmOuNull(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(n) : null;
+}
+
 // Nunca gravar o JSON interno ({"eurocode":…,"photo_url":…,"history":…}) no
 // campo do eurocode — chegou a ser reescrito a cada edição e aparecia em bruto
 // nos cards. Desembrulha o blob e devolve só o eurocode real (ou null).
@@ -551,7 +560,7 @@ exports.handler = async (event) => {
         String(data.plate).trim(), String(data.car).trim(),
         data.service || null, data.locality || null, data.status || 'NE',
         cleanNotes, data.address || null, data.extra || null,
-        data.phone || null, data.km || null, data.sortIndex || 1,
+        data.phone || null, kmOuNull(data.km), data.sortIndex || 1,
         data.glassOrdered || false,
         data.vehicleType || data.vehicle_type || 'L',
         data.travelTime || data.travel_time || null,
@@ -666,7 +675,7 @@ exports.handler = async (event) => {
           return n;
         })(),
         data.address || null, data.extra || null,
-        data.phone || null, data.km || null, data.sortIndex || null,
+        data.phone || null, kmOuNull(data.km), data.sortIndex || null,
         data.glassOrdered !== undefined ? data.glassOrdered : null,
         data.vehicleType || data.vehicle_type || 'L',
         data.travelTime || data.travel_time || null,

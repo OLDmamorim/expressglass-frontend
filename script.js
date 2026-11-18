@@ -782,7 +782,10 @@ async function refreshStaleRoutes() {
 let _staleRoutesTimer = null;
 function scheduleStaleRoutesCheck() {
   clearTimeout(_staleRoutesTimer);
-  _staleRoutesTimer = setTimeout(() => { refreshStaleRoutes(); }, 1500);
+  _staleRoutesTimer = setTimeout(async () => {
+    await refreshStaleRoutes();
+    try { await fillMissingKm(); } catch (e) { console.warn('[Km] Preencher em falta:', e.message); }
+  }, 1500);
 }
 window.refreshDayRoute = refreshDayRoute;
 window.scheduleStaleRoutesCheck = scheduleStaleRoutesCheck;
@@ -2755,53 +2758,102 @@ async function onDropAppointment(id, targetBucket, targetIndex){
   showToast('✅ Alterações gravadas.', 'success');
 }
 
+// ===== KM DE UM DIA, PELA ORDEM EM QUE ESTÁ =====
+// Os km de cada serviço (da base ou do serviço anterior) e o regresso à base
+// no último. Antes só ficavam gravados quando a rota era otimizada: depois de
+// arrastar, ou num dia que ninguém otimizou, os serviços ficavam sem km e o
+// relatório e o PoweringEG davam 0 km — enquanto a Rota do Dia, que calcula
+// na hora, mostrava a volta toda (ex.: Pesados Castanheira, 15/10: 0 km vs 245 km).
+// Não reordena nada. Sem distância fiável (Google em falha) não grava nada.
+const _kmDayRunning = new Set();
+
+async function recomputeDayKm(dayISO) {
+  if (!dayISO || dayISO === 'unscheduled' || _kmDayRunning.has(dayISO)) return false;
+  if (!window.google?.maps?.DistanceMatrixService) return false;
+  const list = getBucketList(dayISO).filter(a => getAddressFromItem(a));
+  if (list.length === 0) return false;
+
+  _kmDayRunning.add(dayISO);
+  try {
+    const base = getBasePartida();
+    const novos = [];
+    let prevAddr = base;
+    for (let i = 0; i < list.length; i++) {
+      const addr = getAddressFromItem(list[i]);
+      const r = await getDistanceAndTime(prevAddr, addr);
+      if (r.distance === Infinity) return false;
+      const valores = { km: Math.round(r.distance / 1000), travelTime: r.duration || 0, return_km: null, return_time: null };
+      if (i === list.length - 1) {
+        const b = await getDistanceAndTime(addr, base);
+        if (b.distance === Infinity) return false;
+        valores.return_km = Math.round(b.distance / 1000);
+        valores.return_time = b.duration || 0;
+      }
+      novos.push({ id: list[i].id, valores });
+      prevAddr = addr;
+    }
+
+    // Da BD podem vir como texto, e os tempos 0 vêm vazios: compara-se em número.
+    const n = x => (x === null || x === undefined || x === '' ? null : Number(x));
+    const mudou = (a, v) => n(a.km) !== v.km
+      || (n(a.travelTime ?? a.travel_time) || 0) !== v.travelTime
+      || n(a.return_km) !== v.return_km
+      || (n(a.return_time) || 0) !== (v.return_time || 0);
+
+    let gravados = 0;
+    for (const { id, valores } of novos) {
+      const idx = appointments.findIndex(a => a.id === id);
+      if (idx < 0 || !mudou(appointments[idx], valores)) continue;
+      Object.assign(appointments[idx], valores);
+      try {
+        await window.apiClient.updateAppointment(id, { ...appointments[idx] });
+        gravados++;
+      } catch (e) {
+        console.warn('[Km] Gravar', id, 'falhou:', e.message);
+      }
+    }
+    return gravados > 0;
+  } finally {
+    _kmDayRunning.delete(dayISO);
+  }
+}
+
 // ===== RECALCULAR KM ENTRE SERVIÇOS DE UM DIA (após reordenar) =====
 async function recalcKmForBucket(bucket) {
-  const list = getBucketList(bucket).filter(a => getAddressFromItem(a));
-  if (list.length === 0) return;
-
-  let changed = false;
-
-  for (let i = 0; i < list.length; i++) {
-    const service = list[i];
-    const serviceAddr = getAddressFromItem(service);
-    if (!serviceAddr) continue;
-
-    let newKm = 0;
-    let travelMin = 0;
-    try {
-      if (i === 0) {
-        const result = await getDistanceAndTime(getBasePartida(), serviceAddr);
-        newKm = result.distance !== Infinity ? Math.round(result.distance / 1000) : 0;
-        travelMin = result.duration || 0;
-      } else {
-        const prevAddr = getAddressFromItem(list[i - 1]);
-        if (prevAddr) {
-          const result = await getDistanceAndTime(prevAddr, serviceAddr);
-          newKm = result.distance !== Infinity ? Math.round(result.distance / 1000) : 0;
-          travelMin = result.duration || 0;
-        }
-      }
-    } catch (e) {
-      console.warn('Erro ao recalcular km:', e);
-    }
-
-    const idx = appointments.findIndex(a => a.id === service.id);
-    if (idx >= 0) {
-      if (appointments[idx].km !== newKm || appointments[idx].travelTime !== travelMin) {
-        appointments[idx].km = newKm;
-        appointments[idx].travelTime = travelMin;
-        changed = true;
-        console.log(`🔄 Recalculado: ${service.plate} → ${newKm}km, ${travelMin}min ${i === 0 ? '(da base)' : '(do anterior)'}`);
-      }
-    }
-  }
-
-  if (changed) {
+  if (await recomputeDayKm(bucket)) {
     renderAll();
     showToast('🔄 Quilómetros e tempos recalculados', 'info');
   }
 }
+
+// ===== KM EM FALTA =====
+// Dias até hoje com serviços sem km: calculam-se e gravam-se ao abrir a
+// agenda, para o relatório não dar 0 km num dia em que o SM andou. Cada dia,
+// com o mesmo conjunto de serviços, só se tenta uma vez por sessão.
+const KM_FILL_MAX_DIAS = 90;
+const _kmFillTried = new Set();
+
+function semKm(a) {
+  return a.km === null || a.km === undefined || a.km === '';
+}
+
+async function fillMissingKm() {
+  if (isLoja() || !window.google?.maps?.DistanceMatrixService) return;
+  const hoje = localISO(new Date());
+  const desde = localISO(addDays(new Date(), -KM_FILL_MAX_DIAS));
+  const dias = [...new Set(appointments
+    .filter(a => a.date && a.date <= hoje && a.date >= desde && getAddressFromItem(a) && semKm(a))
+    .map(a => a.date))].sort().reverse();
+  let algum = false;
+  for (const dia of dias) {
+    const assinatura = dia + '|' + dayRouteItems(dia).map(a => a.id).sort().join(',');
+    if (_kmFillTried.has(assinatura)) continue;
+    _kmFillTried.add(assinatura);
+    if (await recomputeDayKm(dia)) algum = true;
+  }
+  if (algum && typeof renderAll === 'function') renderAll();
+}
+window.fillMissingKm = fillMissingKm;
 
 // ===== FUNÇÕES DE EDIÇÃO E ELIMINAÇÃO =====
 

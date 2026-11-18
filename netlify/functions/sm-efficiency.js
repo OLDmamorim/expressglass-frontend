@@ -87,15 +87,26 @@ exports.handler = async (event) => {
     const args = [ids, dateFrom, ate];
 
     const { rows: totais } = await pool.query(
-      `SELECT portal_id,
-              COUNT(*)                                  AS agendados,
-              COUNT(*) FILTER (WHERE executed = true)   AS realizados,
-              COUNT(*) FILTER (WHERE executed = false)  AS nao_realizados,
-              COALESCE(SUM(km), 0)                      AS km,
-              COALESCE(SUM(travel_time), 0)             AS minutos_estrada
-         FROM appointments
-        WHERE portal_id = ANY($1) AND date BETWEEN $2::date AND $3::date
-        GROUP BY portal_id`,
+      // km = entre serviços + regresso à base de cada dia (guardado no último
+      // serviço do dia; só esse conta, para não somar regressos antigos).
+      `WITH regresso AS (
+         SELECT portal_id, SUM(km) AS km FROM (
+           SELECT DISTINCT ON (portal_id, date) portal_id, COALESCE(return_km, 0) AS km
+             FROM appointments
+            WHERE portal_id = ANY($1) AND date BETWEEN $2::date AND $3::date
+            ORDER BY portal_id, date, sortIndex DESC NULLS LAST, id DESC
+         ) d GROUP BY portal_id
+       )
+       SELECT a.portal_id,
+              COUNT(*)                                    AS agendados,
+              COUNT(*) FILTER (WHERE a.executed = true)   AS realizados,
+              COUNT(*) FILTER (WHERE a.executed = false)  AS nao_realizados,
+              COALESCE(SUM(a.km), 0) + COALESCE(MAX(r.km), 0) AS km,
+              COALESCE(SUM(a.travel_time), 0)             AS minutos_estrada
+         FROM appointments a
+         LEFT JOIN regresso r ON r.portal_id = a.portal_id
+        WHERE a.portal_id = ANY($1) AND a.date BETWEEN $2::date AND $3::date
+        GROUP BY a.portal_id`,
       args
     );
 
@@ -147,15 +158,25 @@ exports.handler = async (event) => {
     );
 
     const { rows: dias } = await pool.query(
-      `SELECT tc.portal_id,
+      // km do dia = serviços realizados + regresso à base, quando houve algum.
+      `WITH regresso AS (
+         SELECT DISTINCT ON (portal_id, date) portal_id, date, COALESCE(return_km, 0) AS km
+           FROM appointments
+          WHERE portal_id = ANY($1) AND date BETWEEN $2::date AND $3::date
+          ORDER BY portal_id, date, sortIndex DESC NULLS LAST, id DESC
+       )
+       SELECT tc.portal_id,
               tc.date::text                                                  AS data,
               tc.checkin_at,
               tc.checkout_at,
               EXTRACT(EPOCH FROM (tc.checkout_at - tc.checkin_at)) / 3600.0  AS horas,
               COUNT(a.id) FILTER (WHERE a.executed = true)                   AS realizados,
-              COALESCE(SUM(a.km) FILTER (WHERE a.executed = true), 0)        AS km
+              COALESCE(SUM(a.km) FILTER (WHERE a.executed = true), 0)
+                + CASE WHEN COUNT(a.id) FILTER (WHERE a.executed = true) > 0
+                       THEN COALESCE(MAX(r.km), 0) ELSE 0 END                AS km
          FROM team_checkins tc
          LEFT JOIN appointments a ON a.portal_id = tc.portal_id AND a.date = tc.date
+         LEFT JOIN regresso r ON r.portal_id = tc.portal_id AND r.date = tc.date
         WHERE tc.portal_id = ANY($1) AND tc.date BETWEEN $2::date AND $3::date
         GROUP BY tc.portal_id, tc.date, tc.checkin_at, tc.checkout_at
         ORDER BY tc.date ASC`,
