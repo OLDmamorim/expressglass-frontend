@@ -2767,6 +2767,18 @@ async function onDropAppointment(id, targetBucket, targetIndex){
 // Não reordena nada. Sem distância fiável (Google em falha) não grava nada.
 const _kmDayRunning = new Set();
 
+// A morada como a Rota do Dia a manda ao Google: com a localidade e o país.
+// Sozinha, uma morada como "Bairro da Serração n 26" é ambígua e o Google
+// pode pô-la noutra terra (ou não a encontrar).
+function moradaParaDistancia(a) {
+  let m = getAddressFromItem(a);
+  if (!m) return '';
+  const loc = (a.locality || '').trim();
+  if (loc && !m.toLowerCase().includes(loc.toLowerCase())) m += ', ' + loc;
+  if (!/portugal/i.test(m)) m += ', Portugal';
+  return m;
+}
+
 async function recomputeDayKm(dayISO) {
   if (!dayISO || dayISO === 'unscheduled' || _kmDayRunning.has(dayISO)) return false;
   if (!window.google?.maps?.DistanceMatrixService) return false;
@@ -2775,11 +2787,12 @@ async function recomputeDayKm(dayISO) {
 
   _kmDayRunning.add(dayISO);
   try {
-    const base = getBasePartida();
+    const baseBruta = getBasePartida();
+    const base = /portugal/i.test(baseBruta) ? baseBruta : baseBruta + ', Portugal';
     const novos = [];
     let prevAddr = base;
     for (let i = 0; i < list.length; i++) {
-      const addr = getAddressFromItem(list[i]);
+      const addr = moradaParaDistancia(list[i]);
       const r = await getDistanceAndTime(prevAddr, addr);
       if (r.distance === Infinity) return false;
       const valores = { km: Math.round(r.distance / 1000), travelTime: r.duration || 0, return_km: null, return_time: null };
