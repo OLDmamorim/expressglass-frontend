@@ -2287,6 +2287,8 @@ function filterAppointments(list){
 }
 function highlightSearchResults(){
   document.querySelectorAll('.appointment').forEach(el=>el.classList.remove('highlight'));
+  // Cartão escolhido na pesquisa por matrícula: continua a piscar após re-render
+  if (typeof window.marcarCartaoProcurado === 'function') window.marcarCartaoProcurado();
   if(!searchQuery) return;
   const qNorm=searchQuery.replace(/[^a-z0-9]/gi,'').toLowerCase();
   document.querySelectorAll('.appointment').forEach(el=>{

@@ -2448,6 +2448,20 @@ function filterServicesByPlate(searchTerm) {
   }, 100);
 }
 
+// Põe a piscar o(s) cartão(ões) da última pesquisa por matrícula
+function marcarCartaoProcurado() {
+  const p = window._cartaoProcurado;
+  if (!p || Date.now() > p.ate) return [];
+  const cards = [...document.querySelectorAll(`.appointment[data-id="${p.id}"]`)];
+  cards.forEach(c => {
+    if (c.classList.contains('procurado')) return;
+    c.classList.add('procurado');
+    setTimeout(() => c.classList.remove('procurado'), Math.max(0, p.ate - Date.now()));
+  });
+  return cards;
+}
+window.marcarCartaoProcurado = marcarCartaoProcurado;
+
 window._jumpToAppointment = function(id) {
   // Fechar caixa de resultados
   document.getElementById('plateSearchResults')?.remove();
@@ -2463,15 +2477,15 @@ window._jumpToAppointment = function(id) {
     currentMonday = getMonday(d);
     currentMobileDay = d;
     renderAll();
-    // Destacar o card após render
+    // Destacar o card após render: pisca uns segundos para se ver onde está.
+    // Há um cartão por vista (semana no computador, dia no telemóvel), por
+    // isso marcar todos e ir até ao que está visível. O render seguinte
+    // (polling) volta a marcá-lo enquanto o destaque não expirar.
+    window._cartaoProcurado = { id: String(id), ate: Date.now() + 6500 };
     setTimeout(() => {
-      const card = document.querySelector(`[data-id="${id}"]`);
-      if (card) {
-        card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        card.style.outline = '3px solid #f59e0b';
-        card.style.outlineOffset = '2px';
-        setTimeout(() => { card.style.outline = ''; card.style.outlineOffset = ''; }, 2500);
-      }
+      const cards = marcarCartaoProcurado();
+      const visivel = cards.find(c => c.offsetParent !== null) || cards[0];
+      if (visivel) visivel.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 300);
   } else {
     // Serviço por agendar — já está na lista
