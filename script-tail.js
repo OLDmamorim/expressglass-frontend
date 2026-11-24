@@ -1384,6 +1384,22 @@ function bootApp() {
     // defaults mínimos
     if (!payload.plate) { showToast('Matrícula é obrigatória', 'error'); return; }
     if (!payload.service) { showToast('Tipo de serviço é obrigatório', 'error'); return; }
+    // Mudar a matrícula de um cartão existente transforma-o noutra viatura:
+    // leva consigo o vidro, o histórico e a data de abertura (AB-73-GU ficou
+    // com o Eurocode e os "152 dias" do Iveco BT-98-GH). Confirmar primeiro.
+    if (editingId) {
+      const original = appointments.find(a => String(a.id) === String(editingId));
+      const norm = p => String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (original && norm(original.plate) && norm(original.plate) !== norm(payload.plate)) {
+        const ok = confirm(
+          '⚠️ Está a mudar a matrícula deste cartão de ' + original.plate + ' para ' + payload.plate + '.\n\n' +
+          'O cartão passa a ser de outra viatura e leva consigo o Eurocode, o histórico e a data de abertura da ' + original.plate + '.\n\n' +
+          'Se é um serviço novo, cancele e use "Novo Serviço".\n\n' +
+          'Mudar a matrícula mesmo assim?'
+        );
+        if (!ok) { window._pausePolling = false; return; }
+      }
+    }
     // Localidade não é obrigatória: vem preenchida da morada. Se ficar vazia,
     // o cartão mostra o aviso "⚠️ Falta localidade" e dá para corrigir depois.
 
