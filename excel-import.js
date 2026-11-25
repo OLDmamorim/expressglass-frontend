@@ -447,11 +447,21 @@ class ExcelImporter {
       details: []
     };
     
-    // Obter lista de matrículas já existentes (serviços pendentes)
+    // Matrículas com serviço ainda por realizar. Só essas contam como "já
+    // existe": a mesma viatura volta para trabalhos novos, e um serviço já
+    // realizado é passado — se vier outra linha no Excel com a mesma
+    // matrícula, é serviço novo e tem de ser criado.
+    //
+    // Antes isto filtrava por `status !== 'ST'`, mas o status é o estado do
+    // VIDRO (N/E · V/E · ST), não se o serviço foi feito. Um serviço agendado
+    // com o vidro já em stock ficava de fora da lista e era duplicado; um
+    // serviço realizado sem o vidro marcado ficava na lista e engolia o
+    // trabalho seguinte. O campo certo é `executed`.
     const existingAppointments = window.appointments || [];
+    const porRealizar = a => a.executed !== true;
     const existingPlates = new Set(
       existingAppointments
-        .filter(a => !a.date || a.status !== 'ST') // Apenas pendentes ou não finalizados
+        .filter(porRealizar)
         .map(a => String(a.plate).toUpperCase().trim())
     );
     
@@ -464,7 +474,7 @@ class ExcelImporter {
         // Verificar duplicado no mesmo lote (evita chamadas duplas ao backend)
         if (existingPlates.has(plateNormalized)) {
           const existing = existingAppointments.find(a =>
-            String(a.plate).toUpperCase().trim() === plateNormalized
+            porRealizar(a) && String(a.plate).toUpperCase().trim() === plateNormalized
           );
           // Atualizar status, order_ref, reception_ref e damage_details
           const statusChanged   = existing && service.status && service.status !== existing.status;

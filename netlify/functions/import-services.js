@@ -77,8 +77,17 @@ exports.handler = async (event) => {
         }
 
         // Verificar se já existe — preferir match por n_obra; fallback por matrícula.
-        // Pesquisa em TODOS os registos (incluindo realizados): mesma matrícula = mesmo registo, nunca duplicar.
-        // Preferir registos não-realizados (executed IS TRUE ordenado por último).
+        //
+        // O n_obra é a chave fiável: mesma obra = mesmo registo, mesmo que já
+        // esteja realizada. É o que torna a reimportação do mesmo Excel segura.
+        //
+        // A matrícula NÃO é chave. O mesmo carro volta para serviços novos, e
+        // antes disto um serviço já realizado era reaproveitado e reescrito
+        // pelo serviço seguinte da mesma viatura — o histórico perdia-se e o
+        // trabalho novo entrava por cima do antigo. Por isso o fallback por
+        // matrícula só pega em registos ainda por realizar; e quando o Excel
+        // traz n_obra, só pega em registos que ainda não tenham obra própria,
+        // porque obra diferente é trabalho diferente.
         let existing;
         if (svc.n_obra) {
           existing = await pool.query(
@@ -90,12 +99,16 @@ exports.handler = async (event) => {
             [svc.portal_id, String(svc.n_obra)]
           );
           if (!existing.rows.length) {
+            // Obra nova nesta matrícula: só adoptar um registo que ainda não
+            // tenha obra atribuída. Com obra diferente é outro trabalho.
             existing = await pool.query(
               `SELECT id, date, period, car, phone, extra, notes, auto_imported, confirmed, status, order_ref, reception_ref
                FROM appointments
                WHERE portal_id = $1
                AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
-               ORDER BY (executed IS TRUE) ASC
+               AND executed IS NOT TRUE
+               AND n_obra IS NULL
+               ORDER BY created_at DESC
                LIMIT 1`,
               [svc.portal_id, String(svc.plate).trim()]
             );
@@ -106,7 +119,8 @@ exports.handler = async (event) => {
              FROM appointments
              WHERE portal_id = $1
              AND UPPER(REGEXP_REPLACE(plate, '[^A-Z0-9]', '', 'g')) = UPPER(REGEXP_REPLACE($2, '[^A-Z0-9]', '', 'g'))
-             ORDER BY (executed IS TRUE) ASC
+             AND executed IS NOT TRUE
+             ORDER BY created_at DESC
              LIMIT 1`,
             [svc.portal_id, String(svc.plate).trim()]
           );
