@@ -1080,6 +1080,26 @@ function agendamentoUsaVidro(a) {
 window.servicoUsaVidro = servicoUsaVidro;
 window.agendamentoUsaVidro = agendamentoUsaVidro;
 
+// "Precisa de peça" e "mexe no vidro do carro" são perguntas diferentes, e o
+// Retirar Vidro depende da segunda. O RV não encomenda nada — mas tirar o
+// vidro é precisamente o trabalho dele, por isso precisa do botão. A
+// reparação, o polimento e a calibragem nunca tiram vidro nenhum.
+const SERVICOS_QUE_NAO_TIRAM_VIDRO = ['REP', 'POL', 'CAL'];
+function servicoTiraVidro(service) {
+  return !SERVICOS_QUE_NAO_TIRAM_VIDRO.includes(codigoServico(service));
+}
+function agendamentoTiraVidro(a) {
+  if (!a) return true;
+  let lista = [];
+  try {
+    if (typeof getAllServices === 'function') lista = getAllServices(a) || [];
+  } catch (e) { lista = []; }
+  if (!lista.length) lista = [{ service: a.service }];
+  return lista.some(s => servicoTiraVidro(s && s.service));
+}
+window.servicoTiraVidro = servicoTiraVidro;
+window.agendamentoTiraVidro = agendamentoTiraVidro;
+
 // Estado do vidro para efeitos de semáforo/cor do cartão.
 // Sem peça não há nada por que esperar: conta como pronto (verde), nunca
 // como "não encomendado" (vermelho) — até porque os checkboxes NE/VE/ST
