@@ -88,6 +88,16 @@
     }
   }
 
+  // Depois de um RV, o trabalho que fica por fazer é colar o vidro — um
+  // para-brisas. Nos restantes serviços o tipo mantém-se: num PB adiado, o
+  // que volta a ficar agendado é o mesmo PB.
+  function _grServicoDeColocagem(service) {
+    const codigo = window.codigoServico
+      ? window.codigoServico(service)
+      : String(service || '').toUpperCase().trim().split(' ')[0].split('-')[0];
+    return codigo === 'RV' ? 'PB' : service;
+  }
+
   function _showReagendamentoPrompt(appt, dateVal) {
     const existing = document.getElementById('grReagendamentoPrompt');
     if (existing) existing.remove();
@@ -110,7 +120,10 @@
         await window.apiClient.createAppointment({
           plate: appt.plate,
           car: appt.car,
-          service: appt.service,
+          // O segundo serviço é a colocagem, não outra retirada: copiar o
+          // tipo do primeiro deixava um RV a pedir que se tirasse o vidro
+          // outra vez, e com o botão Retirar Vidro em cima.
+          service: _grServicoDeColocagem(appt.service),
           date: dateVal,
           confirmed: false,
           notes: 'Criado automaticamente - reagendamento após vidro retirado'
@@ -169,7 +182,7 @@
       const id = row.dataset.id;
       const appt = appts.find(a => String(a.id) === String(id));
       if (!appt) return;
-      if ((window.agendamentoUsaVidro && !window.agendamentoUsaVidro(appt)) || window.portalConfig?.portalType === 'recalibra') return;
+      if ((window.agendamentoTiraVidro && !window.agendamentoTiraVidro(appt)) || window.portalConfig?.portalType === 'recalibra') return;
       const isActive = !!appt.glass_removed;
       const btnRow = document.createElement('div');
       btnRow.style.cssText = 'margin:4px 0 0;';
@@ -191,7 +204,7 @@
       if (!id) return;
       const appt = appts.find(a => String(a.id) === String(id));
       if (!appt) return;
-      if ((window.agendamentoUsaVidro && !window.agendamentoUsaVidro(appt)) || window.portalConfig?.portalType === 'recalibra') return;
+      if ((window.agendamentoTiraVidro && !window.agendamentoTiraVidro(appt)) || window.portalConfig?.portalType === 'recalibra') return;
       const isActive = !!appt.glass_removed;
       const btnRow = document.createElement('div');
       btnRow.style.cssText = 'margin:6px 8px 0;';
