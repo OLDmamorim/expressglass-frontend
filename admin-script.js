@@ -656,17 +656,16 @@ async function loadRegistrationRequests() {
     registrationRequests = [];
   }
 
+  loadPasswordResetRequests();
+
   if (registrationRequests.length === 0) {
     section.style.display = 'none';
     section.innerHTML = '';
-    if (badge) badge.style.display = 'none';
+    updateRequestsBadge();
     return;
   }
 
-  if (badge) {
-    badge.textContent = String(registrationRequests.length);
-    badge.style.display = 'inline-block';
-  }
+  updateRequestsBadge();
   const roleLabels = { user: 'Técnico', coordenador: 'Coordenador', comercial: 'Comercial' };
   section.className = 'registration-requests';
   section.style.display = 'block';
@@ -693,6 +692,138 @@ async function loadRegistrationRequests() {
     `).join('')}
   `;
 }
+
+// O número no separador Utilizadores soma os pedidos de acesso e os de
+// recuperação de password por tratar.
+function updateRequestsBadge() {
+  const badge = document.getElementById('requestsBadge');
+  if (!badge) return;
+  const total = registrationRequests.length + passwordResetRequests.length;
+  badge.textContent = String(total);
+  badge.style.display = total ? 'inline-block' : 'none';
+}
+
+// ===== PEDIDOS DE "ESQUECI A PALAVRA-PASSE" =====
+// Chegam aqui quando o email indicado não pertence a nenhuma conta (contas
+// antigas, que entram por username). Ao associar o email ao utilizador, a
+// conta passa a entrar por email e a pessoa recebe o link para a password.
+let passwordResetRequests = [];
+
+function resetUserOptions(request) {
+  const hint = String(request.hint || '').toLowerCase();
+  const local = String(request.email || '').split('@')[0].toLowerCase();
+  const score = u => {
+    const name = String(u.username || '').toLowerCase();
+    if (hint && (name === hint || hint.includes(name) || name.includes(hint))) return 2;
+    if (local && (name.includes(local) || local.includes(name))) return 1;
+    return 0;
+  };
+  const eligible = users.filter(u => u.accountStatus !== 'disabled');
+  const best = eligible.map(u => [u, score(u)]).filter(([, s]) => s > 0).sort((a, b) => b[1] - a[1]);
+  const suggestion = best.length ? best[0][0].id : null;
+  const option = u => {
+    const where = u.portalName ? ` — ${u.portalName}` : '';
+    const mail = u.email ? ` (já entra com ${u.email})` : '';
+    return `<option value="${Number(u.id)}"${u.id === suggestion ? ' selected' : ''}>${escapeUserHtml(u.username + where + mail)}</option>`;
+  };
+  const byName = (a, b) => String(a.username).localeCompare(String(b.username), 'pt');
+  const semEmail = eligible.filter(u => !u.email).sort(byName);
+  const comEmail = eligible.filter(u => u.email).sort(byName);
+  return `<option value="">Escolher o utilizador…</option>
+    <optgroup label="Sem email (entram por username)">${semEmail.map(option).join('')}</optgroup>
+    <optgroup label="Já com email">${comEmail.map(option).join('')}</optgroup>`;
+}
+
+async function loadPasswordResetRequests() {
+  const section = document.getElementById('passwordResetSection');
+  if (!section) return;
+  try {
+    const response = await authClient.authenticatedFetch('/.netlify/functions/password-reset');
+    const data = await response.json();
+    passwordResetRequests = data.success ? data.requests || [] : [];
+  } catch (error) {
+    console.warn('[password-reset-requests]', error.message);
+    passwordResetRequests = [];
+  }
+  updateRequestsBadge();
+
+  if (passwordResetRequests.length === 0) {
+    section.style.display = 'none';
+    section.innerHTML = '';
+    return;
+  }
+  section.className = 'registration-requests registration-requests--reset';
+  section.style.display = 'block';
+  section.innerHTML = `
+    <div class="registration-requests__title">
+      <h3>🔑 Pedidos de recuperação de password</h3>
+      <span>${passwordResetRequests.length} por associar</span>
+    </div>
+    <p style="margin:0 0 6px;font-size:13px;color:#475569;">Estes emails não pertencem a nenhuma conta. Escolha o utilizador: o email fica associado, a conta passa a entrar por email e a pessoa recebe o link para definir a password.</p>
+    ${passwordResetRequests.map(request => `
+      <div class="registration-request">
+        <div>
+          <strong>${escapeUserHtml(request.email)}</strong>
+          <small>${request.hint ? 'Indicou: ' + escapeUserHtml(request.hint) : 'Sem nome indicado'} · ${new Date(request.created_at).toLocaleString('pt-PT', { dateStyle: 'short', timeStyle: 'short' })}</small>
+        </div>
+        <div>
+          <select id="resetUser-${Number(request.id)}" aria-label="Utilizador a associar">${resetUserOptions(request)}</select>
+        </div>
+        <div class="registration-request__actions">
+          <button class="btn-primary" type="button" onclick="associateResetRequest(${Number(request.id)})">Associar e enviar link</button>
+          <button class="btn-danger" type="button" onclick="dismissResetRequest(${Number(request.id)})">Arquivar</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+async function associateResetRequest(id) {
+  const request = passwordResetRequests.find(item => Number(item.id) === Number(id));
+  const select = document.getElementById(`resetUser-${Number(id)}`);
+  const userId = Number(select?.value);
+  if (!request || !userId) { showToast('Escolha o utilizador a associar', 'error'); return; }
+  const user = users.find(u => Number(u.id) === userId);
+  const question = user?.email
+    ? `O utilizador "${user.username}" já entra com ${user.email}.\n\nSubstituir por ${request.email} e enviar o link de nova password?`
+    : `Associar ${request.email} ao utilizador "${user?.username}"?\n\nA conta passa a entrar com este email e a pessoa recebe o link para definir a password.`;
+  if (!confirm(question)) return;
+  try {
+    const response = await authClient.authenticatedFetch('/.netlify/functions/password-reset', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action: 'associate', user_id: userId })
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'Não foi possível associar o email');
+    showToast(data.emailSent
+      ? `Email associado a ${data.username}. Link enviado.`
+      : `Email associado a ${data.username}, mas o envio falhou: ${data.warning}`, data.emailSent ? 'success' : 'error');
+    loadUsers();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+window.associateResetRequest = associateResetRequest;
+
+async function dismissResetRequest(id) {
+  const request = passwordResetRequests.find(item => Number(item.id) === Number(id));
+  if (!request || !confirm(`Arquivar o pedido de ${request.email} sem associar a nenhuma conta?`)) return;
+  try {
+    const response = await authClient.authenticatedFetch('/.netlify/functions/password-reset', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, action: 'dismiss' })
+    });
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'Não foi possível arquivar o pedido');
+    showToast('Pedido arquivado', 'success');
+    loadPasswordResetRequests();
+  } catch (error) {
+    showToast(error.message, 'error');
+  }
+}
+window.dismissResetRequest = dismissResetRequest;
 
 function openRegistrationInvite(id) {
   const request = registrationRequests.find(item => Number(item.id) === Number(id));

@@ -31,6 +31,7 @@ async function findInvite(client, tokenHash, lock) {
   const suffix = lock ? ' FOR UPDATE OF ai' : '';
   const { rows } = await client.query(`
     SELECT ai.id, ai.user_id, ai.email, ai.expires_at, ai.accepted_at, ai.revoked_at,
+           COALESCE(ai.kind, 'invite') AS kind,
            u.username, u.account_status
     FROM account_invites ai
     JOIN users u ON u.id = ai.user_id
@@ -41,13 +42,28 @@ async function findInvite(client, tokenHash, lock) {
 }
 
 function inviteProblem(invite) {
-  if (!invite || invite.revoked_at) return { status: 404, error: 'Convite inválido' };
-  if (invite.accepted_at) return { status: 409, error: 'Este convite já foi utilizado' };
-  if (invite.account_status !== 'invited') {
+  const reset = invite?.kind === 'reset';
+  if (!invite || invite.revoked_at) {
+    return { status: 404, error: reset ? 'Este link já não é válido. Peça um novo em "Esqueci a palavra-passe".' : 'Convite inválido' };
+  }
+  if (invite.accepted_at) {
+    return { status: 409, error: reset ? 'Este link já foi utilizado' : 'Este convite já foi utilizado' };
+  }
+  // Um convite ativa uma conta pendente; um link de recuperação muda a
+  // password de uma conta que já existe (ativa ou ainda pendente).
+  if (!reset && invite.account_status !== 'invited') {
     return { status: 409, error: 'Esta conta já está ativa' };
   }
+  if (reset && !['active', 'invited'].includes(invite.account_status)) {
+    return { status: 409, error: 'Esta conta não está ativa. Fale com o administrador.' };
+  }
   if (new Date(invite.expires_at).getTime() <= Date.now()) {
-    return { status: 410, error: 'Este convite expirou. Pede um novo convite ao administrador.' };
+    return {
+      status: 410,
+      error: reset
+        ? 'Este link expirou. Peça um novo em "Esqueci a palavra-passe".'
+        : 'Este convite expirou. Pede um novo convite ao administrador.'
+    };
   }
   return null;
 }
@@ -80,6 +96,7 @@ exports.handler = async event => {
         data: {
           email: invite.email,
           username: invite.username,
+          kind: invite.kind,
           expiresAt: invite.expires_at
         }
       });
@@ -128,8 +145,11 @@ exports.handler = async event => {
       try {
         await pool.query(
           `INSERT INTO audit_log (user_id, username, action, entity, entity_id, details)
-           VALUES ($1, $2, 'account_activated', 'user', $3, $4)`,
-          [invite.user_id, invite.username, String(invite.user_id), JSON.stringify({ method: 'email_invite' })]
+           VALUES ($1, $2, $3, 'user', $4, $5)`,
+          [invite.user_id, invite.username,
+           invite.kind === 'reset' ? 'password_reset' : 'account_activated',
+           String(invite.user_id),
+           JSON.stringify({ method: invite.kind === 'reset' ? 'email_reset' : 'email_invite' })]
         );
       } catch (auditError) {
         console.warn('[account-invite-audit]', auditError.message);
@@ -137,7 +157,7 @@ exports.handler = async event => {
 
       return response(200, {
         success: true,
-        message: 'Password definida. A conta está ativa.'
+        message: invite.kind === 'reset' ? 'Password alterada.' : 'Password definida. A conta está ativa.'
       });
     } catch (error) {
       await client.query('ROLLBACK');

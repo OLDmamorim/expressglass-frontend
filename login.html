@@ -244,8 +244,22 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Painel de registo */
-    #registerPanel { display: none; }
+    #registerPanel, #forgotPanel { display: none; }
     #loginPanel { display: block; }
+    .forgot-link {
+      display: block;
+      margin: -8px 0 18px auto;
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: #64748b;
+      cursor: pointer;
+      text-align: right;
+    }
+    .forgot-link:hover { color: var(--eg-navy); text-decoration: underline; }
+    .field-hint { display: block; margin-top: 6px; font-size: 12px; color: #64748b; }
     .back-link {
       display: inline-flex;
       align-items: center;
@@ -325,6 +339,7 @@
               </button>
             </div>
           </div>
+          <button type="button" class="forgot-link" onclick="showForgot()">Esqueci a palavra-passe</button>
           <button type="submit" id="btnLogin" class="btn-login">Entrar</button>
         </form>
 
@@ -368,6 +383,29 @@
           <button type="submit" id="btnRegister" class="btn-login">
             Enviar pedido
           </button>
+        </form>
+      </div>
+
+      <!-- ══ PAINEL ESQUECI A PALAVRA-PASSE ══ -->
+      <div id="forgotPanel">
+        <button class="back-link" onclick="showLogin()">← Voltar ao login</button>
+        <div class="register-title">Esqueci a palavra-passe</div>
+        <div class="register-sub">Indique o seu email. Vai receber um link para definir uma nova palavra-passe.</div>
+
+        <div id="forgotAlert" class="alert-message"></div>
+
+        <form id="forgotForm">
+          <div class="form-group">
+            <label for="forgotEmail">Email</label>
+            <input type="email" id="forgotEmail" placeholder="nome@expressglass.pt" required autocomplete="email">
+            <small class="field-hint">Se costuma entrar com um username, indique o email que quer passar a usar.</small>
+          </div>
+          <div class="form-group">
+            <label for="forgotHint">Nome ou username <span style="font-weight:400;color:#94a3b8">(se souber)</span></label>
+            <input type="text" id="forgotHint" placeholder="Ex: João Silva ou braga.sm" autocomplete="username">
+            <small class="field-hint">Ajuda o administrador a encontrar a sua conta.</small>
+          </div>
+          <button type="submit" id="btnForgot" class="btn-login">Enviar</button>
         </form>
       </div>
     </div>
@@ -445,8 +483,63 @@
 
     function showLogin() {
       document.getElementById('registerPanel').style.display = 'none';
+      document.getElementById('forgotPanel').style.display = 'none';
       document.getElementById('loginPanel').style.display = 'block';
     }
+
+    // ══ ESQUECI A PALAVRA-PASSE ══
+    function showForgot() {
+      document.getElementById('loginPanel').style.display = 'none';
+      document.getElementById('forgotPanel').style.display = 'block';
+      // Se já escreveu o email no login, aproveita-o
+      const typed = document.getElementById('username').value.trim();
+      const emailField = document.getElementById('forgotEmail');
+      if (typed.includes('@') && !emailField.value) emailField.value = typed;
+      else if (typed && !typed.includes('@')) document.getElementById('forgotHint').value = typed;
+      emailField.focus();
+    }
+
+    const forgotForm  = document.getElementById('forgotForm');
+    const btnForgot   = document.getElementById('btnForgot');
+    const forgotAlert = document.getElementById('forgotAlert');
+
+    function showForgotMsg(msg, type) {
+      forgotAlert.textContent = msg;
+      forgotAlert.className = 'alert-message show ' + type;
+    }
+
+    forgotForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('forgotEmail').value.trim();
+      const hint  = document.getElementById('forgotHint').value.trim();
+      if (!email) { showForgotMsg('Indique o seu email.', 'error'); return; }
+
+      btnForgot.disabled = true;
+      btnForgot.innerHTML = '<span class="loading"></span>A enviar...';
+      forgotAlert.classList.remove('show');
+      try {
+        const resp = await fetch('/.netlify/functions/password-reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, hint })
+        });
+        const data = await resp.json();
+        if (data.success) {
+          showForgotMsg('✅ ' + data.message, 'success');
+          forgotForm.reset();
+          btnForgot.innerHTML = '✓ Enviado';
+          setTimeout(() => { btnForgot.disabled = false; btnForgot.innerHTML = 'Enviar'; }, 4000);
+        } else {
+          showForgotMsg('❌ ' + (data.error || 'Não foi possível enviar o pedido.'), 'error');
+          btnForgot.disabled = false;
+          btnForgot.innerHTML = 'Enviar';
+        }
+      } catch (err) {
+        showForgotMsg('❌ Erro de ligação. Tente novamente.', 'error');
+        btnForgot.disabled = false;
+        btnForgot.innerHTML = 'Enviar';
+      }
+    });
 
     async function loadPortalsForRegister() {
       const sel = document.getElementById('regPortal');

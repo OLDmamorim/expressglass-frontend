@@ -448,6 +448,22 @@ body {
   gap: 7px;
 }
 
+/* Pedidos de "Esqueci a palavra-passe" sem conta com esse email */
+.registration-requests--reset {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+.registration-requests--reset .registration-requests__title h3 { color: #1e3a8a; }
+.registration-requests--reset .registration-request { border-top-color: #bfdbfe; }
+.registration-requests--reset .registration-request select {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+}
+
 .user-identity strong,
 .user-identity small {
   display: block;
