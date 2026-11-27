@@ -6,6 +6,7 @@ const {
   isNotaEncomendaEmail,
   normalizeNe,
   parseNotasEncomenda,
+  parseNotaEncomendaPdf,
   matchNotaPdfs,
   chooseServicesForRow,
   applyNotasEncomenda
@@ -197,6 +198,87 @@ test('uma matrícula que já tem serviços (mesmo rejeitados) não ganha um dupl
   assert.equal(result.created, 0);
   assert.deepEqual(result.unmatched.map(r => r.matricula), ['BT-11-VC']);
   assert.deepEqual(client.inserts, []);
+});
+
+// "Envio de NE´s" (desde 26/11/2026): o corpo só lista as matrículas e cada
+// PDF traz a N.E. e, em Observações, as viaturas. Texto como o do pdf-parse.
+const pdfNE962042 = `MYCARCENTER-CENTRO DE PREPARAÇÃO AUTOMÓVEL LDA
+Nota de Encomenda
+Encomenda Nº Data Requisitado Por
+NE962042 26-11-2026 DANIELA LEAL
+Pos. Quant. Artigo Descrição P. Unit. Desc.
+(%) Total
+1 2
+ SUBSTITUIÇÃO PARA-BRISAS C/CALIBRAGEM
+C/VIDRO AFTM 268.0000 € 0.00% 536.00 €
+Custo Transporte Valor Ilíquido Valor Desconto Valor Líquido Total Encomenda
+0.00 € 536.00 € 0.00 € 536.00 € 536.00 €
+Data Entrega: 26-11-2026
+Pólo: MY CAR CENTER
+Observações/
+Condições
+Pagamento:
+25255 BV-30-LC CADDY PARA-BRISAS
+26024 BU-74-HT SCALA PARA-BRISAS
+Com os nossos melhores cumprimentos
+Delegação Administrativa: Rua Central de Mouriz, 464 4580 - 000 Mouriz Tel.:255788000 Fax:255788099`;
+const pdfNE962039 = `Nota de Encomenda
+Encomenda NºDataRequisitado Por
+NE96203926-11-2026DANIELA LEAL
+1 2 REPARAÇÃO DE VIDROS 48.0000 € 0.00% 96.00 €
+Observações/
+Condições
+Pagamento:
+25039BS-56-CGARONAREPARAÇÃO
+25651 BT-12-LM POLO REPARAÇÃO`;
+
+const envioNes = (extra = {}) => email({
+  subject: 'FW: Envio de NE´s',
+  from: { value: [{ address: 'paredes@expressglass.pt' }] },
+  html: `<p><b>De:</b> Orçamentação Mycarcenter &lt;orcamentacao@mycarcenter.pt&gt;<br><b>Assunto:</b> Envio de NE´s</p>
+    <p>Envio em anexo a nota de encomenda das seguintes viaturas:</p>
+    <table><tr><td>BS-56-CG</td></tr><tr><td>BT-12-LM</td></tr><tr><td>BV-30-LC</td></tr><tr><td>BU-74-HT</td></tr></table>`,
+  attachments: [pdf('nota_encomenda_NE962042.pdf'), pdf('nota_encomenda_NE962039.pdf')],
+  ...extra
+});
+
+test('"Envio de NE´s" da orcamentacao@mycarcenter.pt também é uma nota de encomenda', () => {
+  assert.equal(isNotaEncomendaEmail(envioNes()), true);
+  assert.equal(isNotaEncomendaEmail(email({ subject: "Envio de NE's", from: { value: [{ address: 'orcamentacao@mycarcenter.pt' }] } })), true);
+  assert.equal(isNotaEncomendaEmail(email({ subject: 'Envio de fotos', from: { value: [{ address: 'orcamentacao@mycarcenter.pt' }] } })), false);
+  // O corpo não traz a tabela com a N.E.
+  assert.deepEqual(parseNotasEncomenda(envioNes()), []);
+});
+
+test('lê a N.E., as viaturas e o valor de dentro do PDF', () => {
+  assert.deepEqual(parseNotaEncomendaPdf(pdfNE962042), [
+    { wip: '25255', matricula: 'BV-30-LC', viatura: 'CADDY', data: '2026-11-26', servico: 'PARA-BRISAS', valor: 268, ne: 'NE962042' },
+    { wip: '26024', matricula: 'BU-74-HT', viatura: 'SCALA', data: '2026-11-26', servico: 'PARA-BRISAS', valor: 268, ne: 'NE962042' }
+  ]);
+  // Palavras coladas pelo pdf-parse
+  assert.deepEqual(parseNotaEncomendaPdf(pdfNE962039).map(r => [r.wip, r.matricula, r.viatura, r.servico, r.valor, r.ne]), [
+    ['25039', 'BS-56-CG', 'ARONA', 'REPARAÇÃO', 48, 'NE962039'],
+    ['25651', 'BT-12-LM', 'POLO', 'REPARAÇÃO', 48, 'NE962039']
+  ]);
+  assert.deepEqual(parseNotaEncomendaPdf('sem número de encomenda BV-30-LC'), []);
+});
+
+test('applyNotasEncomenda lê as notas "Envio de NE´s" pelos PDFs', async () => {
+  const client = notasClient({
+    BV30LC: [{ id: 20, matricula: 'BV-30-LC', valor: 268, status: 'realizado', notas: null, nota_encomenda: null }],
+    BU74HT: [{ id: 21, matricula: 'BU-74-HT', valor: 268, status: 'realizado', notas: null, nota_encomenda: null }],
+    BS56CG: [],
+    BT12LM: [{ id: 23, matricula: 'BT-12-LM', valor: 48, status: 'realizado', notas: null, nota_encomenda: null }]
+  });
+  const result = await applyNotasEncomenda(client, envioNes(), { pdfTexts: [pdfNE962042, pdfNE962039] });
+  assert.equal(result.rows, 4);
+  assert.equal(result.created, 1); // BS-56-CG, a reparação sem pedido por email
+  assert.deepEqual(result.unmatched, []);
+  assert.deepEqual(client.updates, [[20, 'NE962042'], [21, 'NE962042'], [901, 'NE962039'], [23, 'NE962039']]);
+  assert.deepEqual(client.documents.map(d => [d[0], d[2]]), [
+    [20, 'nota_encomenda_NE962042.pdf'], [21, 'nota_encomenda_NE962042.pdf'],
+    [901, 'nota_encomenda_NE962039.pdf'], [23, 'nota_encomenda_NE962039.pdf']
+  ]);
 });
 
 test('lê serviços de mão de obra que não falam de vidro', () => {

@@ -1413,7 +1413,9 @@ const NOTAS_RETRY_MS = 6 * 60 * 60 * 1000;
 function searchNotasEncomenda(imap, days) {
   return new Promise((resolve, reject) => {
     const since = new Date(); since.setDate(since.getDate() - days);
-    imap.search([['SINCE', since], ['SUBJECT', 'encomenda']], (err, uids) => {
+    // "NOTAS DE ENCOMENDA - dd/mm" ou, desde 26/11/2026, "Envio de NE´s".
+    // O assunto exato confirma-se depois no cabeçalho (isNotaEncomendaEmail).
+    imap.search([['SINCE', since], ['OR', ['SUBJECT', 'encomenda'], ['SUBJECT', 'envio']]], (err, uids) => {
       if (err) { reject(err); return; }
       resolve((uids || []).sort((a, b) => b - a));
     });
@@ -1494,10 +1496,11 @@ async function runNotasEncomendaSweep(client, days = NOTAS_SWEEP_DAYS, limit = N
         if (key !== headerKey && await wasMessageProcessed(client, key)) continue;
 
         stats.emails++;
-        // Os PDFs só se abrem quando o nome do ficheiro não diz a N.E.
+        // Os PDFs só se abrem quando o nome do ficheiro não diz a N.E., ou
+        // quando o corpo não traz a tabela ("Envio de NE´s": tudo vem no PDF).
         const neNumbers = parseNotasEncomenda(email).map(r => r.ne);
         const byName = matchNotaPdfs(neNumbers, email.attachments || []);
-        const needTexts = neNumbers.some(ne => !byName.has(ne));
+        const needTexts = neNumbers.length === 0 || neNumbers.some(ne => !byName.has(ne));
         const result = await applyNotasEncomenda(client, email, {
           pdfTexts: needTexts ? await pdfTextsOf(email) : [],
           messageId: meta.messageId,

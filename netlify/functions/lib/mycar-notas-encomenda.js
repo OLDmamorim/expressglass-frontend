@@ -9,15 +9,19 @@ const crypto = require('crypto');
 const cheerio = require('cheerio');
 const { normalizePlate, parseValor } = require('./mycar-quote');
 
-const DEFAULT_SENDERS = ['gestao.mcc@grupojap.pt'];
-const SUBJECT_RX = /notas?\s+de\s+encomenda/i;
+// Desde 26/11/2026 também chegam como "Envio de NE´s", de orcamentacao@
+// mycarcenter.pt: o corpo só lista as matrículas e a N.E. vem no PDF.
+const DEFAULT_SENDERS = ['gestao.mcc@grupojap.pt', 'orcamentacao@mycarcenter.pt'];
+const SUBJECT_RX = /notas?\s+de\s+encomenda|envio\s+de\s+n\.?\s*e\.?\s*[´'`’]?\s*s\b/i;
 const NE_RX = /\bNE\s*-?\s*(\d{4,})\b/i;
 const PLATE_RX = /^(?:[A-Z0-9]{2}\s*-\s*[A-Z0-9]{2}\s*-\s*[A-Z0-9]{2}|[A-Z0-9]{6})$/i;
 
 function configuredSenders(env = process.env) {
   const list = String(env.MYCAR_NE_SENDERS || '')
     .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-  return list.length ? list : DEFAULT_SENDERS;
+  // Os da configuração juntam-se aos de sempre (não os substituem): um
+  // remetente novo da MyCar não pode ficar de fora por haver configuração.
+  return [...new Set([...DEFAULT_SENDERS, ...list])];
 }
 
 function senderAddresses(email = {}) {
@@ -109,6 +113,63 @@ function parseNotasEncomenda(email = {}) {
   const seen = new Set();
   return found.filter(r => {
     const key = `${normalizePlate(r.matricula)}|${r.ne}|${r.valor}|${r.wip}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// O PDF de uma nota "Envio de NE´s": o número no cabeçalho ("Encomenda Nº
+// NE962042") e, em Observações, uma linha por viatura — "25255 BV-30-LC
+// CADDY PARA-BRISAS" (WIP, matrícula, modelo, serviço). O preço unitário é
+// o valor de cada serviço quando a nota tem um só artigo.
+// O texto vem do pdf-parse, que pode colar as palavras ("25255BV-30-LC").
+const PDF_LINE_RX = /(\d{4,6})?\s*([A-Z0-9]{2}\s?-\s?[A-Z0-9]{2}\s?-\s?[A-Z0-9]{2})[ \t]*([^\n]*)/gi;
+const SERVICE_WORD_RX = /para-?\s?brisas|repara[cç][aã]o|substitui[cç][aã]o|[oó]culo|lateral|luneta|tejadilho|calibra[cç][aã]o|borracha|m[aã]o\s+de\s+obra|vidro/i;
+
+function pdfValor(text) {
+  const prices = [...String(text).matchAll(/(\d[\d.,]*)\s*€\s*\d[\d.,]*\s*%/g)].map(m => parseValor(m[1]));
+  const unique = [...new Set(prices.filter(v => v != null))];
+  return unique.length === 1 ? unique[0] : null;
+}
+
+function parseNotaEncomendaPdf(text) {
+  const src = String(text || '');
+  // A data pode vir colada ao número ("NE96203926-11-2026"): o número acaba
+  // onde começa a data.
+  const nm = src.match(/\bNE\s*-?\s*(\d{4,}?)(?=\d{1,2}[/-]\d{1,2}[/-]\d{4}|\D|$)/i);
+  const ne = nm ? `NE${nm[1]}` : null;
+  if (!ne) return [];
+  const dm = src.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+  const data = dm ? `${dm[3]}-${dm[2].padStart(2, '0')}-${dm[1].padStart(2, '0')}` : null;
+  const valor = pdfValor(src);
+  // As viaturas estão em Observações; sem esse título, procura no texto todo.
+  const obsIdx = src.search(/observa/i);
+  const section = obsIdx >= 0 ? src.slice(obsIdx) : src;
+  const rows = [];
+  for (const m of section.matchAll(PDF_LINE_RX)) {
+    const plate = m[2].toUpperCase().replace(/\s/g, '');
+    // "26-11-20" (uma data) também tem o formato da matrícula
+    if (!/[A-Z]/.test(plate) || !/\d/.test(plate)) continue;
+    const rest = cleanCell(m[3]);
+    const w = rest.search(SERVICE_WORD_RX);
+    rows.push({
+      wip: m[1] || null,
+      matricula: plate,
+      viatura: w > 0 ? rest.slice(0, w).trim() || null : null,
+      data,
+      servico: (w >= 0 ? rest.slice(w) : rest).trim() || null,
+      valor,
+      ne
+    });
+  }
+  return rows;
+}
+
+function parseNotasEncomendaPdfs(pdfTexts = []) {
+  const seen = new Set();
+  return pdfTexts.flatMap(parseNotaEncomendaPdf).filter(r => {
+    const key = `${normalizePlate(r.matricula)}|${r.ne}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -226,7 +287,9 @@ async function createServiceFromRow(client, row, email, { portalId = null, stamp
 // (na mesma ordem), para reconhecer o PDF de cada N.E. quando o nome não diz.
 // Devolve { rows, matched, created, unmatched: [linhas sem serviço], documents }.
 async function applyNotasEncomenda(client, email, { pdfTexts = [], messageId = null, portalId = null } = {}) {
-  const rows = parseNotasEncomenda(email);
+  // Formato antigo: a tabela no corpo. Formato "Envio de NE´s": só nos PDFs.
+  const bodyRows = parseNotasEncomenda(email);
+  const rows = bodyRows.length ? bodyRows : parseNotasEncomendaPdfs(pdfTexts);
   const pdfsByNe = matchNotaPdfs(rows.map(r => r.ne), email.attachments || [], pdfTexts);
   const stamp = new Date(email.date || Date.now()).toLocaleString('pt-PT');
   let matched = 0, created = 0, documents = 0;
@@ -289,6 +352,8 @@ module.exports = {
   parseNotasEncomenda,
   parseNotasEncomendaHtml,
   parseNotasEncomendaText,
+  parseNotaEncomendaPdf,
+  parseNotasEncomendaPdfs,
   matchNotaPdfs,
   chooseServicesForRow
 };
